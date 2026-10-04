@@ -9,7 +9,32 @@ $targetDirectory = Join-Path $root 'src/target/shared validation'
 $pwsh = (Get-Process -Id $PID).Path
 $previousMutation = $env:EOIE_TEST_MUTATE_CHECKOUT
 $previousDriver = $env:EOIE_DEV_BINARY
-if (-not $DevBinary) { $DevBinary = Join-Path $eoiRoot ('src/target/dev-validation/debug/eoie-dev' + $(if ($IsWindows) { '.exe' } else { '' })) }
+$suffix = if ($IsWindows) { '.exe' } else { '' }
+$driverTarget = Join-Path $eoiRoot 'src/target/workflow-driver'
+$bootstrapped = Join-Path $driverTarget "debug/eoie-dev$suffix"
+if (-not $DevBinary) {
+    $legacy = Join-Path $eoiRoot "src/target/dev-validation/debug/eoie-dev$suffix"
+    if (Test-Path -LiteralPath $bootstrapped) { $DevBinary = $bootstrapped }
+    elseif (Test-Path -LiteralPath $legacy) { $DevBinary = $legacy }
+    else { $DevBinary = $bootstrapped }
+}
+if (-not (Test-Path -LiteralPath $DevBinary)) {
+    if ($DevBinary -ne $bootstrapped) {
+        throw "eoie-dev was not found at '$DevBinary'. Omit -DevBinary to bootstrap '$bootstrapped', or build it with: cargo build --locked --package eoie-dev --target-dir `"$driverTarget`" from src."
+    }
+    if (-not (Get-Command cargo -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+        throw "eoie-dev was not found at '$bootstrapped' and cargo is not on PATH. Install Rust 1.88 and run: cargo build --locked --package eoie-dev --target-dir `"$driverTarget`" from src."
+    }
+    Write-Host "eoie-dev is missing; bootstrapping: cargo build --locked --package eoie-dev --target-dir $driverTarget"
+    Push-Location (Join-Path $eoiRoot 'src')
+    try {
+        & cargo build --locked --package eoie-dev --target-dir $driverTarget
+        if ($LASTEXITCODE -ne 0) { throw "eoie-dev bootstrap failed (exit $LASTEXITCODE). Expected binary: $bootstrapped" }
+    } finally { Pop-Location }
+}
+if (-not (Test-Path -LiteralPath $DevBinary)) {
+    throw "eoie-dev bootstrap finished without producing '$DevBinary'. Command: cargo build --locked --package eoie-dev --target-dir `"$driverTarget`" from src."
+}
 $DevBinary = (Resolve-Path -LiteralPath $DevBinary).Path
 function Write-Fixture([string]$Path, [string]$Text) {
     [void][IO.Directory]::CreateDirectory((Split-Path $Path -Parent))
