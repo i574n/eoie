@@ -1,0 +1,18 @@
+// Foreign operations are confined here; argument policy and ordering live in workflow.spi.
+inl argument (index : i32) : string = $'std::env::args().nth(!index as usize).map(std::rc::Rc::<str>::from).unwrap_or_default()' : string
+inl count () : i32 = $'std::env::args().count() as i32' : i32
+inl separator () : string = $'std::rc::Rc::<str>::from(char::from(0u8).to_string())' : string
+inl absolute (value : string) : string = $'std::path::absolute(&*!value).ok().and_then(|p| p.to_str().map(std::rc::Rc::<str>::from)).unwrap_or_default()' : string
+inl valid_root (value : string) : bool = $'std::path::Path::new(&*!value).join("src/Cargo.toml").is_file()' : bool
+inl running_from (target : string) : bool = $'std::env::current_exe().ok().and_then(|p| p.parent().and_then(std::path::Path::parent).map(std::path::Path::to_owned)).and_then(|p| std::fs::canonicalize(p).ok()).zip(std::fs::canonicalize(&*!target).ok()).is_some_and(|(running,target)| running==target)' : bool
+inl compiler_path (value : string) : string = $'std::fs::canonicalize(&*!value).ok().filter(|p| p.is_file()).and_then(|p| p.to_str().map(std::rc::Rc::<str>::from)).unwrap_or_default()' : string
+inl compiler_environment () : string = $'std::env::var("EOIE_SPIRAL_COMPILE").map(std::rc::Rc::<str>::from).unwrap_or_default()' : string
+inl parse_u64 (value : string) : u64 = $'!value.parse::<u64>().unwrap_or(0)' : u64
+inl print (value : string) : () = $'std::io::Write::write_all(&mut std::io::stdout(),!value.as_bytes()).unwrap()' : ()
+
+inl cargo (root : string) (args : string) (compiler : string) (timeout : u64) : i32 =
+    $'{ let mut command=std::process::Command::new("cargo"); command.current_dir(std::path::Path::new(&*!root).join("src")); command.args(!args.split(char::from(0u8))); if !compiler.len() > 0 { command.env("EOIE_SPIRAL_COMPILE", &*!compiler); } if std::env::var_os("CARGO_BUILD_JOBS").is_none() { command.env("CARGO_BUILD_JOBS", "2"); } if std::env::var_os("RUST_TEST_THREADS").is_none() { command.env("RUST_TEST_THREADS", "1"); } match eoie_process::run_bounded(&mut command,!timeout) { Ok(status) => status.code().unwrap_or(1), Err(error) => { let _=std::io::Write::write_all(&mut std::io::stderr(),error.as_bytes()); 2 } } }' : i32
+
+// Process capture only; JSON traversal and package policy are native Spiral.
+inl capture (root : string) (args : string) (timeout : u64) : bool * string =
+    $'{ let mut command=std::process::Command::new("cargo"); command.current_dir(std::path::Path::new(&*!root).join("src")).args(!args.split(char::from(0u8))); match eoie_process::run_bounded_capture_with_input(&mut command,!timeout,None) { Ok(capture) => match String::from_utf8(capture.stdout) { Ok(text) => (capture.termination == eoie_process::ProcessTermination::Exited(0), std::rc::Rc::<str>::from(text)), Err(error) => (false,std::rc::Rc::<str>::from(error.to_string())) }, Err(error) => (false,std::rc::Rc::<str>::from(error)) } }' : bool * string

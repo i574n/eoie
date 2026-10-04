@@ -1,0 +1,114 @@
+open predicate_rules.model
+
+union outcome =
+    | Rejected : string
+    | Candidate : string
+
+inl opening (token : string) : bool = (=.) token "(" || (=.) token "[" || (=.) token "{"
+inl closing (token : string) : bool = (=.) token ")" || (=.) token "]" || (=.) token "}"
+inl fail (reason : string) : outcome = Rejected reason
+
+let rec function_end (source : string) (cursor : i32) (depth : i32) (started : bool) : i32 =
+    inl _, after, token, ok = predicate_lex.model.token source cursor
+    if (=.) ok false || (=.) token "" then -1i32
+    elif (=.) token "{" then function_end source after ((+.) depth 1i32) true
+    elif (=.) token "}" then
+        if (=.) depth 1i32 then after
+        elif (<=) depth 0i32 then -1i32
+        else function_end source after ((-.) depth 1i32) started
+    elif (=.) token ";" && (=.) started false then -1i32
+    else function_end source after depth started
+
+let rec closure_name (source : string) (cursor : i32) : string =
+    inl _, after, token, ok = predicate_lex.model.token source cursor
+    if (=.) ok false || (=.) token "" then ""
+    elif (=.) token "|" then
+        inl _, _, name, _ = predicate_lex.model.token source after
+        name
+    else closure_name source after
+
+inl supported (function_text : string) (name : string) (kind : string) : bool =
+    inl _, a, _, _ = predicate_lex.model.token function_text 0i32
+    inl _, b, _, _ = predicate_lex.model.token function_text a
+    inl _, c, paren, _ = predicate_lex.model.token function_text b
+    inl _, d, parameter, _ = predicate_lex.model.token function_text c
+    inl byte = closure_name function_text d
+    inl expected = predicate_rules.model.expected kind name parameter byte
+    inl expected_tokens, expected_ok = predicate_lex.model.canonical expected
+    inl observed_tokens, observed_ok = predicate_lex.model.canonical function_text
+    (=.) paren "(" && expected_ok && observed_ok && (=.) expected_tokens observed_tokens && (<) 0i32 (predicate_lex.model.length expected)
+
+let rec rust_loop (source : string) (name : string) (kind : string) (cursor : i32) (depth : i32) (ready : bool) (last : i32) (out : string) (found : i32) : string * i32 * bool =
+    inl first, after, token, ok = predicate_lex.model.token source cursor
+    if (=.) ok false then "", found, false
+    elif (=.) token "" then predicate_lex.model.append out (predicate_lex.model.cut source last (predicate_lex.model.length source)), found, (=.) depth 0i32
+    elif (=.) depth 0i32 && (=.) token "fn" then
+        inl _, _, next, _ = predicate_lex.model.token source after
+        if (=.) next name then
+            inl end_function = function_end source after 0i32 false
+            if (<) end_function 0i32 || (=.) ready false then "", found, false
+            elif supported (predicate_lex.model.cut source first end_function) name kind then
+                rust_loop source name kind end_function 0i32 true end_function (predicate_lex.model.append out (predicate_lex.model.cut source last first)) ((+.) found 1i32)
+            else "", found, false
+        else rust_loop source name kind after depth false last out found
+    else
+        inl next_depth = if opening token then (+.) depth 1i32 elif closing token then (-.) depth 1i32 else depth
+        inl next_ready = (=.) next_depth 0i32 && ((=.) token ";" || (=.) token "}")
+        if (<) next_depth 0i32 then "", found, false
+        else rust_loop source name kind after next_depth next_ready last out found
+
+let rec argument (source : string) (cursor : i32) (depth : i32) : i32 * i32 * i32 * string * bool =
+    inl first = predicate_lex.model.skip source cursor
+    if (<) first 0i32 || (>=) first (predicate_lex.model.length source) || (>) depth 16i32 then cursor, cursor, cursor, "", false
+    elif (=.) (predicate_lex.model.at source first) (char_quote ()) then
+        inl code, after, ok = predicate_lex.model.literal source first
+        after, first, after, code, ok
+    elif predicate_lex.model.starts source first "(" then
+        inl begin = predicate_lex.model.skip source ((+.) first 1i32)
+        inl hash = "typed_predicate.model.lift_sha256"
+        inl receipt = "typed_predicate.model.lift_receipt_text"
+        inl width = if (<) begin 0i32 then 0i32 elif predicate_lex.model.starts source begin hash then predicate_lex.model.length hash elif predicate_lex.model.starts source begin receipt then predicate_lex.model.length receipt else 0i32
+        if (=.) width 0i32 then first, first, first, "", false
+        else
+            inl name_at = predicate_lex.model.skip source ((+.) begin width)
+            inl _, after_name, name_ok = predicate_lex.model.literal source name_at
+            if (=.) name_ok false then first, first, first, "", false
+            else
+                inl after, literal_from, literal_to, code, ok = argument source after_name ((+.) depth 1i32)
+                inl close = predicate_lex.model.skip source after
+                if (<) close 0i32 || (=.) ok false then first, first, first, "", false
+                elif predicate_lex.model.starts source close ")" then (+.) close 1i32, literal_from, literal_to, code, true
+                else first, first, first, "", false
+    else first, first, first, "", false
+
+let rec source_loop (source : string) (name : string) (kind : string) (cursor : i32) (last : i32) (out : string) (found : i32) : outcome =
+    inl _, after, token, ok = predicate_lex.model.token source cursor
+    if (=.) ok false then fail "Unsupported or malformed source syntax; input unchanged"
+    elif (>) found 1i32 then fail "Ambiguous function: multiple definitions; input unchanged"
+    elif (=.) token "" then
+        if (=.) found 1i32 then Candidate (predicate_lex.model.append out (predicate_lex.model.cut source last (predicate_lex.model.length source)))
+        else fail "No supported top-level predicate definition; input unchanged"
+    elif (=.) token "rust_global" then
+        inl next = predicate_lex.model.skip source after
+        if (<) next 0i32 then fail "Malformed comment after RustGlobal; input unchanged"
+        elif predicate_lex.model.starts source next "(x : string)" then source_loop source name kind after last out found
+        else
+            inl next_cursor, literal_from, literal_to, code, ok = argument source next 0i32
+            if (=.) ok false then fail "Unsupported RustGlobal argument; input unchanged"
+            else
+                inl reduced, count, valid = rust_loop code name kind 0i32 0i32 true 0i32 "" 0i32
+                if (=.) valid false then fail "Predicate or syntax differs from the supported token grammar; input unchanged"
+                elif (=.) count 0i32 then source_loop source name kind next_cursor last out found
+                else
+                    inl wrapper = predicate_rules.model.wrapper kind name (predicate_lex.model.encode reduced)
+                    inl updated = predicate_lex.model.append (predicate_lex.model.append out (predicate_lex.model.cut source last literal_from)) wrapper
+                    source_loop source name kind next_cursor literal_to updated ((+.) found count)
+    else source_loop source name kind after last out found
+
+inl rewrite (source : string) (name : string) (kind : string) : outcome =
+    if (=.) (predicate_lex.model.length name) 0i32 then fail "Empty function name"
+    elif (=.) (predicate_lex.model.word_end name 0i32) (predicate_lex.model.length name) && predicate_lex.model.letter (predicate_lex.model.at name 0i32) then
+        match predicate_rules.model.family_of kind with
+        | Unsupported => fail "Unsupported predicate family"
+        | _ => source_loop source name kind 0i32 0i32 "" 0i32
+    else fail "Function name must be an ASCII identifier"

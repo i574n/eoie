@@ -1,0 +1,61 @@
+name: EOIE native contracts
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      CARGO_BUILD_JOBS: '2'
+      RUST_TEST_THREADS: '1'
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: eoie
+    steps:
+      # EOIE and the Spiral compiler are checked out side by side: the scripts find the compiler bundle at
+      # ../spiral/apps/compiler/tmp (Resolve-EoieSpiralBundle in compiler-contracts/workspace.ps1).
+      - uses: actions/checkout@v6
+        with:
+          path: eoie
+      - uses: actions/checkout@v6
+        with:
+          repository: i574n/spiral
+          path: spiral
+      - uses: moonrepo/setup-rust@v1
+        with:
+          channel: '1.88.0'
+      - name: Verify targeted development workflow
+        run: |
+          ./compiler-contracts/test-dev-workflow.ps1
+          ./compiler-contracts/test-selected-build.ps1
+          ./compiler-contracts/test-binary-publication.ps1
+      - name: Build optional native compiler and verify attestation
+        run: |
+          $bundle = (Resolve-Path '../spiral/apps/compiler/tmp').Path
+          & "$bundle/scripts/install-dotnet.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Compiler SDK installation failed.' }
+          & "$bundle/scripts/build.ps1" -Mode single-flight
+          if ($LASTEXITCODE -ne 0) { throw 'Compiler build failed.' }
+          & ./compiler-contracts/test-attestation.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Compiler attestation contracts failed.' }
+          & "$bundle/scripts/test-rust-exports.ps1"
+          if ($LASTEXITCODE -ne 0) { throw 'Compiler export contracts failed.' }
+          . "$bundle/scripts/env.ps1"
+          "EOIE_DOTNET=$(Resolve-SpiralDotnet)" >> $env:GITHUB_ENV
+          "EOIE_SPIRAL_COMPILE=$(Get-SpiralCompilerDll 'single-flight')" >> $env:GITHUB_ENV
+          "EOIE_SPIRAL_BUNDLE=$bundle" >> $env:GITHUB_ENV
+      - name: Build and test from registry dependencies, including compiler contracts
+        run: ./build.ps1 -Test -CompilerContracts
+      - name: Run every native example from a verified source archive
+        run: ./compiler-contracts/test-native-probes.ps1
+      - name: Regenerate and test every declared EOIE output
+        run: ./compiler-contracts/test-regeneration.ps1 -IncludeAuxiliary -CargoCheck -Test -CompilerContracts

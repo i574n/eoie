@@ -1,0 +1,21 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "authority.rs"
+
+[package]
+name = "authority-state-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "authority_state_domain"
+path = "authority.rs"
+
+
+[lints.rust]
+dead_code = "allow"
+
+[lints.clippy]
+needless_return = "allow"

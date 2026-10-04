@@ -1,0 +1,29 @@
+union family = | Sha256 | ReceiptText | Unsupported
+inl equal (a : string) (b : string) : bool = rust_std_string.model.equals a b
+inl append (a : string) (b : string) : string = rust_std_string.model.concat5 a b "" "" ""
+inl family_of (name : string) : family =
+    if equal name "sha256" then Sha256
+    elif equal name "receipt-text" then ReceiptText
+    else Unsupported
+inl body (kind : family) (value : string) (byte : string) : string =
+    match kind with
+    | Sha256 =>
+        inl prefix = rust_std_string.model.concat5 "{" value ".len()==64&&" value ".bytes().all(|"
+        append prefix (rust_std_string.model.concat5 byte "|" byte ".is_ascii_hexdigit())}" "")
+    | ReceiptText =>
+        inl prefix = rust_std_string.model.concat5 "{!" value ".is_empty()&&" value ".bytes().all(|"
+        inl middle = rust_std_string.model.concat5 byte "|" byte ".is_ascii_alphanumeric()||matches!(" byte
+        append prefix (append middle ",b'.'|b'_'|b'-'|b'/'))}")
+    | Unsupported => ""
+let expected (kind : string) (name : string) (value : string) (byte : string) : string =
+    inl expression = body (family_of kind) value byte
+    if equal expression "" then ""
+    else append (rust_std_string.model.concat5 "fn " name "(" value ":&str)->bool") expression
+let wrapper (kind : string) (name : string) (literal : string) : string =
+    inl constructor =
+        match family_of kind with
+        | Sha256 => "lift_sha256"
+        | ReceiptText => "lift_receipt_text"
+        | Unsupported => "unsupported"
+    inl head = rust_std_string.model.concat5 "(typed_predicate.model." constructor " \"" name "\" "
+    append head (append literal ")")

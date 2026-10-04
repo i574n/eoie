@@ -1,0 +1,7 @@
+union outcome =
+    | Rejected : string
+    | Candidate : string
+
+let rewrite (source : string) (name : string) (kind : string) : outcome =
+    inl ok, text = $'predicate_rewrite_domain::eoie_predicate_rewrite(&*!source,&*!name,&*!kind)' : bool * string
+    if ok then Candidate text else Rejected text

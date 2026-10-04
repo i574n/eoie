@@ -1,0 +1,122 @@
+inl length (text : string) : i32 = sm.length text
+inl at (text : string) (index : i32) : char = sm.index text index
+inl cut (text : string) (first : i32) (last : i32) : string = slice_exclusive text first last
+inl append (left : string) (right : string) : string = sm.concat left right
+inl starts (text : string) (index : i32) (prefix : string) : bool = starts_with_at text index prefix
+inl space (byte : char) : bool =
+    if (=.) byte ' ' then true
+    elif (=.) byte '\t' then true
+    elif (=.) byte '\n' then true
+    else (=.) byte '\r'
+inl letter (byte : char) : bool =
+    if !!!!LTE('a',byte) && !!!!LTE(byte,'z') then true
+    elif !!!!LTE('A',byte) && !!!!LTE(byte,'Z') then true
+    else (=.) byte '_'
+inl word (byte : char) : bool = letter byte || (!!!!LTE('0',byte) && !!!!LTE(byte,'9'))
+let rec word_end (text : string) (index : i32) : i32 =
+    if (<) index (length text) && word (at text index) then word_end text ((+.) index 1i32)
+    else index
+let rec quoted_end (text : string) (index : i32) (quote : char) : i32 =
+    if (>=) index (length text) then -1i32
+    elif (=.) (at text index) '\\' then quoted_end text ((+.) index 2i32) quote
+    elif (=.) (at text index) quote then (+.) index 1i32
+    else quoted_end text ((+.) index 1i32) quote
+let rec block_end (text : string) (index : i32) (depth : i32) : i32 =
+    if (>=) index (length text) then -1i32
+    elif starts text index "/*" then
+        if (=.) depth 256i32 then -1i32 else block_end text ((+.) index 2i32) ((+.) depth 1i32)
+    elif starts text index "*/" then
+        if (=.) depth 1i32 then (+.) index 2i32 else block_end text ((+.) index 2i32) ((-.) depth 1i32)
+    else block_end text ((+.) index 1i32) depth
+let rec skip (text : string) (index : i32) : i32 =
+    if (>=) index (length text) then index
+    elif space (at text index) then skip text ((+.) index 1i32)
+    elif starts text index "//" then skip text (find_char text index '\n')
+    elif starts text index "/*" then
+        inl after = block_end text ((+.) index 2i32) 1i32
+        if (<) after 0i32 then after else skip text after
+    else index
+let rec raw_end (text : string) (index : i32) (hashes : string) : i32 =
+    if (>=) index (length text) then -1i32
+    elif (=.) (at text index) '#' then raw_end text ((+.) index 1i32) (append hashes "#")
+    elif (=.) (at text index) '"' then
+        inl suffix = append "\"" hashes
+        inl close = find_text text ((+.) index 1i32) suffix
+        if (=.) close (length text) then -1i32 else (+.) close (length suffix)
+    else -1i32
+
+// Token text is preserved, including strings. Whitespace and comments alone disappear.
+let token (text : string) (cursor : i32) : i32 * i32 * string * bool =
+    inl first = skip text cursor
+    inl size = length text
+    if (<) first 0i32 then first, first, "", false
+    elif (=.) first size then first, first, "", true
+    else
+        inl byte = at text first
+        inl raw_prefix =
+            if starts text first "r\"" || starts text first "r#" then 1i32
+            elif starts text first "br\"" || starts text first "br#" || starts text first "cr\"" || starts text first "cr#" then 2i32
+            else 0i32
+        inl last =
+            if (>) raw_prefix 0i32 then raw_end text ((+.) first raw_prefix) ""
+            elif (=.) byte '"' then quoted_end text ((+.) first 1i32) byte
+            elif (=.) byte '\'' then
+                inl next = (+.) first 1i32
+                if (<) next size && letter (at text next) then
+                    inl end_word = word_end text next
+                    if (<) end_word size && (=.) (at text end_word) '\'' then (+.) end_word 1i32 else end_word
+                else quoted_end text next byte
+            elif word byte then word_end text first
+            elif !!!!GT(byte,'~') then -1i32
+            else (+.) first 1i32
+        if (<) last 0i32 then first, first, "", false
+        else first, last, cut text first last, true
+
+let rec canonical_loop (text : string) (cursor : i32) (out : string) : string * bool =
+    inl _, after, part, ok = token text cursor
+    if (=.) ok false then "", false
+    elif (=.) part "" then out, true
+    else canonical_loop text after (append (append out part) "\n")
+inl canonical (text : string) : string * bool = canonical_loop text 0i32 ""
+
+// Decode only supported Spiral escapes, preserving whole UTF-8 runs between ASCII delimiters.
+let rec literal_loop (text : string) (index : i32) (run : i32) (out : string) : string * i32 * bool =
+    if (>=) index (length text) then "", index, false
+    elif (=.) (at text index) '"' then append out (cut text run index), (+.) index 1i32, true
+    elif (=.) (at text index) '\\' then
+        inl next = (+.) index 1i32
+        if (>=) next (length text) then "", index, false
+        else
+            inl escaped = at text next
+            inl decoded =
+                if (=.) escaped 'n' then "\n"
+                elif (=.) escaped 'r' then "\r"
+                elif (=.) escaped 't' then "\t"
+                elif (=.) escaped '"' then "\""
+                elif (=.) escaped '\\' then "\\"
+                else ""
+            if (=.) decoded "" then "", index, false
+            else
+                inl after = (+.) index 2i32
+                literal_loop text after after (append (append out (cut text run index)) decoded)
+    else literal_loop text ((+.) index 1i32) run out
+inl literal (text : string) (index : i32) : string * i32 * bool =
+    if (<=) 0i32 index && (<) index (length text) && (=.) (at text index) '"' then
+        literal_loop text ((+.) index 1i32) ((+.) index 1i32) ""
+    else "", index, false
+
+let rec encode_loop (text : string) (index : i32) (run : i32) (out : string) : string =
+    if (=.) index (length text) then append (append out (cut text run index)) "\""
+    else
+        inl byte = at text index
+        inl escaped =
+            if (=.) byte '"' then "\\\""
+            elif (=.) byte '\\' then "\\\\"
+            elif (=.) byte '\n' then "\\n"
+            elif (=.) byte '\r' then "\\r"
+            elif (=.) byte '\t' then "\\t"
+            else ""
+        inl next = (+.) index 1i32
+        if (=.) escaped "" then encode_loop text next run out
+        else encode_loop text next next (append (append out (cut text run index)) escaped)
+inl encode (text : string) : string = encode_loop text 0i32 0i32 "\""

@@ -1,0 +1,37 @@
+open typed_predicate.model
+
+let require (value : bool) : () = $'if !value { () } else { std::panic::panic_any("typed predicate differential mismatch") }' : ()
+let ascii_text (byte : u64) (length : u64) : string =
+    $'std::rc::Rc::<str>::from(std::string::String::from_utf8(std::iter::repeat_n(!byte as u8,!length as usize).collect::<Vec<_>>()).unwrap())' : string
+let check (text : string) : () =
+    inl hash_expected = $'!text.len() == 64 && !text.bytes().all(|byte| byte.is_ascii_hexdigit())' : bool
+    inl safe_expected = $'(!text.len() > 0) && !text.bytes().all(|byte| byte.is_ascii_alphanumeric() || [45u8,46,47,95].contains(&byte))' : bool
+    inl hash_actual = evaluate (sha256_text ()) text
+    inl safe_actual = evaluate (safe_receipt_text ()) text
+    require (!!!!EQ(hash_actual,hash_expected))
+    require (!!!!EQ(safe_actual,safe_expected))
+    require ($'eoie_handoff::binary_install_hash_text(&*!text) == !hash_expected ' : bool)
+    require ($'eoie_handoff::binary_install_safe_text(&*!text) == !safe_expected ' : bool)
+
+let differential () : i32 =
+    let rec loop (byte : u64) : u64 =
+        if !!!!LT(byte,128u64) then
+            check (ascii_text byte 1u64)
+            check (ascii_text byte 63u64)
+            check (ascii_text byte 64u64)
+            check (ascii_text byte 65u64)
+            loop (!!!!Add(byte,1u64))
+        else byte
+    inl count = loop 0u64
+    require (!!!!EQ(count,128u64))
+    check ""
+    check "aB09-._/"
+    check "é"
+    check "路/receipt"
+    check "ABCDEFabcdef0123456789ABCDEFabcdef0123456789ABCDEFabcdef0123456789ABCD"
+    0i32
+
+inl main () : i32 =
+    !!!!Export("eoie_test_typed_predicates", ((fun () => differential ()) : () -> i32))
+    !!!!Global("#[cfg(test)] mod typed_predicate_tests { #[test] fn ascii_and_unicode_match_original_rust_predicates() { assert_eq!(super::eoie_test_typed_predicates(),0); } }\n")
+    0i32

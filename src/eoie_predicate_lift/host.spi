@@ -1,0 +1,6 @@
+// Only OS boundary primitives. Parsing, policy, rewriting and tests are Spiral.
+inl argument (index : i32) : string = $'std::env::args().nth(!index as usize).map(std::rc::Rc::<str>::from).unwrap_or_default()' : string
+inl count () : i32 = $'std::env::args().count() as i32' : i32
+inl read (path : string) : string = $'std::rc::Rc::<str>::from(String::from_utf8(eoie_rust_std_fs::read_regular_limited(std::path::Path::new(&*!path),1024*1024).expect("read input")).expect("input must be UTF-8"))' : string
+inl write_new (path : string) (text : string) : i32 = $'std::fs::OpenOptions::new().write(true).create_new(true).open(&*!path).and_then(|mut file| std::io::Write::write_all(&mut file,!text.as_bytes())).map_or(2,|()|0)' : i32
+inl print (text : string) : () = $'std::io::Write::write_all(&mut std::io::stdout(),!text.as_bytes()).expect("write output")' : ()

@@ -1,0 +1,83 @@
+union rec predicate input =
+    | Range :: u64 * u64 -> predicate u64
+    | Minimum :: u64 -> predicate u64
+    | Either :: forall input. predicate input * predicate input -> predicate input
+    | Both :: forall input. predicate input * predicate input -> predicate input
+    | EveryByte :: predicate u64 -> predicate string
+    | Project :: forall input. (exists middle. (input -> middle) * predicate middle) -> predicate input
+
+inl byte_length (text : string) : u64 = !!!!StringLength(`u64,text)
+inl byte_at (text : string) (index : u64) : u64 =
+    $'!text.as_bytes()[!index as usize] as u64' : u64
+
+inl rec evaluate forall input. (rule : predicate input) (value : input) : bool =
+    match rule with
+    | Range (low, high) =>
+        if !!!!LT(value,low) then false else !!!!LTE(value,high)
+    | Minimum low => !!!!LTE(low,value)
+    | Either (left, right) =>
+        if evaluate left value then true else evaluate right value
+    | Both (left, right) =>
+        if evaluate left value then evaluate right value else false
+    | Project payload =>
+        inl exists middle. project, inner = payload
+        evaluate inner (project value)
+    | EveryByte inner =>
+        inl length = byte_length value
+        let rec loop (index : u64) : bool =
+            if !!!!EQ(index,length) then true
+            elif evaluate inner (byte_at value index) then loop (!!!!Add(index,1u64))
+            else false
+        loop 0u64
+
+inl digit () : predicate u64 = Range (48u64,57u64)
+inl hex () : predicate u64 = Either (digit (), Either (Range (65u64,70u64), Range (97u64,102u64)))
+inl alphanumeric () : predicate u64 = Either (digit (), Either (Range (65u64,90u64), Range (97u64,122u64)))
+inl length_between (low : u64) (high : u64) : predicate string = Project (exists (byte_length, Range (low,high)))
+inl sha256_text () : predicate string = Both (length_between 64u64 64u64, EveryByte (hex ()))
+inl safe_receipt_text () : predicate string =
+    Both (Project (exists (byte_length,Minimum 1u64)),
+        EveryByte (Either (alphanumeric (), Either (Range (45u64,47u64), Range (95u64,95u64)))))
+
+union representation input =
+    | Text :: representation string
+    | Byte :: representation u64
+nominal named input = { name : string; representation : representation input; rule : predicate input }
+union emitted input = | Emitted :: forall input. emitted input
+nominal inspected input = string
+
+union rec registry (f : * -> *) shape =
+    | One :: forall (f : * -> *) input. f input -> registry f input
+    | Pair :: forall (f : * -> *) left right. registry f left * registry f right -> registry f (left * right)
+
+inl rec map forall (f : * -> *) (g : * -> *) shape.
+    (transform : forall input. f input -> g input) (items : registry f shape) : registry g shape =
+    match items with
+    | One item => One (transform item)
+    | Pair (left,right) => Pair (map `$transform left,map `$transform right)
+
+inl emit_one forall input. (named item : named input) : emitted input =
+    inl _ =
+        match item.representation with
+        | Text =>
+            let check (value : string) : bool = evaluate item.rule value
+            !!!!Export(item.name, ((fun value => check value) : string -> bool))
+        | Byte =>
+            let check (value : u64) : bool = evaluate item.rule value
+            !!!!Export(item.name, ((fun value => check value) : u64 -> bool))
+    Emitted
+
+inl inspect_one forall input. (named item : named input) : inspected input = inspected item.name
+
+inl emit forall shape. (items : registry named shape) : () =
+    inl _ = map `$emit_one items
+    ()
+
+// A codemod can wrap a RustGlobal argument without changing its caller's shape.
+inl lift_sha256 (name : string) (remaining : string) : string =
+    emit (One (named {name=name;representation=Text;rule=sha256_text ()}))
+    remaining
+
+inl lift_receipt_text (name : string) (remaining : string) : string =
+    emit (One (named {name=name;representation=Text;rule=safe_receipt_text ()}))
+    remaining

@@ -1,0 +1,27 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "dev.rs"
+
+[[package.metadata.spiral.auxiliary]]
+entry = "selected_tests.spi"
+output = "selected_tests.rs"
+
+[[test]]
+name = "selected_workflow"
+path = "selected_tests.rs"
+
+[package]
+name = "eoie-dev"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "eoie-dev"
+path = "dev.rs"
+
+[dependencies]
+eoie-process = { path = "../eoie_process" }
+predicate-lex-domain = { path = "../predicate_lex_domain" }
+developer-metadata-domain = { path = "../developer_metadata_domain" }

@@ -1,0 +1,6 @@
+packages:
+    eoie_dev_model-
+    rust_std_string
+modules:
+    selected_tests
+    main

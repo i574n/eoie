@@ -1,0 +1,16 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "runtime.rs"
+
+[package]
+name = "predicate-rewrite-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "runtime.rs"
+
+[dependencies]
+predicate-lex-domain = { path = "../predicate_lex_domain" }

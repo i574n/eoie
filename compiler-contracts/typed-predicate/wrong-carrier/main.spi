@@ -1,0 +1,6 @@
+open typed_predicate.model
+// Must reject: inspection erased the rules; these names are not an emission registry.
+inl main () : i32 =
+    inl rules = One (named {name="hash";representation=Text;rule=sha256_text ()})
+    emit (map `$inspect_one rules)
+    0i32

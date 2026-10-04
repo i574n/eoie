@@ -1,0 +1,20 @@
+[package.metadata.eoie]
+test-requires-cli = true
+
+[package.metadata.spiral]
+entry = "contracts.spi"
+output = "contracts.rs"
+
+[package]
+name = "eoie-contracts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_contracts"
+path = "contracts.rs"
+
+[dev-dependencies]
+eoie-release-hygiene = { path = "../eoie_release_hygiene" }

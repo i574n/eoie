@@ -1,0 +1,24 @@
+open rewriter
+
+inl main () : i32 =
+    if (=.) (host.count ()) 5i32 then
+        inl kind = host.argument 1i32
+        inl name = host.argument 2i32
+        inl input = host.argument 3i32
+        inl output = host.argument 4i32
+        if rust_std_string.model.ends_with input ".spi" && rust_std_string.model.ends_with output ".spi" then
+            match rewriter.rewrite (host.read input) name kind with
+            | Rejected reason =>
+                host.print (predicate_rules.model.append reason "\n")
+                2i32
+            | Candidate source =>
+                inl code = host.write_new output source
+                if (=.) code 0i32 then host.print "Spiral candidate written; input unchanged. Regenerate and test before publication.\n"
+                else host.print "Cannot create candidate; output must not exist.\n"
+                code
+        else
+            host.print "Input and output must be .spi files.\n"
+            2i32
+    else
+        host.print "eoie-lift-predicate <sha256|receipt-text> <function> <input.spi> <new-output.spi>\nAdd typed_predicate to the owning package before regenerating.\n"
+        if (=.) (host.count ()) 2i32 && predicate_rules.model.equal (host.argument 1i32) "--help" then 0i32 else 2i32

@@ -1,0 +1,8 @@
+packages:
+    state_receipt_codec_model-
+    predicate_lex
+    rust_std_string
+modules:
+    host
+    metadata
+    workflow

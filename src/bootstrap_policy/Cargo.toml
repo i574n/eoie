@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "bootstrap_policy.rs"
+
+[package]
+name = "eoie-bootstrap-policy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_bootstrap_policy"
+path = "bootstrap_policy.rs"

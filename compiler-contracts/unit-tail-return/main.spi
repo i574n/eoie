@@ -1,0 +1,8 @@
+// Known compiler regression: the Rust tail-call loop lacks a return when n reaches 2.
+// Execute only under a process timeout until COMPILER-UNIT-TAIL-RETURN is fixed.
+let rec loop (n : u64) : () =
+    if !!!!LT(n,2u64) then loop (!!!!Add(n,1u64))
+    else ()
+inl main () : i32 =
+    loop 0u64
+    0i32

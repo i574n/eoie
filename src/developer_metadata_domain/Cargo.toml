@@ -1,0 +1,16 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "metadata.rs"
+
+[package]
+name = "developer-metadata-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "metadata.rs"
+
+[dependencies]
+predicate-lex-domain = { path = "../predicate_lex_domain" }

@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "scan.spi"
+output = "scan.rs"
+
+[package]
+name = "eoie-patch-scan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_patch_scan"
+path = "scan.rs"
+
+[dependencies]
+canonical-plan-ir-domain = { path = "../canonical_plan_ir_domain" }

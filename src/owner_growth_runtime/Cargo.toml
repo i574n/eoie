@@ -1,0 +1,20 @@
+[package.metadata.spiral]
+entry = "growth.spi"
+output = "growth.rs"
+
+[package]
+name = "owner-growth-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "owner_growth_runtime"
+path = "growth.rs"
+
+[dependencies]
+eoie-rust-std-fs = { path = "../rust_std_fs" }
+eoie-source-map = { path = "../eoie_source_map" }
+eoie-bundle-manifest = { path = "../eoie_bundle_manifest" }
+eoie-proxy-search = { path = "../eoie_proxy_search" }

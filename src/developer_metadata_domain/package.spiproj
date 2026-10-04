@@ -1,0 +1,6 @@
+packages:
+    state_receipt_codec_model-
+    predicate_lex
+modules:
+    model
+    main

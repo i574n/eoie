@@ -1,0 +1,18 @@
+inl execution (~action : i32) (~witness : i32) : i32 =
+    $'toolchain_command_domain::eoie_toolchain_execution_plan(!action, !witness)'
+
+inl environment_entry (~profile : i32) (~index : i32) : i32 =
+    $'toolchain_command_domain::eoie_toolchain_environment_entry(!profile, !index)'
+
+inl environment_count (~profile : i32) (~witness : i32) : i32 =
+    $'toolchain_command_domain::eoie_toolchain_environment_entry_count(!profile, !witness)'
+
+inl main () : i32 =
+    inl rejected_action = execution -1i32 0i32
+    inl rejected_witness = execution 0i32 1i32
+    inl rejected_negative_index = environment_entry 0i32 -1i32
+    inl rejected_past_end = environment_entry 0i32 5i32
+    inl rejected_clean_entry = environment_entry 7i32 0i32
+    inl cargo_test_count = environment_count 3i32 0i32
+    inl cargo_test_dotnet = environment_entry 3i32 7i32
+    if !!!!LT(rejected_action,0i32) && !!!!LT(rejected_witness,0i32) && !!!!LT(rejected_negative_index,0i32) && !!!!LT(rejected_past_end,0i32) && !!!!LT(rejected_clean_entry,0i32) && !!!!EQ(cargo_test_count,8i32) && !!!!EQ(cargo_test_dotnet,103i32) then 0i32 else 61i32

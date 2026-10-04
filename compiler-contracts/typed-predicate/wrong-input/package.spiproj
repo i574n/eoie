@@ -1,0 +1,5 @@
+packageDir: ../../../src
+packages:
+    typed_predicate
+modules:
+    main

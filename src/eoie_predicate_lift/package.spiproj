@@ -1,0 +1,11 @@
+packages:
+    state_receipt_codec_model-
+    rust_std_string
+    predicate_lex
+    predicate_rules
+modules:
+    host
+    rewriter
+    tests
+    self_tests
+    main

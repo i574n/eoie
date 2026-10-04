@@ -1,0 +1,29 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+
+union cold_format_lane =
+    | PreserveCompilerLayout
+    | DensityFormatLane
+
+inl cold_format_lane_code = function
+    | PreserveCompilerLayout => 0i32
+    | DensityFormatLane => 1i32
+
+let cold_format_lane_binding (owner_code : i32) (reserved : i32) : i32 =
+    if !!!!EQ(reserved,0i32) then
+        if !!!!LT(owner_code,0i32) then -1i32
+        elif !!!!LT(16i32,owner_code) then -1i32
+        elif !!!!EQ(owner_code,10i32) then cold_format_lane_code PreserveCompilerLayout
+        elif !!!!EQ(owner_code,14i32) then cold_format_lane_code PreserveCompilerLayout
+        elif !!!!LT(6i32,owner_code) then cold_format_lane_code DensityFormatLane
+        else cold_format_lane_code PreserveCompilerLayout
+    else -1i32
+
+inl emit_runtime () : () = rust_global "use eoie_source_map::source_rebuild_pairs;\nuse eoie_rust_std_fs::{atomic_write, rooted_path};\nuse process_batch_plan_domain::encode_matrix_arguments;\nuse std::fs;\nuse std::path::Path;\n\nfn cold_relative(root: &Path, path: &Path) -> Result<String,String> {\n    let relative = path.strip_prefix(root).map_err(|_| format!(\"cold rebuild path escapes root: {}\", path.display()))?;\n    Ok(relative.to_str().ok_or(\"cold rebuild path is not UTF-8\")?.replace('\\\\', \"/\"))\n}\n\nfn cold_tsv_cell(value: &str) -> Result<(),String> {\n    if value.is_empty() || value.contains(['\\t','\\r','\\n','\\0']) {\n        Err(\"cold rebuild path cannot be empty or contain TSV control characters\".to_owned())\n    } else { Ok(()) }\n}\n\nfn cold_matrix_write(root: &Path, relative: &str, eoie: &str, compiler: &str, dotnet: &str, rustfmt: &str, timeout_ms: u64) -> Result<(), String> {\n    cold_tsv_cell(eoie)?;\n    cold_tsv_cell(relative)?;\n    for value in [compiler, dotnet, rustfmt] {\n        if value.is_empty() { return Err(\"cold rebuild tool cannot be empty\".to_owned()); }\n    }\n    let root = cold_native_root(root)?;\n    let target = rooted_path(&root, relative)?;\n    let matrix_dir = target.parent().unwrap_or(&root);\n    let receipt_dir = matrix_dir.join(format!(\"{}.receipts\", target.file_stem().unwrap().to_string_lossy()));\n    let pairs = source_rebuild_pairs(&root)?;\n    let snapshot = cold_snapshot_create(&root, &pairs)?;\n    let mut out = String::from(\"id\\tprogram\\targs\\tcwd\\tenv\\trequired_status\\ton_error\\tdepends_on\\treceipt\\n\");\n    let mut format_count = 0usize;\n    for (index, (input, output)) in pairs.iter().enumerate() {\n        let input_rel = cold_relative(&root, input)?;\n        let owner_code = if input_rel == \"src/backup_domain/main.spi\" { 1 } else if input_rel == \"src/eoie_agile_mutation/agile_mutation.spi\" { 2 } else if input_rel == \"src/eoie_agile_policy/policy.spi\" { 3 } else if input_rel == \"src/eoie_agile_state/state.spi\" { 4 } else if input_rel == \"src/eoie_process/process.spi\" { 5 } else if input_rel == \"src/eoie_agile_lease/lease.spi\" { 6 } else if input_rel == \"src/patch_compat_driver/main.spi\" { 7 } else if input_rel == \"src/eoie_proxy_search/search.spi\" { 8 } else if input_rel == \"src/bundle_retention_domain/main.spi\" { 9 } else if input_rel == \"src/eoie_release_hygiene/main.spi\" { 10 } else if input_rel == \"src/cold_proof_domain/main.spi\" { 11 } else if input_rel == \"src/eoie_coverage_prune/coverage.spi\" { 12 } else if input_rel == \"src/eoie_bundle_retention/main.spi\" { 13 } else if input_rel == \"src/eoie_bundle_zip/bundle.spi\" { 14 } else if input_rel == \"src/archive_deflate_domain/main.spi\" { 15 } else if input_rel == \"src/eoie_cold_rebuild_matrix/main.spi\" { 16 } else { 0 };\n        let format_lane = eoie_cold_format_lane(owner_code,0);\n        if format_lane < 0 { return Err(format!(\"typed cold format lane rejected owner: {input_rel}\")); }\n        let compile_id = format!(\"compile-{index:03}\");\n        let arguments = vec![\"proxy\".to_owned(), \"cold-rebuild-owner\".to_owned(), root.to_string_lossy().into_owned(), snapshot.clone(),\n            input_rel.clone(), cold_relative(&root, output)?, compiler.to_owned(), dotnet.to_owned(),\n            if format_lane == 1 { rustfmt.to_owned() } else { String::new() }, timeout_ms.to_string(),\n            std::env::var(\"EOIE_SPIRAL_BUNDLE\").unwrap_or_default()];\n        let receipt = cold_relative(&root, &receipt_dir.join(format!(\"{compile_id}.txt\")))?;\n        out.push_str(&format!(\"{compile_id}\\t{eoie}\\t{}\\t.\\t\\tpass\\tstop\\t\\t{receipt}\\n\", encode_matrix_arguments(&arguments)?));\n        if format_lane == 1 { format_count += 1; }\n    }\n    fs::create_dir_all(matrix_dir).map_err(|e| format!(\"mkdir {}: {e}\", matrix_dir.display()))?;\n    atomic_write(&target, out.as_bytes())?;\n    println!(\"eoie proxy cold-rebuild-matrix ok pairs={} rows={} single_flight_chains={} density_formats={} compiler_timeout_ms={} path={}\",\n        pairs.len(), pairs.len(), pairs.len(), format_count, timeout_ms, target.display());\n    Ok(())\n}\n\npub fn cold_rebuild_matrix_run(args: &[String]) -> Result<(), String> {\n    if !(7..=8).contains(&args.len()) { return Err(\"cold-rebuild-matrix expects root matrix-relative eoie compiler dotnet rustfmt [compiler-timeout-ms]\".to_owned()); }\n    let timeout_ms = args.get(7).map(|value| value.parse::<u64>().map_err(|_| \"compiler-timeout-ms must be an integer\".to_owned())).transpose()?.unwrap_or(180_000);\n    if !(1..=600_000).contains(&timeout_ms) { return Err(\"compiler-timeout-ms must be between 1 and 600000\".to_owned()); }\n    cold_matrix_write(Path::new(&args[1]), &args[2], &args[3], &args[4], &args[5], &args[6], timeout_ms)\n}\n"
+
+inl main () : i32 =
+    rust_global "#![allow(dead_code)]"
+    inl _ = cold_format_lane_binding 0i32 0i32
+    !!!!Export("eoie_cold_format_lane", ((fun (first, second) => cold_format_lane_binding first second) : i32 * i32 -> i32))
+    cold_owner_terminal.emit_runtime ()
+    emit_runtime ()
+    0i32

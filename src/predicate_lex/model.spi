@@ -1,0 +1,23 @@
+inl length (text : string) : i32 = sm.length text
+inl at (text : string) (index : i32) : char = sm.index text index
+inl cut (text : string) (first : i32) (last : i32) : string = slice_exclusive text first last
+inl append (left : string) (right : string) : string = sm.concat left right
+inl starts (text : string) (index : i32) (prefix : string) : bool = starts_with_at text index prefix
+inl space (byte : char) : bool =
+    if (=.) byte ' ' then true
+    elif (=.) byte '\t' then true
+    elif (=.) byte '\n' then true
+    else (=.) byte '\r'
+inl letter (byte : char) : bool =
+    if !!!!LTE('a',byte) && !!!!LTE(byte,'z') then true
+    elif !!!!LTE('A',byte) && !!!!LTE(byte,'Z') then true
+    else (=.) byte '_'
+inl word (byte : char) : bool = letter byte || (!!!!LTE('0',byte) && !!!!LTE(byte,'9'))
+
+// Calls to generated Spiral libraries; no lexer or rewrite logic lives in these bindings.
+inl token (text : string) (cursor : i32) : i32 * i32 * string * bool = $'predicate_lex_domain::eoie_predicate_token(&*!text,!cursor)' : i32 * i32 * string * bool
+inl literal (text : string) (cursor : i32) : string * i32 * bool = $'predicate_lex_domain::eoie_predicate_literal(&*!text,!cursor)' : string * i32 * bool
+inl encode (text : string) : string = $'predicate_lex_domain::eoie_predicate_encode(&*!text)' : string
+inl skip (text : string) (cursor : i32) : i32 = $'predicate_lex_domain::eoie_predicate_skip(&*!text,!cursor)' : i32
+inl word_end (text : string) (cursor : i32) : i32 = $'predicate_lex_domain::eoie_predicate_word_end(&*!text,!cursor)' : i32
+inl canonical (text : string) : string * bool = $'predicate_lex_domain::eoie_predicate_canonical(&*!text)' : string * bool

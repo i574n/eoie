@@ -1,0 +1,63 @@
+inl append (left : string) (right : string) : string = rust_std_string.model.concat5 left right "" "" ""
+inl arg (left : string) (right : string) : string = rust_std_string.model.concat5 left (host.separator ()) right "" ""
+let write (root : string) (relative : string) (text : string) : () =
+    $'{ let path=std::path::Path::new(&*!root).join(&*!relative); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path,!text.as_bytes()).unwrap(); }' : ()
+let require (condition : bool) (detail : string) : () =
+    $'if !condition { () } else { std::panic::panic_any(!detail.to_string()) }' : ()
+inl contains (text : string) (part : string) : bool = rust_std_string.model.contains text part
+inl same (left : string) (right : string) : bool = rust_std_string.model.equals left right
+let capture (root : string) (args : string) : string =
+    $'{ let mut command=std::process::Command::new(DEV_BIN); command.current_dir(&*!root).args(!args.split(char::from(0u8))); let capture=eoie_process::run_bounded_capture_with_input(&mut command,120000,None).unwrap(); let status=if capture.status.success() { "success\n" } else { "failure\n" }; std::rc::Rc::<str>::from([status,&String::from_utf8_lossy(&capture.stdout),&String::from_utf8_lossy(&capture.stderr)].concat()) }' : string
+
+let client_manifest (requires : string) : string =
+    rust_std_string.model.concat5 "[package]\nname='eoie-coverage-prune'\nversion='0.0.0'\nedition='2024'\n[lib]\npath='lib.rs'\n[package.metadata.eoie]\ntest-requires-cli=" requires "\n" "" ""
+
+let selected_args (name : string) : string =
+    arg (arg (arg (arg (arg (arg "--test" "--skip-release") "--offline") "--package") name) "--target-dir") "target with spaces ü"
+
+let selected (root : string) (name : string) (success : bool) (message : string) : () =
+    inl output = capture root (selected_args name)
+    inl expected = if success then "success\n" else "failure\n"
+    require (rust_std_string.model.starts_with output expected) output
+    require (contains output message) output
+
+let scenarios (root : string) : i32 =
+    write root "src/Cargo.toml" "[workspace]\nmembers=['cli','client','isolated']\nresolver='3'\n"
+    write root "src/cli/Cargo.toml" "[package]\nname='eoie-cli'\nversion='0.0.0'\nedition='2024'\n[[bin]]\nname='eoie'\npath='main.rs'\n"
+    write root "src/cli/main.rs" "fn main() { println!(\"first\"); }\n"
+    write root "src/client/Cargo.toml" (client_manifest "true")
+    write root "src/client/lib.rs" "#[test] fn fresh_cli_is_available() { let current=std::env::current_exe().unwrap(); let binary=current.parent().unwrap().parent().unwrap().join(format!(\"eoie{}\",std::env::consts::EXE_SUFFIX)); let output=std::process::Command::new(binary).output().expect(\"selected test requires the CLI\"); assert!(output.status.success()); assert_eq!(String::from_utf8(output.stdout).unwrap().trim(),include_str!(\"expected.txt\").trim()); }\n"
+    write root "src/client/expected.txt" "first"
+    write root "src/isolated/Cargo.toml" "[package]\nname='isolated'\nversion='0.0.0'\nedition='2024'\n[lib]\npath='lib.rs'\n"
+    write root "src/isolated/lib.rs" "#[test] fn independent() { assert_eq!(2+2,4); }\n"
+    inl lock = host.cargo root (arg "generate-lockfile" "--offline") "" 60000u64
+    require (!!!!EQ(lock,0i32)) "fixture lock generation failed"
+    selected root "eoie-coverage-prune" true "test result: ok"
+    write root "src/cli/main.rs" "fn main() { println!(\"second\"); }\n"
+    write root "src/client/expected.txt" "second"
+    selected root "eoie-coverage-prune" true "test result: ok"
+    write root "src/cli/main.rs" "compile_error!(\"unselected CLI must not compile\"); fn main() {}\n"
+    selected root "isolated" true "test result: ok"
+    selected root "missing-package" false "Unknown selected Cargo package"
+    write root "src/client/Cargo.toml" (client_manifest "'yes'")
+    selected root "eoie-coverage-prune" false "test-requires-cli must be a boolean"
+    inl invalid = capture root "--skip-release"
+    require (contains invalid "require --test") invalid
+    inl invalid = capture root (arg "--timeout-ms" "0")
+    require (contains invalid "--timeout-ms must be between") invalid
+    inl invalid = capture root "--package"
+    require (contains invalid "missing value") invalid
+    inl running_target = $'std::rc::Rc::<str>::from(std::path::Path::new(DEV_BIN).parent().unwrap().parent().unwrap().to_str().unwrap())' : string
+    inl conflict = capture root (arg (arg "--target-dir" running_target) "--test")
+    require (contains conflict "bootstrap eoie-dev with a separate --target-dir") conflict
+    inl planned = capture root (arg (selected_args "isolated") "--dry-run")
+    require (contains planned "target with spaces ü") planned
+    require (contains planned "cargo \"test\"") planned
+    write root "src/isolated/lib.rs" "#[test] fn deliberate_failure() { panic!(\"deliberate native workflow test failure\"); }\n"
+    selected root "isolated" false "deliberate native workflow test failure"
+    0i32
+
+inl main () : i32 =
+    !!!!Global("const DEV_BIN: &str = env!(\"CARGO_BIN_EXE_eoie-dev\");\n#[cfg(test)] mod native_selected_tests {\nstruct Fixture(std::path::PathBuf);\nimpl Fixture { fn new() -> Self { let stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(); let root=std::env::temp_dir().join(format!(\"eoie native workflow ü {} {stamp}\",std::process::id())); std::fs::create_dir(&root).unwrap(); Self(root) } }\nimpl Drop for Fixture { fn drop(&mut self) { let _=std::fs::remove_dir_all(&self.0); } }\n#[test] fn selected_packages_preserve_native_build_contracts() { let fixture=Fixture::new(); assert_eq!(super::eoie_dev_selected_scenarios(fixture.0.to_str().unwrap()),0); }\n}\n")
+    !!!!Export("eoie_dev_selected_scenarios", ((fun root => scenarios root) : string -> i32))
+    0i32

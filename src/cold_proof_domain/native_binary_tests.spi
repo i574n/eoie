@@ -1,0 +1,83 @@
+inl append (a : string) (b : string) : string = rust_std_string.model.concat5 a b "" "" ""
+inl path (root : string) (relative : string) : string = rust_std_string.model.concat5 root "/" relative "" ""
+inl write (path : string) (text : string) : () = $'std::fs::write(&*!path,&*!text).unwrap()' : ()
+inl read (path : string) : string = $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap())' : string
+inl remove (path : string) : () = $'std::fs::remove_file(&*!path).unwrap()' : ()
+inl hash (path : string) : string = $'std::rc::Rc::<str>::from(eoie_proxy_search::inspection_file_sha256(std::path::Path::new(&*!path)).unwrap())' : string
+inl selected (root : string) : string = $'std::rc::Rc::<str>::from(cold_public_binary(std::path::Path::new(&*!root)).unwrap_or(""))' : string
+inl proof_error (root : string) : string = $'std::rc::Rc::<str>::from(verify_cold_proof(std::path::Path::new(&*!root)).unwrap_err())' : string
+inl count_at (root : string) (index : u64) : u64 = $'eoie_source_topology::source_topology_counts(std::path::Path::new(&*!root)).unwrap()[!index as usize] as u64' : u64
+inl decimal (value : u64) : string = $'std::rc::Rc::<str>::from(!value.to_string())' : string
+inl require (value : bool) : () = $'if !value { () } else { std::panic::panic_any("Spiral test assertion failed") }' : ()
+inl same (left : string) (right : string) : () = require (rust_std_string.model.equals left right)
+inl rejects (root : string) (message : string) : () = require (rust_std_string.model.contains (proof_error root) message)
+
+inl gate_text (name : string) (relative : string) (digest : string) : string =
+    append (rust_std_string.model.concat5 "inl " name "_gate () = (\"" relative "\", \"") (append digest "\")\n")
+
+inl fixture_gate (root : string) (name : string) (relative : string) : string =
+    inl target = path root relative
+    write target "deliberately incomplete later census fixture"
+    gate_text name relative (hash target)
+
+inl proof (root : string) (binary : string) (digest : string) : () =
+    inl header = "inl current_cold_schema () : cold_receipt_schema = ColdReceiptV4\ninl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed\ninl current_cold_replay_flags () : u32 = 15u32\n"
+    inl census = fixture_gate root "census" "state/authority_census.spi"
+    inl migration = fixture_gate root "migration" "state/migration.spi"
+    inl workspace = fixture_gate root "workspace" "src/Cargo.lock"
+    inl state = fixture_gate root "state" "state/core.spi"
+    write (path root "state/cold_proof.spi") (append (rust_std_string.model.concat5 header census migration workspace state) (gate_text "binary" binary digest))
+
+inl render_counts (root : string) (wrapped : bool) : string =
+    let rec loop (index : u64) : string =
+        if !!!!EQ(index,10u64) then ""
+        else
+            inl value = if wrapped then !!!!Add((count_at root index),4294967296u64) else 2147483647u64
+            inl separator = if !!!!EQ(index,9u64) then "" else ", "
+            rust_std_string.model.concat5 (decimal value) "u32" separator (loop (!!!!Add(index,1u64))) ""
+    loop 0u64
+
+let selection (root : string) : i32 =
+    same (selected root) ""
+    write (path root "eoie.exe") "windows binary"
+    same (selected root) "eoie.exe"
+    write (path root "eoie") "unix binary"
+    same (selected root) ""
+    remove (path root "eoie.exe")
+    same (selected root) "eoie"
+    0i32
+
+let binary_gate (root : string) : i32 =
+    inl binary = path root "eoie.exe"
+    write binary "native binary payload"
+    inl digest = hash binary
+    proof root "eoie" digest
+    rejects root "expected=eoie.exe observed=eoie"
+    proof root "eoie.exe" "0000000000000000000000000000000000000000000000000000000000000000"
+    rejects root "gate rejected name=binary"
+    proof root "eoie.exe" digest
+    rejects root "authority census payload is missing"
+    0i32
+
+let census_bounds (root : string) : i32 =
+    inl binary = path root "eoie.exe"
+    write binary "native binary payload"
+    proof root "eoie.exe" (hash binary)
+    inl census = path root "state/authority_census.spi"
+    inl previous = hash census
+    inl wrapped_counts = render_counts root true
+    write census (rust_std_string.model.concat5 "inl current () = AuthorityCensus (" wrapped_counts ")\n" "" "")
+    inl proof_path = path root "state/cold_proof.spi"
+    inl revised = rust_std_string.model.replace (read proof_path) (gate_text "census" "state/authority_census.spi" previous) (gate_text "census" "state/authority_census.spi" (hash census))
+    write proof_path revised
+    rejects root "census value exceeds signed comparison range"
+    inl maximum_counts = render_counts root false
+    inl largest = rust_std_string.model.concat5 "AuthorityCensus (" maximum_counts ")" "" ""
+    require ($'cold_census_values(&*!largest).unwrap() == [i32::MAX as usize;10]' : bool)
+    0i32
+
+inl emit_tests () : () =
+    inl _ = !!!!Export("eoie_test_cold_selection", ((fun root => selection root) : string -> i32))
+    inl _ = !!!!Export("eoie_test_cold_binary_gate", ((fun root => binary_gate root) : string -> i32))
+    inl _ = !!!!Export("eoie_test_cold_census_bounds", ((fun root => census_bounds root) : string -> i32))
+    !!!!Global("#[cfg(test)] mod native_binary_tests {\nstruct Fixture(std::path::PathBuf);\nimpl Fixture { fn new() -> Self {\nlet stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();\nlet root=std::env::temp_dir().join(format!(\"eoie cold binary ü {} {stamp}\",std::process::id()));\nstd::fs::create_dir_all(root.join(\"state\")).unwrap();\nstd::fs::create_dir_all(root.join(\"src\")).unwrap(); Self(root) } }\nimpl Drop for Fixture { fn drop(&mut self) { let _=std::fs::remove_dir_all(&self.0); } }\n#[test] fn cold_binary_selection_accepts_either_name_and_rejects_ambiguity() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_selection(f.0.to_str().unwrap()),0); }\n#[test] fn windows_cold_proof_binds_the_selected_name_and_preserves_hash_checks() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_binary_gate(f.0.to_str().unwrap()),0); }\n#[test] fn cold_census_rejects_counts_that_wrap_the_signed_binding() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_census_bounds(f.0.to_str().unwrap()),0); }\n}\n")

@@ -1,0 +1,11 @@
+packages:
+    typed_predicate_contract
+    typed_predicate
+    binary_install_contract
+    release_closeout_contract
+modules:
+    predicate_tests
+    render_terminal
+    binary_install_terminal
+    release_closeout_terminal
+    handoff

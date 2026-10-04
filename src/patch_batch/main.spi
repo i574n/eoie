@@ -1,0 +1,22 @@
+inl fixture_path (root : string) (name : string) : string =
+    $'std::path::Path::new(&*!root).join(&*!name).display().to_string().into()' : string
+
+inl fixture_paths (root : string) : model.two_file_paths =
+    { target_a = fixture_path root "target-a.txt"; stage_a = fixture_path root "stage-a.txt"; backup_a = fixture_path root "backup-a.txt"; target_b = fixture_path root "target-b.txt"; stage_b = fixture_path root "stage-b.txt"; backup_b = fixture_path root "backup-b.txt" }
+inl fixture_contents () : model.two_file_contents = { original_a = "original-a"; original_b = "original-b"; changed_a = "changed-a"; changed_b = "changed-b" }
+
+inl main () : i32 =
+    inl _ = model.static_probe_result ()
+    inl root = $'std::env::temp_dir().join("eoie patch batch ü ".to_owned() + &std::process::id().to_string() + "-" + &std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos().to_string()).display().to_string().into()' : string
+    inl created = $'std::fs::create_dir(&*!root).is_ok()' : bool
+    if created then
+        inl paths = fixture_paths root
+        inl contents = fixture_contents ()
+        inl passed = model.run_fault patch_model.model.FailBetweenPromotions contents paths
+        inl unsupported = if model.run_fault patch_model.model.NoFault contents paths then false else true
+        inl missing_rename = if rust_std_fs.model.rename (fixture_path root "missing.txt") (fixture_path root "missing-promoted.txt") then false else true
+        inl cleaned = model.cleanup paths
+        inl cleaned_again = model.cleanup paths
+        inl root_cleaned = $'std::fs::remove_dir(&*!root).is_ok()' : bool
+        if passed && unsupported && missing_rename && cleaned && cleaned_again && root_cleaned then 0i32 else 1i32
+    else 10i32

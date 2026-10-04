@@ -1,0 +1,11 @@
+let entry_allowed (depth : i32) (entries : i32) : i32 =
+    if !!!!LT(depth,0i32) then 0i32
+    elif !!!!LT(128i32,depth) then 0i32
+    elif !!!!LT(entries,0i32) then 0i32
+    elif !!!!LT(entries,100000i32) then 1i32
+    else 0i32
+
+let remaining_entries (entries : i32) : i32 =
+    if !!!!LT(entries,0i32) then -1i32
+    elif !!!!LT(100000i32,entries) then -1i32
+    else !!!!Sub(100000i32,entries)

@@ -1,0 +1,16 @@
+let argument (left : string) (right : string) : string = rust_std_string.model.concat5 left (host.separator ()) right "" ""
+inl inspect (text : string) (names : string) (separator : string) : i32 =
+    $'developer_metadata_domain::eoie_developer_requirements(&*!text,&*!names,&*!separator)' : i32
+let requirements (root : string) (names : string) (offline : bool) (timeout : u64) : i32 =
+    inl args = argument (argument (argument (argument "metadata" "--no-deps") "--format-version") "1") "--locked"
+    inl args = if offline then argument args "--offline" else args
+    inl success, json = host.capture root args timeout
+    inl code = if success then inspect json names (host.separator ()) else -1i32
+    if (<) code 0i32 then
+        inl message =
+            if (=.) code -2i32 then "Unknown selected Cargo package or ambiguous workspace name\n"
+            elif (=.) code -3i32 then "eoie test metadata must be a table\n"
+            elif (=.) code -4i32 then "test-requires-cli must be a boolean\n"
+            else "Cannot inspect selected Cargo test requirements\n"
+        host.print message
+    code

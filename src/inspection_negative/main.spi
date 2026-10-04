@@ -1,0 +1,7 @@
+inl main () : i32 =
+    inl root = $'std::env::temp_dir().display().to_string().into()' : string
+    inl root_present = $'std::path::Path::new(&*!root).is_dir()' : bool
+    if root_present then
+        inl rejected = $'eoie_proxy_search::inspection_tree_sha256(std::path::Path::new(&*!root), "../escape").is_err_and(|error| error.contains("unsafe relative path"))' : bool
+        if rejected then 0i32 else 1i32
+    else 10i32

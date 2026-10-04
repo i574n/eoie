@@ -1,0 +1,10 @@
+packages:
+    typed_predicate
+    rust_std_string
+    cold_proof_bindings
+    cold_rebuild_contract
+modules:
+    native_binary_tests
+    terminal-
+    cold_rebuild_terminal-
+    main

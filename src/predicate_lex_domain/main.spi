@@ -1,0 +1,8 @@
+inl main () : i32 =
+    !!!!Export("eoie_predicate_token", ((fun (text,cursor) => model.token text cursor) : string * i32 -> i32 * i32 * string * bool))
+    !!!!Export("eoie_predicate_literal", ((fun (text,cursor) => model.literal text cursor) : string * i32 -> string * i32 * bool))
+    !!!!Export("eoie_predicate_encode", ((fun text => model.encode text) : string -> string))
+    !!!!Export("eoie_predicate_skip", ((fun (text,cursor) => model.skip text cursor) : string * i32 -> i32))
+    !!!!Export("eoie_predicate_word_end", ((fun (text,cursor) => model.word_end text cursor) : string * i32 -> i32))
+    !!!!Export("eoie_predicate_canonical", ((fun text => model.canonical text) : string -> string * bool))
+    0i32

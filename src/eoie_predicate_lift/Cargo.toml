@@ -1,0 +1,28 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "lift.rs"
+
+[[package.metadata.spiral.auxiliary]]
+entry = "self_tests.spi"
+output = "self_tests.rs"
+
+[[test]]
+name = "native_codemod"
+path = "self_tests.rs"
+harness = false
+
+[package]
+name = "eoie-predicate-lift"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "eoie-lift-predicate"
+path = "lift.rs"
+
+[dependencies]
+eoie-rust-std-fs = { path = "../rust_std_fs" }
+predicate-lex-domain = { path = "../predicate_lex_domain" }
+predicate-rewrite-domain = { path = "../predicate_rewrite_domain" }

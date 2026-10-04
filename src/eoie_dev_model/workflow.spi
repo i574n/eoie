@@ -1,0 +1,140 @@
+inl equal (left : string) (right : string) : bool = rust_std_string.model.equals left right
+let append (left : string) (right : string) : string = rust_std_string.model.concat5 left right "" "" ""
+let arg (left : string) (right : string) : string = rust_std_string.model.concat5 left (host.separator ()) right "" ""
+inl empty (value : string) : bool = equal value ""
+inl not (value : bool) : bool = if value then false else true
+inl flag_name (name : string) : bool =
+    if equal name "--test" then true
+    elif equal name "--skip-release" then true
+    elif equal name "--offline" then true
+    elif equal name "--compiler-contracts" then true
+    elif equal name "--dry-run" then true
+    else equal name "--help"
+inl value_name (name : string) : bool =
+    if equal name "--root" then true
+    elif equal name "--package" then true
+    elif equal name "--target-dir" then true
+    elif equal name "--compiler" then true
+    else equal name "--timeout-ms"
+
+let rec validate (index : i32) (length : i32) : bool =
+    if !!!!EQ(index,length) then true
+    else
+        inl name = host.argument index
+        if flag_name name then validate (!!!!Add(index,1i32)) length
+        elif value_name name then
+            inl next = !!!!Add(index,1i32)
+            if !!!!LT(next,length) then
+                inl value = host.argument next
+                if empty value then false
+                elif rust_std_string.model.starts_with value "--" then false
+                else validate (!!!!Add(index,2i32)) length
+            else false
+        else false
+
+let rec has_from (index : i32) (length : i32) (name : string) : bool =
+    if !!!!EQ(index,length) then false
+    else
+        inl current = host.argument index
+        if equal name current then true
+        else
+            inl width = if value_name current then 2i32 else 1i32
+            has_from (!!!!Add(index,width)) length name
+
+let rec value_from (index : i32) (length : i32) (name : string) (fallback : string) : string =
+    if !!!!EQ(index,length) then fallback
+    else
+        inl current = host.argument index
+        inl width = if value_name current then 2i32 else 1i32
+        inl next_value = if equal name current then host.argument (!!!!Add(index,1i32)) else fallback
+        value_from (!!!!Add(index,width)) length name next_value
+
+let rec packages_from (index : i32) (length : i32) (out : string) (with_flags : bool) : string =
+    if !!!!EQ(index,length) then out
+    else
+        inl current = host.argument index
+        inl width = if value_name current then 2i32 else 1i32
+        inl next =
+            if equal current "--package" then
+                inl name = host.argument (!!!!Add(index,1i32))
+                if with_flags then arg (arg out "--package") name
+                elif empty out then name else arg out name
+            else out
+        packages_from (!!!!Add(index,width)) length next with_flags
+
+inl has (name : string) : bool = has_from 1i32 (host.count ()) name
+inl value (name : string) (fallback : string) : string = value_from 1i32 (host.count ()) name fallback
+
+let rec quoted_arguments (args : string) (cursor : i32) (separator : char) : string =
+    inl next = find_char args cursor separator
+    inl current = predicate_lex.model.encode (slice_exclusive args cursor next)
+    if (=.) next (sm.length args : i32) then current
+    else rust_std_string.model.concat5 current " " (quoted_arguments args ((+.) next 1i32) separator) "" ""
+inl show (args : string) : () =
+    inl text = quoted_arguments args 0i32 (sm.index (host.separator ()) 0i32)
+    host.print (rust_std_string.model.concat5 "cargo " text "\n" "" "")
+
+// The same result-indexed requests can execute or print a dry run.
+union request result =
+    | Cargo :: string -> request i32
+    | Message :: string -> request ()
+inl execute forall result. (root : string) (compiler : string) (timeout : u64) (dry : bool) (operation : request result) : result =
+    match operation with
+    | Message text => host.print text
+    | Cargo args =>
+        if dry then
+            show args
+            0i32
+        else host.cargo root args compiler timeout
+
+inl reject (message : string) : i32 =
+    host.print (append message "\n")
+    2i32
+
+inl run () : i32 =
+    inl length = host.count ()
+    if validate 1i32 length then
+        if has "--help" then
+            host.print "eoie-dev [--test] [--skip-release] [--package NAME] [--offline] [--root PATH] [--target-dir PATH] [--compiler-contracts] [--compiler PATH] [--timeout-ms N] [--dry-run]\nBuilds a candidate; installation remains a separately validated operation.\n"
+            0i32
+        else
+            inl test = has "--test"
+            inl skip = has "--skip-release"
+            inl contracts = has "--compiler-contracts"
+            inl names = packages_from 1i32 length "" false
+            inl requested = value "--compiler" ""
+            inl compiler = if empty requested then host.compiler_environment () else host.compiler_path requested
+            inl timeout = host.parse_u64 (value "--timeout-ms" "900000")
+            inl root = host.absolute (value "--root" ".")
+            inl target = host.absolute (value "--target-dir" (append root "/src/target"))
+            inl dry = has "--dry-run"
+            if not test && (skip || contracts || not (empty names)) then reject "--skip-release, --package and --compiler-contracts require --test"
+            elif not (empty requested) && empty compiler then reject "--compiler must identify an existing file"
+            elif contracts && empty compiler then reject "--compiler-contracts requires --compiler or EOIE_SPIRAL_COMPILE"
+            elif !!!!EQ(timeout,0u64) || !!!!GT(timeout,3600000u64) then reject "--timeout-ms must be between 1 and 3600000"
+            elif not (host.valid_root root) then reject "--root must contain src/Cargo.toml"
+            elif not dry && host.running_from target then reject "The workflow executable is running from the build target; bootstrap eoie-dev with a separate --target-dir"
+            else
+                inl offline = has "--offline"
+                inl common = arg (arg "--locked" "--target-dir") target
+                inl common = if offline then arg common "--offline" else common
+                inl request_cli = if empty names then 1i32 else metadata.requirements root names offline timeout
+                if !!!!LT(request_cli,0i32) then 2i32
+                else
+                    inl build_cli =
+                        if test && !!!!EQ(request_cli,1i32) then execute root compiler timeout dry (Cargo (arg (arg (arg "build" common) "--package") "eoie-cli"))
+                        else 0i32
+                    if !!!!EQ(build_cli,0i32) then
+                        inl tested =
+                            if test then
+                                inl args = arg "test" common
+                                inl args = if empty names then arg args "--workspace" else packages_from 1i32 length args true
+                                inl args = if contracts then arg (arg args "--") "--include-ignored" else args
+                                execute root compiler timeout dry (Cargo args)
+                            else 0i32
+                        if !!!!EQ(tested,0i32) then
+                            if skip then 0i32
+                            else execute root compiler timeout dry (Cargo (arg (arg (arg (arg "build" common) "--release") "--package") "eoie-cli"))
+                        else tested
+                    else build_cli
+    else reject "Invalid option or missing value; use --help"
