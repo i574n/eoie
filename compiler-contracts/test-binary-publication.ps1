@@ -80,6 +80,7 @@ fn main() {
         Write-Host 'PASS a Windows destination lock preserves the installed bytes'
     }
     $env:EOIE_PUBLICATION_TEST_MODE = 'good'
+    [IO.File]::WriteAllText($destination, 'stale executable')
     Assert-Publication (Publish-EoieBinary -Source $source -Destination $destination) 'Replacement was not published.'
     Assert-Publication ((Get-FileHash -LiteralPath $source).Hash -ceq (Get-FileHash -LiteralPath $destination).Hash) 'Replacement bytes differ.'
     Assert-Publication (@(Get-ChildItem -LiteralPath $fixture -Filter '.release-eoie-candidate*' -Force).Count -eq 0) 'Publication leaked candidates.'

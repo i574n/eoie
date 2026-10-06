@@ -1,14 +1,14 @@
 inl current_coverage () : core.evidence_ref =
-    core.EvidenceRef ("evidence/coverage/current.lcov", "4c9e577c4bd1d3c799f59773337c38e47f45d2e025f9810c5b059f01fd4116b4", 166535u64, core.CoverageLcovMedia, core.BundlePath)
+    core.EvidenceRef ("evidence/coverage/current.lcov", "5165deedc9adf91b8d92c64d649e6e562ff7356b4c29bb9c4905f0dc658d4f4e", 277326u64, core.CoverageLcovMedia, core.BundlePath)
 
 inl current_coverage_receipt () : core.evidence_ref =
-    core.EvidenceRef ("evidence/coverage/current.lcov.receipt", "a2e2bbb8817a3e6c0241a0a77d295cd512d75a956b9506596245dac3d9103607", 235u64, core.ReceiptTextMedia, core.BundlePath)
+    core.EvidenceRef ("evidence/coverage/current.lcov.receipt", "225416fa1d39ecffd51712d9f53ccccb91f131ecb5dcf35585487c73b6f9426e", 133u64, core.ReceiptTextMedia, core.BundlePath)
 
 inl replay_seed () : core.evidence_ref =
-    core.EvidenceRef ("evidence/coverage/replay-seed.lcov", "58312f60fc1f54efa05b305f045504b8fbaf202f4fd81e5837748ffe61b74689", 161390u64, core.CoverageLcovMedia, core.BundlePath)
+    core.EvidenceRef ("evidence/coverage/replay-seed.lcov", "eeb8e24eaba131419845bbca9e57608f69d53787470ae4d3e0a46cbda0f5b4dd", 276280u64, core.CoverageLcovMedia, core.BundlePath)
 
 inl replay_seed_receipt () : core.evidence_ref =
-    core.EvidenceRef ("evidence/coverage/replay-seed.receipt", "b0284cfa9c270ac7322cb3daae40b46786973ebc6144dd0f1e70e5d5eb2495c2", 196u64, core.ReceiptTextMedia, core.BundlePath)
+    core.EvidenceRef ("evidence/coverage/replay-seed.receipt", "90e9db4f6803dd650bcbd0536932002195738c0c3c7cf2b446d256ce788232d5", 133u64, core.ReceiptTextMedia, core.BundlePath)
 
 inl release_closeout () : core.evidence_ref =
     core.EvidenceRef ("state/release_closeout.spi", "547378f02a50b86496cc744198c8f7200c8efdedf71973b927bfcebf3ad9eddf", 1578u64, core.Utf8TextMedia, core.BundlePath)

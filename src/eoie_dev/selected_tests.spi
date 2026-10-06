@@ -7,7 +7,7 @@ let require (condition : bool) (detail : string) : () =
 inl contains (text : string) (part : string) : bool = rust_std_string.model.contains text part
 inl same (left : string) (right : string) : bool = rust_std_string.model.equals left right
 let capture (root : string) (args : string) : string =
-    $'{ let mut command=std::process::Command::new(DEV_BIN); command.current_dir(&*!root).args(!args.split(char::from(0u8))); let capture=eoie_process::run_bounded_capture_with_input(&mut command,120000,None).unwrap(); let status=if capture.status.success() { "success\n" } else { "failure\n" }; std::rc::Rc::<str>::from([status,&String::from_utf8_lossy(&capture.stdout),&String::from_utf8_lossy(&capture.stderr)].concat()) }' : string
+    $'{ let mut command=std::process::Command::new(DEV_BIN); command.current_dir(&*!root).env_remove("RUSTFLAGS").env_remove("LLVM_PROFILE_FILE").args(!args.split(char::from(0u8))); let capture=eoie_process::run_bounded_capture_with_input(&mut command,120000,None).unwrap(); let status=if capture.status.success() { "success\n" } else { "failure\n" }; std::rc::Rc::<str>::from([status,&String::from_utf8_lossy(&capture.stdout),&String::from_utf8_lossy(&capture.stderr)].concat()) }' : string
 
 let client_manifest (requires : string) : string =
     rust_std_string.model.concat5 "[package]\nname='eoie-coverage-prune'\nversion='0.0.0'\nedition='2024'\n[lib]\npath='lib.rs'\n[package.metadata.eoie]\ntest-requires-cli=" requires "\n" "" ""

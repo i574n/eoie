@@ -17,7 +17,7 @@ inl current_unsettled_family_count () : u32 = 0u32
 
 inl catalog_gate () : family_contract_gate = FamilyContractGate ("state/legacy_catalog.spi", "d269bd5675e4e143d5961e8c102dcf839eee42c4484a732ad4bf9c397faaaddb")
 inl migration_gate () : family_contract_gate = FamilyContractGate ("state/migration.spi", "7cab87a7453c7f64f60ce0df8137b8859697e6623d9a6d8f5ab8253fb1fbbcee")
-inl runtime_gate () : family_contract_gate = FamilyContractGate ("state/runtime_drift.spi", "64d75eede9215c0cc262c7d93712c073ff4e66b1193dad72a51576d8036e1f24")
+inl runtime_gate () : family_contract_gate = FamilyContractGate ("state/runtime_drift.spi", "fd9b56435d139e3459249a10451f95fd3d71c947b3cb5bcbdb403eb7e29355de")
 inl adapter_gate () : family_contract_gate = FamilyContractGate ("state/adapter_inventory.spi", "5f6dab32c48a6de161e113635a664ca1c3bba4356e7ad95360024b7b8e74a458")
 
 inl main () : i32 = 0i32

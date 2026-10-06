@@ -1,3 +1,6 @@
+[package.metadata.eoie]
+developer-tool = true
+
 [package.metadata.spiral]
 entry = "main.spi"
 output = "dev.rs"

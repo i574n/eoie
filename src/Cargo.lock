@@ -372,6 +372,7 @@ version = "0.1.0"
 name = "eoie-legacy-operations"
 version = "0.0.0"
 dependencies = [
+ "cold-proof-domain",
  "eoie-bundle-zip",
  "eoie-cold-rebuild-matrix",
  "eoie-coverage-prune",
@@ -384,6 +385,7 @@ dependencies = [
  "eoie-source-map",
  "eoie-source-topology",
  "eoie-toolchain-proxy",
+ "evidence-currentness-domain",
  "legacy-capability-domain",
 ]
 

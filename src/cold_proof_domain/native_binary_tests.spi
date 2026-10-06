@@ -76,8 +76,73 @@ let census_bounds (root : string) : i32 =
     require ($'cold_census_values(&*!largest).unwrap() == [i32::MAX as usize;10]' : bool)
     0i32
 
+inl renewed_text (root : string) : string = $'std::rc::Rc::<str>::from(renew_cold_proof_text(std::path::Path::new(&*!root),&std::fs::read_to_string(std::path::Path::new(&*!root).join("state/cold_proof.spi")).unwrap()).unwrap())' : string
+inl renewal_error (root : string) : string = $'std::rc::Rc::<str>::from(refresh_cold_proof_census_gate(std::path::Path::new(&*!root)).unwrap_err())' : string
+
+let renewal (root : string) : i32 =
+    inl binary = path root "eoie.exe"
+    write binary "native binary payload"
+    proof root "eoie" "0000000000000000000000000000000000000000000000000000000000000000"
+    inl lock = path root "src/Cargo.lock"
+    write lock "renewed lock payload"
+    inl renewed = renewed_text root
+    require (rust_std_string.model.contains renewed (gate_text "binary" "eoie.exe" (hash binary)))
+    require (rust_std_string.model.contains renewed (gate_text "workspace" "src/Cargo.lock" (hash lock)))
+    inl proof_path = path root "state/cold_proof.spi"
+    inl before = read proof_path
+    require (rust_std_string.model.contains (renewal_error root) "ColdProofV4 renewal rolled back")
+    same (read proof_path) before
+    write (path root "eoie") "unix binary"
+    require (rust_std_string.model.contains (renewal_error root) "exactly one root binary")
+    same (read proof_path) before
+    0i32
+
+inl family_catalog (count : u64) : string = $'std::rc::Rc::<str>::from((0..!count).map(|i|{let q=char::from(34u8).to_string();let n=char::from(10u8).to_string();let f=i.to_string();["CapabilityFamily (",&q,"f",&f,&q,", Absorbed, x)",&n,"LegacyDecision (",&q,"f",&f,&q,", PortNow, x)",&n].concat()}).collect::<String>())' : string
+
+
+inl family_receipt (digest : string) : string =
+    inl header = "inl current_family_contract_schema () : family_contract_schema = FamilyContractsV1\ninl current_family_contract_status () : family_contract_status = FamilyContractsClosed\ninl current_family_contract_semantic_flags () : u32 = 31u32\ninl current_family_count () : u32 = 36u32\ninl current_family_decision_count () : u32 = 36u32\ninl current_unsettled_family_count () : u32 = 0u32\n"
+    append header (rust_std_string.model.concat5 (gate_text "catalog" "state/legacy_catalog.spi" digest) (gate_text "migration" "state/migration.spi" digest) (gate_text "runtime" "state/runtime_drift.spi" digest) (gate_text "adapter" "state/adapter_inventory.spi" digest) "")
+
+inl family_current (root : string) : bool = $'verify_family_contracts(std::path::Path::new(&*!root)).is_ok()' : bool
+inl family_renewed (root : string) : bool = $'renew_family_contracts(std::path::Path::new(&*!root)).unwrap().is_some()' : bool
+inl family_kept (root : string) : bool = $'renew_family_contracts(std::path::Path::new(&*!root)).unwrap().is_none()' : bool
+inl family_error (root : string) : string = $'std::rc::Rc::<str>::from(renew_family_contracts(std::path::Path::new(&*!root)).unwrap_err())' : string
+inl differential_error (root : string) : string = $'std::rc::Rc::<str>::from(renew_differential_catalog(std::path::Path::new(&*!root)).unwrap_err())' : string
+
+let family_renewal (root : string) : i32 =
+    write (path root "state/legacy_catalog.spi") (family_catalog 36u64)
+    write (path root "state/migration.spi") "migration fixture"
+    write (path root "state/runtime_drift.spi") "runtime drift fixture"
+    write (path root "state/adapter_inventory.spi") "adapter fixture"
+    inl stale = family_receipt "0000000000000000000000000000000000000000000000000000000000000000"
+    inl receipt_path = path root "state/family_contracts.spi"
+    write receipt_path stale
+    require (family_renewed root)
+    require (family_current root)
+    require (family_kept root)
+    write (path root "state/legacy_catalog.spi") (family_catalog 35u64)
+    write receipt_path stale
+    require (rust_std_string.model.contains (family_error root) "family contract catalog mismatch")
+    same (read receipt_path) stale
+    0i32
+
+let differential_renewal (root : string) : i32 =
+    write (path root "eoie.exe") "not an executable differential route"
+    inl receipt_path = path root "state/differential_catalog.spi"
+    inl stale = "inl current_differential_catalog_schema () : differential_catalog_schema = DifferentialCatalogV1\n"
+    write receipt_path stale
+    require (rust_std_string.model.contains (differential_error root) "differential route")
+    same (read receipt_path) stale
+    require (rust_std_string.model.contains (renewal_error root) "ColdProofV4 renewal rolled back")
+    same (read receipt_path) stale
+    0i32
+
 inl emit_tests () : () =
+    inl _ = !!!!Export("eoie_test_family_renewal", ((fun root => family_renewal root) : string -> i32))
+    inl _ = !!!!Export("eoie_test_differential_renewal", ((fun root => differential_renewal root) : string -> i32))
     inl _ = !!!!Export("eoie_test_cold_selection", ((fun root => selection root) : string -> i32))
     inl _ = !!!!Export("eoie_test_cold_binary_gate", ((fun root => binary_gate root) : string -> i32))
     inl _ = !!!!Export("eoie_test_cold_census_bounds", ((fun root => census_bounds root) : string -> i32))
-    !!!!Global("#[cfg(test)] mod native_binary_tests {\nstruct Fixture(std::path::PathBuf);\nimpl Fixture { fn new() -> Self {\nlet stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();\nlet root=std::env::temp_dir().join(format!(\"eoie cold binary ü {} {stamp}\",std::process::id()));\nstd::fs::create_dir_all(root.join(\"state\")).unwrap();\nstd::fs::create_dir_all(root.join(\"src\")).unwrap(); Self(root) } }\nimpl Drop for Fixture { fn drop(&mut self) { let _=std::fs::remove_dir_all(&self.0); } }\n#[test] fn cold_binary_selection_accepts_either_name_and_rejects_ambiguity() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_selection(f.0.to_str().unwrap()),0); }\n#[test] fn windows_cold_proof_binds_the_selected_name_and_preserves_hash_checks() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_binary_gate(f.0.to_str().unwrap()),0); }\n#[test] fn cold_census_rejects_counts_that_wrap_the_signed_binding() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_census_bounds(f.0.to_str().unwrap()),0); }\n}\n")
+    inl _ = !!!!Export("eoie_test_cold_renewal", ((fun root => renewal root) : string -> i32))
+    !!!!Global("#[cfg(test)] mod native_binary_tests {\nstruct Fixture(std::path::PathBuf);\nimpl Fixture { fn new() -> Self {\nlet stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();\nlet root=std::env::temp_dir().join(format!(\"eoie cold binary ü {} {stamp}\",std::process::id()));\nstd::fs::create_dir_all(root.join(\"state\")).unwrap();\nstd::fs::create_dir_all(root.join(\"src\")).unwrap(); Self(root) } }\nimpl Drop for Fixture { fn drop(&mut self) { let _=std::fs::remove_dir_all(&self.0); } }\n#[test] fn cold_binary_selection_accepts_either_name_and_rejects_ambiguity() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_selection(f.0.to_str().unwrap()),0); }\n#[test] fn windows_cold_proof_binds_the_selected_name_and_preserves_hash_checks() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_binary_gate(f.0.to_str().unwrap()),0); }\n#[test] fn cold_census_rejects_counts_that_wrap_the_signed_binding() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_census_bounds(f.0.to_str().unwrap()),0); }\n#[test] fn cold_proof_renewal_binds_the_platform_binary_and_current_lock_and_rolls_back_without_formal_authority() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_renewal(f.0.to_str().unwrap()),0); }\n#[test] fn family_contract_renewal_rechecks_the_catalog_settlement_and_rolls_back_on_drift() { let f=Fixture::new(); assert_eq!(super::eoie_test_family_renewal(f.0.to_str().unwrap()),0); }\n#[test] fn differential_catalog_renewal_requires_the_public_route_and_rolls_back() { let f=Fixture::new(); assert_eq!(super::eoie_test_differential_renewal(f.0.to_str().unwrap()),0); }\n}\n")

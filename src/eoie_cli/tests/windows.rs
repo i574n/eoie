@@ -32,8 +32,7 @@ fn public_filesystem_roundtrip_and_guards() {
         assert!(!f.run(&["proxy", "fs-write", f.path(), relative, "bad"]).status.success());
     }
 }
-#[test]
-fn public_process_capture_timeout_and_failure() {
+#[test] fn public_process_capture_timeout_and_failure() {
     let f = Fixture::new();
     let text = f.ok(&["proxy", "run", "--cwd", f.path(), "--program", "cmd.exe", "--timeout-ms", "10000", "--", "/d", "/c", "echo windows"]);
     assert!(text.contains("windows"));
@@ -44,8 +43,7 @@ fn public_process_capture_timeout_and_failure() {
     f.ok(&["proxy", "command-capture", f.path(), "receipt.spi", "10000", "cmd.exe", "/d", "/c", "echo captured"]);
     assert!(f.0.join("receipt.spi").is_file());
 }
-#[test]
-fn generic_bundle_roundtrip() {
+#[test] fn generic_bundle_roundtrip() {
     let f = Fixture::new();
     let source = f.0.join("source");
     fs::create_dir(&source).unwrap(); fs::write(source.join("value.txt"), "roundtrip").unwrap();
@@ -55,3 +53,4 @@ fn generic_bundle_roundtrip() {
     f.ok(&["bundle", "rehydrate", archive.to_str().unwrap(), restored.to_str().unwrap(), "generic"]);
     assert_eq!(fs::read(restored.join("value.txt")).unwrap(), b"roundtrip");
 }
+#[test] fn handoff_tolerates_a_reader_that_closes_stdout_early() { let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../.."); let mut child = Command::new(env!("CARGO_BIN_EXE_eoie")).args(["agile", "handoff", root.to_str().unwrap()]).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap(); drop(child.stdout.take()); let o = child.wait_with_output().unwrap(); let err = String::from_utf8_lossy(&o.stderr); assert!(o.status.success() && !err.contains("panicked"), "{:?} {err}", o.status); }

@@ -187,22 +187,23 @@ fn method0() -> i32 {
     let mut v1: u64 = method1(v0);
     let mut v2: bool = v1 == 128u64;
     method4(v2);
-    let mut v3: Rc<str> = Rc::<str>::from("");
+    let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     method3(v3.clone());
-    let mut v4: Rc<str> = Rc::<str>::from("aB09-._/");
+    let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("aB09-._/"); } LIT.with(|lit| lit.clone()) };
     method3(v4.clone());
-    let mut v5: Rc<str> = Rc::<str>::from("é");
+    let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("é"); } LIT.with(|lit| lit.clone()) };
     method3(v5.clone());
-    let mut v6: Rc<str> = Rc::<str>::from("路/receipt");
+    let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("路/receipt"); } LIT.with(|lit| lit.clone()) };
     method3(v6.clone());
-    let mut v7: Rc<str> = Rc::<str>::from("ABCDEFabcdef0123456789ABCDEFabcdef0123456789ABCDEFabcdef0123456789ABCD");
+    let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("ABCDEFabcdef0123456789ABCDEFabcdef0123456789ABCDEFabcdef0123456789ABCD"); } LIT.with(|lit| lit.clone()) };
     method3(v7.clone());
     0i32
 }
 fn closure0() -> Rc<dyn Fn() -> i32> {
-    Rc::new(move || -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
         method0()
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_test_typed_predicates() -> i32 {
     closure0()()

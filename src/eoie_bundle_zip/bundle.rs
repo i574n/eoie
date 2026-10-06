@@ -54,6 +54,11 @@ fn walk_crate(path: &Path, lines: &mut usize, report: &mut BundleReport) -> Resu
     Ok(())
 }
 
+fn bundle_developer_tool_manifest(text: &str) -> bool {
+    let mut section = "";
+    text.lines().map(str::trim).any(|line| { if line.starts_with('[') { section = line; false } else { section == "[package.metadata.eoie]" && line == "developer-tool = true" } })
+}
+
 const BUNDLE_ROOT_ENTRIES: [&str; 4] = ["eoie", "evidence", "src", "state"];
 const BUNDLE_EOIE_AGILE_PATH: &str = "state/agile.spi";
 const BUNDLE_PROFILE_SIGNATURE: [&str; 4] = ["eoie", "state/package.spiproj", "state/core.spi", "src/Cargo.toml"];
@@ -209,7 +214,8 @@ fn check_bundle(root: &Path) -> Result<BundleReport, String> {
             if package_names.iter().any(|name| name == BUNDLE_SOURCE_REQUIRED_FILES[0]) {
                 physical_cargo_members.insert(source_name.clone());
                 report.cargo_crates += 1;
-                report.public_bins += read_regular_text_limited(&cargo_file, usize::MAX)?.match_indices("[[bin]]").count();
+                let cargo_text = read_regular_text_limited(&cargo_file, usize::MAX)?;
+                if !bundle_developer_tool_manifest(&cargo_text) { report.public_bins += cargo_text.match_indices("[[bin]]").count(); }
             } else {
                 report.spiral_only_packages += 1;
                 let has_rust = package_names.iter().any(|name| Path::new(name).extension().and_then(|value| value.to_str()) == Some(BUNDLE_SOURCE_EXTENSIONS[0]));
@@ -409,7 +415,7 @@ fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
     let bytes = value.as_bytes();
     let length = bytes.len() as i64;
     if from < 0 || from > length || to < from - 1 || to >= length { std::process::abort(); }
-    if to < from { return Rc::<str>::from(""); }
+    if to < from { return { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }; }
     // A slice that starts or ends inside a code point fails like the C and Delphi backends (abort / Halt(3)).
     if (bytes[from as usize] & 0xC0) == 0x80 || (to + 1 < length && (bytes[(to + 1) as usize] & 0xC0) == 0x80) { std::process::exit(3); }
     let slice = &bytes[from as usize..(to + 1) as usize];
@@ -543,7 +549,7 @@ fn method14(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn method17() -> Rc<str> {
-    let mut v0: Rc<str> = Rc::<str>::from("");
+    let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     v0.clone()
 }
 fn method16() -> Rc<str> {
@@ -642,13 +648,13 @@ fn method18(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: 
                         let mut v18: Rc<str> = string_slice(&v0.clone(), v10 as i64, v17 as i64);
                         v18.clone()
                     };
-                    let mut v20: Rc<str> = Rc::<str>::from("");
+                    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                     let mut v21: bool = v19 == v20 ;
                     if v21 {
                         return method16();
                     } else {
-                        let mut v23: Rc<str> = Rc::<str>::from(format!("{}{}", v19.clone(), Rc::<str>::from("\n")));
-                        let mut v24: Rc<str> = Rc::<str>::from(format!("{}{}", Rc::<str>::from("\n"), v23.clone()));
+                        let mut v23: Rc<str> = Rc::<str>::from(format!("{}{}", v19.clone(), { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) }));
+                        let mut v24: Rc<str> = Rc::<str>::from(format!("{}{}", { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) }, v23.clone()));
                         let mut v25: i32 = (v3.clone().len() as i32);
                         let mut v26: i32 = 0i32;
                         let mut v27: i32 = (v24.clone().len() as i32);
@@ -671,7 +677,7 @@ fn method18(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: 
 }
 fn method15(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = (v0.clone().len() as i32);
-    let mut v2: Rc<str> = Rc::<str>::from("members");
+    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("members"); } LIT.with(|lit| lit.clone()) };
     let mut v3: i32 = 0i32;
     let mut v4: i32 = 7i32;
     let mut v5: i32 = method20(v0.clone(), v2.clone(), v3, v1, v4);
@@ -702,57 +708,66 @@ fn method15(mut v0: Rc<str>) -> Rc<str> {
                 };
                 let mut v22: i32 = 0i32;
                 let mut v23: i32 = (v21.clone().len() as i32);
-                let mut v24: Rc<str> = Rc::<str>::from("\n");
-                let mut v25: Rc<str> = Rc::<str>::from("");
+                let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
+                let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                 method18(v21.clone(), v22, v23, v24.clone(), v25.clone())
             }
         }
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method3(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method5(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method7(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method9(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method11(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method12(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method14(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
         method15(v0.clone())
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_flat_bundle_preflight_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

@@ -65,20 +65,22 @@ fn handoff_impl_with_args(args: &[String]) -> Result<(), String> {
     let Some(handoff_state) = state_text(root, "state/handoff.spi")? else { return Err("state/handoff.spi is missing".to_owned()); };
     let sections = required_projection("handoff sections", handoff_sections_projection_domain::eoie_handoff_sections_projection(&handoff_state))?;
     let section_markdown = sections.strip_prefix("ok").ok_or_else(|| "handoff sections projection returned invalid envelope".to_owned())?;
-    println!("# EOIE handoff");
+    let mut out = String::from("# EOIE handoff\n");
     let recorded = recorded_state_lines(root)?;
     if !recorded.is_empty() {
-        println!("\n## Recorded state");
-        println!("\nSaved ratings, census and receipts are shown below with compiled authority declarations. This command does not revalidate their freshness or certify a release.");
-        for line in recorded { println!("\n{line}"); }
+        out.push_str("\n## Recorded state\n");
+        out.push_str("\nSaved ratings, census and receipts are shown below with compiled authority declarations. This command does not revalidate their freshness or certify a release.\n");
+        for line in recorded { out.push_str(&format!("\n{line}\n")); }
     }
-    println!("{section_markdown}");
+    out.push_str(&format!("{section_markdown}\n"));
     let work = active_work_lines(root)?;
     if !work.is_empty() {
-        println!("\n## Active work");
-        for item in work { println!("\n- {item}"); }
+        out.push_str("\n## Active work\n");
+        for item in work { out.push_str(&format!("\n- {item}\n")); }
     }
-    Ok(())
+    // A reader that stops early (for example `Select-Object -First 5`) closes the pipe; that is not a handoff failure.
+    let mut stdout = std::io::stdout().lock();
+    match std::io::Write::write_all(&mut stdout, out.as_bytes()).and_then(|()| std::io::Write::flush(&mut stdout)) { Err(error) if error.kind() != std::io::ErrorKind::BrokenPipe => Err(format!("write handoff: {error}")), _ => Ok(()) }
 }
 
 
@@ -212,9 +214,10 @@ fn method0(mut v0: Rc<str>) -> bool {
     }
 }
 fn closure0() -> Rc<dyn Fn(Rc<str>) -> bool> {
-    Rc::new(move |mut v0: Rc<str>| -> bool {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> bool> = Rc::new(move |mut v0: Rc<str>| -> bool {
         method0(v0.clone())
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn method3(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
     loop {
@@ -279,9 +282,10 @@ fn method2(mut v0: Rc<str>) -> bool {
     }
 }
 fn closure1() -> Rc<dyn Fn(Rc<str>) -> bool> {
-    Rc::new(move |mut v0: Rc<str>| -> bool {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> bool> = Rc::new(move |mut v0: Rc<str>| -> bool {
         method2(v0.clone())
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn method4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
@@ -588,69 +592,82 @@ fn method16(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method4(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method5(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method6(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method7(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method8(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method9(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method10(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method11(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure10() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method12(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure11() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method13(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure12() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method14(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure13() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method15(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure14() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method16(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 pub fn binary_install_safe_text(v0: &str) -> bool {
     closure0()(Rc::<str>::from(v0))

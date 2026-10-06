@@ -3,6 +3,154 @@
 Scope: the EOIE source workspace and its supported single-flight compiler
 integration. This is separate from certifying a distributable EOIE release.
 
+## Strict preflight — October 6
+
+`compiler-contracts/test-strict-preflight.ps1 -RequireReady` still rejects the
+staged distribution. **The source port has not reached a strict release.** This
+session added the missing renewal paths and registered real coverage evidence. Preflight errors went from 4 to 3. Latest report: `.cache/strict-preflight/830d7a99cb1c44f29feb2c28622d313a/report.json` (the same 3 errors, after the differential catalog and family contract renewals). Evidence currentness now stops at `src/Cargo.toml`, which only closeout renews, and semantic closeout and ColdProofV4 are unchanged.
+
+| Blocker (October 5) | Result |
+| --- | --- |
+| Coverage durability and the four missing `evidence/coverage/*` payloads | Renewed with real evidence and cleared. `proxy coverage-register` imported two Windows native coverage runs, both run with `-CompilerContracts`. The current checkpoint is the final tree: **614/1000 over 29,388 lines**, LCOV SHA `5165deed…`. The replay seed is the earlier run in this session: 600/1000 over 29,365 lines, SHA `eeb8e24e…`. Both have workspace-relative `SF:` paths and `lcov-union` receipts. This is test-run coverage that includes tests. It is not release-smoke coverage over the historical 17,303-line author-product universe, so the narrative rows of `state/coverage.spi` (804/1000) remain historical. Runs: `.cache/native-coverage/3478194ab96444cba408e369a07f8a92` and `2770c45c242344fca30327ead9847cc0`. |
+| ColdProofV4 (`state/cold_proof.spi`) | Renewal path added. `proxy release-closeout apply` now renews all five gates. The binary gate records the root binary actually present (`eoie.exe` on Windows) and the workspace gate records the current `src/Cargo.lock`. The renewal is kept only if formal authority verifies and the binary equals the ColdRebuildV1 product; otherwise it rolls back. A probe on a disposable staged copy renewed all five gates, including `eoie.exe` and the current lock. After the differential catalog and family contract renewals, apply rolls back at `cold rebuild owner inventory drift receipt=94 declared=106` (live checkout and staged copy) and leaves zero state files changed. |
+| Semantic closeout (`state/release_closeout.spi`) | The closeout evidence refresh records `eoie` or `eoie.exe`, whichever single binary the root carries, instead of a hardcoded `eoie`. Closeout still cannot be applied, because its cold-proof step rolls back as above. |
+| Evidence identity (`state/evidence.spi`) | Only `proxy release-closeout apply` renews the remaining rows. It cannot run until the cold proof can be renewed. |
+
+The cold proof cannot be renewed honestly yet. Formal authority depends on three
+more receipts. Two of them now have producers and are current:
+
+- **DifferentialCatalogV1** (`state/differential_catalog.spi`): renewed by
+  `proxy formal-receipts-renew .` and also by `release-closeout apply`. Before it
+  re-hashes anything, the renewal executes the root binary's `proxy differential-compare`
+  route through five scenarios: parity, a deterministic receipt, a mismatch, a
+  missing input and an escaping receipt. It proceeds only with all five observed
+  (flags 31), then runs the full verifier (settlement 10/9 shape and markers,
+  catalog 36/36, contract and route markers). Only the route gate changed
+  (`b4e6b206…` to `d8ba4ffc…`).
+- **FamilyContractsV1** (`state/family_contracts.spi`): renewed the same way. The full
+  verifier re-checks 36 families against 36 decisions, with no unsettled family and
+  every prune or port decision matching its disposition. Only the runtime gate changed
+  (`64d75eed…` to `fd9b5643…`). `runtime_drift.spi` declares its baseline
+  historical-only, and no other EOIE check validates it.
+- After both renewals, closeout apply (live checkout and a staged copy) rolls back at
+  the next unrenewable receipt, with zero state files changed:
+  `cold rebuild owner inventory drift receipt=94 declared=106`.
+- **ColdRebuildV1** (still no producer) (`state/cold_rebuild.spi`): it needs two independent cold rebuilds
+  of the current `src` tree with byte-identical products, owner compiles under 15 s,
+  a global gate under 30 s and current gate hashes. Its rustc and compiler identities
+  must appear in `state/toolchain_identity.spi`, which still records the Linux payload.
+  The cold-rebuild matrix replays owners but writes no receipt.
+
+The renewal re-hashes the five gates. It carries the recorded replay flags (`15`:
+rehydrate, bundle-check, status-live, byte-identical rebundle) forward without
+re-observing them. Instead of re-running those replays, it requires formal authority:
+a current ColdRebuildV1 whose product equals the binary. No renewal is committed
+today. A producer that re-observes the four replays on the staged candidate before
+promoting it is still missing.
+
+The host already meets some of the ColdRebuildV1 conditions. Owner compiles in this
+session took 1.0–4.5 s each (`dev.ps1`, single-flight, 15 compiles across 10 owners),
+well under the 15 s budget.
+
+Two release builds of `eoie-cli` used the receipt's normalization (`CARGO_INCREMENTAL=0`,
+`--remap-path-prefix`, `-Cstrip=symbols`). They differed in 20 bytes: the PE
+TimeDateStamp, three debug-directory timestamps and the CodeView PDB GUID. No path
+differed. Adding `-Clink-arg=/Brepro` made the two builds byte-identical (SHA
+`309310a5…`). A Windows ColdRebuildV1 needs that flag in its normalization.
+
+What is missing is the receipt producer, a Windows `toolchain_identity`, and the
+global-gate measurement.
+
+Registering new coverage leaves some `state/` rows stating the old checkpoint as
+current, and EOIE has no command to rewrite them:
+- `coverage.spi`: `current_coverage_target`, `grcov_status`, `native_lcov_export` (804/1000, SHA `4c9e577c…`)
+- `coverage_refresh.spi` (lines 56–76)
+- `bench.spi` `canonical_checkpoint_durability`
+- `agile.spi` `COVERAGE-CHECKPOINT-DURABILITY`
+
+They are historical and are not the registered checkpoint. The typed
+`CoverageCheckpointDurable` and `CoverageReplaySeed` rows are.
+
+`src/evidence_currentness_domain/registration_tests.rs` is a new handwritten Rust test.
+That adds one to the Rust files without a generation mapping (migration debt). The
+cold-proof renewal scenario is authored in Spiral.
+
+ColdProofV4 and the binary gate support `eoie.exe`, so a platform-specific strict
+release is within the design. Its missing pieces are the three producers above plus
+a Windows toolchain identity, not a Linux host.
+
+The coverage workflow needed three fixes before it could pass on this host:
+
+- The Spiral-generated `native_codemod` runner (`eoie-predicate-lift`, `harness = false`)
+  exits through `process::exit` and wrote no profile on Windows. It now flushes under
+  `cfg(all(windows, eoie_coverage))`, as the CLI does.
+- The `selected_workflow` fixture's nested `eoie-dev`/Cargo processes inherited
+  `RUSTFLAGS=-C instrument-coverage` and `LLVM_PROFILE_FILE`. That left five profiles
+  outside the Cargo inventory, which the workflow rejects. The fixture process now
+  drops both variables.
+- Exported `SF:` paths are now workspace-relative, so registered LCOV does not embed
+  a snapshot path.
+
+Other fixes:
+
+- `eoie agile handoff . | Select-Object -First 5` no longer panics when the reader
+  closes the pipe (os error 232). The report is written once, and a broken pipe counts
+  as success. A CLI regression test failed before the fix.
+- The compiler's literal-interning fix landed: it now emits `std::rc::Rc::<str>` inside
+  the cached literal. `rust_std_string` is back to its original
+  `unwrap_or_else(|| std::rc::Rc::<str>::from(""))`. `command_spec_domain` and
+  `authority_state_domain` regenerate, compile and pass with it.
+
+Validation:
+
+- Tests came first. The new cold-proof renewal scenario (Spiral, `native_binary_tests.spi`) the two differential/family renewal scenarios (`family_contract_renewal_rechecks_the_catalog_settlement_and_rolls_back_on_drift`, `differential_catalog_renewal_requires_the_public_route_and_rolls_back`) and three evidence tests (`registration_tests.rs`) failed to build before the implementation and pass after it. The handoff pipe test failed with the os error 232 panic before its fix.
+- `build.ps1 -Test -CompilerContracts -Offline`: **191 passed, 0 failed or skipped**. The published `eoie.exe` is SHA `9956e08f…`.
+- `flat_bundle_roundtrip_is_self_verified`, which runs closeout apply on a complete fixture, passes through the new renewal.
+- The renewed `state/` package passes `eoie agile check --compiler <single-flight dll>`: 63 files, 61 build-attested. It ran on a staged copy and then on the checkout, which renewed `state/typecheck_receipts.spi`.
+- `dev.ps1 -Publish` regenerated `cold_proof_domain`, `evidence_currentness_domain`, `eoie_legacy_operations`, `eoie_predicate_lift`, `eoie_dev`, `eoie_handoff`, `eoie_cli`, `command_spec_domain` and `authority_state_domain` with the current compiler (3CCCBD5D8346). The regeneration also re-emits unchanged literals in its cached form.
+
+## Strict preflight — October 5
+
+`compiler-contracts/test-strict-preflight.ps1 -RequireReady` still rejects the
+staged distribution. **The source port has not reached a strict release.** Two
+blockers were code defects and are fixed. Owner-growth receipts were renewed
+through EOIE. Four evidence blockers remain, and none has a producer that can run
+on this Windows host.
+
+| Blocker | Result |
+| --- | --- |
+| Expired lease blocked read-only `source-topology`, so the preflight stopped before the strict check | Fixed. `proxy source-topology <root>` without a census path and `agile handoff` are now inspection effects; the census write stays a mutation. Agile task `DOGFOOD-INSPECTION-LEASE-CLASSIFICATION` is Done. |
+| `expected 1 public binary, found 3` | Fixed. `eoie-dev` and `eoie-lift-predicate` declare `[package.metadata.eoie] developer-tool = true` and are excluded from the public-binary count. An undeclared second `[[bin]]` is still rejected. |
+| Owner-growth receipts missing for 86 owners | Renewed with `eoie bundle growth-receipt . windows-source-port-and-native-spiral-migration PORT-STRICT-RELEASE`, which recorded 87 changed owners. The policy remains report-only. That command rewrites every change row with one reason, so the earlier `eoie_release_hygiene` reason now lives only in Git history. |
+| ColdProofV4 (`state/cold_proof.spi`) | Not renewable. No EOIE command writes this receipt; contracts write it by hand only inside test fixtures. The one refresh path, `refresh_cold_proof_census_gate`, rewrites the census hash and then re-verifies all five gates. It fails on the `src/Cargo.lock` gate (`d4e2a00a…` recorded, `c06a98ea…` current). The binary gate records `eoie` with the historical Linux hash, while Windows staging carries `eoie.exe`. |
+| Semantic closeout (`state/release_closeout.spi`) | Not renewable while the cold proof is stale. `proxy release-closeout preview` accepts all six resealed gates. `apply`, run on a disposable staged copy, fails at the cold-proof refresh above and rolls back every state file. Its evidence refresh also reads a root binary named `eoie`, so a Windows closeout needs that path made platform-aware. |
+| Evidence closure and durable coverage | Not renewable. `state/evidence.spi` declares the durable 166,535-byte LCOV (SHA `4c9e577c…`), its receipt and the replay seed under `evidence/coverage/`. Those payloads were never imported into this repository and exist nowhere locally. No EOIE command registers new coverage evidence or durability. `coverage-export` needs grcov and LLVM tools, and neither is installed. Native workspace coverage is explicitly not release evidence. |
+
+Linux runtime evidence was not attempted, because WSL is excluded by `PORT-LINUX-LOCAL`.
+The cold-rebuild matrix was not run: its replay replaces generated outputs in a
+copy, but nothing converts the result into `state/cold_rebuild.spi` or ColdProofV4
+receipts. `state/cold_rebuild.spi` would be checked next. It records 94 owners and
+the historical Linux product hash.
+
+Closing `PORT-STRICT-RELEASE` therefore requires:
+
+- a platform-aware cold-replay producer for ColdProofV4 and ColdRebuildV1;
+- a closeout evidence refresh that accepts `eoie.exe`;
+- a durable-coverage producer or a deliberate retirement of that evidence.
+
+The final compiler's literal interning rewrote the `Rc::<str>::from("")` suffix of
+`std::rc::Rc::<str>::from("")` and produced invalid Rust. `rust_std_string`
+therefore now uses the equivalent `unwrap_or_default()`.
+
+Validation:
+
+- `build.ps1 -Test -CompilerContracts -Offline`: **184 passed, 0 failed or skipped**, with the release candidate published.
+- The new lease and public-binary contracts failed before the fix and pass after it.
+- `dev.ps1 -Package eoie-contracts,command-spec-domain,eoie-agile-lease,eoie-bundle-zip -Publish` regenerated and published the four changed owners.
+
+The final strict report is
+`.cache/strict-preflight/bb8690b24185449d80cd4b9ea3470121/report.json`.
+
 ## Native Spiral correction — October 2, evening
 
 The predicate codemod now implements lexing, matching and rewriting in native

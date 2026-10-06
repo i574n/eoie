@@ -92,7 +92,8 @@ pub fn refresh_release_closeout_evidence(root: &Path, closeout_sha256: &str, clo
     if !cargo_lock_metadata.is_file() || cargo_lock_metadata.file_type().is_symlink() { return Err("Cargo.lock evidence target must be a regular file".to_owned()); }
     let cargo_lock_sha256 = inspection_file_sha256(&cargo_lock_path)?;
     let cargo_lock_bytes = cargo_lock_metadata.len();
-    let eoie_path = root.join("eoie");
+    let eoie_name = evidence_public_binary(root)?;
+    let eoie_path = root.join(eoie_name);
     let eoie_metadata = fs::symlink_metadata(&eoie_path).map_err(|error| format!("metadata {}: {error}", eoie_path.display()))?;
     if !eoie_metadata.is_file() || eoie_metadata.file_type().is_symlink() { return Err("EOIE binary evidence target must be a regular file".to_owned()); }
     let eoie_sha256 = inspection_file_sha256(&eoie_path)?;
@@ -127,8 +128,9 @@ pub fn refresh_release_closeout_evidence(root: &Path, closeout_sha256: &str, clo
                 let old_bytes = evidence_parse_u64(line)?;
                 updated = updated.replacen(&format!("{old_bytes}u64"), &format!("{cargo_lock_bytes}u64"), 1);
             }
-            if fields.len() == 2 && fields[0] == "eoie" {
+            if fields.len() == 2 && (fields[0] == "eoie" || fields[0] == "eoie.exe") {
                 binary_hits += 1;
+                updated = updated.replacen(&format!("({:?}", fields[0]), &format!("({eoie_name:?}"), 1);
                 updated = updated.replacen(&fields[1], &eoie_sha256, 1);
                 let old_bytes = evidence_parse_u64(line)?;
                 updated = updated.replacen(&format!("{old_bytes}u64"), &format!("{eoie_bytes}u64"), 1);
@@ -247,7 +249,106 @@ pub fn check_evidence_tree(root: &Path) -> Result<EvidenceCurrentnessSummary, St
     Ok(EvidenceCurrentnessSummary { declared: specs.len() + tree_specs.len(), observed: observed_specs + tree_verified, verified: verified + tree_verified })
 }
 
+fn evidence_public_binary(root: &Path) -> Result<&'static str, String> {
+    let unix = fs::symlink_metadata(root.join("eoie")).is_ok();
+    let windows = fs::symlink_metadata(root.join("eoie.exe")).is_ok();
+    match (unix, windows) {
+        (true, false) => Ok("eoie"),
+        (false, true) => Ok("eoie.exe"),
+        _ => Err("closeout evidence requires exactly one root binary: eoie or eoie.exe".to_owned()),
+    }
+}
+
+fn coverage_receipt_field<'a>(receipt: &'a str, name: &str) -> Result<&'a str, String> {
+    receipt.lines().find_map(|line| line.strip_prefix(name).and_then(|rest| rest.strip_prefix('='))).ok_or_else(|| format!("coverage receipt field missing: {name}"))
+}
+
+fn coverage_registration_input(lcov: &Path) -> Result<(Vec<u8>, Vec<u8>, String, u32, u64), String> {
+    let receipt_path = std::path::PathBuf::from(format!("{}.receipt", lcov.display()));
+    let payload = eoie_rust_std_fs::read_regular_limited(lcov, 256 * 1024 * 1024)?;
+    let receipt = eoie_rust_std_fs::read_regular_limited(&receipt_path, 64 * 1024)?;
+    let receipt_text = std::str::from_utf8(&receipt).map_err(|_| format!("coverage receipt must be UTF-8: {}", receipt_path.display()))?;
+    let text = std::str::from_utf8(&payload).map_err(|_| format!("coverage LCOV must be UTF-8: {}", lcov.display()))?;
+    let route = coverage_receipt_field(receipt_text, "route")?;
+    if route != "lcov-union" && route != "grcov-lcov" { return Err(format!("coverage receipt route rejected: {route}")); }
+    let sha256 = inspection_sha256(payload.clone());
+    if coverage_receipt_field(receipt_text, "sha256")? != sha256 { return Err(format!("coverage receipt sha256 does not match {}", lcov.display())); }
+    let lines = coverage_receipt_field(receipt_text, "lines")?.parse::<u64>().map_err(|_| "coverage receipt lines are malformed".to_owned())?;
+    let permille = coverage_receipt_field(receipt_text, "covered_permille")?.parse::<u32>().map_err(|_| "coverage receipt permille is malformed".to_owned())?;
+    if lines == 0 || lines > u64::from(u32::MAX) || permille > 1000 || !text.lines().any(|line| line.starts_with("DA:")) { return Err(format!("coverage LCOV has no bounded line evidence: {}", lcov.display())); }
+    for source in text.lines().filter_map(|line| line.strip_prefix("SF:")) {
+        if source.is_empty() || source.contains(':') || source.starts_with('/') || source.starts_with('\\') || source.split(['/', '\\']).any(|part| part == "..") {
+            return Err(format!("coverage LCOV source path must be relative to the workspace: {source}"));
+        }
+    }
+    Ok((payload, receipt, sha256, permille, lines))
+}
+
+pub fn register_coverage_evidence(root: &Path, current: &Path, seed: &Path) -> Result<String, String> {
+    let (current_lcov, current_receipt, current_sha256, current_permille, current_lines) = coverage_registration_input(current)?;
+    let (seed_lcov, seed_receipt, seed_sha256, seed_permille, seed_lines) = coverage_registration_input(seed)?;
+    let evidence_path = root.join("state/evidence.spi");
+    let coverage_path = root.join("state/coverage.spi");
+    let evidence_original = eoie_rust_std_fs::read_regular_text_limited(&evidence_path, 1024 * 1024)?;
+    let coverage_original = eoie_rust_std_fs::read_regular_text_limited(&coverage_path, 1024 * 1024)?;
+    let payloads = [("evidence/coverage/current.lcov", current_lcov), ("evidence/coverage/current.lcov.receipt", current_receipt), ("evidence/coverage/replay-seed.lcov", seed_lcov), ("evidence/coverage/replay-seed.receipt", seed_receipt)];
+    let mut hits = 0usize;
+    let mut evidence_lines = Vec::new();
+    for line in evidence_original.lines() {
+        let mut updated = line.to_owned();
+        if line.contains("EvidenceRef (") {
+            let fields = patch_quoted_fields(line)?;
+            if let Some((_, bytes)) = payloads.iter().find(|(relative, _)| fields.len() == 2 && fields[0] == *relative) {
+                hits += 1;
+                updated = updated.replacen(&fields[1], &inspection_sha256(bytes.clone()), 1);
+                let old_bytes = evidence_parse_u64(line)?;
+                updated = updated.replacen(&format!("{old_bytes}u64"), &format!("{}u64", bytes.len()), 1);
+            }
+        }
+        evidence_lines.push(updated);
+    }
+    if hits != payloads.len() { return Err(format!("coverage evidence rows rejected hits={hits} expected={}", payloads.len())); }
+    let durability = "inl current_checkpoint_durability () : coverage_checkpoint_durability = ";
+    let seed_row = "inl current_replay_seed () : coverage_replay_seed = ";
+    let (mut durable_hits, mut seed_hits) = (0usize, 0usize);
+    let mut coverage_lines = Vec::new();
+    for line in coverage_original.lines() {
+        if line.starts_with(durability) { durable_hits += 1; coverage_lines.push(format!("{durability}CoverageCheckpointDurable ({current_permille}u32, {current_sha256:?})")); }
+        else if line.starts_with(seed_row) { seed_hits += 1; coverage_lines.push(format!("{seed_row}CoverageReplaySeed ({seed_permille}u32, {seed_lines}u32, {seed_sha256:?}, \"evidence/coverage/replay-seed.lcov\")")); }
+        else { coverage_lines.push(line.to_owned()); }
+    }
+    if durable_hits != 1 || seed_hits != 1 { return Err(format!("coverage checkpoint rows rejected durable={durable_hits} seed={seed_hits}")); }
+    let mut originals: Vec<(std::path::PathBuf, Option<Vec<u8>>)> = Vec::new();
+    let mut publish = || -> Result<(), String> {
+        fs::create_dir_all(root.join("evidence/coverage")).map_err(|error| format!("create evidence/coverage: {error}"))?;
+        for (relative, bytes) in &payloads {
+            let path = root.join(patch_safe_relative(relative)?);
+            originals.push((path.clone(), fs::read(&path).ok()));
+            atomic_write(&path, bytes)?;
+        }
+        originals.push((evidence_path.clone(), Some(evidence_original.clone().into_bytes())));
+        atomic_write(&evidence_path, (evidence_lines.join("\n") + "\n").as_bytes())?;
+        originals.push((coverage_path.clone(), Some(coverage_original.clone().into_bytes())));
+        atomic_write(&coverage_path, (coverage_lines.join("\n") + "\n").as_bytes())?;
+        for (relative, bytes) in &payloads {
+            if fs::read(root.join(relative)).map_err(|error| format!("readback {relative}: {error}"))? != *bytes { return Err(format!("coverage evidence readback mismatch: {relative}")); }
+        }
+        Ok(())
+    };
+    if let Err(error) = publish() {
+        for (path, original) in originals.into_iter().rev() {
+            match original { Some(bytes) => { let _ = atomic_write(&path, &bytes); } None => { let _ = fs::remove_file(&path); } }
+        }
+        return Err(format!("coverage evidence registration rolled back: {error}"));
+    }
+    Ok(format!("eoie proxy coverage-register ok current_sha256={current_sha256} current_permille={current_permille} current_lines={current_lines} seed_sha256={seed_sha256} seed_permille={seed_permille} seed_lines={seed_lines} mutation=true"))
+}
+
 pub fn evidence_status(root: &Path) -> Result<EvidenceCurrentnessSummary, String> { check_evidence_tree(root) }
+
+#[cfg(test)]
+#[path = "registration_tests.rs"]
+mod registration_tests;
 
 #[derive(Clone, Debug)]
 pub struct ToolchainCurrentnessSummary { pub declared: usize, pub observed: usize, pub verified: usize }
@@ -284,7 +385,12 @@ pub fn toolchain_status(root: &Path) -> Result<Option<ToolchainCurrentnessSummar
 fn spiral_main() -> i32 {
     0i32
 }
+#[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
+}
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    spiral_main();
 }

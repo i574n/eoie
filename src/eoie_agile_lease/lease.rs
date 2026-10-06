@@ -218,8 +218,10 @@ pub fn lease_effect_code() -> i32 {
     let verb = args.next().unwrap_or_default();
     let sub = args.next().unwrap_or_default();
     let base = eoie_command_effect_code(&verb);
+    let operands = args.count();
     let key = format!("{verb}:{sub}");
-    let specialized = eoie_command_subcommand_effect_code(&key);
+    let operand_effect = eoie_command_subcommand_effect_code(&format!("{key}/{operands}"));
+    let specialized = if operand_effect <= 3 { operand_effect } else { eoie_command_subcommand_effect_code(&key) };
     let effect = if specialized <= 3 { specialized } else { base };
     if effect <= 3 { effect as i32 } else { 4 }
 }
@@ -350,9 +352,10 @@ fn method0() -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn() -> i32> {
-    Rc::new(move || -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
         method0()
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_lease_title_words() -> i32 {
     closure0()()

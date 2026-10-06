@@ -115,6 +115,7 @@ try {
     # LLVM may combine incompatible unused-function maps across test executables.
     # Match raw profiles to the runtime's module signature before exporting each object.
     $sourceManifest = Get-Content -LiteralPath $snapshot.Manifest -Raw | ConvertFrom-Json
+    $sourcePrefix = [IO.Path]::GetFullPath($source).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     $sourceArguments = @('--sources') + @($sourceManifest | Where-Object { $_.Path -like 'src/*.rs' } | ForEach-Object { Join-Path $source $_.Path })
     $exports = [Collections.Generic.List[object]]::new()
     $lcovInputs = [Collections.Generic.List[string]]::new()
@@ -144,6 +145,13 @@ try {
         Write-LlvmArguments $responseFile (@('--format=lcov', "--num-threads=$Jobs", "--instr-profile=$merged", "--object=$object") + $sourceArguments)
         $lcov = Invoke-Captured "export-$id" $llvmCov @('export', "@$responseFile") -RejectStderr -Quiet
         if ($lcov -notmatch '(?m)^DA:') { throw "No workspace line coverage was exported for $object." }
+        # Record workspace-relative source paths so the LCOV and its receipt do not embed this snapshot's location.
+        $lcov = [regex]::Replace($lcov, '(?m)^SF:([^\r\n]*)', [Text.RegularExpressions.MatchEvaluator]{
+            param($match)
+            $full = [IO.Path]::GetFullPath($match.Groups[1].Value)
+            if (-not $full.StartsWith($sourcePrefix, [StringComparison]::Ordinal)) { throw "Coverage source outside the snapshot: $full" }
+            'SF:' + $full.Substring($sourcePrefix.Length).Replace('\', '/')
+        })
         $relative = "objects/$id/current.lcov"
         [IO.File]::WriteAllText((Join-Path $work $relative), $lcov, $encoding)
         $lcovInputs.Add($relative)

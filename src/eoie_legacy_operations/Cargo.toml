@@ -23,6 +23,8 @@ eoie-cold-rebuild-matrix = { path = "../eoie_cold_rebuild_matrix" }
 eoie-ingest-frontier = { path = "../eoie_ingest_frontier" }
 eoie-coverage-prune = { path = "../eoie_coverage_prune" }
 eoie-bundle-zip = { path = "../eoie_bundle_zip" }
+evidence-currentness-domain = { path = "../evidence_currentness_domain" }
+cold-proof-domain = { path = "../cold_proof_domain" }
 eoie-patch-control-domain = { path = "../patch_control_domain" }
 eoie-rust-std-fs = { path = "../rust_std_fs" }
 eoie-proxy-search = { path = "../eoie_proxy_search" }

@@ -1,3 +1,6 @@
+[package.metadata.eoie]
+developer-tool = true
+
 [package.metadata.spiral]
 entry = "main.spi"
 output = "lift.rs"
@@ -26,3 +29,6 @@ path = "lift.rs"
 eoie-rust-std-fs = { path = "../rust_std_fs" }
 predicate-lex-domain = { path = "../predicate_lex_domain" }
 predicate-rewrite-domain = { path = "../predicate_rewrite_domain" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(eoie_coverage)'] }

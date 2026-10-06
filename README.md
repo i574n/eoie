@@ -197,6 +197,11 @@ successful Cargo validation and a checkout snapshot check.
 | `eoie` (strict) | The EOIE release layout, source/package census, growth limits, current evidence, ratings, receipts and executable/archive contracts also pass. `verify` extracts a bounded temporary copy and applies the release checks before reporting success. |
 | `auto` | Selects `eoie` when `eoie` or `eoie.exe` accompanies `state/package.spiproj`, `state/core.spi` and `src/Cargo.toml`; otherwise selects `generic`. A strict distribution must contain exactly one root binary. Auto-selection is not certification. |
 
+The strict check counts Cargo `[[bin]]` targets as public binaries and requires
+exactly one. Developer tools that are built from source but not shipped declare
+`developer-tool = true` under `[package.metadata.eoie]` (`eoie-dev` and
+`eoie-lift-predicate`); they are excluded from that count.
+
 Use explicit `eoie` for release gates. A source checkout has docs, scripts and
 tests and lacks a certified release payload, so it is not expected to pass that
 packaging gate. Generic success must never be substituted for strict release
@@ -248,7 +253,9 @@ The optional compiler contracts also use the configured `EOIE_DOTNET` and
 All dependencies must already be cached. Results, source/tool hashes and process
 receipts stay under ignored `.cache/native-coverage/`; the reusable instrumented
 Cargo target stays under `src/target/native-coverage`. Evidence from this workflow
-does not certify a strict release. `-EoieBinary` selects the supervising build.
+does not certify a strict release. Once registered (below), its LCOV satisfies the
+strict check's coverage identity and durability gate, but it is test-run coverage,
+not the canonical release-basis measurement. `-EoieBinary` selects the supervising build.
 
 The driver checks that the instrumented CLI writes a nonempty profile before
 running tests. Instrumented Windows builds explicitly flush profiling data before
@@ -258,6 +265,21 @@ then combined by maximum hits per source line. Compilation-only profiles remain
 in a separate directory, as does the early CLI probe because Cargo can relink
 the executable before tests. Unexpected runtime profiles or LLVM diagnostics reject
 the collection instead of producing validated evidence.
+
+Exported `SF:` paths are rewritten relative to the snapshot root before the union,
+so the LCOV and its receipt do not depend on where the snapshot was rehydrated.
+On Windows, `rustup component add llvm-tools-preview` supplies a matching
+`-LlvmDirectory` under the toolchain's `lib/rustlib/<host>/bin`.
+
+`proxy coverage-register <root> <current.lcov> <seed.lcov>` imports two receipted
+LCOV exports as the bundle's `evidence/coverage/` payloads. Each LCOV needs the
+adjacent `.receipt` written by `coverage-union` or `coverage-export`. Registration
+checks that the receipt SHA-256 matches its LCOV and requires workspace-relative
+`SF:` paths. It then rewrites the four coverage `EvidenceRef` rows in
+`state/evidence.spi` and the durable-checkpoint and replay-seed rows in
+`state/coverage.spi`, using the receipt's line count and permille. Any failure
+rolls back every file. Registering test-run coverage does not make it
+release-smoke coverage, and the narrative rows of `state/coverage.spi` stay historical.
 
 The lower-level `proxy coverage-run` resolves relative paths before changing
 directories. `EOIE_COVERAGE_JOBS`, then `CARGO_BUILD_JOBS`, overrides its default
@@ -286,7 +308,35 @@ from a verified source archive and records the strict bundle diagnostics under
 ignored `.cache/strict-preflight/`. Repository-only `src/.gitignore` stays out of
 the distribution. The audit preserves all existing evidence and reports blockers;
 it does not renew receipts or certify a release. Add `-RequireReady` to return a
-failure when the strict check rejects the staged tree.
+failure when the strict check rejects the staged tree. The current blockers and
+why each one cannot yet be renewed are recorded in
+[FIRST-COMMIT-REVIEW.md](FIRST-COMMIT-REVIEW.md#strict-preflight--october-6).
+
+`proxy release-closeout apply` is the renewal path for the ColdProofV4 and
+closeout evidence receipts. It renews all five cold-proof gates. The binary gate
+records the root binary that is actually present (`eoie` or `eoie.exe`, exactly
+one) and the workspace gate records the current `src/Cargo.lock`. The renewed
+proof is kept only if formal authority verifies: the cold proof itself, its census,
+the differential catalog, the family contracts and ColdRebuildV1. The binary must
+also equal the ColdRebuildV1 product. Otherwise the proof is rolled back. The
+recorded replay flags are carried forward, not re-observed. Before the
+cold proof, apply renews a stale DifferentialCatalogV1 or FamilyContractsV1
+receipt and restores both if the proof rolls back. `proxy formal-receipts-renew
+<root>` runs only these two renewals and keeps them. The differential renewal
+first drives the root binary's `proxy differential-compare` route through five
+scenarios: CRLF and trailing-space parity, a byte-identical repeated receipt, a
+mismatch, a missing input and an escaping receipt path. It continues only if all
+five are observed (semantic flags 31). Each renewal then re-hashes its four gates
+and keeps the receipt only if its full verifier passes. For family contracts,
+that includes the 36/36 catalog settlement. The
+closeout evidence refresh records the same platform binary name in `state/evidence.spi`.
+Run it in a staged release root, not in a checkout, because the evidence binds the
+whole `src` tree.
+
+Inspection stays available after a lease reaches its wrap guard or expires:
+`proxy source-topology <root>` without a census path and `agile handoff` are
+classified as inspection. Writing `state/authority_census.spi` remains a mutation
+and is still blocked.
 
 ```powershell
 pwsh eoie.ps1 agile begin . 'Continue portable source review'
