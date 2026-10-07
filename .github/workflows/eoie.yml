@@ -33,6 +33,8 @@ jobs:
       - uses: moonrepo/setup-rust@v1
         with:
           channel: '1.88.0'
+          # cold-owner-format formats generated owners with rustfmt (eoie_cold_rebuild_matrix's tests use it too).
+          components: rustfmt
       - name: Verify targeted development workflow
         run: |
           ./compiler-contracts/test-dev-workflow.ps1
