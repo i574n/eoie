@@ -34,8 +34,18 @@ foreach ($file in $releaseFiles) {
 [void][IO.Directory]::CreateDirectory((Join-Path $release 'evidence/coverage'))
 Copy-Item -LiteralPath $EoieBinary -Destination (Join-Path $release "eoie$suffix")
 
-& $EoieBinary proxy command-capture $work 'strict-check.txt' 120000 $EoieBinary bundle check $release eoie | ForEach-Object { Write-Host $_ }
-if ($LASTEXITCODE -ne 0) { throw 'Strict preflight supervision failed.' }
+# The supervisor runs outside the checkout with no inherited lease root: the lease guard reads the caller's cwd ancestors,
+# and the committed lease is a past session's wall-clock budget, not a property of the staged source (see
+# test-native-probes.ps1). `$release` in the child's argv is not a lease root of the supervisor (eoie_agile_lease scopes
+# command-capture to its own operands), and the child `bundle check` is a wrap-surface effect, allowed in any lease phase.
+$leaseRoot = $env:EOIE_LEASE_ROOT
+Push-Location -LiteralPath ([IO.Path]::GetTempPath())
+try {
+    $env:EOIE_LEASE_ROOT = $null
+    & $EoieBinary proxy command-capture $work 'strict-check.txt' 120000 $EoieBinary bundle check $release eoie | ForEach-Object { Write-Host $_ }
+    $captureExit = $LASTEXITCODE
+} finally { Pop-Location; $env:EOIE_LEASE_ROOT = $leaseRoot }
+if ($captureExit -ne 0) { throw 'Strict preflight supervision failed.' }
 $receiptPath = Join-Path $work 'strict-check.txt'
 $receipt = [IO.File]::ReadAllText($receiptPath)
 $headerEnd = $receipt.IndexOf("--- stdout ---" + [char]10, [StringComparison]::Ordinal)

@@ -338,6 +338,16 @@ Inspection stays available after a lease reaches its wrap guard or expires:
 classified as inspection. Writing `state/authority_census.spi` remains a mutation
 and is still blocked.
 
+The guard looks for `state/prompt.spi` in the command's directory operands and in
+the caller's working directory and its ancestors. A supervising `proxy
+command-capture` or `command-capture-env` offers only its own operands; the
+supervised program's arguments are not its targets, and an `eoie` child applies
+its own guard. The committed lease belongs to the session that produced the
+commit and has always expired by the time CI checks it, so the validation drivers
+(`test-native-probes.ps1`, `test-strict-preflight.ps1`) run their supervisor from
+the system temporary directory: their results do not depend on the wall clock.
+Work in the checkout itself still needs `agile begin` first.
+
 ```powershell
 pwsh eoie.ps1 agile begin . 'Continue portable source review'
 pwsh eoie.ps1 agile list .

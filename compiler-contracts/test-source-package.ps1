@@ -64,7 +64,8 @@ foreach ($relative in $paths) {
     $hash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
     Copy-Item -LiteralPath $source -Destination $destination
     if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -cne $hash) { throw "Source changed during copy: $relative" }
-    $manifest.Add([pscustomobject]@{ Path = $relative; Bytes = (Get-Item -LiteralPath $destination).Length; SHA256 = $hash })
+    # -Force: on Linux, PowerShell treats dotfiles (.gitattributes) as hidden and Get-Item reports them missing.
+    $manifest.Add([pscustomobject]@{ Path = $relative; Bytes = (Get-Item -LiteralPath $destination -Force).Length; SHA256 = $hash })
 }
 foreach ($file in $manifest) {
     if ((Get-FileHash -LiteralPath (Join-Path $EoieRoot $file.Path) -Algorithm SHA256).Hash -cne $file.SHA256) { throw "Source changed during snapshot: $($file.Path)" }

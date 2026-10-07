@@ -4,6 +4,116 @@ Scope: the EOIE source workspace and its supported single-flight compiler
 integration. This is separate from certifying a distributable EOIE release.
 
 
+## Lane Z: CI immune to the committed lease, Linux dotfile — October 7, night
+
+**CI run 37557652854 (the 21:32 commit), diagnosed.** Steps 1–3 passed on both runners, including the rustfmt-dependent
+`eoie_cold_rebuild_matrix` cold-owner tests. Both jobs then failed at "Run every native example", so the regeneration step
+never ran.
+- **windows-2025** failed with `EOIE could not capture metadata.`: `lease authority blocked mutating effect because
+  should_wrap=1`.
+- **ubuntu-24.04** failed earlier, at `test-source-package.ps1:67`. Without `-Force`, PowerShell on Linux treats
+  `.gitattributes` as hidden. With that fixed, it would have hit the same lease block next.
+
+**Root cause.** The lease guard (`eoie_agile_lease`, `find_lease_root`) takes as lease roots:
+- every directory argument that holds `state/prompt.spi`, including the arguments of a supervised child program;
+- the caller's working directory and its ancestors.
+
+CI runs from the checkout, and the committed `state/prompt.spi` is the lease of the session that produced the commit. Its
+budget is 75 min plus a 10 min guard, so it has always expired by the time CI runs. All three committed revisions of
+`prompt.spi` were `LeaseActive` and already past their wrap point when committed. `proxy command-capture` is a mutating
+effect, so every supervised capture was refused. The local strict preflight failed the same way: its supervisor's
+child argv contains the staged release root, which carries the same expired lease. The strict check itself was still
+green: `eoie bundle check <staged> eoie` run directly said `ok`.
+
+**Decision: a committed lease must not gate validation.** A lease is one agent session's wall-clock budget. Gating CI on
+it makes the result depend on how long ago the commit was made, not on the source, so the result cannot be reproduced.
+The lease keeps its job in the checkout: mutating work there still needs `agile begin` first.
+
+Closing the lease instead is not available:
+- No verb writes `LeaseClosed`.
+- `LeaseClosed` fails the typed shape verdict, so `agile check` and `agile lease` would fail.
+- `prompt.spi` is in the state tree hash, so closing it after the closeout would stale the evidence just renewed.
+
+The renewal below therefore leaves a fresh `LeaseActive` lease again. It will have expired before CI sees the commit, and
+it is now harmless there. This follows the earlier rule that batch fixtures run from their temporary directory, so an
+expired checkout lease does not invalidate isolated tests.
+
+**Fix:**
+- **Drivers.** `test-native-probes.ps1` and `test-strict-preflight.ps1` run their eoie supervisor from
+  `[IO.Path]::GetTempPath()` with `EOIE_LEASE_ROOT` cleared. On Linux that is `/tmp`, and no ancestor of it holds
+  `state/prompt.spi`. Receipts stay under `.cache/`, and the children still run in the supervisor's root.
+- **Guard** (`lease.spi`, `lease_operand_args`). `proxy command-capture` offers only its own operands (root, receipt,
+  timeout) as lease roots, and `command-capture-env` likewise (also its cwd and env cell). The supervised program's
+  arguments are not the supervisor's targets, and an `eoie` child applies its own guard. The cwd-ancestor rule is
+  unchanged.
+- **Regression.** `expired_lease_blocks_first_mutation_but_keeps_wrap_surface` gains two checks, both run from a neutral
+  cwd against the expired fixture. Capturing `eoie agile lease <fixture>` into a scratch root succeeds. Capturing with
+  the fixture as the supervisor's own root is still blocked and writes nothing. The pre-fix binary failed the first check
+  (`lanes/Z/red-guard.txt`).
+- **Dotfiles.** Every other `Get-Item`/`Get-ChildItem` call in `compiler-contracts/*.ps1` either passes `-Force` or
+  targets a path that is not a dotfile. The CI log shows that `Test-Path`, `Copy-Item` and `Get-FileHash` handled
+  `.gitattributes` on Linux, so line 67 was the only affected call.
+
+**Tests and renewal.** `dev.ps1 -Package eoie-agile-lease,eoie-contracts -Offline -Publish` regenerated `lease.rs` and
+`contracts.rs` on the shared single-flight compiler (`SpiralCompiler.dll` file sha256 `5e2d4446…`, lane X's x6).
+Besides these edits, that compiler also drops `unreachable_patterns` from the generated `#![allow]` header. Lane X
+deployed x10 (`1acbf6fa…`) at 03:41, before the renewal, so the cold owner replay, `agile check` and
+`state/toolchain_identity.spi` all use and record x10. The first
+`build.ps1 -Test -CompilerContracts -Offline` run refused to publish: `eoie_contracts` came to 1,001 lines, over the
+1,000-line crate limit, so the new assertions were compacted to five lines. The second run passed **195 tests, 0 failed**
+and published `eoie.exe` (sha256 `40fb0960…`).
+
+Renewal (`tmp/lanes/Z/chain-z1`, 03:49–03:58, the run-4 chain):
+- `agile begin` ("CI lease immunity evidence renewal") and an owner growth receipt (87 owners changed).
+- `renew-cold-rebuild.ps1 -Apply -ParallelChains 3`:
+  - two staged source roots hashed identical (`4056b0a0…`);
+  - two cold `eoie-cli` builds gave identical products (`7c20f07c…`), and product a is now the root `eoie.exe`;
+  - 106/106 owners replayed (slowest 5.1 s, budget 15 s);
+  - global gate 2.7 s.
+- `agile check . --compiler`: ok, 63 files, 61 build-attested, compiler fingerprint `7066074369053494910`.
+- `proxy release-closeout apply` on a staged copy renewed `authority_census`, `cold_proof`, `evidence` and
+  `release_closeout`, which were copied back.
+- `test-strict-preflight.ps1 -RequireReady`: **ready=True, 0 diagnostics**
+  (`.cache/strict-preflight/cafab8b8d0194b4f9368bce1a34b6fac/report.json`).
+
+The renewed lease is `LeaseActive` again (wrap 05:04:54, deadline 05:14:54).
+
+**Checked after the renewed lease expired, from the checkout as CI runs it** (`tmp/lanes/Z/final`, `final2`).
+`agile lease .` printed `should_wrap=1`, and `should_yield=1` once the deadline passed at 05:14:54.
+
+| Check | Result |
+| --- | --- |
+| Negative control: `eoie proxy fs-write . …` | Still refused (exit 2, nothing written) |
+| `test-native-probes.ps1` | 20/20 passed, twice: at 05:06 and at 05:19 |
+| `test-source-package.ps1 -Offline` (the full rehydrated build and tests) | Passed: 1,044 files at the time, see note |
+| `agile check . --compiler` | ok; it changed no state file |
+| `test-strict-preflight.ps1 -RequireReady`, run last | **ready=True, 0 diagnostics** (`.cache/strict-preflight/893d6559120548758f2da236702483ee/report.json`) |
+
+The first post-deadline preflight run failed for a reason outside this change. A zero-byte untracked `src/cube.gleam`
+appeared at 04:46, apparently from another lane's Gleam cube build. It drifted the `src` tree hash, and the strict check
+rejected it as a forbidden source root file. That file was moved out of the checkout, and the preflight then passed.
+
+**The other CI steps.** Steps 1–3 already passed in run 37557652854. Step 5, "Regenerate and test every declared EOIE
+output", has never run in CI. It was run locally with the CI arguments plus `-Offline`
+(`tmp/lanes/Z/regen1`, shared compiler x10):
+- 106/106 owners emitted, cargo check passed, and 195 tests passed.
+- The release candidate's topology check then failed on the 1,000-line crate limit. It reports only the largest crate,
+  `eoie_agile_state` at 1,009 lines. Counting `.rs` plus `.spi` lines per crate puts four regenerated crates over the
+  limit: `eoie_agile_state` (1,009; 998 committed), `rust_std_fs_mutation` (1,005; 1,000 committed),
+  `bundle_lifecycle_domain` (1,004; 973 committed) and `predicate_lex_domain` (1,002; 996 committed). That count
+  reproduces the checker's committed figures.
+- 104 of the 106 regenerated owners differ from the committed ones. The generated header drops `unreachable_patterns`.
+  Binaries gain the wasm32 and `join` main wrapper (5 lines each). Some libraries grow by up to 21 lines.
+- The pushed spiral compiler (`856dfe9`, used by that CI run) already emits the wasm32 wrapper. CI step 5 is therefore
+  expected to fail on the line limit until those four crates are split or the generated code gets smaller. This was not
+  verified in CI.
+
+**Still open:**
+- The committed lease is again an expired `LeaseActive` lease by the time CI runs. It no longer affects validation.
+- `proxy run … -- <args>` still offers its child's argv as lease roots.
+- Closing a lease (`LeaseClosed`) has no verb and fails `agile check`.
+- The Linux driver path is covered by reasoning only.
+
 ## Lane C: read-only promotion on Server 2025, evidence plan in Spiral — October 6, afternoon
 
 **CI failure (run 37460036298, windows-2025), diagnosed and fixed.** `entry_promotion_supports_paths_beyond_the_legacy_windows_limit`

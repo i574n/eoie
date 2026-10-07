@@ -1,4 +1,4 @@
 union lease_status = | LeaseActive :: lease_status | LeaseClosed :: lease_status
 union prompt_lease = | PromptLease :: string * string * u64 * u64 * u64 * u64 * lease_status -> prompt_lease
-inl current () : prompt_lease = PromptLease ("current", "Promotion fix evidence renewal", 4500000u64, 600000u64, 1791317296608u64, 1791322396608u64, LeaseActive)
+inl current () : prompt_lease = PromptLease ("current", "CI lease immunity evidence renewal", 4500000u64, 600000u64, 1791359394632u64, 1791364494632u64, LeaseActive)
 inl main () : i32 = 0i32

@@ -29,7 +29,7 @@ union spiral_compiler_identity =
     | SpiralCompilerIdentity :: spiral_compiler_role * evidence_ref -> spiral_compiler_identity
 
 inl spiral_entry_identity () : spiral_compiler_identity =
-    SpiralCompilerIdentity (SpiralCompilerEntrypoint, EvidenceRef ("SpiralCompiler.dll", "5165658b052fead72e319fd8ea9603ad49e8fcb96c1305b9673e36836a4b5a27", 253952u64, BinaryMedia, ExternalRequired))
+    SpiralCompilerIdentity (SpiralCompilerEntrypoint, EvidenceRef ("SpiralCompiler.dll", "1acbf6fa4390e6d3c894403f72d8c2b90ffefe95230553b7819cc026a3507675", 282624u64, BinaryMedia, ExternalRequired))
 
 inl spiral_facade_identity () : spiral_compiler_identity =
     SpiralCompilerIdentity (SpiralCompilerFacade, EvidenceRef ("dotnet.exe", "6682d18e2d6dd860f20bc762ad8deed58487e7522a05fa61281b1f3dad8f5c9d", 146216u64, BinaryMedia, ExternalRequired))

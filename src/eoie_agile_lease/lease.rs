@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 // Cache only manifest forms whose complete dependency set we can identify.
@@ -226,6 +226,14 @@ pub fn lease_effect_code() -> i32 {
     if effect <= 3 { effect as i32 } else { 4 }
 }
 
+// A supervisor's own operands end where its supervised program begins: the program's argv is not this effect's target,
+// and an eoie child enforces its own lease. Every other command offers its whole argv.
+fn lease_operand_args() -> Vec<String> {
+    let args = std::env::args().skip(1).collect::<Vec<_>>();
+    let own = match (args.first().map(String::as_str), args.get(1).map(String::as_str)) { (Some("proxy"), Some("command-capture")) => 5, (Some("proxy"), Some("command-capture-env")) => 7, _ => args.len() };
+    args.into_iter().take(own).skip(1).collect()
+}
+
 fn find_lease_root() -> Result<Option<PathBuf>, String> {
     if let Some(value) = std::env::var_os("EOIE_LEASE_ROOT") {
         let root = PathBuf::from(value);
@@ -233,7 +241,7 @@ fn find_lease_root() -> Result<Option<PathBuf>, String> {
         agile_prompt_lease_clock(&root)?;
         return Ok(Some(root));
     }
-    let mut candidates = std::env::args().skip(2).map(PathBuf::from).filter(|path| path.is_dir() && path.join("state/prompt.spi").is_file()).collect::<Vec<_>>();
+    let mut candidates = lease_operand_args().into_iter().map(PathBuf::from).filter(|path| path.is_dir() && path.join("state/prompt.spi").is_file()).collect::<Vec<_>>();
     if std::env::var_os("EOIE_CONTROL_READ_ONLY").is_none() {
         let current = std::env::current_dir().map_err(|error| format!("lease current_dir: {error}"))?;
         candidates.extend(current.ancestors().filter(|path| path.join("state/prompt.spi").is_file()).map(Path::to_path_buf));

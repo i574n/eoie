@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 #![cfg(test)]
 use std::env;
 use std::fs;
@@ -171,6 +171,11 @@ fn expired_lease_blocks_first_mutation_but_keeps_wrap_surface() {
     assert!(handoff.status.success() && String::from_utf8_lossy(&handoff.stdout).contains("# EOIE handoff") && String::from_utf8_lossy(&handoff.stdout).contains("## Resume"), "handoff stderr={}", String::from_utf8_lossy(&handoff.stderr));
     let inspected = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).args(["proxy", "fs-read", root_text, "note.txt"]).output().expect("inspection");
     assert_eq!(String::from_utf8_lossy(&inspected.stdout), "old");
+    let scratch = temporary("lease-capture"); fs::create_dir_all(&scratch).expect("scratch"); let scratch_text = scratch.to_str().expect("scratch text"); let eoie = eoie_binary(); let eoie_text = eoie.to_str().expect("eoie text");
+    let supervised = Command::new(&eoie).current_dir(env::temp_dir()).args(["proxy", "command-capture", scratch_text, "lease.txt", "60000", eoie_text, "agile", "lease", root_text]).output().expect("supervised inspection");
+    assert!(supervised.status.success() && fs::read_to_string(scratch.join("lease.txt")).expect("capture receipt").contains("should_wrap=1"), "supervised stderr={}", String::from_utf8_lossy(&supervised.stderr));
+    let own_root = Command::new(&eoie).current_dir(env::temp_dir()).args(["proxy", "command-capture", root_text, "lease.txt", "60000", eoie_text, "agile", "lease", root_text]).output().expect("blocked capture");
+    assert!(!own_root.status.success() && String::from_utf8_lossy(&own_root.stderr).contains("lease authority blocked mutating effect") && !root.join("lease.txt").exists()); fs::remove_dir_all(scratch).expect("cleanup scratch");
     let renewed = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).args(["agile", "begin", root_text, "renew expired lease"]).output().expect("renew expired lease");
     assert!(renewed.status.success(), "renewal stderr={}", String::from_utf8_lossy(&renewed.stderr));
     let renewed_prompt = fs::read_to_string(root.join("state/prompt.spi")).expect("renewed prompt");

@@ -19,11 +19,21 @@ $work = Join-Path $EoieRoot ('.cache/native-probes/' + [guid]::NewGuid().ToStrin
 $encoding = [Text.UTF8Encoding]::new($false)
 Copy-Item -LiteralPath $EoieBinary -Destination (Join-Path $work "eoie$suffix")
 $EoieBinary = Join-Path $work "eoie$suffix"
+# The committed state/prompt.spi lease is one agent session's wall-clock budget and has always expired by the time CI or
+# a later run validates the commit. The lease guard reads the caller's cwd ancestors, so the supervisor runs from outside
+# the checkout with no inherited lease root; it writes only receipts into $work, and its children still run in $work.
+$isolatedCwd = [IO.Path]::GetTempPath()
 
 function Invoke-ProbeCapture([string]$Name, [string]$Program, [string[]]$Arguments, [int]$Budget = $TimeoutMs) {
     $receiptPath = Join-Path $work "$Name.txt"
-    & $EoieBinary proxy command-capture $work "$Name.txt" $Budget $Program @Arguments | ForEach-Object { Write-Host $_ }
-    if ($LASTEXITCODE -ne 0) { throw "EOIE could not capture $Name." }
+    $leaseRoot = $env:EOIE_LEASE_ROOT
+    Push-Location -LiteralPath $isolatedCwd
+    try {
+        $env:EOIE_LEASE_ROOT = $null
+        & $EoieBinary proxy command-capture $work "$Name.txt" $Budget $Program @Arguments | ForEach-Object { Write-Host $_ }
+        $captureExit = $LASTEXITCODE
+    } finally { Pop-Location; $env:EOIE_LEASE_ROOT = $leaseRoot }
+    if ($captureExit -ne 0) { throw "EOIE could not capture $Name." }
     $receipt = [IO.File]::ReadAllText($receiptPath)
     $startMarker = "--- stdout ---" + [char]10
     $endMarker = [char]10 + "--- stderr ---" + [char]10
