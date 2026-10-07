@@ -10,16 +10,16 @@ union rust_tool_identity =
     | RustToolIdentity :: rust_tool_role * evidence_ref -> rust_tool_identity
 
 inl rustc_identity () : rust_tool_identity =
-    RustToolIdentity (RustCompiler, EvidenceRef ("rustc", "33c990d7d1551347cbdd16b267fd64ecc382453e9703df8c10571749a7eb7bc9", 646160u64, BinaryMedia, ExternalRequired))
+    RustToolIdentity (RustCompiler, EvidenceRef ("rustc.exe", "89d7dc62f1ee51f527159d2456d7f667da37dfd0e4f35ac44ac34cb9e7e7fecb", 109568u64, BinaryMedia, ExternalRequired))
 
 inl cargo_identity () : rust_tool_identity =
-    RustToolIdentity (RustPackageManager, EvidenceRef ("cargo", "2c2612853529607a59faf033ddeba157662c55553f2486ecf9da9b13da2632d2", 42855096u64, BinaryMedia, ExternalRequired))
+    RustToolIdentity (RustPackageManager, EvidenceRef ("cargo.exe", "39b23e87ead17f636f7762011a59047fcb5bb02582d5a84e5e589f5bf5b808c0", 27679744u64, BinaryMedia, ExternalRequired))
 
 inl rustdoc_identity () : rust_tool_identity =
-    RustToolIdentity (RustDocumentationCompiler, EvidenceRef ("rustdoc", "74e0910ebec8a502b05df355a76e22340c2c29fbb2f5c4303e3b34968c4a0d57", 13692280u64, BinaryMedia, ExternalRequired))
+    RustToolIdentity (RustDocumentationCompiler, EvidenceRef ("rustdoc.exe", "45ad5035752a100ef82c731038bc7f7501e3821382f3daa24ee45f79db5c2221", 11525120u64, BinaryMedia, ExternalRequired))
 
 inl rustfmt_identity () : rust_tool_identity =
-    RustToolIdentity (RustFormatter, EvidenceRef ("rustfmt", "993c8217d552141cd3487cc1aca7956b0e3ea4aedbb54a0ab64378443f667b11", 5269024u64, BinaryMedia, ExternalRequired))
+    RustToolIdentity (RustFormatter, EvidenceRef ("rustfmt.exe", "e66e154c8dd9d73ea093b8a5634bcd7cf123d2a3f1c59cf54e1aa14575b73684", 5534208u64, BinaryMedia, ExternalRequired))
 
 union spiral_compiler_role =
     | SpiralCompilerEntrypoint
@@ -29,9 +29,9 @@ union spiral_compiler_identity =
     | SpiralCompilerIdentity :: spiral_compiler_role * evidence_ref -> spiral_compiler_identity
 
 inl spiral_entry_identity () : spiral_compiler_identity =
-    SpiralCompilerIdentity (SpiralCompilerEntrypoint, EvidenceRef ("spiral-compile", "e44e338a7e6b3dde94619dfe0ff0a1ae8a6d2913e85294c943d351260d720eff", 63200u64, BinaryMedia, ExternalRequired))
+    SpiralCompilerIdentity (SpiralCompilerEntrypoint, EvidenceRef ("SpiralCompiler.dll", "5165658b052fead72e319fd8ea9603ad49e8fcb96c1305b9673e36836a4b5a27", 253952u64, BinaryMedia, ExternalRequired))
 
 inl spiral_facade_identity () : spiral_compiler_identity =
-    SpiralCompilerIdentity (SpiralCompilerFacade, EvidenceRef ("SpiralCompilerFacadeCli.dll", "3881114224bd0c13df2d8fbe8729e67a1ff1405a941725272b79d38b1b3f4523", 62976u64, BinaryMedia, ExternalRequired))
+    SpiralCompilerIdentity (SpiralCompilerFacade, EvidenceRef ("dotnet.exe", "6682d18e2d6dd860f20bc762ad8deed58487e7522a05fa61281b1f3dad8f5c9d", 146216u64, BinaryMedia, ExternalRequired))
 
 inl main () : i32 = 0i32

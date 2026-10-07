@@ -90,3 +90,26 @@ let restoration_payload_outcome_binding (identity : i32) (outcome : i32) : i32 =
     elif !!!!LT(outcome,1i32) then -1i32
     elif !!!!LT(2i32,outcome) then -1i32
     else identity
+
+// Why the Rust boundary rejected a typed patch plan; the witness code is that boundary's encoding.
+union patch_plan_failure =
+    | PatchPlanEmpty
+    | PatchPlanMalformed
+    | PatchPlanOversized
+    | PatchPlanUnavailable
+    | PatchPlanInvalidWitness
+
+inl patch_plan_failure_message = function
+    | PatchPlanEmpty => "typed patch plan contains no PatchExact values"
+    | PatchPlanMalformed => "typed patch plan is malformed"
+    | PatchPlanOversized => "typed patch plan exceeds 256 KiB"
+    | PatchPlanUnavailable => "typed patch plan source is unavailable"
+    | PatchPlanInvalidWitness => "typed patch plan returned an invalid witness"
+
+let patch_plan_failure_binding (code : i32) : string =
+    inl malformed, oversized, unavailable = -1i32, -2i32, -3i32
+    if !!!!EQ(code,0i32) then patch_plan_failure_message PatchPlanEmpty
+    elif !!!!EQ(code,malformed) then patch_plan_failure_message PatchPlanMalformed
+    elif !!!!EQ(code,oversized) then patch_plan_failure_message PatchPlanOversized
+    elif !!!!EQ(code,unavailable) then patch_plan_failure_message PatchPlanUnavailable
+    else patch_plan_failure_message PatchPlanInvalidWitness

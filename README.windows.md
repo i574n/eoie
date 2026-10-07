@@ -92,6 +92,13 @@ For native Spiral code generation and compiler configuration, see [README.md](RE
 - Filesystem-action copies and links stage output before replacement. Changed
   destinations block publication, and rollback preserves detected later edits.
   Copy rollback handles read-only output and reports Windows sharing locks.
+  Entry promotion replaces a read-only target through `FileRenameInfoEx` with a
+  NUL-terminated name inside the passed size, then checks that the target is the
+  staged entry (volume serial and file index) and the stage name is gone; a
+  reported success that did not promote is returned as an error. The check
+  relies on file IDs that survive a rename, as on NTFS and ReFS; on FAT/exFAT,
+  where an ID can change with the directory entry, a completed promotion may be
+  reported as an error.
   File hashing uses bounded reads and rejects linked ancestors.
 - `self-upgrade-check` accepts exactly one `eoie` or `eoie.exe` in each bundle
   and runs all six strict compatibility checks; generic archive validation

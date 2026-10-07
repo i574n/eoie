@@ -228,17 +228,21 @@ fn entry_promotion_supports_paths_beyond_the_legacy_windows_limit() {
     std::fs::create_dir_all(&parent).unwrap();
     assert!(parent.as_os_str().len() > 260);
     let stage = parent.join("stage");
-    let target = parent.join("target");
-    std::fs::write(&stage, b"candidate").unwrap();
-    eoie_rust_std_fs_mutation::rooted_promote_nondirectory_within(&parent, &stage, &target, false).unwrap();
-    assert_eq!(std::fs::read(&target).unwrap(), b"candidate");
-    assert!(!stage.exists());
-    let mut readonly = std::fs::metadata(&target).unwrap().permissions();
-    readonly.set_readonly(true);
-    std::fs::set_permissions(&target, readonly).unwrap();
-    std::fs::write(&stage, b"replacement").unwrap();
-    eoie_rust_std_fs_mutation::rooted_promote_nondirectory_within(&parent, &stage, &target, true).unwrap();
-    assert_eq!(std::fs::read(&target).unwrap(), b"replacement");
+    // Four leaf lengths cover every target-name length mod 4, i.e. every rename-buffer tail (CI run 37460036298).
+    for leaf in ["target", "target1", "target22", "target333"] {
+        let target = parent.join(leaf);
+        std::fs::write(&stage, b"candidate").unwrap();
+        eoie_rust_std_fs_mutation::rooted_promote_nondirectory_within(&parent, &stage, &target, false).unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), b"candidate");
+        assert!(!stage.exists());
+        let mut readonly = std::fs::metadata(&target).unwrap().permissions();
+        readonly.set_readonly(true);
+        std::fs::set_permissions(&target, readonly).unwrap();
+        std::fs::write(&stage, b"replacement").unwrap();
+        eoie_rust_std_fs_mutation::rooted_promote_nondirectory_within(&parent, &stage, &target, true).unwrap();
+        assert_eq!(std::fs::read(&target).unwrap(), b"replacement", "{leaf}");
+        assert_eq!(std::fs::read_dir(&parent).unwrap().count(), 1 + ["target", "target1", "target22", "target333"].iter().position(|l| *l == leaf).unwrap(), "{leaf}");
+    }
 }
 
 #[test]

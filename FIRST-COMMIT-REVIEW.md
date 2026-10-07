@@ -3,6 +3,96 @@
 Scope: the EOIE source workspace and its supported single-flight compiler
 integration. This is separate from certifying a distributable EOIE release.
 
+
+## Lane C: read-only promotion on Server 2025, evidence plan in Spiral — October 6, afternoon
+
+**CI failure (run 37460036298, windows-2025), diagnosed and fixed.** `entry_promotion_supports_paths_beyond_the_legacy_windows_limit`
+saw `rooted_promote_nondirectory_within(..., replace=true)` return `Ok` while the read-only target still held `candidate`.
+Root cause: the `FileRenameInfoEx` fallback (`windows_replace_readonly`, `src/rust_std_fs_mutation/windows.rs`) passed
+`size = offset_of(FileName) + 2*len` with no NUL inside it. Kernelbase reads `FileName` up to its NUL, not
+`FileNameLength`. The zero-filled word buffer only supplies a NUL when `size % 8 != 0`, i.e. when the target path length
+is not ≡ 2 (mod 4). Otherwise the call read past the allocation and renamed the stage to `target<heap bytes>`, returning
+success. The test path is `\\?\C:\Users\<user>\AppData\Local\Temp\eoie-fs-actions-<pid>-<nonce>\…\target`: 412 characters
+here (`i574n`, 4-digit pid, ≡ 0) and 418 on the runner (`runneradmin`, 4-digit pid, ≡ 2), so it could not fail locally
+for any pid under six digits. Elevation is not the difference: this host's session is also High integrity. (Assumed, not
+observed: the runner's `TEMP` canonicalizes to `runneradmin`.)
+
+Local evidence (`.claude/jobs/…/lanes/C/renameprobe`, a standalone copy of the old and fixed layouts):
+- a garbage tail after the name: `ok=true`, target still `candidate`, the stage renamed to `targetZQ`; a `*` tail fails with
+  error 123; the same buffer with the NUL inside `size` replaces correctly;
+- the old layout over 200 iterations per name-length residue: residue 2 → **200/200 `Ok` without replacing**, residues
+  0/1/3 → 200/200 replaced. The fixed layout: 800/800 replaced.
+
+Fix: `windows_rename_info` builds the buffer with the NUL inside the passed size (`FileNameLength` still excludes it), and
+promotion now verifies its own postcondition on both paths (`MoveFileExW` and the read-only fallback): the target's
+(volume serial, file index) must equal the stage's, taken before the rename, and the stage name must be gone; otherwise
+it is an error. Tests: `rename_info_name_is_nul_terminated_within_the_passed_size` (red before the fix: `t: NUL outside the
+passed size`), and the end-to-end test now promotes over read-only targets at four leaf lengths (all four residues). It
+passed on the old code locally, because the bytes after the heap block happened to be zero, so the unit test is the
+deterministic regression. `rust_std_fs_mutation` is at exactly 1,000 crate lines (limit 1,000); the Drop helper of its
+test fixture was compacted to fit. The Linux `renameat` path gained no postcondition (no lines left in that crate).
+
+**rust_global → Spiral (task 2), two slices, both through `dev.ps1 -Publish`:**
+
+| Crate | rust_global lines (bytes) before → after | Generated owner `.rs` lines | Moved into typed Spiral |
+| --- | --- | --- | --- |
+| `evidence_currentness_domain` | 401 (28,193) → 399 (28,170) | 409 → 571 | The `evidence_plan` GADT (declared → observed → verified) is now interpreted: `plan_stage` folds the plan over a row's observation (regular file, identical bytes+SHA) and `eoie_evidence_row_stage` decides both the evidence rows (`check_evidence_tree`) and the Rust tool rows (`toolchain_status`); Rust keeps the metadata/hash observations and the error text. `rust_tool` union with exhaustive identity/environment mappings replaces `toolchain_env_name`'s match; `public_binary` union decides `eoie`/`eoie.exe`; the three SHA-256 text checks use `typed_predicate`'s `sha256_text` (GADT predicate with existential projection). |
+| `patch_control_domain` | 89 (3,423) → 82 (3,123) | 174 → 207 | `patch_plan_failure` union with an exhaustive message mapping replaces the `patch_plan_error` match; Rust keeps the stderr effect. |
+| Workspace | 11,585 (846,379) → 11,576 (846,056), 258 sites | | |
+
+Tests first: `evidence_rows_follow_the_spiral_currentness_plan` (stage table, tool environments, public binary, SHA-256
+text, and the five patch plan failure messages, the latter from this dependent crate because `patch_control_domain` has no
+test target) failed to build before each slice (E0425) and passes after. The line reduction is small because the Rust glue
+around each decision stays. A third attempt, moving `evidence_parse_u64` onto the shared `state_receipt_codec_model`
+lexer, compiled, but grew the generated owner to 963 lines, which would break the 1,000-line crate limit, so it was dropped.
+Two compiler quirks found on the way are on the lane board (FOR-D): `!!!!EQ(s, g X)` and `!!!!EQ(code, -1i32)` inside a
+top-level `let` silently drop the binding. Binding the operand first works.
+**Found on the way: `agile handoff` failed on the renewed checkout.** The morning's ColdProofV4 renewal records the
+binary actually present (`eoie.exe`), but the handoff's Spiral cold-proof projection
+(`handoff_evidence_projection_domain`) accepted only `eoie`, so `eoie agile handoff .` exited 2 with
+`cold proof projection rejected typed state`. That made `eoie_cli`'s `handoff_tolerates_a_reader_that_closes_stdout_early`
+(which runs handoff on the checkout) fail in `build.ps1 -Test` (lane C run1, 12:52). The morning's build had passed only
+because it ran before the closeout renewal. The projection now accepts either platform binary, and its self-check gains
+an `eoie.exe` fixture. The CLI test is the regression: red on the live state before, 4/4 after.
+
+**Evidence renewed after these src edits (lane C run4, 16:08–16:23, `chain.ps1 -SkipBuild -ParallelChains 3`, on the
+`eoie.exe` published by the run2 build: 195 tests passed, 0 failed).** Lease (`agile begin`, 4,500 s budget), owner
+growth receipt (87 owners changed), `renew-cold-rebuild.ps1 -Apply -ParallelChains 3`: two staged source roots hashed
+identical (`522758c6…`), two cold `eoie-cli` builds (2 min 33 s, 2 min 36 s) gave identical products, 106/106 owners
+replayed cold with 0 hard failures (slowest 12.6 s, budget 15 s; at width 12 under the six-lane load 94 of 106 had gone
+over, which is why the script gained `-ParallelChains`), global gate 5.2 s (budget 30 s). Then `agile check . --compiler`
+ok (63 files, 61 build-attested), `proxy release-closeout apply` on a staged release root (renewed `authority_census`,
+`cold_proof`, `evidence`, `release_closeout`, copied back), and last
+`compiler-contracts/test-strict-preflight.ps1 -RequireReady`: **ready=True, 0 diagnostics**
+(`.cache/strict-preflight/a13d81867db54f24a9fc6fbe1e49b9cc/report.json`). Root `eoie.exe` sha256 `b6be83ed…3103`.
+
+## Strict preflight ready — October 6, 09:3x
+
+`compiler-contracts/test-strict-preflight.ps1 -RequireReady` passes: **ready=True, 0 diagnostics**
+(`.cache/strict-preflight/36573887065e47e899bce33974d3d5b7/report.json`), and `agile check . --compiler` is ok
+(63 files, 61 build-attested). What closed the remaining three errors:
+
+- **ColdRebuildV1 has a producer**: `compiler-contracts/renew-cold-rebuild.ps1 [-Apply]`. No producer had existed, and
+  the old receipt's numbers sat exactly at the budget caps. Every value is now observed on two independent
+  release-shaped roots (two verified source packages): source a/b through `proxy hash-tree`; product a/b from two cold
+  `eoie-cli` builds in fresh target directories with the receipt's normalization plus `-Clink-arg=/Brepro` on Windows
+  (the PE timestamps and PDB GUID were the only differences), which came out byte-identical; the 106 declared owners
+  replayed cold through `proxy cold-rebuild-matrix` and `proxy batch-plan` (slowest 11.1 s, budget 15 s); the global gate
+  is the strict release gate `bundle check <root> eoie` (1.8 s, budget 30 s); the toolchain identity is the Windows
+  rustc/cargo/rustdoc/rustfmt and the Spiral compiler the owners ran (`SpiralCompiler.dll` and its dotnet host). With
+  `-Apply` it writes `state/toolchain_identity.spi` and `state/cold_rebuild.spi` and publishes product a as the root
+  binary. Owner timings depend on machine load: run it on a quiet machine.
+- **cold-owner-format** formatted the candidate by path, so rustfmt opened the owner's out-of-line `mod x;` children,
+  which are not in `products/` (cold_proof_domain's `rebuild_receipt_tests`); it now formats through stdin
+  (`native_matrix::cold_owner_formats_output_with_out_of_line_modules`, red before the fix).
+- **The closeout evidence refresh attests the release state**: every UTF-8 evidence row under `state/` or `src/` is
+  renewed at closeout. `src/Cargo.toml`, `state/bundle.spi`, `state/package.spiproj` and
+  `state/toolchain_identity.spi` had changed since the last closeout, so every closeout rolled back at the first of
+  them. Coverage evidence keeps its own producer and is only checked
+  (`registration_tests::closeout_evidence_refresh_attests_the_release_state`).
+- `proxy release-closeout apply` then ran on a staged release root (the `src` tree hash must not see `src/target`) and
+  renewed `authority_census`, `cold_proof`, `evidence` and `release_closeout`, which were copied back.
+
 ## Strict preflight — October 6
 
 `compiler-contracts/test-strict-preflight.ps1 -RequireReady` still rejects the

@@ -77,14 +77,7 @@ pub fn patch_occurrence_count(text: &str, needle: &str) -> usize {
 }
 #[must_use]
 pub fn patch_plan_error(code: i32) -> i32 {
-    let message = match code {
-        0 => "typed patch plan contains no PatchExact values",
-        -1 => "typed patch plan is malformed",
-        -2 => "typed patch plan exceeds 256 KiB",
-        -3 => "typed patch plan source is unavailable",
-        _ => "typed patch plan returned an invalid witness",
-    };
-    eprintln!("eoie error: {message}");
+    eprintln!("eoie error: {}", eoie_patch_plan_failure_message(code));
     2
 }
 
@@ -149,19 +142,56 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method1(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method2(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
+}
+fn method3(mut v0: i32) -> Rc<str> {
+    let mut v1: bool = v0 == 0i32;
+    if v1 {
+        let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("typed patch plan contains no PatchExact values"); } LIT.with(|lit| lit.clone()) };
+        v2.clone()
+    } else {
+        let mut v3: bool = v0 == -1i32;
+        if v3 {
+            let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("typed patch plan is malformed"); } LIT.with(|lit| lit.clone()) };
+            v4.clone()
+        } else {
+            let mut v5: bool = v0 == -2i32;
+            if v5 {
+                let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("typed patch plan exceeds 256 KiB"); } LIT.with(|lit| lit.clone()) };
+                v6.clone()
+            } else {
+                let mut v7: bool = v0 == -3i32;
+                if v7 {
+                    let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("typed patch plan source is unavailable"); } LIT.with(|lit| lit.clone()) };
+                    v8.clone()
+                } else {
+                    let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("typed patch plan returned an invalid witness"); } LIT.with(|lit| lit.clone()) };
+                    v9.clone()
+                }
+            }
+        }
+    }
+}
+fn closure3() -> Rc<dyn Fn(i32) -> Rc<str>> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32) -> Rc<str>> = Rc::new(move |mut v0: i32| -> Rc<str> {
+        method3(v0)
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_patch_restoration_payload_identity(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)
@@ -171,4 +201,7 @@ pub fn eoie_patch_restoration_payload_slot_binding(v0: i32, v1: i32) -> i32 {
 }
 pub fn eoie_patch_restoration_payload_outcome_binding(v0: i32, v1: i32) -> i32 {
     closure2()(v0, v1)
+}
+pub fn eoie_patch_plan_failure_message(v0: i32) -> Rc<str> {
+    closure3()(v0)
 }

@@ -1,3 +1,5 @@
+packages:
+    typed_predicate
 modules:
     model
     terminal

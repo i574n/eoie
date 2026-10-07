@@ -94,3 +94,40 @@ fn closeout_evidence_refresh_binds_the_platform_binary_name() {
     fs::write(root.join("eoie"), "unix binary").unwrap();
     assert!(refresh_release_closeout_evidence(root, &closeout, 9).unwrap_err().contains("exactly one root binary"));
 }
+
+#[test]
+fn closeout_evidence_refresh_attests_the_release_state() {
+    // Release state edited after the last closeout (eoie-strict's E2: src/Cargo.toml, state/bundle.spi) must not make every
+    // later closeout roll back: the closeout attests it. Coverage evidence keeps its own producer.
+    let f = Fixture::new("closeout manifest");
+    let root = &f.0;
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::create_dir_all(root.join("evidence")).unwrap();
+    for (relative, text) in [("state/release_closeout.spi", "closeout\n"), ("state/cold_proof.spi", "cold\n"), ("src/Cargo.lock", "lock\n"), ("src/Cargo.toml", "[workspace]\n"), ("state/bundle.spi", "bundle\n"), ("eoie.exe", "windows binary")] {
+        fs::write(root.join(relative), text).unwrap();
+    }
+    let rows = ["state/release_closeout.spi", "state/cold_proof.spi", "src/Cargo.lock", "src/Cargo.toml", "state/bundle.spi", "eoie"]
+        .iter()
+        .map(|relative| format!("    core.EvidenceRef (\"{relative}\", \"{ZERO}\", 1u64, core.Utf8TextMedia, core.BundlePath)\n"))
+        .collect::<String>();
+    fs::write(root.join("state/evidence.spi"), format!("{rows}    core.EvidenceTreeRef (\"src\", \"{ZERO}\", core.ExactTree)\n    core.EvidenceTreeRef (\"state\", \"{ZERO}\", core.StateTreeWithoutMetaManifests)\n")).unwrap();
+    let closeout = inspection_file_sha256(&root.join("state/release_closeout.spi")).unwrap();
+    assert_eq!(refresh_release_closeout_evidence(root, &closeout, 9).unwrap(), 127);
+    let manifest = fs::read_to_string(root.join("state/evidence.spi")).unwrap();
+    let workspace = inspection_file_sha256(&root.join("src/Cargo.toml")).unwrap();
+    assert!(manifest.contains(&format!("(\"src/Cargo.toml\", \"{workspace}\", 12u64")), "{manifest}");
+    let bundle = inspection_file_sha256(&root.join("state/bundle.spi")).unwrap();
+    assert!(manifest.contains(&format!("(\"state/bundle.spi\", \"{bundle}\", 7u64")), "{manifest}");
+}
+
+#[test]
+fn evidence_rows_follow_the_spiral_currentness_plan() {
+    // (regular, identical) -> stage: a row is verified only after it was observed.
+    for (regular, identical, stage) in [(0, 0, 0), (0, 1, 0), (1, 0, 1), (1, 1, 2)] { assert_eq!(eoie_evidence_row_stage(regular, identical), stage); }
+    for (tool, name) in [("rustc", "RUSTC"), ("cargo", "CARGO"), ("rustdoc", "RUSTDOC"), ("rustfmt", "RUSTFMT"), ("rustup", ""), ("", "")] { assert_eq!(toolchain_env_name(tool).unwrap_or_default(), name); }
+    for (unix, windows, name) in [(1, 0, "eoie"), (0, 1, "eoie.exe"), (1, 1, ""), (0, 0, "")] { assert_eq!(&*eoie_evidence_public_binary(unix, windows), name); }
+    assert!(evidence_sha256_text(ZERO) && evidence_sha256_text(&"Ab".repeat(32)));
+    assert!(!evidence_sha256_text(&ZERO[1..]) && !evidence_sha256_text(&"g".repeat(64)) && !evidence_sha256_text(&format!("{ZERO}0")));
+    // patch_control_domain has no test target: its patch plan failure union is checked from this dependent crate.
+    for (code, tail) in [(0, "contains no PatchExact values"), (-1, "is malformed"), (-2, "exceeds 256 KiB"), (-3, "source is unavailable"), (9, "returned an invalid witness")] { assert_eq!(&*eoie_patch_control_domain::eoie_patch_plan_failure_message(code), format!("typed patch plan {tail}")); }
+}

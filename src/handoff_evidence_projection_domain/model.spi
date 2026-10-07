@@ -60,6 +60,10 @@ let handoff_toolchain_projection (source : string) : string =
                     if (=.) bytes "" then codec_empty ()
                     else sm.concat "spiral_compiler=" (sm.concat name (sm.concat " sha256=" (sm.concat hash (sm.concat " bytes=" bytes))))
 
+// ColdProofV4's binary gate records the one root binary actually present: eoie, or eoie.exe on Windows.
+inl handoff_public_binary (name : string) : bool =
+    if (=.) name "eoie" then true else (=.) name "eoie.exe"
+
 let handoff_cold_projection (source : string) : string =
     inl source_len = sm.length source : i32
     inl closed_at = find_text source 0i32 "ColdReceiptClosed"
@@ -72,7 +76,7 @@ let handoff_cold_projection (source : string) : string =
     if (=.) flags "" then codec_empty ()
     elif (=.) binary_ok false then codec_empty ()
     elif (<) binary_line_len after_hash then codec_empty ()
-    elif (=.) binary_name "eoie" then
+    elif handoff_public_binary binary_name then
         if (=.) binary_hash "" then codec_empty ()
         else sm.concat "cold_proof=" (sm.concat status (sm.concat " replay_flags=" (sm.concat flags (sm.concat " binary_sha256=" binary_hash))))
     else codec_empty ()
@@ -82,3 +86,6 @@ inl fixture_toolchain () : string =
 
 inl fixture_cold () : string =
     "inl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed\ninl current_cold_replay_flags () : u32 = 15u32\ninl binary_gate () = EvidenceRef (\"eoie\", \"deadbeef\")\n"
+
+inl fixture_cold_windows () : string =
+    "inl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed\ninl current_cold_replay_flags () : u32 = 15u32\ninl binary_gate () = EvidenceRef (\"eoie.exe\", \"deadbeef\")\n"

@@ -87,7 +87,7 @@ fn main() {
     let mode = std::fs::read_to_string(input).unwrap();
     std::fs::write(input.with_extension("rs"), "// partial compiler sidecar").unwrap();
     if mode.contains("TIMEOUT") { std::thread::sleep(std::time::Duration::from_secs(5)); }
-    std::fs::write(output, "fn main() {}\r\n").unwrap();
+    std::fs::write(output, if mode.contains("MOD") { "mod child;\r\nfn main() {}\r\n" } else { "fn main() {}\r\n" }).unwrap();
     if mode.contains("FAIL") { std::process::exit(5); }
 }
 "#).unwrap();
@@ -122,6 +122,20 @@ fn cold_owner_contains_sidecars_and_publishes_normalized_output() {
         cold_rebuild_owner_run(&args).unwrap();
         assert_eq!(fs::metadata(output).unwrap().modified().unwrap(), modified, "identical replay changed output timestamp");
     }
+}
+
+#[test]
+fn cold_owner_formats_output_with_out_of_line_modules() {
+    // The candidate is formatted away from the owner's directory, where `mod child;` has no file (cold_proof_domain's
+    // rebuild_receipt_tests): formatting must not open module children.
+    // (the fixture's owner is in the compiler-layout lane, which plans no formatter: request one, as the density lane does)
+    let fixture = Fixture::new();
+    fs::write(fixture.0.join("src/owner with spaces/chosen.spi"), "MOD").unwrap();
+    fs::write(fixture.0.join("src/rustfmt.toml"), "edition = \"2024\"\n").unwrap();
+    let mut args = planned_owner(&fixture);
+    args[7] = "rustfmt".to_owned();
+    cold_rebuild_owner_run(&args).unwrap();
+    assert_eq!(fs::read_to_string(fixture.0.join("src/owner with spaces/generated.rs")).unwrap(), "mod child;\nfn main() {}\n");
 }
 
 #[test]

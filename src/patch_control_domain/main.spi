@@ -18,6 +18,7 @@ inl main () : i32 =
     export_restoration_payload_identity ()
     export_restoration_payload_slot_binding ()
     export_restoration_payload_outcome_binding ()
+    !!!!Export("eoie_patch_plan_failure_message", ((fun code => patch_plan_failure_binding code) : i32 -> string))
     emit_runtime ()
 
     0i32

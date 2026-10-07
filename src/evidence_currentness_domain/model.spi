@@ -13,3 +13,69 @@ union rec evidence_plan from to =
 
 inl currentness_plan () : evidence_plan evidence_declared evidence_verified =
     EvidenceThen (exists (EvidenceStep (ObserveEvidence ()), EvidenceStep (VerifyEvidence ())))
+
+// A declared row (evidence file or Rust tool) is observed when its entry is a regular file and verified when its
+// byte count and SHA-256 also equal the declaration.
+inl transition_admits forall from to. (transition : evidence_transition from to) (regular : bool) (identical : bool) : bool =
+    match transition with
+    | ObserveEvidence _ => regular
+    | VerifyEvidence _ => identical
+
+inl transition_stage forall from to. (transition : evidence_transition from to) : i32 =
+    match transition with
+    | ObserveEvidence _ => 1i32
+    | VerifyEvidence _ => 2i32
+
+// Runs a plan over one row: a transition is taken only when its guard holds and every earlier one was taken.
+inl rec plan_stage forall from to. (plan : evidence_plan from to) (regular : bool) (identical : bool) (reached : i32) : bool * i32 =
+    match plan with
+    | EvidenceStep transition =>
+        if transition_admits transition regular identical then (true, transition_stage transition) else (false, reached)
+    | EvidenceThen payload =>
+        inl exists middle. left, right = payload
+        inl advanced, reached = plan_stage left regular identical reached
+        if advanced then plan_stage right regular identical reached else (false, reached)
+
+// The stage the currentness plan reaches for one row: 0 declared, 1 observed, 2 verified.
+let evidence_row_stage (regular : i32) (identical : i32) : i32 =
+    inl _, stage = plan_stage (currentness_plan ()) (!!!!EQ(regular,1i32)) (!!!!EQ(identical,1i32)) 0i32
+    stage
+
+union rust_tool =
+    | Rustc
+    | Cargo
+    | Rustdoc
+    | Rustfmt
+
+inl rust_tool_identity = function
+    | Rustc => "rustc"
+    | Cargo => "cargo"
+    | Rustdoc => "rustdoc"
+    | Rustfmt => "rustfmt"
+
+inl rust_tool_environment = function
+    | Rustc => "RUSTC"
+    | Cargo => "CARGO"
+    | Rustdoc => "RUSTDOC"
+    | Rustfmt => "RUSTFMT"
+
+// The environment variable supplying the observed tool of a toolchain identity row; empty when the row names none.
+let rust_tool_environment_binding (relative : string) : string =
+    inl check tool next =
+        inl identity = rust_tool_identity tool
+        if !!!!EQ(relative,identity) then rust_tool_environment tool else next
+    check Rustc (check Cargo (check Rustdoc (check Rustfmt "")))
+
+union public_binary =
+    | UnixPublicBinary
+    | WindowsPublicBinary
+
+inl public_binary_name = function
+    | UnixPublicBinary => "eoie"
+    | WindowsPublicBinary => "eoie.exe"
+
+// Closeout evidence binds the one root binary present (presence flags 0/1); empty when both or neither exist.
+let evidence_public_binary_binding (unix : i32) (windows : i32) : string =
+    if !!!!EQ(unix,1i32) && !!!!EQ(windows,0i32) then public_binary_name UnixPublicBinary
+    elif !!!!EQ(unix,0i32) && !!!!EQ(windows,1i32) then public_binary_name WindowsPublicBinary
+    else ""

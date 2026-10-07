@@ -113,9 +113,14 @@ pub fn cold_rebuild_owner_run(args: &[String]) -> Result<(), String> {
     command.arg(&input).arg(&candidate);
     eoie_process_observation::run_bounded_streaming_checked(&mut command, timeout_ms, "cold-owner-compile", None)?;
     if !args[7].is_empty() {
+        // through stdin: given a path, rustfmt also opens the file's out-of-line `mod x;` children next to it, and the
+        // candidate sits in products/ without the owner's sibling modules (cold_proof_domain: rebuild_receipt_tests)
+        let unformatted = eoie_rust_std_fs::read_regular_limited(&candidate, 16 * 1024 * 1024)?;
         let mut formatter = std::process::Command::new(&args[7]);
-        formatter.current_dir(&workspace).args(["--edition", "2024", "--config-path"]).arg(workspace.join("src/rustfmt.toml")).arg(&candidate);
-        eoie_process_observation::run_bounded_streaming_checked(&mut formatter, 15000, "cold-owner-format", None)?;
+        formatter.current_dir(&workspace).args(["--edition", "2024", "--emit", "stdout", "--config-path"]).arg(workspace.join("src/rustfmt.toml"));
+        let formatted = eoie_process_observation::run_bounded_observed_with_input(&mut formatter, 15000, Some(&unformatted))?;
+        if !formatted.status.success() || formatted.stdout.is_empty() { return Err(format!("cold-owner-format failed: {}", String::from_utf8_lossy(&formatted.stderr))); }
+        eoie_rust_std_fs::atomic_write(&candidate, &formatted.stdout)?;
     }
     let generated = eoie_rust_std_fs::read_regular_text_limited(&candidate, 16 * 1024 * 1024)?;
     if generated.trim().is_empty() { return Err("compiler produced an empty Rust output".to_owned()); }
@@ -225,9 +230,10 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    })
+    }); }
+    CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_cold_format_lane(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

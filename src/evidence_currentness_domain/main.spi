@@ -1,5 +1,7 @@
-
 inl main () : i32 =
-    inl _ = model.currentness_plan ()
+    inl _ = typed_predicate.model.lift_sha256 "evidence_sha256_text" ""
+    !!!!Export("eoie_evidence_row_stage", ((fun (first, second) => model.evidence_row_stage first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_rust_tool_environment", ((fun relative => model.rust_tool_environment_binding relative) : string -> string))
+    !!!!Export("eoie_evidence_public_binary", ((fun (first, second) => model.evidence_public_binary_binding first second) : i32 * i32 -> string))
     terminal.emit_runtime ()
     0i32

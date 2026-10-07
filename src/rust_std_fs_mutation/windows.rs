@@ -90,9 +90,23 @@ fn windows_within(root: &Path, path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+#[repr(C)] struct RenameInfo { flags: u32, root: *mut std::ffi::c_void, bytes: u32, name: [u16; 1] }
+// FILE_RENAME_INFO (word buffer for alignment, size passed). Kernelbase reads FileName up to its NUL, so the NUL must lie
+// within `size`; without it the call read past the buffer and renamed to `target<garbage>`, returning success (CI 37460036298).
+fn windows_rename_info(target: &Path, flags: u32) -> Result<(Vec<usize>, u32), String> {
+    let name = std::os::windows::ffi::OsStrExt::encode_wide(target.as_os_str()).chain(Some(0)).collect::<Vec<_>>();
+    let bytes = u32::try_from((name.len() - 1) * 2).map_err(|_| "rename path too long")?;
+    let size = u32::try_from(std::mem::offset_of!(RenameInfo, name) + name.len() * 2).map_err(|_| "rename buffer too large")?;
+    let mut buffer = vec![0usize; (size as usize).div_ceil(std::mem::size_of::<usize>())];
+    let info = buffer.as_mut_ptr().cast::<RenameInfo>();
+    unsafe { std::ptr::addr_of_mut!((*info).flags).write(flags); std::ptr::addr_of_mut!((*info).root).write(std::ptr::null_mut()); }
+    unsafe { std::ptr::addr_of_mut!((*info).bytes).write(bytes); }
+    unsafe { name.as_ptr().copy_to_nonoverlapping(std::ptr::addr_of_mut!((*info).name).cast::<u16>(), name.len()); }
+    Ok((buffer, size))
+}
+
 fn windows_replace_readonly(source: &Path, target: &Path) -> Result<(), String> {
-    use std::os::windows::{ffi::OsStrExt as _, io::AsRawHandle as _};
-    #[repr(C)] struct RenameInfo { flags: u32, root: *mut std::ffi::c_void, bytes: u32, name: [u16; 1] }
+    use std::os::windows::io::AsRawHandle as _;
     #[link(name = "kernel32")]
     unsafe extern "system" { fn SetFileInformationByHandle(file: *mut std::ffi::c_void, class: i32, info: *mut std::ffi::c_void, size: u32) -> i32; }
     let file = WinOptions::new().access_mode(0x10000 | 0x80).share_mode(3)
@@ -101,20 +115,8 @@ fn windows_replace_readonly(source: &Path, target: &Path) -> Result<(), String> 
     if !((metadata.is_file() && metadata.file_attributes() & 0x400 == 0) || metadata.file_type().is_symlink()) {
         return Err("replacement source must be a regular file or link".to_owned());
     }
-    let name = target.as_os_str().encode_wide().collect::<Vec<_>>();
-    let bytes = u32::try_from(name.len().checked_mul(2).ok_or("rename path overflow")?).map_err(|_| "rename path too long")?;
-    let offset = std::mem::offset_of!(RenameInfo, name);
-    let size = offset.checked_add(bytes as usize).and_then(|size| u32::try_from(size).ok()).ok_or("rename buffer too large")?;
-    // Word storage supplies the header's native alignment; the variable tail holds UTF-16.
-    let mut buffer = vec![0usize; (size as usize).div_ceil(std::mem::size_of::<usize>())];
-    let info = buffer.as_mut_ptr().cast::<RenameInfo>();
-    let result = unsafe {
-        std::ptr::addr_of_mut!((*info).flags).write(0x1 | 0x40); // REPLACE_IF_EXISTS | IGNORE_READONLY_ATTRIBUTE
-        std::ptr::addr_of_mut!((*info).root).write(std::ptr::null_mut());
-        std::ptr::addr_of_mut!((*info).bytes).write(bytes);
-        name.as_ptr().copy_to_nonoverlapping(std::ptr::addr_of_mut!((*info).name).cast::<u16>(), name.len());
-        SetFileInformationByHandle(file.as_raw_handle(), 22, info.cast(), size) // FileRenameInfoEx
-    };
+    let (mut buffer, size) = windows_rename_info(target, 0x1 | 0x40)?; // REPLACE_IF_EXISTS | IGNORE_READONLY_ATTRIBUTE
+    let result = unsafe { SetFileInformationByHandle(file.as_raw_handle(), 22, buffer.as_mut_ptr().cast(), size) }; // FileRenameInfoEx
     if result == 0 { return Err(format!("readonly entry promotion: {}", std::io::Error::last_os_error())); }
     Ok(())
 }
@@ -141,12 +143,28 @@ pub fn rooted_promote_nondirectory_within(root: &Path, temporary: &Path, target:
     let to_path = parent.join(destination.path.file_name().ok_or("target has no leaf")?);
     let from = from_path.as_os_str().encode_wide().chain(Some(0)).collect::<Vec<_>>();
     let to = to_path.as_os_str().encode_wide().chain(Some(0)).collect::<Vec<_>>();
+    let staged = windows_identity(&from_path)?;
     if unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), u32::from(replace)) } == 0 {
         let error = std::io::Error::last_os_error();
-        if replace && error.raw_os_error() == Some(5) { return windows_replace_readonly(&from_path, &to_path); }
-        return Err(format!("entry promotion: {error}"));
+        if !(replace && error.raw_os_error() == Some(5)) { return Err(format!("entry promotion: {error}")); }
+        windows_replace_readonly(&from_path, &to_path)?;
+    }
+    // Reported success is not promotion: the target must now be the staged entry and the stage name gone.
+    if windows_identity(&to_path)? != staged || win_fs::symlink_metadata(&from_path).is_ok() {
+        return Err(format!("entry promotion reported success but {} is not the staged entry", to_path.display()));
     }
     Ok(())
+}
+// (volume serial, file index) of the entry itself (links not followed), from BY_HANDLE_FILE_INFORMATION.
+fn windows_identity(path: &Path) -> Result<(u32, u64), String> {
+    #[repr(C)] struct Info { attributes: u32, times: [u32; 6], volume: u32, size: [u32; 2], links: u32, index: [u32; 2] }
+    #[link(name = "kernel32")] unsafe extern "system" { fn GetFileInformationByHandle(file: *mut std::ffi::c_void, info: *mut Info) -> i32; }
+    let file = WinOptions::new().access_mode(0x80).share_mode(7).custom_flags(0x02000000 | 0x00200000).open(path).map_err(|error| format!("entry identity {}: {error}", path.display()))?;
+    let mut info = std::mem::MaybeUninit::<Info>::uninit();
+    if unsafe { GetFileInformationByHandle(std::os::windows::io::AsRawHandle::as_raw_handle(&file), info.as_mut_ptr()) } == 0 {
+        return Err(format!("entry identity {}: {}", path.display(), std::io::Error::last_os_error()));
+    }
+    let info = unsafe { info.assume_init() }; Ok((info.volume, u64::from(info.index[0]) << 32 | u64::from(info.index[1])))
 }
 pub fn rooted_remove_empty_directory_within(root: &Path, path: &Path) -> Result<(), String> {
     windows_within(root, path)?;
@@ -332,14 +350,11 @@ mod windows_copy_tests {
     }
     impl Drop for Fixture {
         fn drop(&mut self) {
-            if let Ok(entries) = win_fs::read_dir(&self.0) {
-                for entry in entries.flatten() {
-                    if let Ok(metadata) = entry.metadata() {
-                        let mut permissions = metadata.permissions();
-                        permissions.set_readonly(false);
-                        let _ = win_fs::set_permissions(entry.path(), permissions);
-                    }
-                }
+            for entry in win_fs::read_dir(&self.0).into_iter().flatten().flatten() {
+                let Ok(metadata) = entry.metadata() else { continue };
+                let mut permissions = metadata.permissions();
+                permissions.set_readonly(false);
+                let _ = win_fs::set_permissions(entry.path(), permissions);
             }
             let _ = win_fs::remove_dir_all(&self.0);
         }
@@ -379,6 +394,18 @@ mod windows_copy_tests {
         assert_eq!(win_fs::read(&target).unwrap(), b"original");
         assert_eq!(fixture.stages(), 0, "failed copy leaked its readonly temporary");
         drop(locked);
+    }
+    #[test]
+    fn rename_info_name_is_nul_terminated_within_the_passed_size() {
+        let offset = std::mem::offset_of!(RenameInfo, name);
+        for leaf in ["t", "t1", "t22", "t333"] { // every name length mod 4
+            let target = Path::new(r"\\?\C:\eoie").join(leaf);
+            let (buffer, size) = windows_rename_info(&target, 1).unwrap();
+            let length = unsafe { (*buffer.as_ptr().cast::<RenameInfo>()).bytes } as usize;
+            assert_eq!(length, 2 * target.as_os_str().len(), "FileNameLength excludes the NUL");
+            assert!(offset + length + 2 <= size as usize, "{leaf}: NUL outside the passed size");
+            assert_eq!(unsafe { *buffer.as_ptr().cast::<u16>().add((offset + length) / 2) }, 0, "{leaf}");
+        }
     }
     struct GeneratedReader { remaining: usize, fail_at_end: bool }
     impl Read for GeneratedReader {
