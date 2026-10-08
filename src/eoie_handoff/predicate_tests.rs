@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[cfg(test)] mod typed_predicate_tests { #[test] fn ascii_and_unicode_match_original_rust_predicates() { assert_eq!(super::eoie_test_typed_predicates(),0); } }
@@ -48,7 +48,7 @@ fn method5(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
                 }
             };
             if v15 {
-                let mut v16: u64 = v2 + 1u64;
+                let mut v16: u64 = v2.wrapping_add(1u64);
                 (v0, v1, v2) = (v0.clone(), v1, v16);
                 continue;
             } else {
@@ -116,7 +116,7 @@ fn method6(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
                 }
             };
             if v23 {
-                let mut v24: u64 = v2 + 1u64;
+                let mut v24: u64 = v2.wrapping_add(1u64);
                 (v0, v1, v2) = (v0.clone(), v1, v24);
                 continue;
             } else {
@@ -174,7 +174,7 @@ fn method1(mut v0: u64) -> u64 {
             let mut v8: u64 = 65u64;
             let mut v9: Rc<str> = method2(v0, v8);
             method3(v9.clone());
-            let mut v10: u64 = v0 + 1u64;
+            let mut v10: u64 = v0.wrapping_add(1u64);
             v0 = v10;
             continue;
         } else {
@@ -202,8 +202,7 @@ fn method0() -> i32 {
 fn closure0() -> Rc<dyn Fn() -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
         method0()
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_test_typed_predicates() -> i32 {
     closure0()()

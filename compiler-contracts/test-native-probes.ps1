@@ -19,9 +19,6 @@ $work = Join-Path $EoieRoot ('.cache/native-probes/' + [guid]::NewGuid().ToStrin
 $encoding = [Text.UTF8Encoding]::new($false)
 Copy-Item -LiteralPath $EoieBinary -Destination (Join-Path $work "eoie$suffix")
 $EoieBinary = Join-Path $work "eoie$suffix"
-# The committed state/prompt.spi lease is one agent session's wall-clock budget and has always expired by the time CI or
-# a later run validates the commit. The lease guard reads the caller's cwd ancestors, so the supervisor runs from outside
-# the checkout with no inherited lease root; it writes only receipts into $work, and its children still run in $work.
 $isolatedCwd = [IO.Path]::GetTempPath()
 
 function Invoke-ProbeCapture([string]$Name, [string]$Program, [string[]]$Arguments, [int]$Budget = $TimeoutMs) {

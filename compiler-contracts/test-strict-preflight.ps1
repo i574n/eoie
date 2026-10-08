@@ -34,10 +34,6 @@ foreach ($file in $releaseFiles) {
 [void][IO.Directory]::CreateDirectory((Join-Path $release 'evidence/coverage'))
 Copy-Item -LiteralPath $EoieBinary -Destination (Join-Path $release "eoie$suffix")
 
-# The supervisor runs outside the checkout with no inherited lease root: the lease guard reads the caller's cwd ancestors,
-# and the committed lease is a past session's wall-clock budget, not a property of the staged source (see
-# test-native-probes.ps1). `$release` in the child's argv is not a lease root of the supervisor (eoie_agile_lease scopes
-# command-capture to its own operands), and the child `bundle check` is a wrap-surface effect, allowed in any lease phase.
 $leaseRoot = $env:EOIE_LEASE_ROOT
 Push-Location -LiteralPath ([IO.Path]::GetTempPath())
 try {
@@ -53,7 +49,6 @@ if ($headerEnd -lt 0) { throw 'Strict preflight process receipt is malformed.' }
 $header = $receipt.Substring(0, $headerEnd)
 $ready = $header -match '(?m)^status=0\r?$' -and $header -match '(?m)^termination=Exited\(0\)\r?$'
 $diagnostics = @($receipt -split '\r?\n' | Where-Object { $_ -match '^(bundle error:|eoie error:)' })
-# Recheck every staged source: inspection must not rewrite receipts or source files.
 foreach ($file in $releaseFiles) {
     if ((Get-FileHash -LiteralPath (Join-Path $release $file.Path) -Algorithm SHA256).Hash -cne $file.SHA256) {
         throw "Strict preflight mutated staged source: $($file.Path)"

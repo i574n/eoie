@@ -2,8 +2,6 @@ open predicate_lex.model
 
 inl different (a : string) (b : string) : bool = if (=.) a b then false else true
 
-// Cargo supplies JSON. Skip uninterpreted values as balanced token spans, then
-// validate the types of every field that grants permission to build the CLI.
 let rec composite_end (text : string) (cursor : i32) (depth : i32) : i32 =
     inl _, after, part, ok = token text cursor
     if (=.) ok false || (=.) part "" then -2i32

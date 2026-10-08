@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[rustfmt::skip]
@@ -237,7 +237,6 @@ pub fn mutation_boundary_capability() -> &'static str {
     let file = unsafe { std::fs::File::from_raw_fd(fd) };
     let metadata = file.metadata().map_err(|error| error.to_string())?;
     if !metadata.is_file() && !metadata.is_dir() { return Err("mode target must be a real file or directory".to_owned()); }
-    // O_PATH permits restoring mode 000; the live descriptor keeps this inode bound.
     let descriptor_path = PathBuf::from(format!("/proc/self/fd/{}", file.as_raw_fd()));
     std::fs::set_permissions(descriptor_path, std::fs::Permissions::from_mode(mode)).map_err(|error| format!("chmod {}: {error}", path.display()))
 }
@@ -529,7 +528,7 @@ pub use dense::*;
 fn spiral_main() -> i32 {
     0i32
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

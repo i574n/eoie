@@ -1,4 +1,3 @@
-// OS command construction lives here; compiler authority and timeout policy live in process.spi.
 fn native_spiral_host(path: &std::path::Path) -> bool {
     path.file_stem().and_then(|name| name.to_str()).is_some_and(|name| name.eq_ignore_ascii_case("SpiralCompiler"))
 }

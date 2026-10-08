@@ -1,4 +1,4 @@
 inl main () : i32 =
     inl code = tests.run ()
-    !!!!Global("// Instrumented Windows test runs flush the profile before the generated launcher's process::exit.\nfn native_codemod_coverage_finish(code: i32) -> i32 {\n    #[cfg(all(windows, eoie_coverage))]\n    {\n        unsafe extern \"C\" { fn __llvm_profile_write_file() -> i32; }\n        if unsafe { __llvm_profile_write_file() } != 0 {\n            eprintln!(\"native codemod coverage profile flush failed\");\n            return if code == 0 { 1 } else { code };\n        }\n    }\n    code\n}\n")
+    !!!!Global("fn native_codemod_coverage_finish(code: i32) -> i32 {\n    #[cfg(all(windows, eoie_coverage))]\n    {\n        unsafe extern \"C\" { fn __llvm_profile_write_file() -> i32; }\n        if unsafe { __llvm_profile_write_file() } != 0 {\n            eprintln!(\"native codemod coverage profile flush failed\");\n            return if code == 0 { 1 } else { code };\n        }\n    }\n    code\n}\n")
     $"native_codemod_coverage_finish(!code)" : i32

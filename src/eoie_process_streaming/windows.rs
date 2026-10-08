@@ -1,9 +1,12 @@
-// Spawn suspended, attach to a job, then resume: descendants cannot escape
-// between process creation and job assignment. No external taskkill dependency.
 use std::ffi::c_void;
 use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::os::windows::process::CommandExt;
 type Handle = *mut c_void;
+const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: u32 = 0x2000;
+const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: i32 = 9;
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+const CREATE_SUSPENDED: u32 = 0x0000_0004;
+const CALLER_DEFAULT_CREATION_FLAGS: u32 = 0;
 #[repr(C)]
 #[derive(Default)]
 struct BasicLimits { process_time: i64, job_time: i64, flags: u32, min_ws: usize, max_ws: usize, active: u32, affinity: usize, priority: u32, scheduling: u32 }
@@ -31,13 +34,13 @@ impl WindowsJob {
         if raw.is_null() { return Err(format!("create process job: {}", std::io::Error::last_os_error())); }
         let job = Self(unsafe { OwnedHandle::from_raw_handle(raw) });
         let mut limits = ExtendedLimits::default();
-        limits.basic.flags = 0x2000; // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-        if unsafe { SetInformationJobObject(raw, 9, &limits as *const _ as *const c_void, std::mem::size_of_val(&limits) as u32) } == 0 {
+        limits.basic.flags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        if unsafe { SetInformationJobObject(raw, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION, &limits as *const _ as *const c_void, std::mem::size_of_val(&limits) as u32) } == 0 {
             return Err(format!("configure process job: {}", std::io::Error::last_os_error()));
         }
-        command.creation_flags(0x08000004); // CREATE_NO_WINDOW | CREATE_SUSPENDED
+        command.creation_flags(CREATE_NO_WINDOW | CREATE_SUSPENDED);
         let result = command.spawn();
-        command.creation_flags(0); // the caller may reuse its Command
+        command.creation_flags(CALLER_DEFAULT_CREATION_FLAGS);
         let mut child = result.map_err(|e| format!("spawn process: {e}"))?;
         let result = (|| {
             if unsafe { AssignProcessToJobObject(raw, child.as_raw_handle()) } == 0 {

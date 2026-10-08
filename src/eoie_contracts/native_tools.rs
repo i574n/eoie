@@ -1,4 +1,3 @@
-// Tiny native test programs replace assumptions about /bin and /usr/bin.
 fn native_test_tool(kind: &str) -> &'static str {
     static TOOLS: std::sync::OnceLock<std::collections::HashMap<String, String>> = std::sync::OnceLock::new();
     TOOLS.get_or_init(|| {

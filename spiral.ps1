@@ -26,7 +26,6 @@ try {
     if (-not (Test-Path -LiteralPath $compiler)) { throw "Build the compiler first: pwsh $CompilerBundle/scripts/build.ps1" }
     $work = Join-Path (Get-SpiralCacheDir) ('eoie/' + [guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $work -Force | Out-Null
-    # The core writes residuals beside its inputs. Never compile the checkout in place.
     function Copy-SpiralSources([string]$From, [string]$To) {
         New-Item -ItemType Directory -Path $To -Force | Out-Null
         foreach ($entry in Get-ChildItem -LiteralPath $From -Force) {

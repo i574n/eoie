@@ -1,3 +1,2 @@
-// Must reject: a text predicate cannot consume a number.
 inl main () : i32 =
     if typed_predicate.model.evaluate (typed_predicate.model.sha256_text ()) 1u64 then 0i32 else 1i32

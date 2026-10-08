@@ -74,7 +74,6 @@ inl show (args : string) : () =
     inl text = quoted_arguments args 0i32 (sm.index (host.separator ()) 0i32)
     host.print (rust_std_string.model.concat5 "cargo " text "\n" "" "")
 
-// The same result-indexed requests can execute or print a dry run.
 union request result =
     | Cargo :: string -> request i32
     | Message :: string -> request ()

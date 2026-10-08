@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use eoie_patch_compat_driver::test_support::{apply, apply_fault, bounded_read, plan, gated, gated_with_corruption, promotion_receipt_roundtrip, rehearse, restoration_receipt_paths, staged_write_mismatch, temporary};
@@ -201,7 +201,7 @@ fn partial_rollback_matches_restored_oracle_and_receipt() {
     assert!(receipt.contains("bytes=3"));
     no_stage(&root);
     fs::remove_dir_all(root).expect("cleanup");
-} // partial_rollback_matches_restored_oracle_and_receipt
+}
 
 #[test]
 fn three_promotion_rollback_restores_two_and_records_one_failure() {
@@ -220,7 +220,7 @@ fn three_promotion_rollback_restores_two_and_records_one_failure() {
     fs::write(root.join("three-promotion-rollback.receipt"), &receipt).expect("receipt");
     assert!(receipt.contains("restored=2")); assert!(receipt.contains("failed=1"));
     no_stage(&root); fs::remove_dir_all(root).expect("cleanup");
-} // three_promotion_rollback_restores_two_and_records_one_failure
+}
 
 #[test]
 fn postgate_failure_after_all_promotions_restores_every_file() {
@@ -234,7 +234,7 @@ fn postgate_failure_after_all_promotions_restores_every_file() {
     assert_eq!(fs::read_to_string(&a).expect("a restored"), "one");
     assert_eq!(fs::read_to_string(&b).expect("b restored"), "two");
     no_stage(&root); fs::remove_dir_all(root).expect("cleanup");
-} // postgate_failure_after_all_promotions_restores_every_file
+}
 
 #[test]
 fn executable_gate_success_commits_every_file() {
@@ -246,7 +246,7 @@ fn executable_gate_success_commits_every_file() {
     assert_eq!(fs::read_to_string(&a).expect("a committed"), "changed-a");
     assert_eq!(fs::read_to_string(&b).expect("b committed"), "changed-b");
     no_stage(&root); fs::remove_dir_all(root).expect("cleanup");
-} // executable_gate_success_commits_every_file
+}
 
 #[test]
 fn executable_gate_failure_restores_every_file() {
@@ -260,11 +260,11 @@ fn executable_gate_failure_restores_every_file() {
     assert_eq!(fs::read_to_string(&a).expect("a restored"), "one");
     assert_eq!(fs::read_to_string(&b).expect("b restored"), "two");
     no_stage(&root); fs::remove_dir_all(root).expect("cleanup");
-} // executable_gate_failure_restores_every_file
+}
 fn spiral_main() -> i32 {
     0i32
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

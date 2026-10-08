@@ -1,4 +1,3 @@
-// EOIE executable contracts. Each transition is exercised through the public process boundary.
 open public_contract_types.types
 
 union contract_op from to result =

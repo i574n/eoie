@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use eoie_process_observation::run_bounded_observed_with_input;
@@ -101,7 +101,6 @@ fn coverage_smoke_copy_tree(source: &Path, destination: &Path, budget: &mut u64,
         else {
             let size = metadata.len();
             if size > *budget { return Err("smoke snapshot exceeds byte limit".to_owned()); }
-            // Bound reads even when a source file grows during the copy.
             use std::io::{Read, Write};
             let mut input = fs::File::open(&path).map_err(|error| error.to_string())?.take(size + 1);
             let mut copied = fs::OpenOptions::new().write(true).create_new(true).open(&output).map_err(|error| error.to_string())?;
@@ -133,7 +132,7 @@ pub struct CoverageSmokeContext<'a> { pub root: &'a Path, pub cargo: &'a Path, p
 fn coverage_smoke_temp(label: &str) -> PathBuf {
     let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos();
     env::temp_dir().join(format!("eoie-coverage-smoke-{label}-{}-{stamp}", std::process::id()))
-} // coverage_smoke_temp
+}
 
 #[rustfmt::skip]
 fn coverage_smoke_exec(context: &CoverageSmokeContext<'_>, cwd: &Path, args: &[String], phase: &str, expect_success: bool) -> Result<(), String> {
@@ -142,8 +141,8 @@ fn coverage_smoke_exec(context: &CoverageSmokeContext<'_>, cwd: &Path, args: &[S
     let observation = run_bounded_observed_with_input(&mut command, context.timeout_ms, None)?;
     if observation.status.success() != expect_success { return Err(format!("smoke phase {phase} expected success={expect_success} observed={} termination={:?} stderr={}", observation.status, observation.termination, String::from_utf8_lossy(&observation.stderr))); }
     println!("eoie coverage smoke phase={phase} status=passed expected_success={expect_success} termination={:?} elapsed_ms={} stdout_bytes={} stderr_bytes={}", observation.termination, observation.elapsed_ms, observation.stdout.len(), observation.stderr.len());
-    Ok(()) // coverage_smoke_exec
-} // coverage_smoke_exec
+    Ok(())
+}
 
 fn coverage_smoke_args(values: &[&str]) -> Vec<String> { values.iter().map(|value| (*value).to_owned()).collect() }
 
@@ -174,9 +173,9 @@ fn coverage_smoke_copy_state(source: &Path, destination: &Path) -> Result<(), St
         let entry = entry.map_err(|error| error.to_string())?;
         let path = entry.path();
         if path.is_file() { fs::copy(&path, destination.join(entry.file_name())).map_err(|error| format!("copy {}: {error}", path.display()))?; }
-    } // coverage_smoke_copy_state loop
-    Ok(()) // coverage_smoke_copy_state
-} // coverage_smoke_copy_state
+    }
+    Ok(())
+}
 
 #[rustfmt::skip]
 pub fn coverage_smoke_run(context: &CoverageSmokeContext<'_>) -> Result<(), String> {
@@ -337,12 +336,12 @@ fn coverage_smoke_run_isolated(context: &CoverageSmokeContext<'_>) -> Result<(),
     coverage_smoke_exec(context, &rehydrated, &coverage_smoke_args(&["bundle", "create", &rehydrated_text, &rehydrated_archive_text]), "bundle-create-rehydrated", true)?;
     coverage_smoke_exec(context, &rehydrated, &coverage_smoke_args(&["bundle", "verify", &rehydrated_archive_text]), "bundle-verify-rehydrated", true)?;
     println!("eoie coverage smoke ok root={}", context.root.display());
-    Ok(()) // coverage_smoke_run
-} // coverage_smoke_run
+    Ok(())
+}
 fn spiral_main() -> i32 {
     0i32
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

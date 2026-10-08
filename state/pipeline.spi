@@ -1,4 +1,3 @@
-// Canonical direct-backend pipeline for this container.
 nominal source_ready = ()
 nominal source_typed = ()
 nominal portable_c_ready = ()

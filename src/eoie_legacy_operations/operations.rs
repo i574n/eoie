@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 const EOIE_SHIM_NAMES: [&str; 4] = if cfg!(windows) { ["python.exe", "python3.exe", "sh.exe", "bash.exe"] } else { ["python", "python3", "sh", "bash"] };
@@ -183,7 +183,6 @@ fn eoie_arg<'a>(args: &'a [String], index: usize, name: &str) -> Result<&'a str,
         .ok_or_else(|| format!("missing argument: {name}"))
 }
 
-// legacy typecheck shadow retired
 
 
 fn eoie_proxy(args: &[String]) -> Result<(), String> {
@@ -536,11 +535,11 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         if v3 {
             -1i32
         } else {
-            let mut v4: i32 = v1 % 2i32;
-            let mut v5: i32 = v1 / 2i32;
-            let mut v6: i32 = v5 % 2i32;
-            let mut v7: i32 = v1 / 4i32;
-            let mut v8: i32 = v7 % 2i32;
+            let mut v4: i32 = v1.wrapping_rem(2i32);
+            let mut v5: i32 = v1.wrapping_div(2i32);
+            let mut v6: i32 = v5.wrapping_rem(2i32);
+            let mut v7: i32 = v1.wrapping_div(4i32);
+            let mut v8: i32 = v7.wrapping_rem(2i32);
             method2(v0, v4, v6, v8)
         }
     }
@@ -672,56 +671,47 @@ fn method16(mut v0: Rc<str>) -> Rc<str> {
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method3(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method5(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method7(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method9(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method11(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
         method14(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
         method15(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
         method16(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_legacy_operations_proxy_dogfood_shim_decision_packed_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

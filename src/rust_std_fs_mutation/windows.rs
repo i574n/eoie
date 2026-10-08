@@ -1,5 +1,3 @@
-// Native Windows backend. Ancestor handles deny delete sharing, preventing
-// directory replacement while a path-based operation is in progress.
 use std::fs::{self as win_fs, File as WinFile, OpenOptions as WinOptions};
 use std::os::windows::fs::{MetadataExt as _, OpenOptionsExt as _};
 
@@ -91,8 +89,10 @@ fn windows_within(root: &Path, path: &Path) -> Result<(), String> {
 }
 
 #[repr(C)] struct RenameInfo { flags: u32, root: *mut std::ffi::c_void, bytes: u32, name: [u16; 1] }
-// FILE_RENAME_INFO (word buffer for alignment, size passed). Kernelbase reads FileName up to its NUL, so the NUL must lie
-// within `size`; without it the call read past the buffer and renamed to `target<garbage>`, returning success (CI 37460036298).
+const FILE_RENAME_FLAG_REPLACE_IF_EXISTS: u32 = 0x1;
+const FILE_RENAME_FLAG_IGNORE_READONLY_ATTRIBUTE: u32 = 0x40;
+const FILE_RENAME_INFO_EX: i32 = 22;
+const DIRECTORY_JUNCTION_ATTRIBUTES: u32 = 0x400 | 0x10;
 fn windows_rename_info(target: &Path, flags: u32) -> Result<(Vec<usize>, u32), String> {
     let name = std::os::windows::ffi::OsStrExt::encode_wide(target.as_os_str()).chain(Some(0)).collect::<Vec<_>>();
     let bytes = u32::try_from((name.len() - 1) * 2).map_err(|_| "rename path too long")?;
@@ -115,8 +115,8 @@ fn windows_replace_readonly(source: &Path, target: &Path) -> Result<(), String> 
     if !((metadata.is_file() && metadata.file_attributes() & 0x400 == 0) || metadata.file_type().is_symlink()) {
         return Err("replacement source must be a regular file or link".to_owned());
     }
-    let (mut buffer, size) = windows_rename_info(target, 0x1 | 0x40)?; // REPLACE_IF_EXISTS | IGNORE_READONLY_ATTRIBUTE
-    let result = unsafe { SetFileInformationByHandle(file.as_raw_handle(), 22, buffer.as_mut_ptr().cast(), size) }; // FileRenameInfoEx
+    let (mut buffer, size) = windows_rename_info(target, FILE_RENAME_FLAG_REPLACE_IF_EXISTS | FILE_RENAME_FLAG_IGNORE_READONLY_ATTRIBUTE)?;
+    let result = unsafe { SetFileInformationByHandle(file.as_raw_handle(), FILE_RENAME_INFO_EX, buffer.as_mut_ptr().cast(), size) };
     if result == 0 { return Err(format!("readonly entry promotion: {}", std::io::Error::last_os_error())); }
     Ok(())
 }
@@ -137,7 +137,6 @@ pub fn rooted_promote_nondirectory_within(root: &Path, temporary: &Path, target:
             Err(error) => return Err(error.to_string()),
         }
     }
-    // Canonicalize only the locked parent, preserving the staged link itself.
     let parent = win_fs::canonicalize(source.path.parent().ok_or("stage has no parent")?).map_err(|error| error.to_string())?;
     let from_path = parent.join(source.path.file_name().ok_or("stage has no leaf")?);
     let to_path = parent.join(destination.path.file_name().ok_or("target has no leaf")?);
@@ -149,13 +148,11 @@ pub fn rooted_promote_nondirectory_within(root: &Path, temporary: &Path, target:
         if !(replace && error.raw_os_error() == Some(5)) { return Err(format!("entry promotion: {error}")); }
         windows_replace_readonly(&from_path, &to_path)?;
     }
-    // Reported success is not promotion: the target must now be the staged entry and the stage name gone.
     if windows_identity(&to_path)? != staged || win_fs::symlink_metadata(&from_path).is_ok() {
         return Err(format!("entry promotion reported success but {} is not the staged entry", to_path.display()));
     }
     Ok(())
 }
-// (volume serial, file index) of the entry itself (links not followed), from BY_HANDLE_FILE_INFORMATION.
 fn windows_identity(path: &Path) -> Result<(u32, u64), String> {
     #[repr(C)] struct Info { attributes: u32, times: [u32; 6], volume: u32, size: [u32; 2], links: u32, index: [u32; 2] }
     #[link(name = "kernel32")] unsafe extern "system" { fn GetFileInformationByHandle(file: *mut std::ffi::c_void, info: *mut Info) -> i32; }
@@ -195,7 +192,6 @@ pub fn rooted_create_directory_within(root: &Path, path: &Path) -> Result<(), St
 }
 pub fn rooted_set_directory_mode_within(root: &Path, path: &Path, _mode: u32) -> Result<(), String> {
     windows_within(root, path)?;
-    // POSIX directory mode bits have no equivalent in Windows ACLs.
     windows_guard(path, true, false).map(|_| ())
 }
 pub fn rooted_promote_directory_within(root: &Path, temporary: &Path, target: &Path) -> Result<(), String> {
@@ -312,8 +308,7 @@ pub fn rooted_remove_regular(path: &Path) -> Result<(), String> {
 pub fn rooted_unlink_nondirectory(path: &Path) -> Result<(), String> {
     let g = windows_guard(path, false, false)?;
     let m = win_fs::symlink_metadata(&g.path).map_err(|e| e.to_string())?;
-    // Link metadata is not a regular directory; junctions retain the native directory attribute.
-    if m.file_attributes() & 0x410 == 0x410 { win_fs::remove_dir(&g.path).map_err(|e| e.to_string()) }
+    if m.file_attributes() & DIRECTORY_JUNCTION_ATTRIBUTES == DIRECTORY_JUNCTION_ATTRIBUTES { win_fs::remove_dir(&g.path).map_err(|e| e.to_string()) }
     else if m.is_dir() { Err("unlink target is a directory".to_owned()) }
     else { win_fs::remove_file(&g.path).map_err(|e| e.to_string()) }
 }
@@ -398,7 +393,8 @@ mod windows_copy_tests {
     #[test]
     fn rename_info_name_is_nul_terminated_within_the_passed_size() {
         let offset = std::mem::offset_of!(RenameInfo, name);
-        for leaf in ["t", "t1", "t22", "t333"] { // every name length mod 4
+        let leaves_covering_every_name_length_mod_4 = ["t", "t1", "t22", "t333"];
+        for leaf in leaves_covering_every_name_length_mod_4 {
             let target = Path::new(r"\\?\C:\eoie").join(leaf);
             let (buffer, size) = windows_rename_info(&target, 1).unwrap();
             let length = unsafe { (*buffer.as_ptr().cast::<RenameInfo>()).bytes } as usize;

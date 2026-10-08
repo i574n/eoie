@@ -50,6 +50,6 @@ inl source_tree () : core.evidence_tree_ref =
     core.EvidenceTreeRef ("src", "4056b0a02bd1aeb1b19477fc37c9aec40d85ee01eb30325beec52dc4b980fc06", core.ExactTree)
 
 inl state_tree () : core.evidence_tree_ref =
-    core.EvidenceTreeRef ("state", "4a2e0e38a7719131af2522210d0d3d70ab3596a463766c42d990aa586e865812", core.StateTreeWithoutMetaManifests)
+    core.EvidenceTreeRef ("state", "670c8b2786158194277987532c2364747a9b86439d48d0a6b22b48cb5f00444d", core.StateTreeWithoutMetaManifests)
 
 inl main () : i32 = 0i32

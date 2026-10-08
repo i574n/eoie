@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[rustfmt::skip]
@@ -22,7 +22,7 @@ fn open_nofollow_path(path: &Path, final_directory: bool) -> Result<std::fs::Fil
     const O_CLOEXEC: c_int = 0o2000000;
     const O_DIRECTORY: c_int = 0o200000;
     const O_NOFOLLOW: c_int = 0o400000;
-    const O_NONBLOCK: c_int = 0o4000; // Reject FIFOs after open without waiting for a writer.
+    const O_NONBLOCK: c_int = 0o4000;
 
     unsafe extern "C" {
         fn openat(dirfd: c_int, pathname: *const c_char, flags: c_int, ...) -> c_int;
@@ -366,7 +366,7 @@ pub use dense::*;
 fn spiral_main() -> i32 {
     0i32
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

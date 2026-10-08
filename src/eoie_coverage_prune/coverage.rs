@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use eoie_process::{typecheck_spiral_file as coverage_typecheck_spiral_file, resolve_spiral_compiler as coverage_resolve_spiral_compiler};
@@ -146,7 +146,6 @@ pub fn prune_uncovered(args: &[String]) -> Result<(), String> {
                 _ => failures.push("receipt changed externally; preserved for review".to_owned()),
             }
         }
-        // An exclusive hard link restores the original metadata without replacing a concurrent file.
         match eoie_rust_std_fs_mutation::rooted_create_hardlink_within(root, &backup, &source) {
             Ok(()) => { if let Err(error) = fs::remove_file(&backup) { failures.push(format!("backup cleanup: {error}")); } }
             Err(error) => failures.push(format!("source restore: {error}; original retained at {}", backup.display())),
@@ -166,8 +165,6 @@ pub fn coverage_finish(code: i32) -> i32 {
     #[cfg(all(windows, eoie_coverage))]
     {
         unsafe extern "C" { fn __llvm_profile_write_file() -> i32; }
-        // The generated launcher uses process::exit; Windows does not finish the
-        // profiler's buffered writes through that path.
         if unsafe { __llvm_profile_write_file() } != 0 {
             eprintln!("eoie error: coverage profile flush failed");
             return if code == 0 { 1 } else { code };
@@ -199,10 +196,10 @@ fn coverage_run_test_args(scope: &str, jobs: &str) -> Result<Vec<String>, String
         "workspace" => args.extend(["--workspace", "--lib", "--bins", "--tests"].into_iter().map(str::to_owned)),
         value if value.starts_with("owner:") => { let package = &value[6..]; if package.is_empty() || !package.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_') { return Err("coverage owner scope is invalid".to_owned()); } args.extend(["-p".to_owned(), package.to_owned(), "--all-targets".to_owned()]); },
         _ => return Err("coverage scope must be public workspace smoke or owner:<package>".to_owned()),
-    } // coverage_run_test_args match
+    }
     args.extend(["--jobs".to_owned(), jobs.to_owned()]);
     Ok(args)
-} // coverage_run_test_args
+}
 
 fn coverage_clear_profraw(path: &Path) -> Result<usize, String> {
     fs::create_dir_all(path).map_err(|error| format!("create {}: {error}", path.display()))?;
@@ -212,10 +209,10 @@ fn coverage_clear_profraw(path: &Path) -> Result<usize, String> {
         if child.is_file() && child.extension().and_then(|value| value.to_str()) == Some("profraw") {
             fs::remove_file(&child).map_err(|error| format!("remove {}: {error}", child.display()))?;
             removed += 1;
-        } // coverage_clear_profraw if
-    } // coverage_clear_profraw loop
+        }
+    }
     Ok(removed)
-} // coverage_clear_profraw
+}
 
 fn coverage_profile_count(path: &Path) -> Result<usize, String> {
     let mut count = 0;
@@ -225,7 +222,7 @@ fn coverage_profile_count(path: &Path) -> Result<usize, String> {
         if entry.file_type().map_err(|error| error.to_string())?.is_file() && entry.metadata().map_err(|error| error.to_string())?.len() > 0 { count += 1; }
     }
     Ok(count)
-} // coverage_profile_count
+}
 
 struct CoverageRunContext<'a> { cargo: &'a Path, source: &'a Path, target: &'a Path, profile_pattern: &'a str, compiler: &'a Path, binary: &'a Path, jobs: &'a str, timeout_ms: u64 }
 
@@ -235,8 +232,8 @@ fn coverage_run_phase(context: &CoverageRunContext<'_>, command_args: &[String],
     command.current_dir(context.source).args(command_args).env("CARGO_TARGET_DIR", context.target).env("CARGO_BUILD_JOBS", context.jobs).env("RUST_TEST_THREADS", env::var("RUST_TEST_THREADS").unwrap_or_else(|_| context.jobs.to_owned())).env("CARGO_INCREMENTAL", "1").env_remove("CARGO_ENCODED_RUSTFLAGS").env("RUSTFLAGS", "-C instrument-coverage --cfg eoie_coverage").env("LLVM_PROFILE_FILE", context.profile_pattern).env("EOIE_SPIRAL_COMPILE", context.compiler).env("EOIE_BIN_UNDER_TEST", context.binary).env("RAYON_NUM_THREADS", context.jobs);
     let _observation = coverage_run_bounded_streaming_checked(&mut command, context.timeout_ms, phase, None)?;
     println!("eoie coverage phase={phase} status=passed elapsed_ms={}", started.elapsed().as_millis());
-    Ok(()) // coverage_run_phase
-} // coverage_run_phase
+    Ok(())
+}
 
 pub fn coverage_run(args: &[String]) -> Result<(), String> {
     if args.len() != 8 { return Err("coverage-run expects root cargo compiler target-dir profraw-dir public|workspace|smoke|owner:<package> timeout-ms".to_owned()); }
@@ -276,7 +273,6 @@ pub fn coverage_run(args: &[String]) -> Result<(), String> {
     let context = CoverageRunContext { cargo, source: &source, target, profile_pattern: &profile_pattern, compiler, binary: &binary, jobs: &jobs, timeout_ms };
     coverage_run_phase(&context, &build, "build-binary")?;
     if !binary.is_file() { return Err(format!("instrumented EOIE binary missing: {}", binary.display())); }
-    // Cargo test may relink this binary; its early probe is not test-run evidence.
     let preflight = profraw.join("preflight");
     coverage_clear_profraw(&preflight)?;
     let mut probe = Command::new(&binary);
@@ -291,12 +287,12 @@ pub fn coverage_run(args: &[String]) -> Result<(), String> {
     } else {
         let tests = coverage_run_test_args(scope, &jobs)?;
         coverage_run_phase(&context, &tests, "contracts")?;
-    } // coverage_run smoke branch
+    }
     let profiles = coverage_profile_count(profraw)?;
     if profiles == 0 { return Err("coverage run produced no profraw files".to_owned()); }
     println!("eoie proxy coverage-run ok scope={scope} profiles={profiles} cleared={removed} target={}", target.display());
-    Ok(()) // coverage_run
-} // coverage_run
+    Ok(())
+}
 
 mod coverage_run_tests {
     #[test] fn coverage_scope_builds_bounded_test_surfaces() {
@@ -308,8 +304,8 @@ mod coverage_run_tests {
         assert!(owner.windows(2).any(|pair| pair == ["-p", "eoie-patch-transaction-contracts"]));
         assert!(super::coverage_run_test_args("owner:../bad", "56").is_err());
         assert!(super::coverage_run_test_args("unknown", "56").is_err());
-    } // coverage_scope_builds_bounded_test_surfaces
-} // coverage_run_tests
+    }
+}
 fn coverage_profraw_files(path: &Path) -> Result<Vec<PathBuf>, String> {
     let metadata = fs::symlink_metadata(path).map_err(|error| format!("metadata {}: {error}", path.display()))?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() { return Err("coverage profraw path must be a real directory".to_owned()); }
@@ -317,13 +313,13 @@ fn coverage_profraw_files(path: &Path) -> Result<Vec<PathBuf>, String> {
     profiles.sort();
     if profiles.is_empty() { return Err("coverage export found no profraw profiles".to_owned()); }
     Ok(profiles)
-} // coverage_profraw_files
+}
 
 fn coverage_export_command(grcov: &Path, profraw: &Path, binary_path: &Path, llvm_path: &Path, source: &Path, output: &Path) -> Command {
     let mut command = Command::new(grcov);
     command.arg(profraw).arg("-s").arg(source).arg("-b").arg(binary_path).arg("--llvm-path").arg(llvm_path).args(["-t", "lcov", "-o"]).arg(output).args(["--llvm", "--ignore-not-existing", "--ignore", "*/vendor/*", "--ignore", "vendor/*", "--ignore", "*/rustc/*", "--ignore", "rustc/*"]);
     command
-} // coverage_export_command
+}
 
 pub fn coverage_export(args: &[String]) -> Result<(), String> {
     if args.len() != 8 { return Err("coverage-export expects profraw-dir binary-path grcov llvm-bin-dir source-root output-lcov timeout-ms".to_owned()); }
@@ -376,11 +372,11 @@ pub fn coverage_export(args: &[String]) -> Result<(), String> {
     })();
     if let Err(error) = fs::remove_dir_all(&stage) { eprintln!("coverage stage cleanup failed: {error}"); }
     result
-} // coverage_export
+}
 
 mod coverage_export_tests {
     #[test] fn coverage_export_requires_profiles() { let root = std::env::temp_dir().join(format!("eoie-coverage-export-{}", std::process::id())); let _ = std::fs::remove_dir_all(&root); std::fs::create_dir_all(&root).expect("root"); assert!(super::coverage_profraw_files(&root).is_err()); std::fs::write(root.join("b.profraw"), b"b").expect("b"); std::fs::write(root.join("a.profraw"), b"a").expect("a"); let profiles = super::coverage_profraw_files(&root).expect("profiles"); assert!(profiles[0].ends_with("a.profraw")); assert!(profiles[1].ends_with("b.profraw")); std::fs::remove_dir_all(root).expect("cleanup"); }
-} // coverage_export_tests
+}
 fn coverage_union_records(path: &Path) -> Result<BTreeMap<String, BTreeMap<u32, u64>>, String> {
     let text = coverage_read_regular_text_limited(path, 64 * 1024 * 1024).map_err(|error| format!("read {}: {error}", path.display()))?;
     let mut active: Option<String> = None;
@@ -410,17 +406,17 @@ fn coverage_union_records(path: &Path) -> Result<BTreeMap<String, BTreeMap<u32, 
     if active.is_some() { return Err("coverage has an unterminated source record".to_owned()); }
     if !records.values().any(|lines| !lines.is_empty()) { return Err("coverage input has no line records".to_owned()); }
     Ok(records)
-} // coverage_union_records
+}
 
 fn coverage_union_merge(target: &mut BTreeMap<String, BTreeMap<u32, u64>>, source: BTreeMap<String, BTreeMap<u32, u64>>) {
     for (file, lines) in source { let target_lines = target.entry(file).or_default(); for (line, hits) in lines { target_lines.entry(line).and_modify(|seen| *seen = (*seen).max(hits)).or_insert(hits); } }
-} // coverage_union_merge
+}
 
 fn coverage_union_payload(records: &BTreeMap<String, BTreeMap<u32, u64>>) -> String {
     let mut payload = String::new();
     for (source, lines) in records { payload.push_str("SF:"); payload.push_str(source); payload.push(char::from(10)); for (line, hits) in lines { payload.push_str(&format!("DA:{line},{hits}\n")); } payload.push_str("end_of_record\n"); }
     payload
-} // coverage_union_payload
+}
 
 pub fn coverage_union(args: &[String]) -> Result<(), String> {
     if args.len() < 4 { return Err("coverage-union expects output-lcov and at least two input LCOV files".to_owned()); }
@@ -438,11 +434,11 @@ pub fn coverage_union(args: &[String]) -> Result<(), String> {
     coverage_atomic_write(&receipt, receipt_text.as_bytes())?;
     println!("eoie proxy coverage-union ok inputs={} lines={} covered={ratio}/1000 sha256={hash}", args.len() - 2, flat.len());
     Ok(())
-} // coverage_union
+}
 
 mod coverage_union_tests {
     #[test] fn coverage_union_merges_max_hits_and_writes_receipt() { let root = std::env::temp_dir().join(format!("eoie-coverage-union-{}", std::process::id())); let _ = std::fs::remove_dir_all(&root); std::fs::create_dir_all(&root).expect("root"); let first = root.join("first.lcov"); let second = root.join("second.lcov"); let output = root.join("union.lcov"); std::fs::write(&first, b"SF:src/a.rs\nDA:1,1\nDA:2,0\nend_of_record\n").expect("first"); std::fs::write(&second, b"SF:src/a.rs\nDA:1,3\nDA:2,1\nend_of_record\n").expect("second"); let args = vec!["coverage-union".to_owned(), output.to_string_lossy().into_owned(), first.to_string_lossy().into_owned(), second.to_string_lossy().into_owned()]; super::coverage_union(&args).expect("union"); let text = std::fs::read_to_string(&output).expect("output"); assert!(text.contains("DA:1,3")); assert!(text.contains("DA:2,1")); let receipt = std::fs::read_to_string(format!("{}.receipt", output.display())).expect("receipt"); assert!(receipt.contains("inputs=2")); std::fs::remove_dir_all(root).expect("cleanup"); }
-} // coverage_union_tests
+}
 fn method0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     if v2 {
@@ -468,9 +464,9 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_coverage_jobs(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

@@ -86,8 +86,6 @@ let matrix_workspace_policy_binding (program_requested_code : i32) (nested_manif
         elif !!!!EQ(nested_manifest,0i32) then command_workspace_policy_code RequestedWorkingDirectory
         else -1i32
     else command_workspace_policy_code RequestedWorkingDirectory
-// Completion means every chain is covered and no stopping policy failed.
-// Bit zero observes the end; bit one proves the prefix (full manual run or auto cursor).
 let matrix_complete_binding (coverage : i32) (accepted : i32) : i32 =
     if !!!!EQ(coverage,3i32) then
         if !!!!EQ(accepted,1i32) then 1i32 else 0i32

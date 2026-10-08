@@ -45,7 +45,6 @@ let rec raw_end (text : string) (index : i32) (hashes : string) : i32 =
         if (=.) close (length text) then -1i32 else (+.) close (length suffix)
     else -1i32
 
-// Token text is preserved, including strings. Whitespace and comments alone disappear.
 let token (text : string) (cursor : i32) : i32 * i32 * string * bool =
     inl first = skip text cursor
     inl size = length text
@@ -79,7 +78,6 @@ let rec canonical_loop (text : string) (cursor : i32) (out : string) : string * 
     else canonical_loop text after (append (append out part) "\n")
 inl canonical (text : string) : string * bool = canonical_loop text 0i32 ""
 
-// Decode only supported Spiral escapes, preserving whole UTF-8 runs between ASCII delimiters.
 let rec literal_loop (text : string) (index : i32) (run : i32) (out : string) : string * i32 * bool =
     if (>=) index (length text) then "", index, false
     elif (=.) (at text index) '"' then append out (cut text run index), (+.) index 1i32, true

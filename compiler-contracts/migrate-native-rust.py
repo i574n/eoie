@@ -14,7 +14,6 @@ import sys
 ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 DRY = "--dry-run" in sys.argv
 
-# Signatures of the translator's export families (compiler/host/PortableBackends.fs, rustExportSignature).
 FAMILIES = {
     "I32": ("()", "{f} ()", "() -> i32"),
     "I32Binary": ("(first, second)", "{f} first second", "i32 * i32 -> i32"),
@@ -24,7 +23,6 @@ FAMILIES = {
     "U64String5": ("(a, b, c, d, e)", "{f} a b c d e", "string * string * string * string * string -> u64"),
 }
 EXPORT = re.compile(r'\$"RustExport(\w+)\(\\"(\w+)\\",\\"([\w.\']+)\\"\)"(\s*:\s*\(\))?')
-# The helper, on one line or several: `inl rust_global (x : string) : () = [real typecase ... =>] $"RustGlobal(@x)" : ()`.
 GLOBAL_HELPER = re.compile(r'inl (\w+) \(x : string\) : \(\) =[^\n]*(?:\n[ \t]+[^\n]*)*?\$"RustGlobal\(@x\)" : \(\)')
 GLOBAL_INLINE = re.compile(r'real\s+typecase `\(!!!!LitToTypeLit\(("(?:[^"\\]|\\.)*")\)\) with ~x => \$"RustGlobal\(@x\)" : \(\)', re.S)
 LIBRARY_LINE = re.compile(r'^[ \t]*(\$"RustLibrary\(\)"(\s*:\s*\(\))?|rust_library \(\)|inl rust_library \(\) : \(\) = \$"RustLibrary\(\)"(\s*:\s*\(\))?)[ \t]*\r?\n', re.M)
@@ -63,7 +61,6 @@ def rewrite_emits(text, path):
         if return_type is None:
             problems.append(f"{path}:{i + 1}: no return type for an emitRustExpr call")
             continue
-        # `!name'` would read the closing quote as part of the name (Spiral identifiers may end in primes).
         if re.search(r"![A-Za-z_]\w*$", code):
             code += " "
         lines[i] = line[:call.start()] + f"$'{code}' : {return_type}" + line[call.end():]
@@ -81,7 +78,6 @@ for directory, dirs, files in os.walk(ROOT):
         new = EXPORT.sub(rewrite_export, text)
         new, n = GLOBAL_HELPER.subn(r"inl \1 (x : string) : () = !!!!Global(x)", new)
         counts["globals"] += n
-        # A literal passed straight to the marker: `real typecase `(!!!!LitToTypeLit("...")) with ~x => $"RustGlobal(@x)" : ()`.
         new, n = GLOBAL_INLINE.subn(lambda m: f"!!!!Global({m.group(1)})", new)
         counts["globals"] += n
         new, n = LIBRARY_LINE.subn("", new)

@@ -52,7 +52,6 @@ fn cold_receipt_counts_declared_auxiliary_outputs_and_excludes_adapters() {
     fixture.receipt(1, 1, 1);
     assert!(verify_public_cold_rebuild(&fixture.0).unwrap_err().contains("inventory drift receipt=1 declared=2"));
     fixture.receipt(2, 2, 1);
-    // The inventory passes; absent later hash gates still prevent certification.
     assert!(verify_public_cold_rebuild(&fixture.0).unwrap_err().contains("gate missing: contract"));
     fs::remove_file(fixture.0.join("src/owner/probe.spi")).unwrap();
     assert!(verify_public_cold_rebuild(&fixture.0).unwrap_err().contains("Spiral entry"));

@@ -19,8 +19,6 @@ $restored = Join-Path $work 'rehydrated sources ü'
 $archive = Join-Path $work 'eoie-source.zip'
 [void][IO.Directory]::CreateDirectory($staged)
 
-# Read the working-tree version of every Git-eligible file, including new source.
-# NUL delimiters preserve spaces, Unicode and other legal filename characters.
 $start = [Diagnostics.ProcessStartInfo]::new('git')
 $start.UseShellExecute = $false
 $start.CreateNoWindow = $true
@@ -47,7 +45,7 @@ $manifest = [Collections.Generic.List[object]]::new()
 foreach ($relative in $paths) {
     $source = [IO.Path]::GetFullPath($relative, $EoieRoot)
     if (-not $source.StartsWith($prefix, $comparison)) { throw "Git source path escapes EOIE: $relative" }
-    if (-not (Test-Path -LiteralPath $source)) { continue } # A tracked deletion is absent from the working tree.
+    if (-not (Test-Path -LiteralPath $source)) { continue }
     if ($relative -match '(^|/)(vendor|target|\.cache|\.git)(/|$)' -or $relative -match '^(eoie|eoie\.exe)$') {
         throw "Build artifact is Git-eligible: $relative"
     }
@@ -64,7 +62,6 @@ foreach ($relative in $paths) {
     $hash = (Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash
     Copy-Item -LiteralPath $source -Destination $destination
     if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -cne $hash) { throw "Source changed during copy: $relative" }
-    # -Force: on Linux, PowerShell treats dotfiles (.gitattributes) as hidden and Get-Item reports them missing.
     $manifest.Add([pscustomobject]@{ Path = $relative; Bytes = (Get-Item -LiteralPath $destination -Force).Length; SHA256 = $hash })
 }
 foreach ($file in $manifest) {

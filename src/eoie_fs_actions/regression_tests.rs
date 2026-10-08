@@ -35,7 +35,6 @@ fn nested_symlink_targets_remain_root_relative() {
         let FsPreparedAction::Symlink { path, target, .. } = &prepared[0] else { panic!("expected symlink") };
         assert_eq!(target, &std::path::PathBuf::from(expected));
         assert_eq!(std::fs::read_to_string(path.parent().unwrap().join(target)).unwrap(), "root target");
-        // Verify the actual filesystem link where symlink creation is available.
         match fs_action_apply_one(&prepared[0]) {
             Ok(undo) => {
                 fs_action_verify_one(&prepared[0]).unwrap();
@@ -228,7 +227,6 @@ fn entry_promotion_supports_paths_beyond_the_legacy_windows_limit() {
     std::fs::create_dir_all(&parent).unwrap();
     assert!(parent.as_os_str().len() > 260);
     let stage = parent.join("stage");
-    // Four leaf lengths cover every target-name length mod 4, i.e. every rename-buffer tail (CI run 37460036298).
     for leaf in ["target", "target1", "target22", "target333"] {
         let target = parent.join(leaf);
         std::fs::write(&stage, b"candidate").unwrap();

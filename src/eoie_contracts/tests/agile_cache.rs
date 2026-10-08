@@ -106,7 +106,6 @@ fn generated_receipts_in_package_reuse_cache_but_extra_source_requires_attestati
 #[test]
 fn runtime_mutation_cannot_refresh_a_changed_dependency_graph() {
     let fixture = Fixture::new();
-    // A one-module state package exposes accidental replacement of the graph receipt.
     fs::remove_file(fixture.root.join("state/core.spi")).unwrap();
     fs::write(fixture.root.join("state/package.spiproj"), "packageDir: ../src\npackages:\n    dep\nmodules:\n    prompt\n").unwrap();
     fixture.successful();

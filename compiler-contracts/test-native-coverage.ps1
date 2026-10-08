@@ -49,7 +49,6 @@ function Invoke-Captured([string]$Name, [string]$Program, [string[]]$Arguments, 
 }
 
 function Write-LlvmArguments([string]$Path, [string[]]$Arguments) {
-    # LLVM response files avoid the Windows command-line length limit.
     $quoted = foreach ($argument in $Arguments) {
         if ($argument.Contains([char]10) -or $argument.Contains([char]13)) { throw 'LLVM arguments cannot contain newlines.' }
         '"' + $argument.Replace('\', '/').Replace('"', '\"') + '"'
@@ -88,8 +87,6 @@ try {
         else { [Environment]::SetEnvironmentVariable($name, $settings[$name]) }
     }
     if (Test-Path Env:CARGO_ENCODED_RUSTFLAGS) { throw 'Encoded Cargo flags must be absent so instrumentation is effective.' }
-    # Compile first with dependency build-script profiles kept outside runtime evidence.
-    # Both subsequent Cargo invocations use this same frozen source and configuration.
     $buildProfiles = Join-Path $work 'build-profiles'
     [void][IO.Directory]::CreateDirectory($buildProfiles)
     $env:LLVM_PROFILE_FILE = Join-Path $buildProfiles '%p-%m.profraw'
@@ -112,8 +109,6 @@ try {
     if ($objects.Count -lt 2) { throw 'Cargo did not report test executables.' }
     $rawProfiles = @(Get-ChildItem -LiteralPath $profiles -File -Filter '*.profraw' | Sort-Object FullName)
     if (-not $rawProfiles.Count) { throw 'No native coverage profiles were produced.' }
-    # LLVM may combine incompatible unused-function maps across test executables.
-    # Match raw profiles to the runtime's module signature before exporting each object.
     $sourceManifest = Get-Content -LiteralPath $snapshot.Manifest -Raw | ConvertFrom-Json
     $sourcePrefix = [IO.Path]::GetFullPath($source).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
     $sourceArguments = @('--sources') + @($sourceManifest | Where-Object { $_.Path -like 'src/*.rs' } | ForEach-Object { Join-Path $source $_.Path })
@@ -145,7 +140,6 @@ try {
         Write-LlvmArguments $responseFile (@('--format=lcov', "--num-threads=$Jobs", "--instr-profile=$merged", "--object=$object") + $sourceArguments)
         $lcov = Invoke-Captured "export-$id" $llvmCov @('export', "@$responseFile") -RejectStderr -Quiet
         if ($lcov -notmatch '(?m)^DA:') { throw "No workspace line coverage was exported for $object." }
-        # Record workspace-relative source paths so the LCOV and its receipt do not embed this snapshot's location.
         $lcov = [regex]::Replace($lcov, '(?m)^SF:([^\r\n]*)', [Text.RegularExpressions.MatchEvaluator]{
             param($match)
             $full = [IO.Path]::GetFullPath($match.Groups[1].Value)

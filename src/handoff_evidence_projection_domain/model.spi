@@ -60,7 +60,6 @@ let handoff_toolchain_projection (source : string) : string =
                     if (=.) bytes "" then codec_empty ()
                     else sm.concat "spiral_compiler=" (sm.concat name (sm.concat " sha256=" (sm.concat hash (sm.concat " bytes=" bytes))))
 
-// ColdProofV4's binary gate records the one root binary actually present: eoie, or eoie.exe on Windows.
 inl handoff_public_binary (name : string) : bool =
     if (=.) name "eoie" then true else (=.) name "eoie.exe"
 

@@ -1,4 +1,3 @@
-// Rust contract harness emitted from Spiral through generic RustGlobal/RustLibrary.
 inl rust_global (x : string) : () = !!!!Global(x)
 
 inl emit_contract_harness () =

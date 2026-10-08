@@ -1,4 +1,3 @@
-// Matrix cells carry argv directly; no shell interprets quotes or backslashes.
 pub fn encode_matrix_arguments(arguments: &[String]) -> Result<String, String> {
     validate(arguments)?;
     serde_json::to_string(arguments)
@@ -11,7 +10,6 @@ pub fn decode_matrix_arguments(cell: &str) -> Result<Vec<String>, String> {
         serde_json::from_str::<Vec<String>>(json)
             .map_err(|error| format!("invalid JSON matrix arguments: {error}"))?
     } else {
-        // Preserve the original whitespace-separated matrix format.
         cell.split_whitespace().map(str::to_owned).collect()
     };
     validate(&arguments)?;

@@ -32,8 +32,6 @@ for directory, dirs, files in os.walk(ROOT):
         lines = text.split("\n")
         out, i = [], 0
         while i < len(lines):
-            # A global that already holds a newline is a whole block; only single-line fragments are merged.
-            # Imports and inner attributes stay separate: their deduplication across packages is wanted.
             def fragment(line):
                 n = LINE.match(line)
                 if not n:
@@ -54,7 +52,6 @@ for directory, dirs, files in os.walk(ROOT):
                 out.append(lines[i])
                 i += 1
                 continue
-            # The fragments are already escaped Spiral string bodies.
             body = "\\n".join(LINE.match(x).group(3) for x in lines[i:j])
             out.append(f'{m.group(1)}{m.group(2)} "{body}"')
             counts["runs"] += 1

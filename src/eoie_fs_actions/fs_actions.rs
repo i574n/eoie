@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
@@ -8,7 +8,6 @@ enum FsActionKind { Mkdir, Copy { source: String, expected_sha: String }, Chmod 
 struct FsActionItem { relative: String, kind: FsActionKind }
 
 fn fs_action_compiled_manifest(plan: &std::path::Path) -> Result<String, String> {
-    // Canonical providers are mandatory; compile every plan to Plan IR.
     let Some(compiler) = eoie_process::resolve_spiral_compiler(None)? else { return Err("compiled fs-actions provider requires a Spiral compiler".to_owned()); };
     let output = plan.with_extension(format!("eoie-plan-ir-{}.ir", std::process::id()));
     let status = eoie_process::compile_spiral_plan_ir(compiler.path.to_string_lossy().as_ref(), plan, &output, 30000)?;
@@ -159,7 +158,6 @@ fn fs_action_prepare(root: &std::path::Path, items: &[FsActionItem]) -> Result<V
                 if !target_path.exists() { return Err(format!("symlink target missing: {}", target_path.display())); }
                 let original = fs_action_existing_link(&path)?;
                 if eoie_fs_actions_freshness_binding(3, 1) != 1 { return Err("typed symlink freshness rejected".to_owned()); }
-                // Plan targets are root-relative; filesystem link payloads are link-relative.
                 let mut link_target = std::path::PathBuf::new();
                 for _ in relative.parent().into_iter().flat_map(|parent| parent.components()) { link_target.push(".."); }
                 link_target.push(target_relative);
@@ -468,29 +466,29 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method1(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method2(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method3(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method4(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 != 0i32;
@@ -511,9 +509,9 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method5(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_fs_actions_shape_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

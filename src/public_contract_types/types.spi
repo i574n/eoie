@@ -1,4 +1,3 @@
-// Public contract endpoint and subject vocabulary shared by executable contracts.
 nominal contract_cold = ()
 nominal contract_identified = ()
 nominal contract_mutated = ()

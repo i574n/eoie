@@ -73,7 +73,6 @@ inl emit forall shape. (items : registry named shape) : () =
     inl _ = map `$emit_one items
     ()
 
-// A codemod can wrap a RustGlobal argument without changing its caller's shape.
 inl lift_sha256 (name : string) (remaining : string) : string =
     emit (One (named {name=name;representation=Text;rule=sha256_text ()}))
     remaining

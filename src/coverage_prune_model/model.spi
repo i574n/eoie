@@ -1,5 +1,4 @@
 nominal coverage_idle = ()
-// Zero requests the portable default; explicit concurrency stays bounded.
 let coverage_jobs_binding (requested : i32) (available : i32) : i32 =
     if !!!!EQ(requested,0i32) then
         if !!!!LT(available,2i32) then 1i32 else 2i32

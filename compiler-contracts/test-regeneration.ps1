@@ -78,8 +78,6 @@ $previousWorkspace = $env:SPIRAL_WORKSPACE_ROOT
 $previousBudget = $env:SPIRAL_BUILD_BUDGET_MS
 try {
     $env:SPIRAL_WORKSPACE_ROOT = $BundleRoot
-    # One compiler process per owner. A second BuildFile in the same process can
-    # sit until the batch timeout, which used to stop the remaining owners.
     Write-Host "Regenerating $($rows.Count) declared EOIE outputs: $work"
     $encoding = [Text.UTF8Encoding]::new($false)
     $writer = [IO.StreamWriter]::new($results, $false, $encoding)

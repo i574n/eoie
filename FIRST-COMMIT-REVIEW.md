@@ -4,6 +4,27 @@ Scope: the EOIE source workspace and its supported single-flight compiler
 integration. This is separate from certifying a distributable EOIE release.
 
 
+## Regeneration on the lean single-flight compiler — October 7, morning
+
+**Why.** CI round 3 failed on ubuntu at step 5 (`test-regeneration.ps1`): the regenerated `eoie_agile_state` crate came
+out at 1,009 lines, over the 1,000-line crate limit. The cause was compiler output size, not EOIE source.
+
+**Change.** The single-flight compiler deployed at 07:33 (core `F99D0A72AE1C`: leaner Rust emission, portable `Printf`,
+operator arguments) regenerates every crate under the limit. Its oracle suite was re-blessed twice with identical results
+(706 rows, `DISAGREE` 0) before deployment.
+
+**Validation, all on this compiler:**
+- `compiler-contracts/test-regeneration.ps1`: topology ok, exit 0 (07:54).
+- Renewal chain (07:55–08:32):
+  - `renew-cold-rebuild -Apply`;
+  - `eoie proxy cold-rebuild-matrix`: ok, 106 pairs;
+  - `eoie agile check --compiler`: exit 0, `record-preflight ready=1 missing=none`;
+  - closeout apply on a staged copy;
+  - `test-strict-preflight.ps1 -RequireReady`: **`ready=True diagnostics=0`**.
+- The preflight run before closeout reports `bundle contract failed with 1 errors`, as expected: closeout is the step
+  that seals the bundle.
+- `eoie.exe` after the chain: SHA `7C20F07C…`.
+
 ## Lane Z: CI immune to the committed lease, Linux dotfile — October 7, night
 
 **CI run 37557652854 (the 21:32 commit), diagnosed.** Steps 1–3 passed on both runners, including the rustfmt-dependent

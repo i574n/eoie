@@ -44,7 +44,6 @@ let score_binding (settled : i32) (total : i32) (migration : i32) (coverage : i3
     elif !!!!LT(coverage,500i32) then 0i32
     else 1i32
 
-// Count topology is intentionally unbounded; only local source-size limits are authority.
 let budget_binding (max_file : i32) (max_crate : i32) (_state_files : i32) (_state_limit : i32) : i32 =
     if !!!!LT(max_file,1i32) then 0i32
     elif !!!!LT(1000i32,max_file) then 0i32

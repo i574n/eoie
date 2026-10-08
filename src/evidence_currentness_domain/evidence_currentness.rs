@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use eoie_patch_control_domain::{patch_quoted_fields, patch_safe_relative};
@@ -129,9 +129,6 @@ pub fn refresh_release_closeout_evidence(root: &Path, closeout_sha256: &str, clo
                 let old_bytes = evidence_parse_u64(line)?;
                 updated = updated.replacen(&format!("{old_bytes}u64"), &format!("{cargo_lock_bytes}u64"), 1);
             }
-            // every other release state and workspace manifest row (UTF-8 text under state/ or src/): the closeout attests the
-            // release as it is (an edit after the last closeout, e.g. src/Cargo.toml or state/bundle.spi, is renewed here);
-            // coverage evidence keeps its own producer (proxy coverage-register) and is only checked
             if fields.len() == 2 && line.contains("core.Utf8TextMedia") && (fields[0].starts_with("state/") || fields[0].starts_with("src/")) && !["state/release_closeout.spi", "state/cold_proof.spi", "src/Cargo.lock"].contains(&fields[0].as_str()) {
                 attested_hits += 1;
                 let attested_path = root.join(patch_safe_relative(&fields[0])?);
@@ -430,7 +427,7 @@ fn method1(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
                 }
             };
             if v15 {
-                let mut v16: u64 = v2 + 1u64;
+                let mut v16: u64 = v2.wrapping_add(1u64);
                 (v0, v1, v2) = (v0.clone(), v1, v16);
                 continue;
             } else {
@@ -458,8 +455,7 @@ fn method0(mut v0: Rc<str>) -> bool {
 fn closure0() -> Rc<dyn Fn(Rc<str>) -> bool> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> bool> = Rc::new(move |mut v0: Rc<str>| -> bool {
         method0(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
@@ -483,8 +479,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method2(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method3(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rustfmt"); } LIT.with(|lit| lit.clone()) };
@@ -520,8 +515,7 @@ fn method3(mut v0: Rc<str>) -> Rc<str> {
 fn closure2() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
         method3(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method4(mut v0: i32, mut v1: i32) -> Rc<str> {
     let mut v2: bool = v0 == 1i32;
@@ -554,8 +548,7 @@ fn method4(mut v0: i32, mut v1: i32) -> Rc<str> {
 fn closure3() -> Rc<dyn Fn(i32, i32) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> Rc<str>> = Rc::new(move |mut v0: i32, mut v1: i32| -> Rc<str> {
         method4(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn evidence_sha256_text(v0: &str) -> bool {
     closure0()(Rc::<str>::from(v0))

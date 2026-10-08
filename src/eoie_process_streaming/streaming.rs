@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[cfg(windows)] mod windows;
@@ -271,7 +271,6 @@ where
             }
         }
     };
-    // Close descendant pipe handles even when the immediate child exited first.
     #[cfg(windows)] windows_job.terminate();
     if let Some(writer) = stdin_writer {
         join_process_input_writer(writer)?;
@@ -335,9 +334,9 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_process_streaming_policy_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

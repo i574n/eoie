@@ -1,7 +1,6 @@
 open filesystem_action_batch_contract.bindings
 
 
-// Octal permissions must fit the POSIX permission field on every host.
 let fs_action_mode_valid_binding (mode : i32) (reserved : i32) : i32 =
     if !!!!NEQ(reserved,0i32) then 0i32
     elif !!!!LT(mode,0i32) then 0i32

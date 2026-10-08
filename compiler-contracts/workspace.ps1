@@ -1,7 +1,5 @@
 function Resolve-EoieSpiralBundle {
     param([string]$CompilerBundle)
-    # The Spiral compiler bundle (apps/compiler/tmp of the spiral repo): an explicit path, else EOIE_SPIRAL_BUNDLE, else a
-    # spiral checkout beside this repository (../spiral).
     if (-not $CompilerBundle) { $CompilerBundle = $env:EOIE_SPIRAL_BUNDLE }
     if (-not $CompilerBundle) { $CompilerBundle = Join-Path $PSScriptRoot '../../spiral/apps/compiler/tmp' }
     if (-not (Test-Path -LiteralPath (Join-Path $CompilerBundle 'scripts/env.ps1'))) {
@@ -12,7 +10,6 @@ function Resolve-EoieSpiralBundle {
 
 function Copy-EoieCompilerSnapshot {
     param([Parameter(Mandatory)][string]$Compiler, [Parameter(Mandatory)][string]$Destination)
-    # Freeze managed assemblies so another agent's rebuild cannot change a run midway.
     if ([IO.Path]::GetExtension($Compiler) -ine '.dll') { return $Compiler }
     $source = Split-Path $Compiler -Parent
     $entries = @(Get-ChildItem -LiteralPath $source -Recurse -Force)

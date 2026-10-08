@@ -1,8 +1,6 @@
 #![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-// Cache only manifest forms whose complete dependency set we can identify.
-// Unsupported syntax, links, cycles, missing files and resource limits require a fresh compiler check.
 pub fn agile_package_input_fingerprint(state_dir: &Path, include_state: bool) -> Option<u64> {
     fn absolute(path: &Path) -> Option<PathBuf> {
         let path = if path.is_absolute() { path.to_owned() } else { std::env::current_dir().ok()?.join(path) };
@@ -75,10 +73,8 @@ pub fn agile_package_input_fingerprint(state_dir: &Path, include_state: bool) ->
                         "modules" | "packages" if value.is_empty() => section = key,
                         "moduleDir" | "packageDir" if !value.is_empty() => {
                             let path = Path::new(value);
-                            // Cross-platform absolute paths and parent components need compiler-specific resolution.
                             if path.is_absolute() || value.contains(':') || value.contains('\\') { return None; }
                             let resolved = absolute(&directory.join(path))?;
-                            // Check every pre-normalization ancestor, so x/../ cannot hide a link.
                             let mut cursor = directory.clone();
                             for part in path.components() {
                                 match part {
@@ -226,8 +222,6 @@ pub fn lease_effect_code() -> i32 {
     if effect <= 3 { effect as i32 } else { 4 }
 }
 
-// A supervisor's own operands end where its supervised program begins: the program's argv is not this effect's target,
-// and an eoie child enforces its own lease. Every other command offers its whole argv.
 fn lease_operand_args() -> Vec<String> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     let own = match (args.first().map(String::as_str), args.get(1).map(String::as_str)) { (Some("proxy"), Some("command-capture")) => 5, (Some("proxy"), Some("command-capture-env")) => 7, _ => args.len() };
@@ -362,8 +356,7 @@ fn method0() -> i32 {
 fn closure0() -> Rc<dyn Fn() -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
         method0()
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_lease_title_words() -> i32 {
     closure0()()

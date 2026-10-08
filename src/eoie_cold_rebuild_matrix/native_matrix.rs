@@ -126,9 +126,6 @@ fn cold_owner_contains_sidecars_and_publishes_normalized_output() {
 
 #[test]
 fn cold_owner_formats_output_with_out_of_line_modules() {
-    // The candidate is formatted away from the owner's directory, where `mod child;` has no file (cold_proof_domain's
-    // rebuild_receipt_tests): formatting must not open module children.
-    // (the fixture's owner is in the compiler-layout lane, which plans no formatter: request one, as the density lane does)
     let fixture = Fixture::new();
     fs::write(fixture.0.join("src/owner with spaces/chosen.spi"), "MOD").unwrap();
     fs::write(fixture.0.join("src/rustfmt.toml"), "edition = \"2024\"\n").unwrap();

@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::collections::BTreeSet;
@@ -232,8 +232,6 @@ fn external_attributes(metadata: &fs::Metadata, _path: &Path) -> u32 {
 
 #[cfg(not(unix))]
 fn external_attributes(metadata: &fs::Metadata, path: &Path) -> u32 {
-    // Windows has no executable permission bit. Preserve runnable bundle entries
-    // in the ZIP's Unix metadata so archives remain usable when moved to Linux.
     let executable = path.file_name().and_then(|v| v.to_str()) == Some("eoie")
         || path.extension().and_then(|v| v.to_str()).is_some_and(|v| ["exe", "sh", "cmd", "bat", "ps1"].iter().any(|ext| v.eq_ignore_ascii_case(ext)));
     let mode = eoie_bundle_portable_mode_binding(i32::from(executable), i32::from(metadata.permissions().readonly())) as u32;
@@ -668,14 +666,14 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method1(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
@@ -696,9 +694,9 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method2(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_bundle_manifest_parity_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

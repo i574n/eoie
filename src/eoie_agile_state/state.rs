@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use eoie_process::{resolve_spiral_compiler as agile_resolve_spiral_compiler, typecheck_spiral_file as agile_typecheck_spiral, SpiralCompilerDiscovery};
@@ -138,7 +138,6 @@ fn agile_attest_known_mutation(root: &Path, path: &Path, previous: Option<&[u8]>
     if mutation_decision != 2 { return Err(format!("agile mutation target is not a package-owned state module: {module}")); }
     let snapshot = agile_snapshot_identity(&state_dir, &paths)?.0;
     let mut receipts = agile_load_receipts(&receipt_path, snapshot)?;
-    // Runtime validation cannot renew an existing stale or noncanonical package receipt.
     if receipt_path.exists() && receipts.is_empty() { return Ok(()); }
     if let Some(previous) = previous {
         let unchanged = receipts.get(&module).is_some_and(|receipt| receipt.bytes == previous.len() as u64 && receipt.fingerprint == agile_hash_extend(AGILE_FNV_OFFSET, previous));
@@ -456,7 +455,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
     if v2 {
         0i32
     } else {
-        let mut v3: i32 = v0 + 1i32;
+        let mut v3: i32 = v0.wrapping_add(1i32);
         let mut v4: bool = v3 == v1;
         if v4 {
             1i32
@@ -469,9 +468,9 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
     method1(v0, v1)
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method0(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
@@ -490,9 +489,9 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
     method3(v0, v1)
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method2(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
@@ -511,9 +510,9 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
     method5(v0, v1)
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method4(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method7(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
@@ -532,9 +531,9 @@ fn method6(mut v0: i32, mut v1: i32) -> i32 {
     method7(v0, v1)
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method6(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method9(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
@@ -553,9 +552,9 @@ fn method8(mut v0: i32, mut v1: i32) -> i32 {
     method9(v0, v1)
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method8(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method10(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
@@ -576,12 +575,12 @@ fn method10(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method10(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method11(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = Rc::<str>::from("patch_resume.spi|toolchain_process_receipt.spi");
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("patch_resume.spi|toolchain_process_receipt.spi"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v1.split("|").any(|item| item == &*v0);
     if v2 {
         1u64
@@ -590,27 +589,27 @@ fn method11(mut v0: Rc<str>) -> u64 {
     }
 }
 fn closure6() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
         method11(v0.clone())
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method12(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = Rc::<str>::from("history.spi");
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("history.spi"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
         1u64
     } else {
-        let mut v3: Rc<str> = Rc::<str>::from("ratings.spi");
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("ratings.spi"); } LIT.with(|lit| lit.clone()) };
         let mut v4: bool = v0 == v3 ;
         if v4 {
             2u64
         } else {
-            let mut v5: Rc<str> = Rc::<str>::from("bench.spi");
+            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("bench.spi"); } LIT.with(|lit| lit.clone()) };
             let mut v6: bool = v0 == v5 ;
             if v6 {
                 4u64
             } else {
-                let mut v7: Rc<str> = Rc::<str>::from("migration.spi");
+                let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("migration.spi"); } LIT.with(|lit| lit.clone()) };
                 let mut v8: bool = v0 == v7 ;
                 if v8 {
                     8u64
@@ -622,25 +621,25 @@ fn method12(mut v0: Rc<str>) -> u64 {
     }
 }
 fn closure7() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
         method12(v0.clone())
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method13(mut v0: Rc<str>) -> Rc<str> {
-    let mut v1: Rc<str> = Rc::<str>::from("v1");
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("v1"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
-        let mut v3: Rc<str> = Rc::<str>::from("history.spi|ratings.spi|bench.spi|migration.spi");
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("history.spi|ratings.spi|bench.spi|migration.spi"); } LIT.with(|lit| lit.clone()) };
         v3.clone()
     } else {
-        let mut v4: Rc<str> = Rc::<str>::from("");
+        let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         v4.clone()
     }
 }
 fn closure8() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
         method13(v0.clone())
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method14(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
@@ -674,9 +673,9 @@ fn method14(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method14(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn method15(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 < 0i32;
@@ -765,9 +764,9 @@ fn method15(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure10() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
         method15(v0, v1)
-    })
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_agile_state_series_sequence_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

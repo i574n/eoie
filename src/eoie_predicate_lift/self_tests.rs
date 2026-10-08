@@ -1,7 +1,6 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-// Instrumented Windows test runs flush the profile before the generated launcher's process::exit.
 fn native_codemod_coverage_finish(code: i32) -> i32 {
     #[cfg(all(windows, eoie_coverage))]
     {
@@ -70,7 +69,6 @@ fn method0() -> i32 {
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             v7.clone()
         }
-        _ => unreachable!(),
     };
     let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("lift_sha256 \"digest\""); } LIT.with(|lit| lit.clone()) };
     let mut v11: bool = v9.contains(&*v10);
@@ -155,7 +153,6 @@ fn method0() -> i32 {
             let mut v50: Rc<str> = v50.clone();
             v33.clone()
         }
-        _ => unreachable!(),
     };
     let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("safe"); } LIT.with(|lit| lit.clone()) };
     let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("receipt-text"); } LIT.with(|lit| lit.clone()) };
@@ -169,7 +166,6 @@ fn method0() -> i32 {
             let mut v57: Rc<str> = v57.clone();
             v33.clone()
         }
-        _ => unreachable!(),
     };
     let mut v60: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("lift_receipt_text \"safe\""); } LIT.with(|lit| lit.clone()) };
     let mut v61: bool = v59.contains(&*v60);
@@ -193,7 +189,6 @@ fn method0() -> i32 {
             let mut v70: Rc<str> = v70.clone();
             v33.clone()
         }
-        _ => unreachable!(),
     };
     let mut v73: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("// rust_global"); } LIT.with(|lit| lit.clone()) };
     let mut v74: bool = v72.contains(&*v73);
@@ -225,7 +220,6 @@ fn method0() -> i32 {
             let mut v88: Rc<str> = v88.clone();
             v33.clone()
         }
-        _ => unreachable!(),
     };
     let mut v91: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("ü 路"); } LIT.with(|lit| lit.clone()) };
     let mut v92: bool = v90.contains(&*v91);
@@ -270,7 +264,6 @@ fn method0() -> i32 {
             let mut v112: Rc<str> = v112.clone();
             v33.clone()
         }
-        _ => unreachable!(),
     };
     let mut v115: bool = v114.contains(&*v91);
     let mut v116: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Rust UTF-8 and nested comments"); } LIT.with(|lit| lit.clone()) };
@@ -315,12 +308,7 @@ fn spiral_main() -> i32 {
     let mut v1: i32 = native_codemod_coverage_finish(v0);
     v1
 }
-#[cfg(not(target_arch = "wasm32"))]
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
     std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
-}
-#[cfg(target_arch = "wasm32")]
-fn main() {
-    spiral_main();
 }

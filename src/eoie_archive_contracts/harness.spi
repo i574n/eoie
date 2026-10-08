@@ -1,4 +1,3 @@
-// Minimal archive-contract harness emitted from Spiral.
 inl rust_global (x : string) : () = !!!!Global(x)
 
 inl emit_archive_contract_harness () =

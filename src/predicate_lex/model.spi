@@ -14,7 +14,6 @@ inl letter (byte : char) : bool =
     else (=.) byte '_'
 inl word (byte : char) : bool = letter byte || (!!!!LTE('0',byte) && !!!!LTE(byte,'9'))
 
-// Calls to generated Spiral libraries; no lexer or rewrite logic lives in these bindings.
 inl token (text : string) (cursor : i32) : i32 * i32 * string * bool = $'predicate_lex_domain::eoie_predicate_token(&*!text,!cursor)' : i32 * i32 * string * bool
 inl literal (text : string) (cursor : i32) : string * i32 * bool = $'predicate_lex_domain::eoie_predicate_literal(&*!text,!cursor)' : string * i32 * bool
 inl encode (text : string) : string = $'predicate_lex_domain::eoie_predicate_encode(&*!text)' : string

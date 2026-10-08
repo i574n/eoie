@@ -3,25 +3,9 @@ param(
     [string]$EoieRoot = (Join-Path $PSScriptRoot '..'),
     [string]$EoieBinary,
     [ValidateRange(1000, 600000)][int]$OwnerTimeoutMs = 180000,
-    # Owner chains replayed at once (batch-plan's default is 12). Lower it on a shared machine: each owner's wall time is
-    # the recorded max_owner_compile_ms, and contention from parallel chains inflates it.
     [ValidateRange(1, 56)][int]$ParallelChains = 12,
     [switch]$Apply
 )
-# ColdRebuildV1 producer (state/cold_rebuild.spi). Every recorded value is observed here, on two independent
-# release-shaped roots (src, state, evidence of a verified source package, as the strict preflight stages them):
-# - source a/b: `eoie proxy hash-tree <root> src` of each root;
-# - product a/b: SHA-256 of eoie-cli built cold in each root (fresh target directory, CARGO_INCREMENTAL=0,
-#   --remap-path-prefix=<root>=/workspace, -Cstrip=symbols and, on Windows, -Clink-arg=/Brepro, which removes the PE
-#   timestamps and the PDB GUID); the two must be byte-identical;
-# - owners: every declared Spiral owner (Get-EoieOwners) recompiled cold through `eoie proxy cold-rebuild-matrix` +
-#   `eoie proxy batch-plan`; the slowest owner's wall time is max_owner_compile_ms;
-# - global gate: the wall time of the strict release gate `eoie bundle check <root> eoie` run with product a;
-# - toolchain: rustc/cargo/rustdoc/rustfmt and the Spiral compiler (its dll and the dotnet host running it) are written
-#   to state/toolchain_identity.spi, and the receipt's gate hashes are taken after that.
-# Without -Apply it only prints the receipt it would write. With -Apply it writes state/toolchain_identity.spi and
-# state/cold_rebuild.spi and publishes product a as the root eoie binary (Publish-EoieBinary); `proxy release-closeout
-# apply` then renews ColdProofV4 against it.
 $ErrorActionPreference = 'Stop'
 . $PSScriptRoot/workspace.ps1
 $EoieRoot = (Resolve-Path -LiteralPath $EoieRoot).Path
@@ -40,7 +24,6 @@ function Invoke-Eoie([string[]]$Arguments) {
 }
 function Get-Sha256([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() }
 
-# Two release roots from two independent verified source packages.
 function New-ReleaseRoot([string]$Name) {
     $snapshot = & $PSScriptRoot/test-source-package.ps1 -EoieRoot $EoieRoot -EoieBinary $supervisor -SkipBuild -PassThru | ForEach-Object {
         if ($_.PSObject.Properties.Name -contains 'Manifest') { $_ } else { Write-Host $_ }
@@ -93,7 +76,6 @@ $productShaB = Get-Sha256 $productB
 Write-Host "cold renewal: product a=$productShaA b=$productShaB"
 if ($productShaA -cne $productShaB) { throw "cold rebuild products differ: a=$productShaA b=$productShaB" }
 
-# Owners: plan the cold matrix in root a and replay it through batch-plan (one bounded compiler process per owner).
 . $PSScriptRoot/spiral-compiler.ps1
 $compiler = Get-SpiralCompilerDll 'single-flight'
 $dotnet = Resolve-SpiralDotnet
@@ -107,7 +89,6 @@ $reportRelative = 'cold-matrix-report.tsv'
 $batchStart = Get-Date
 Invoke-Eoie @('proxy', 'batch-plan', $rootA, $matrixRelative, "$($OwnerTimeoutMs + 60000)", $reportRelative, "$ParallelChains") | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
 Write-Host "cold renewal: owner replay $([int]((Get-Date) - $batchStart).TotalSeconds) s at $ParallelChains parallel chains; report $(Join-Path $rootA $reportRelative)"
-# The report is a TSV (id, program, rc, status, ..., elapsed_ms, ...): one row per planned owner command.
 $rows = @(Import-Csv -LiteralPath (Join-Path $rootA $reportRelative) -Delimiter "`t")
 $failed = @($rows | Where-Object { $_.rc -ne '0' })
 if ($failed.Count) { throw "owner replay failed: $(($failed | ForEach-Object { "$($_.id) rc=$($_.rc)" }) -join ', ')" }
@@ -115,7 +96,6 @@ if ($rows.Count -ne $owners.Count) { Write-Host "cold renewal: note: replay rows
 $owners = $rows
 $maxOwnerMs = ($rows | ForEach-Object { [int64]$_.elapsed_ms } | Measure-Object -Maximum).Maximum
 
-# Global gate: the strict release gate on root b with product a (root b's sources are untouched by the replay).
 Copy-Item -LiteralPath $productA -Destination (Join-Path $rootB "eoie$suffix")
 $gateWatch = [Diagnostics.Stopwatch]::StartNew()
 $gateOutput = & (Join-Path $rootB "eoie$suffix") bundle check $rootB eoie 2>&1 | ForEach-Object { "$_" }
@@ -123,7 +103,6 @@ $gateMs = $gateWatch.ElapsedMilliseconds
 Write-Host "cold renewal: global gate $gateMs ms (exit $LASTEXITCODE; it checks the receipt this run replaces, so a cold rebuild error here is expected)"
 $gateOutput | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
 
-# Toolchain identity: the tools that built the products and replayed the owners.
 function Get-ToolRow([string]$Path) { [pscustomobject]@{ Name = [IO.Path]::GetFileName($Path); Sha = (Get-Sha256 $Path); Bytes = (Get-Item -LiteralPath $Path).Length } }
 $rustc = Get-ToolRow (& rustup which rustc); $cargo = Get-ToolRow (& rustup which cargo)
 $rustdoc = Get-ToolRow (& rustup which rustdoc); $fmt = Get-ToolRow (& rustup which rustfmt)

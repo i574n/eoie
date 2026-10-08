@@ -1,14 +1,12 @@
-// Minimal string primitives shared by portable backend fixtures.
 
 inl index forall t{int}. (str : string) (i : t) : char = !!!!StringIndex(str,i)
 inl length forall t{int}. (str : string) : t = !!!!StringLength(`t,str)
 inl slice forall t{int}. (str : string) {from=(a : t) to=(b : t)} = !!!!StringSlice(str,a,b)
 inl concat (left : string) (right : string) : string = !!!!StaticStringConcat(left,right)
 
-// UTF-8 scalar helpers layered over the stable byte-indexed primitives.
-// Keeping boundary indexing behind a non-inline function prevents high bytes
-// from becoming non-portable C character literals during partial evaluation.
 let runtime_byte (str : string) (i : i32) : char = index str i
+inl utf8_continuation_byte_min () : char = runtime_byte "À" 1i32
+inl utf8_multibyte_lead_min () : char = runtime_byte "©" 0i32
 
 inl is_continuation_byte (lower : char) (upper : char) (value : char) : bool =
     if !!!!LT(value,lower) then false
@@ -22,8 +20,8 @@ let rec codepoint_length_loop (str : string) (lower : char) (upper : char) (byte
         codepoint_length_loop str lower upper ((+.) byte_index 1i32) count byte_length
 
 inl codepoint_length (str : string) : i32 =
-    inl lower = runtime_byte "À" 1i32 // 0x80
-    inl upper = runtime_byte "©" 0i32 // 0xC2, first valid multibyte lead byte
+    inl lower = utf8_continuation_byte_min ()
+    inl upper = utf8_multibyte_lead_min ()
     codepoint_length_loop str lower upper 0i32 0i32 (length str : i32)
 
 let rec codepoint_byte_offset_loop (str : string) (lower : char) (upper : char) (target : i32) (byte_index : i32) (codepoint_index : i32) (byte_length : i32) : i32 =
@@ -37,8 +35,8 @@ let rec codepoint_byte_offset_loop (str : string) (lower : char) (upper : char) 
             codepoint_byte_offset_loop str lower upper target ((+.) byte_index 1i32) ((+.) codepoint_index 1i32) byte_length
 
 inl codepoint_byte_offset (str : string) (target : i32) : i32 =
-    inl lower = runtime_byte "À" 1i32
-    inl upper = runtime_byte "©" 0i32
+    inl lower = utf8_continuation_byte_min ()
+    inl upper = utf8_multibyte_lead_min ()
     codepoint_byte_offset_loop str lower upper target 0i32 0i32 (length str : i32)
 
 inl codepoint_index (str : string) (target : i32) : string =

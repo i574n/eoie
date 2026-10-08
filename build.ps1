@@ -32,7 +32,6 @@ foreach ($name in $Package) { $arguments += @('--package', $name) }
 & $driver @arguments
 if ($LASTEXITCODE -ne 0) { throw "Native Spiral developer workflow failed (exit $LASTEXITCODE)." }
 if ($SkipRelease) { return }
-# Transitional publication adapter; native build/test policy is authored in src/eoie_dev.
 . (Join-Path $PSScriptRoot 'compiler-contracts/workspace.ps1')
 $published = Publish-EoieBinary -Source (Join-Path $targetRoot "release/eoie$suffix") -Destination (Join-Path $PSScriptRoot "eoie$suffix") -ValidationRoot $PSScriptRoot
 Write-Host "EOIE candidate schema and source topology checks passed; published=$published"

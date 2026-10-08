@@ -10,8 +10,8 @@ inl current_owner_count () : u32 = 106u32
 inl current_shard_width () : u32 = 2u32
 inl current_shard_count () : u32 = 53u32
 inl current_gate_flags () : u32 = 63u32
-inl current_max_owner_compile_ms () : u32 = 5128u32
-inl current_max_global_gate_ms () : u32 = 2725u32
+inl current_max_owner_compile_ms () : u32 = 6729u32
+inl current_max_global_gate_ms () : u32 = 5716u32
 
 inl current_source_a_sha256 () : string = "4056b0a02bd1aeb1b19477fc37c9aec40d85ee01eb30325beec52dc4b980fc06"
 inl current_source_b_sha256 () : string = "4056b0a02bd1aeb1b19477fc37c9aec40d85ee01eb30325beec52dc4b980fc06"

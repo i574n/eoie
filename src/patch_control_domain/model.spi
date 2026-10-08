@@ -91,7 +91,6 @@ let restoration_payload_outcome_binding (identity : i32) (outcome : i32) : i32 =
     elif !!!!LT(2i32,outcome) then -1i32
     else identity
 
-// Why the Rust boundary rejected a typed patch plan; the witness code is that boundary's encoding.
 union patch_plan_failure =
     | PatchPlanEmpty
     | PatchPlanMalformed
