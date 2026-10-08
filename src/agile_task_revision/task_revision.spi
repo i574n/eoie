@@ -1,0 +1,105 @@
+open agile_mutation_policy.model
+open rust_std_fs.model
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+
+union agile_edit_field =
+    | EditTitle
+    | AppendTitle
+    | EditKind
+    | EditPriority
+    | EditDifficulty
+    | EditDeps
+    | EditTags
+
+inl agile_edit_field_names () : string = "title|title-append|kind|priority|difficulty|deps|tags"
+
+inl parse_edit_field (~text : string) : validation_result agile_edit_field =
+    match rust_std_string.model.pipe_index (agile_edit_field_names ()) text with
+    | 0u64 => Valid EditTitle
+    | 1u64 => Valid AppendTitle
+    | 2u64 => Valid EditKind
+    | 3u64 => Valid EditPriority
+    | 4u64 => Valid EditDifficulty
+    | 5u64 => Valid EditDeps
+    | 6u64 => Valid EditTags
+    | _ => Invalid
+
+inl task_tuple_position = function
+    | EditTitle => 1i32
+    | AppendTitle => 1i32
+    | EditKind => 2i32
+    | EditPriority => 3i32
+    | EditDifficulty => 4i32
+    | EditDeps => 7i32
+    | EditTags => 8i32
+
+inl validated_text parsed render : validation_result string =
+    match parsed with
+    | Valid value => Valid (render value)
+    | Invalid => Invalid
+
+inl rendered_field (field : agile_edit_field) (~current : string) (~value : string) : validation_result string =
+    match field with
+    | EditTitle => Valid (spi_quoted value)
+    | EditDeps => Valid (spi_quoted value)
+    | EditTags => Valid (spi_quoted value)
+    | AppendTitle =>
+        inl open_title = byte_slice current 0i32 (i32_prev (byte_len current))
+        Valid (rust_std_string.model.concat5 open_title (spi_escaped value) "\"" "" "")
+    | EditKind => validated_text (parse_task_kind value) agile_task_kind_text
+    | EditPriority => validated_text (parse_priority value) agile_priority_text
+    | EditDifficulty => validated_text (parse_difficulty value) agile_difficulty_text
+
+inl field_value_rule = function
+    | EditKind => "kind must be Epic, Feature, Story or TaskKind"
+    | EditPriority => "priority must be P0..P5"
+    | EditDifficulty => "difficulty must be D0..D8"
+    | _ => "the value was rejected"
+
+inl agile_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile edit " id " rejected: " reason "")
+
+inl agile_edit_success (~id : string) (~field : string) (before : u64) (after : u64) (elapsed : u64) : i32 =
+    inl head = rust_std_string.model.concat5 "eoie agile edit ok id=" id " field=" field ""
+    stdout_line (rust_std_string.model.concat5 head (measured_sizes before after elapsed) "" "" "")
+
+inl task_anchor (~id : string) : string = rust_std_string.model.concat5 "Task (\"" id "\"," "" ""
+inl task_arguments_offset () : i32 = 6i32
+
+inl agile_edit (~root : string) (~id : string) (field : agile_edit_field) (~field_name : string) (~value : string) : i32 =
+    inl started = unix_ms ()
+    inl state = backlog_state_path root
+    match probe (unchecked state) with
+    | FileMissing _ => agile_edit_failure "state/agile.spi is missing" id
+    | FileReadable file =>
+        inl original = loaded_string (read_text file)
+        inl anchor = byte_find original (task_anchor id)
+        if i32_negative anchor then agile_edit_failure "no task with this id" id
+        else
+            inl length = byte_len original
+            inl start = field_start original ($"!anchor + !(task_arguments_offset ())" : i32) length (task_tuple_position field)
+            inl stop = field_end original start length ScanPlain
+            match rendered_field field (byte_slice original start stop) value with
+            | Invalid => agile_edit_failure (field_value_rule field) id
+            | Valid token =>
+                inl updated = rust_std_string.model.concat5 (byte_slice original 0i32 start) token (byte_slice original stop length) "" ""
+                match replace_file_checked state updated with
+                | Replaced => agile_edit_success id field_name (text_bytes original) (text_bytes updated) (ms_since started)
+                | problem => agile_edit_failure (file_replacement_problem problem) id
+
+let agile_edit_entry () : i32 =
+    match parse_edit_field (argument_owned 3i32) with
+    | Valid field => agile_edit (argument_owned 1i32) (argument_owned 2i32) field (argument_owned 3i32) (argument_owned 4i32)
+    | Invalid => agile_edit_failure "field must be title, title-append, kind, priority, difficulty, deps or tags" (argument_owned 2i32)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_edit_run", ((fun () => agile_edit_entry ()) : () -> i32))
+    inl _ = agile_edit_entry ()
+    0i32

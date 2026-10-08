@@ -168,8 +168,12 @@ if ($CargoCheck) {
     if ($Offline) { $cargoArgs += '--offline' }
     Push-Location $sourceRoot
     try {
-        & cargo @cargoArgs
-        if ($LASTEXITCODE -ne 0) { throw "Cargo rejected regenerated EOIE owners: $staged" }
+        $cargoLines = @(& cargo @cargoArgs 2>&1 | ForEach-Object { "$_" })
+        $cargoLines | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0) {
+            $firstError = @($cargoLines | Select-String -Pattern '^error' -Context 0, 10 | Select-Object -First 1 | ForEach-Object { @($_.Line) + $_.Context.PostContext }) -join "`n"
+            throw "Cargo rejected regenerated EOIE owners: $staged`n$firstError"
+        }
     } finally { Pop-Location }
 }
 if ($Test) {

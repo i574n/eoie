@@ -1,0 +1,2 @@
+inl stdout_line (~line : string) : i32 = $'std::io::Write::write_all(&mut std::io::stdout(), (!line.to_string() + "\n").as_bytes()).map(|_| 0i32).unwrap_or(2i32)' : i32
+inl stderr_failure (~line : string) : i32 = $'std::io::Write::write_all(&mut std::io::stderr(), ("eoie error: ".to_string() + &*!line + "\n").as_bytes()).map(|_| 2i32).unwrap_or(2i32)' : i32

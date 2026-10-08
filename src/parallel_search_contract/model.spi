@@ -70,3 +70,46 @@ let parallel_consumer_mode_binding (mode : i32) (output_segments : i32) : i32 =
 
 let parallel_consumer_output_binding (expected_fingerprint : i32) (output_fingerprint : i32) : i32 =
     if !!!!EQ(expected_fingerprint,output_fingerprint) then 1i32 else 0i32
+
+union search_scope =
+    | SearchWholeRoot
+    | SearchRootedEntry
+
+inl names_the_root (~relative : string) : bool = $'&*!relative == "."' : bool
+
+inl search_scope_of (~relative : string) : search_scope =
+    if names_the_root relative then SearchWholeRoot else SearchRootedEntry
+
+inl search_scope_code = function
+    | SearchWholeRoot => 0i32
+    | SearchRootedEntry => 1i32
+
+union search_directory =
+    | SourceDirectory
+    | BuildOutputDirectory
+    | VersionControlDirectory
+    | PackageInstallDirectory
+    | SymlinkEntry
+
+inl entry_name (~path : string) : string =
+    $'std::rc::Rc::<str>::from(std::path::Path::new(&*!path).file_name().and_then(|name| name.to_str()).unwrap_or(""))' : string
+inl names_equal (~name : string) (~expected : string) : bool = $'(&*!name) == (&*!expected)' : bool
+inl is_symlink (~path : string) : bool = $'std::fs::symlink_metadata(&*!path).map(|meta| meta.file_type().is_symlink()).unwrap_or(false)' : bool
+inl holds_file (~path : string) (~marker : string) : bool = $'std::path::Path::new(&*!path).join(&*!marker).is_file()' : bool
+
+inl search_directory_of (~path : string) : search_directory =
+    inl name = entry_name path
+    if is_symlink path then SymlinkEntry
+    elif names_equal name ".git" then VersionControlDirectory
+    elif names_equal name "node_modules" then PackageInstallDirectory
+    elif holds_file path "CACHEDIR.TAG" then BuildOutputDirectory
+    elif holds_file path ".rustc_info.json" then BuildOutputDirectory
+    else SourceDirectory
+
+inl search_descends_into = function
+    | SourceDirectory => true
+    | BuildOutputDirectory => false
+    | VersionControlDirectory => false
+    | PackageInstallDirectory => false
+    | SymlinkEntry => false
+

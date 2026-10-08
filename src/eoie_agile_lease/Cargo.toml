@@ -17,5 +17,6 @@ path = "lease.rs"
 eoie-proxy-search = { path = "../eoie_proxy_search" }
 agile-state-runtime-policy-domain = { path = "../agile_state_runtime_policy_domain" }
 command-spec-domain = { path = "../command_spec_domain" }
+agile-lease-terms = { path = "../agile_lease_terms" }
 eoie-agile-policy = { path = "../eoie_agile_policy" }
 eoie-rust-std-fs = { path = "../rust_std_fs" }

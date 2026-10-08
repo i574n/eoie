@@ -15,4 +15,6 @@ path = "search.rs"
 
 [dependencies]
 eoie-rust-std-fs = { path = "../rust_std_fs" }
+proxy-file-copy = { path = "../proxy_file_copy" }
+proxy-search-receipt = { path = "../proxy_search_receipt" }
 rayon = "1.12.0"

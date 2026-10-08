@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "terms.spi"
+output = "terms.rs"
+
+[package]
+name = "agile-lease-terms"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_lease_terms"
+path = "terms.rs"
+
+[dependencies]
+command-spec-domain = { path = "../command_spec_domain" }

@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use eoie_process_observation::run_bounded_receipted_observed;
@@ -22,7 +22,7 @@ pub fn legacy_surface_run(args: &[String]) -> Result<(), String> {
     println!("summary cataloged=36/36 decided=36/36 absorbed=34/36 pruned=2 deferred=0 needs_evidence=0 executable_absorption=100/100 resolved=100/100");
     println!("dogfood candidate_common_path=usable fallback_required=none recovery_fallbacks=optional");
     println!("family=patch-batching status=equivalent current=patch-apply");
-    println!("family=filesystem-mutation status=equivalent current=fs-write,text-replace,fs-chmod,fs-symlink,fs-copy-tree,fs-slice,fs-search,hash,fs-copy-preserve-mode\nfamily=hashing-and-integrity status=equivalent current=hash,hash-tree\nfamily=process-execution status=equivalent current=command-capture,command-capture-env,command-capture-matrix,batch-plan,batch-plan-resume\nfamily=archive-bundling status=equivalent current=bundle,zip-extract,archive-extract\nfamily=agile-state status=equivalent current=agile\nfamily=release-verification status=equivalent current=bundle-check,bundle-verify,release-closeout,binary-install\nfamily=rehydration status=equivalent current=bundle-rehydrate,external-payload");
+    println!("family=filesystem-mutation status=equivalent current=fs-write,text-replace,fs-chmod,fs-symlink,fs-copy-tree,fs-slice,fs-search,hash,fs-copy-preserve-mode\nfamily=hashing-and-integrity status=equivalent current=hash,hash-tree\nfamily=process-execution status=equivalent current=command-capture,command-output,command-capture-env,command-capture-matrix,batch-plan,batch-plan-resume\nfamily=archive-bundling status=equivalent current=bundle,zip-extract,archive-extract\nfamily=agile-state status=equivalent current=agile\nfamily=release-verification status=equivalent current=bundle-check,bundle-verify,release-closeout,binary-install\nfamily=rehydration status=equivalent current=bundle-rehydrate,external-payload");
     println!("family=toolchain status=equivalent current=toolchain,batch-plan-resume");
     println!("family=coverage-pruning status=equivalent current=coverage-run,coverage-export,coverage-union,coverage-assess,prune-uncovered");
     println!("family=planning-governance status=quarantined policy=absorb-only-when-consumed");
@@ -249,7 +249,7 @@ pub fn legacy_install_self_run(args: &[String]) -> Result<(), String> {
     println!("eoie proxy install-self ok source={} destination={} link={} receipt=typed-atomic", source.display(), destination.display(), link.display());
     Ok(())
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn self_install_preflight_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -272,7 +272,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn self_install_target_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -300,7 +300,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn self_install_fault_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -333,7 +333,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn self_install_complete_binding_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -356,7 +356,7 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn restart_baton_preflight_binding_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -379,7 +379,7 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn restart_baton_migration_binding_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -402,7 +402,7 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
+fn restart_baton_fault_binding_6(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -425,7 +425,7 @@ fn method6(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
+fn restart_baton_complete_binding_7(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -448,7 +448,7 @@ fn method7(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
+fn legacy_surface_status_binding_8(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -476,7 +476,7 @@ fn method8(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
+fn legacy_surface_summary_binding_9(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 9i32;
     if v2 {
         let mut v3: bool = v1 == 0i32;
@@ -489,61 +489,61 @@ fn method9(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method10(mut v0: i32, mut v1: i32) -> i32 {
-    method8(v0, v1)
+fn legacy_surface_status_export_10(mut v0: i32, mut v1: i32) -> i32 {
+    legacy_surface_status_binding_8(v0, v1)
 }
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
-    method9(v0, v1)
+fn legacy_surface_summary_export_11(mut v0: i32, mut v1: i32) -> i32 {
+    legacy_surface_summary_binding_9(v0, v1)
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        self_install_preflight_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        self_install_target_binding_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        self_install_fault_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        self_install_complete_binding_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restart_baton_preflight_binding_4(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restart_baton_migration_binding_5(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method6(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restart_baton_fault_binding_6(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method7(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restart_baton_complete_binding_7(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method10(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        legacy_surface_status_export_10(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method11(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        legacy_surface_summary_export_11(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_self_install_preflight_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

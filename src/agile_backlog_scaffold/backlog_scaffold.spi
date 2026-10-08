@@ -1,0 +1,58 @@
+open rust_std_fs.model
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+
+union scaffold_file =
+    | StatePackage
+    | BacklogSchema
+
+inl scaffold_relative = function
+    | StatePackage => "/state/package.spiproj"
+    | BacklogSchema => "/state/agile.spi"
+
+inl scaffold_text = function
+    | StatePackage => "modules:\n    agile\n    prompt\n"
+    | BacklogSchema =>
+        inl kinds = "union task_kind =\n    | Epic :: task_kind\n    | Feature :: task_kind\n    | Story :: task_kind\n    | TaskKind :: task_kind\n\n"
+        inl priorities = "union priority =\n    | P0 :: priority | P1 :: priority | P2 :: priority | P3 :: priority | P4 :: priority | P5 :: priority\n\n"
+        inl difficulties = "union difficulty =\n    | D0 :: difficulty | D1 :: difficulty | D2 :: difficulty | D3 :: difficulty | D4 :: difficulty\n    | D5 :: difficulty | D6 :: difficulty | D7 :: difficulty | D8 :: difficulty\n\n"
+        inl statuses = "union task_status =\n    | Planned :: task_status | Active :: task_status | Blocked :: task_status | Paused :: task_status | Done :: task_status\n\n"
+        inl item = "union agile_item =\n    | Task :: string * string * task_kind * priority * difficulty * u32 * task_status * string * string * string * string -> agile_item\n\ninl main () : i32 = 0i32\n"
+        rust_std_string.model.concat5 kinds priorities difficulties statuses item
+
+inl scaffold_path (~root : string) (file : scaffold_file) : string = rust_std_string.model.concat5 root (scaffold_relative file) "" "" ""
+inl state_directory (~root : string) : string = rust_std_string.model.concat5 root "/state" "" "" ""
+inl directory_ready (~path : string) : bool = $'std::fs::create_dir_all(&*!path).is_ok()' : bool
+inl file_present (~path : string) : bool = $'std::path::Path::new(&*!path).exists()' : bool
+
+inl agile_init_failure (~reason : string) (~root : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile init " root " rejected: " reason "")
+
+inl agile_init_success (~root : string) (written : u64) (elapsed : u64) : i32 =
+    inl head = rust_std_string.model.concat5 "eoie agile init ok root=" root " files=2 bytes=" (u64_text written) " elapsed_ms="
+    stdout_line (rust_std_string.model.concat5 head (u64_text elapsed) " next=eoie agile begin <root> <title>" "" "")
+
+inl agile_init (~root : string) : i32 =
+    inl started = unix_ms ()
+    if file_present (scaffold_path root BacklogSchema) then agile_init_failure "state/agile.spi already exists" root
+    elif file_present (scaffold_path root StatePackage) then agile_init_failure "state/package.spiproj already exists" root
+    elif directory_ready (state_directory root) then
+        if write_text (scaffold_path root StatePackage) (scaffold_text StatePackage) then
+            if write_text (scaffold_path root BacklogSchema) (scaffold_text BacklogSchema) then
+                agile_init_success root ($"!(text_bytes (scaffold_text StatePackage)) + !(text_bytes (scaffold_text BacklogSchema))" : u64) (ms_since started)
+            else agile_init_failure "could not write state/agile.spi" root
+        else agile_init_failure "could not write state/package.spiproj" root
+    else agile_init_failure "could not create the state directory" root
+
+let agile_init_entry () : i32 = agile_init (argument_owned 1i32)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_init_run", ((fun () => agile_init_entry ()) : () -> i32))
+    inl _ = agile_init_entry ()
+    0i32

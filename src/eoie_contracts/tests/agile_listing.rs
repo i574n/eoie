@@ -29,11 +29,16 @@ fn agile_list_filters_exact_status_and_preserves_source() {
     let fixture = Fixture::new(&source);
     let all = fixture.list(None);
     assert!(all.status.success(), "{}", String::from_utf8_lossy(&all.stderr));
-    assert_eq!(String::from_utf8(all.stdout).unwrap().lines().count(), 5);
-    for (status, expected) in statuses.into_iter().zip(rows) {
+    let all_stdout = String::from_utf8(all.stdout).unwrap();
+    assert_eq!(all_stdout.lines().filter(|line| line.starts_with("ID-")).count(), 5);
+    assert!(all_stdout.contains("shown=5 filter=all"), "{all_stdout}");
+    for status in statuses {
         let output = fixture.list(Some(status));
         assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), expected);
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        let listed = stdout.lines().filter(|line| line.starts_with("ID-")).collect::<Vec<_>>();
+        assert_eq!(listed.len(), 1, "{stdout}");
+        assert!(listed[0].starts_with(&format!("ID-{status} ")) && listed[0].contains(&format!(" {status:<8}")) && stdout.contains(&format!("shown=1 filter={status}")), "{stdout}");
     }
     assert_eq!(fs::read_to_string(fixture.0.join("state/agile.spi")).unwrap(), source);
 }

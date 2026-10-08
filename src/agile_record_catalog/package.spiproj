@@ -1,0 +1,5 @@
+packages:
+    workspace_primitives
+    rust_std_string
+modules:
+    catalog

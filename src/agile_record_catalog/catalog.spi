@@ -1,0 +1,23 @@
+open workspace_primitives.numbers
+
+union agile_record_catalog =
+    | RecordCatalogComplete
+    | RecordCatalogPartial : string
+
+inl agile_record_catalog_of (present : i32) (required : i32) (~missing : string) : agile_record_catalog =
+    if !!!!EQ(present,required) then RecordCatalogComplete else RecordCatalogPartial missing
+
+inl agile_record_catalog_line (~counted : string) (catalog : agile_record_catalog) : string =
+    match catalog with
+    | RecordCatalogComplete => rust_std_string.model.concat5 counted " missing=none" "" "" ""
+    | RecordCatalogPartial missing => rust_std_string.model.concat5 counted " missing=" missing " (agile check does not need them)" ""
+
+let agile_record_catalog_text (~version : string) (present : i32) (required : i32) (~missing : string) : string =
+    inl counted = rust_std_string.model.concat5 "eoie agile records catalog=" version " present=" (i32_text present) "/"
+    agile_record_catalog_line (rust_std_string.model.concat5 counted (i32_text required) "" "" "") (agile_record_catalog_of present required missing)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_record_catalog_text", ((fun (version, present, required, missing) => agile_record_catalog_text version present required missing) : string * i32 * i32 * string -> string))
+    inl _ = agile_record_catalog_text "v1" 4i32 4i32 ""
+    inl _ = agile_record_catalog_text "v1" 0i32 4i32 "history.spi"
+    0i32

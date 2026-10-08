@@ -1,0 +1,43 @@
+open workspace_primitives.numbers
+open workspace_primitives.clock
+open workspace_primitives.rooted
+
+union copy_outcome =
+    | CopyReceipt : string
+    | CopyRejected : string
+
+inl copy_problem (~source : string) (~target : string) : string =
+    $'std::rc::Rc::<str>::from(eoie_rust_std_fs::copy_regular_atomic_preserve(std::path::Path::new(&*!source), std::path::Path::new(&*!target)).err().unwrap_or_default().as_str())' : string
+inl copied_bytes (~path : string) : u64 = $'std::fs::symlink_metadata(&*!path).map(|meta| meta.len()).unwrap_or(0)' : u64
+
+inl copy_receipt (~source : string) (~target : string) (started : u64) : copy_outcome =
+    inl head = rust_std_string.model.concat5 "eoie proxy fs-copy ok source=" source " target=" target " bytes="
+    CopyReceipt (rust_std_string.model.concat5 head (u64_text (copied_bytes target)) " elapsed_ms=" (u64_text (ms_since started)) "")
+
+inl copy_between (~source : string) (~target : string) (started : u64) : copy_outcome =
+    inl problem = copy_problem source target
+    if rust_std_string.model.equals problem "" then copy_receipt source target started
+    else CopyRejected (rust_std_string.model.concat5 "fs-copy failed: " problem "" "" "")
+
+inl copy_rooted (~root : string) (~source : string) (~target : string) (started : u64) : copy_outcome =
+    inl source_problem = rooted_path_problem root source
+    inl target_problem = rooted_path_problem root target
+    if rust_std_string.model.equals source_problem "" then
+        if rust_std_string.model.equals target_problem "" then copy_between (rooted_path root source) (rooted_path root target) started
+        else CopyRejected target_problem
+    else CopyRejected source_problem
+
+let file_copy_outcome (operands : i32) (~root : string) (~source : string) (~target : string) : copy_outcome =
+    inl started = unix_ms ()
+    if i32_eq operands 4i32 then copy_rooted root source target started
+    else CopyRejected "fs-copy expects root, source, target"
+
+let file_copy_report (operands : i32) (~root : string) (~source : string) (~target : string) : i32 * string =
+    match file_copy_outcome operands root source target with
+    | CopyReceipt text => 0i32, text
+    | CopyRejected text => 2i32, text
+
+inl main () : i32 =
+    !!!!Export("eoie_file_copy_outcome", ((fun (operands, root, source, target) => file_copy_report operands root source target) : i32 * string * string * string -> i32 * string))
+    inl _ = file_copy_report 4i32 "." "a" "b"
+    0i32

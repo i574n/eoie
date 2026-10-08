@@ -1,0 +1,125 @@
+union effect_lookup =
+    | ByOperandCount
+    | BySubcommandMode
+    | BySubcommand
+    | ByVerb
+
+inl unknown_effect () : u64 = 4u64
+inl process_argument (index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(!index as usize).unwrap_or_default())' : string
+inl process_operand_count () : string = $'std::rc::Rc::<str>::from(std::env::args().count().saturating_sub(3).to_string())' : string
+inl known_effect (code : u64) : bool = $"!code <= 3"
+inl subcommand_effect (~key : string) : u64 = $"command_spec_domain::eoie_command_subcommand_effect_code(&!key)" : u64
+inl verb_effect (~verb : string) : u64 = $"command_spec_domain::eoie_command_effect_code(&!verb)" : u64
+inl effect_code_i32 (code : u64) : i32 = $"!code as i32" : i32
+
+inl effect_for (lookup : effect_lookup) : u64 =
+    inl verb = process_argument 1i32
+    inl key = rust_std_string.model.concat5 verb ":" (process_argument 2i32) "" ""
+    match lookup with
+    | ByOperandCount => subcommand_effect (rust_std_string.model.concat5 key "/" (process_operand_count ()) "" "")
+    | BySubcommandMode => subcommand_effect (rust_std_string.model.concat5 key ":" (process_argument 3i32) "" "")
+    | BySubcommand => subcommand_effect key
+    | ByVerb => verb_effect verb
+
+let lease_effect_entry () : i32 =
+    inl by_operands = effect_for ByOperandCount
+    if known_effect by_operands then effect_code_i32 by_operands
+    else
+        inl by_mode = effect_for BySubcommandMode
+        if known_effect by_mode then effect_code_i32 by_mode
+        else
+            inl by_subcommand = effect_for BySubcommand
+            if known_effect by_subcommand then effect_code_i32 by_subcommand
+            else
+                inl by_verb = effect_for ByVerb
+                if known_effect by_verb then effect_code_i32 by_verb else effect_code_i32 (unknown_effect ())
+
+union lease_policy_origin =
+    | PolicyFromEnvironment
+    | PolicyFromConfigFile
+
+inl environment_text (~name : string) : string = $'std::rc::Rc::<str>::from(std::env::var(&*!name).unwrap_or_default())' : string
+inl trimmed_file_text (~path : string) : string = $'std::fs::read_to_string(&*!path).map(|text| std::rc::Rc::<str>::from(text.trim())).unwrap_or_else(|_| std::rc::Rc::<str>::from(""))' : string
+inl present (~text : string) : bool = $"!text.is_empty() == false"
+
+inl eoie_config_file (~name : string) : string =
+    inl eoie_home = environment_text "EOIE_CONFIG_HOME"
+    inl xdg_home = environment_text "XDG_CONFIG_HOME"
+    inl app_data = environment_text "APPDATA"
+    inl user_home = environment_text "USERPROFILE"
+    if present eoie_home then rust_std_string.model.concat5 eoie_home "/" name "" ""
+    elif present xdg_home then rust_std_string.model.concat5 xdg_home "/eoie/" name "" ""
+    elif present app_data then rust_std_string.model.concat5 app_data "/eoie/" name "" ""
+    elif present user_home then rust_std_string.model.concat5 user_home "/.config/eoie/" name "" ""
+    else rust_std_string.model.concat5 (environment_text "HOME") "/.config/eoie/" name "" ""
+
+inl lease_policy_from (origin : lease_policy_origin) : string =
+    match origin with
+    | PolicyFromEnvironment => environment_text "EOIE_LEASE_POLICY"
+    | PolicyFromConfigFile => trimmed_file_text (eoie_config_file "lease-policy")
+
+let lease_policy_entry () : string =
+    inl from_environment = lease_policy_from PolicyFromEnvironment
+    if present from_environment then from_environment else lease_policy_from PolicyFromConfigFile
+
+union lease_phase =
+    | LeaseRunning
+    | LeaseWrapping
+    | LeaseExpired
+
+inl lease_phase_of (should_wrap : bool) (should_yield : bool) : lease_phase =
+    if should_yield then LeaseExpired
+    elif should_wrap then LeaseWrapping
+    else LeaseRunning
+
+inl lease_phase_text = function
+    | LeaseRunning => "running"
+    | LeaseWrapping => "wrapping"
+    | LeaseExpired => "expired"
+
+inl u64_text (value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+inl u64_div (a : u64) (b : u64) : u64 = $"!a / !b"
+inl u64_rem (a : u64) (b : u64) : u64 = $"!a % !b"
+inl u64_le (a : u64) (b : u64) : bool = $"!a <= !b"
+inl u64_minus (a : u64) (b : u64) : u64 = $"!a.saturating_sub(!b)"
+inl u64_positive (value : u64) : bool = $"0 < !value"
+inl bool_flag (value : bool) : string = if value then "1" else "0"
+inl clock_now_ms () : u64 = $'std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)' : u64
+
+inl two_digits (value : u64) : string =
+    if u64_le value 9u64 then rust_std_string.model.concat5 "0" (u64_text value) "" "" ""
+    else u64_text value
+
+inl duration_text (milliseconds : u64) : string =
+    inl seconds = u64_div milliseconds 1000u64
+    inl hours = u64_div seconds 3600u64
+    inl minutes = u64_rem (u64_div seconds 60u64) 60u64
+    inl rest = u64_rem seconds 60u64
+    if u64_positive hours then rust_std_string.model.concat5 (u64_text hours) "h" (two_digits minutes) "m" ""
+    elif u64_positive minutes then rust_std_string.model.concat5 (u64_text minutes) "m" (two_digits rest) "s" ""
+    else rust_std_string.model.concat5 (u64_text rest) "s" "" "" ""
+
+inl relative_text (now : u64) (moment : u64) : string =
+    if u64_le moment now then rust_std_string.model.concat5 (duration_text (u64_minus now moment)) "_ago" "" "" ""
+    else rust_std_string.model.concat5 "in_" (duration_text (u64_minus moment now)) "" "" ""
+
+inl policy_name () : string =
+    inl configured = lease_policy_entry ()
+    if present configured then configured else "bounded"
+
+let lease_status_entry (~root : string) (started : u64) (wrap_at : u64) (deadline : u64) (remaining : u64) (should_wrap : bool) (should_yield : bool) : string =
+    inl now = clock_now_ms ()
+    inl head = rust_std_string.model.concat5 "eoie agile lease status root=" root " phase=" (lease_phase_text (lease_phase_of should_wrap should_yield)) " policy="
+    inl readable = rust_std_string.model.concat5 (policy_name ()) " started=" (relative_text now started) " wrap_at=" (relative_text now wrap_at)
+    inl remaining_text = rust_std_string.model.concat5 " deadline=" (relative_text now deadline) " remaining=" (duration_text remaining) ""
+    inl flags = rust_std_string.model.concat5 " should_wrap=" (bool_flag should_wrap) " should_yield=" (bool_flag should_yield) ""
+    inl raw_start = rust_std_string.model.concat5 " started_unix_ms=" (u64_text started) " wrap_at_unix_ms=" (u64_text wrap_at) ""
+    inl raw_end = rust_std_string.model.concat5 " deadline_unix_ms=" (u64_text deadline) " remaining_ms=" (u64_text remaining) ""
+    rust_std_string.model.concat5 (rust_std_string.model.concat5 head readable remaining_text "" "") flags raw_start raw_end ""
+
+inl main () : i32 =
+    !!!!Export("eoie_lease_effect_code", ((fun () => lease_effect_entry ()) : () -> i32))
+    !!!!Export("eoie_lease_policy_text", ((fun () => lease_policy_entry ()) : () -> string))
+    !!!!Export("eoie_lease_status_text", ((fun (root, started, wrap_at, deadline, remaining, should_wrap, should_yield) => lease_status_entry root started wrap_at deadline remaining should_wrap should_yield) : string * u64 * u64 * u64 * u64 * bool * bool -> string))
+    inl _ = lease_effect_entry ()
+    0i32

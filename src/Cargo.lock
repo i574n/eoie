@@ -9,11 +9,49 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "agile-backlog-scaffold"
+version = "0.0.0"
+
+[[package]]
+name = "agile-lease-terms"
+version = "0.0.0"
+dependencies = [
+ "command-spec-domain",
+]
+
+[[package]]
+name = "agile-record-catalog"
+version = "0.0.0"
+
+[[package]]
 name = "agile-state-runtime-policy-domain"
 version = "0.0.0"
 
 [[package]]
 name = "agile-state-transient-schema-domain"
+version = "0.0.0"
+
+[[package]]
+name = "agile-task-census"
+version = "0.0.0"
+
+[[package]]
+name = "agile-task-creation"
+version = "0.0.0"
+
+[[package]]
+name = "agile-task-listing"
+version = "0.0.0"
+dependencies = [
+ "agile-task-census",
+]
+
+[[package]]
+name = "agile-task-revision"
+version = "0.0.0"
+
+[[package]]
+name = "agile-update-receipt"
 version = "0.0.0"
 
 [[package]]
@@ -122,6 +160,7 @@ checksum = "91622ff5e7162018101f2fea40d6ebf4a78bbe5a49736a2020649edf9693679e"
 name = "eoie-agile-lease"
 version = "0.0.0"
 dependencies = [
+ "agile-lease-terms",
  "agile-state-runtime-policy-domain",
  "command-spec-domain",
  "eoie-agile-policy",
@@ -133,6 +172,10 @@ dependencies = [
 name = "eoie-agile-mutation"
 version = "0.0.0"
 dependencies = [
+ "agile-backlog-scaffold",
+ "agile-task-creation",
+ "agile-task-listing",
+ "agile-task-revision",
  "eoie-agile-lease",
  "eoie-agile-state",
  "eoie-handoff",
@@ -146,8 +189,11 @@ version = "0.0.0"
 name = "eoie-agile-state"
 version = "0.0.0"
 dependencies = [
+ "agile-lease-terms",
+ "agile-record-catalog",
  "agile-state-runtime-policy-domain",
  "agile-state-transient-schema-domain",
+ "agile-update-receipt",
  "eoie-agile-lease",
  "eoie-agile-policy",
  "eoie-process",
@@ -387,6 +433,10 @@ dependencies = [
  "eoie-toolchain-proxy",
  "evidence-currentness-domain",
  "legacy-capability-domain",
+ "proxy-command-output",
+ "proxy-failure-classification",
+ "proxy-file-removal",
+ "proxy-text-replacement",
 ]
 
 [[package]]
@@ -533,6 +583,8 @@ name = "eoie-proxy-search"
 version = "0.0.0"
 dependencies = [
  "eoie-rust-std-fs",
+ "proxy-file-copy",
+ "proxy-search-receipt",
  "rayon",
 ]
 
@@ -783,6 +835,39 @@ name = "process-batch-plan-resume-probe"
 version = "0.0.0"
 dependencies = [
  "process-batch-plan-domain",
+]
+
+[[package]]
+name = "proxy-command-output"
+version = "0.0.0"
+
+[[package]]
+name = "proxy-failure-classification"
+version = "0.0.0"
+
+[[package]]
+name = "proxy-file-copy"
+version = "0.0.0"
+dependencies = [
+ "eoie-rust-std-fs",
+]
+
+[[package]]
+name = "proxy-file-removal"
+version = "0.0.0"
+dependencies = [
+ "eoie-rust-std-fs",
+]
+
+[[package]]
+name = "proxy-search-receipt"
+version = "0.0.0"
+
+[[package]]
+name = "proxy-text-replacement"
+version = "0.0.0"
+dependencies = [
+ "eoie-rust-std-fs",
 ]
 
 [[package]]

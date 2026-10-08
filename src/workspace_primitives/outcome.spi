@@ -1,0 +1,1 @@
+union validation_result a = Valid : a | Invalid

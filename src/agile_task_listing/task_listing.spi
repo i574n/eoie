@@ -1,0 +1,180 @@
+open rust_std_fs.model
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+inl argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+
+type task_row =
+    {
+        id : string
+        title : string
+        kind : string
+        priority : string
+        difficulty : string
+        progress : string
+        status : string
+    }
+
+union status_filter =
+    | AllStatuses
+    | OnlyStatus : string
+
+inl task_statuses () : string = "Planned|Active|Blocked|Paused|Done"
+inl task_priorities () : string = "P0|P1|P2|P3|P4|P5"
+
+inl parse_status_filter (~text : string) : validation_result status_filter =
+    if rust_std_string.model.equals text "all" then Valid AllStatuses
+    elif rust_std_string.model.pipe_member (task_statuses ()) text then Valid (OnlyStatus text)
+    else Invalid
+
+inl status_selected (filter : status_filter) (~status : string) : bool =
+    match filter with
+    | AllStatuses => true
+    | OnlyStatus wanted => rust_std_string.model.equals wanted status
+
+inl unquoted (~token : string) : string = byte_slice token 1i32 (i32_prev (byte_len token))
+inl progress_digits (~token : string) : string = rust_std_string.model.replace token "u32" ""
+inl padded (~text : string) (width : i32) : string =
+    $'{ let text = !text; let filler = (!width as usize).saturating_sub(text.chars().count()); std::rc::Rc::<str>::from(text.to_string() + &" ".repeat(filler)) }' : string
+inl right_aligned (~text : string) (width : i32) : string =
+    $'{ let text = !text; let filler = (!width as usize).saturating_sub(text.chars().count()); std::rc::Rc::<str>::from(" ".repeat(filler) + &*text) }' : string
+inl clipped (~text : string) (width : i32) : string =
+    $'{ let text = !text; if text.chars().count() <= !width as usize { text } else { std::rc::Rc::<str>::from(text.chars().take((!width as usize).saturating_sub(3)).collect::<String>() + "...") } }' : string
+
+let task_row_at (text : string) (arguments : i32) (length : i32) : task_row =
+    inl field = tuple_field text arguments length
+    {
+        id = unquoted (field 0i32)
+        title = unquoted (field 1i32)
+        kind = field 2i32
+        priority = field 3i32
+        difficulty = field 4i32
+        progress = progress_digits (field 5i32)
+        status = field 6i32
+    }
+
+inl id_width () = 26i32
+inl title_width () = 96i32
+
+inl table_header () : string =
+    inl head = rust_std_string.model.concat5 (padded "ID" (id_width ())) " P  D     %  " (padded "STATUS" 8i32) (padded "KIND" 9i32) "TITLE"
+    head
+
+let table_line (row : task_row) : string =
+    inl head = rust_std_string.model.concat5 (padded row.id (id_width ())) " " row.priority " " row.difficulty
+    inl middle = rust_std_string.model.concat5 " " (right_aligned row.progress 4i32) "  " (padded row.status 8i32) (padded row.kind 9i32)
+    rust_std_string.model.concat5 head middle (clipped row.title (title_width ())) "" ""
+
+union listing_format =
+    | TableFormat
+    | JsonFormat
+
+inl json_string (~text : string) : string = rust_std_string.model.concat5 "\"" text "\"" "" ""
+inl json_field (~name : string) (~value : string) : string = rust_std_string.model.concat5 "\"" name "\":" value ""
+
+let json_line (row : task_row) (first : bool) : string =
+    inl separator = if first then "" else ","
+    inl head = rust_std_string.model.concat5 separator "{" (json_field "id" (json_string row.id)) "," (json_field "title" (json_string row.title))
+    inl middle = rust_std_string.model.concat5 "," (json_field "kind" (json_string row.kind)) "," (json_field "priority" (json_string row.priority)) ","
+    inl tail = rust_std_string.model.concat5 (json_field "difficulty" (json_string row.difficulty)) "," (json_field "progress" row.progress) "," (json_field "status" (json_string row.status))
+    rust_std_string.model.concat5 head middle tail "}" ""
+
+inl row_line (format : listing_format) (row : task_row) (first : bool) : string =
+    match format with
+    | TableFormat => table_line row
+    | JsonFormat => json_line row first
+
+let rec print_priority_rows (text : string) (offset : i32) (length : i32) (~priority : string) (~filter : status_filter) (~format : listing_format) (earlier : i32) (shown : i32) : i32 =
+    inl found = byte_find_from text (task_marker ()) offset
+    if i32_negative found then shown
+    else
+        inl arguments = $"!found + !(task_arguments_offset ())" : i32
+        inl row = task_row_at text arguments length
+        if declared_task text found then
+            if rust_std_string.model.equals row.priority priority then
+                if status_selected filter row.status then
+                    inl first = i32_eq ($"!earlier + !shown" : i32) 0i32
+                    inl _ = stdout_line (row_line format row first)
+                    print_priority_rows text arguments length priority filter format earlier (i32_next shown)
+                else print_priority_rows text arguments length priority filter format earlier shown
+            else print_priority_rows text arguments length priority filter format earlier shown
+        else print_priority_rows text arguments length priority filter format earlier shown
+
+inl i32_sum a b : i32 = $"!a + !b"
+
+inl filter_text = function
+    | AllStatuses => "all"
+    | OnlyStatus status => status
+
+inl agile_list_failure (~reason : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile list rejected: " reason "" "" "")
+
+inl lowest_priority_rank () = 5i32
+inl priority_name (rank : i32) : string = rust_std_string.model.concat5 "P" (i32_text rank) "" "" ""
+
+let rec print_rows_from_rank (text : string) (length : i32) (~filter : status_filter) (~format : listing_format) (rank : i32) (shown : i32) : i32 =
+    if i32_le rank (lowest_priority_rank ()) then
+        inl printed = print_priority_rows text 0i32 length (priority_name rank) filter format shown 0i32
+        print_rows_from_rank text length filter format (i32_next rank) (i32_sum shown printed)
+    else shown
+
+inl status_counts (text : string) (length : i32) : string = $"agile_task_census::eoie_agile_status_counts(&!text)" : string
+inl status_counts_json (text : string) (length : i32) : string = $"agile_task_census::eoie_agile_status_counts_json(&!text)" : string
+
+let print_table (text : string) (length : i32) (~filter : status_filter) (started : u64) : i32 =
+    inl _ = stdout_line (table_header ())
+    inl shown = print_rows_from_rank text length filter TableFormat 0i32 0i32
+    inl head = rust_std_string.model.concat5 "eoie agile list ok shown=" (i32_text shown) " filter=" (filter_text filter) (status_counts text length)
+    stdout_line (rust_std_string.model.concat5 head " elapsed_ms=" (u64_text (ms_since started)) "" "")
+
+let print_json (text : string) (length : i32) (~filter : status_filter) (started : u64) : i32 =
+    inl _ = stdout_line "{\"tasks\":["
+    inl shown = print_rows_from_rank text length filter JsonFormat 0i32 0i32
+    inl head = rust_std_string.model.concat5 "],\"shown\":" (i32_text shown) ",\"filter\":" (json_string (filter_text filter)) (status_counts_json text length)
+    stdout_line (rust_std_string.model.concat5 head ",\"elapsed_ms\":" (u64_text (ms_since started)) "}" "")
+
+inl print_listing (format : listing_format) (text : string) (length : i32) (~filter : status_filter) (started : u64) : i32 =
+    match format with
+    | TableFormat => print_table text length filter started
+    | JsonFormat => print_json text length filter started
+
+inl malformed_task_failure (offset : i32) : i32 =
+    agile_list_failure (rust_std_string.model.concat5 "malformed Task fields at byte " (i32_text offset) " (expected " (i32_text (task_field_count ())) " fields)")
+
+inl agile_list (~root : string) (~filter : status_filter) (~format : listing_format) : i32 =
+    inl started = unix_ms ()
+    match probe (unchecked (backlog_state_path root)) with
+    | FileMissing _ => agile_list_failure "state/agile.spi is missing"
+    | FileReadable file =>
+        inl text = loaded_string (read_text file)
+        inl length = byte_len text
+        inl malformed = first_malformed_task text 0i32 length
+        if i32_negative malformed then print_listing format text length filter started
+        else malformed_task_failure malformed
+
+inl json_flag (index : i32) : bool = rust_std_string.model.equals (argument_owned index) "--json"
+inl invalid_filter_failure (index : i32) : i32 =
+    agile_list_failure (rust_std_string.model.concat5 "invalid agile status filter: " (argument_owned index) " (expected all, Planned, Active, Blocked, Paused or Done)" "" "")
+
+inl list_with_filter (index : i32) (~format : listing_format) : i32 =
+    match parse_status_filter (argument_owned index) with
+    | Valid filter => agile_list (argument_owned 1i32) filter format
+    | Invalid => invalid_filter_failure index
+
+let agile_list_entry () : i32 =
+    inl count = argument_count ()
+    if i32_eq count 2i32 then agile_list (argument_owned 1i32) AllStatuses TableFormat
+    elif i32_eq count 3i32 then
+        if json_flag 2i32 then agile_list (argument_owned 1i32) AllStatuses JsonFormat
+        else list_with_filter 2i32 TableFormat
+    elif json_flag 3i32 then list_with_filter 2i32 JsonFormat
+    else agile_list_failure "list expects <root> [all|Planned|Active|Blocked|Paused|Done] [--json]"
+inl main () : i32 =
+    !!!!Export("eoie_agile_list_run", ((fun () => agile_list_entry ()) : () -> i32))
+    inl _ = agile_list_entry ()
+    0i32

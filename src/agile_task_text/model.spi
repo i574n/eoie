@@ -1,0 +1,112 @@
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+open agile_mutation_policy.model
+open rust_std_fs.model
+
+inl parse_task_kind (~text : string) : validation_result agile_task_kind =
+    match rust_std_string.model.pipe_index "Epic|Feature|Story|TaskKind" text with
+    | 0u64 => Valid AgileEpic
+    | 1u64 => Valid AgileFeature
+    | 2u64 => Valid AgileStory
+    | 3u64 => Valid AgileTaskKind
+    | _ => Invalid
+inl parse_priority (~text : string) : validation_result agile_priority =
+    match rust_std_string.model.pipe_index "P0|P1|P2|P3|P4|P5" text with
+    | 0u64 => Valid AgileP0
+    | 1u64 => Valid AgileP1
+    | 2u64 => Valid AgileP2
+    | 3u64 => Valid AgileP3
+    | 4u64 => Valid AgileP4
+    | 5u64 => Valid AgileP5
+    | _ => Invalid
+inl parse_difficulty (~text : string) : validation_result agile_difficulty =
+    match rust_std_string.model.pipe_index "D0|D1|D2|D3|D4|D5|D6|D7|D8" text with
+    | 0u64 => Valid AgileD0
+    | 1u64 => Valid AgileD1
+    | 2u64 => Valid AgileD2
+    | 3u64 => Valid AgileD3
+    | 4u64 => Valid AgileD4
+    | 5u64 => Valid AgileD5
+    | 6u64 => Valid AgileD6
+    | 7u64 => Valid AgileD7
+    | 8u64 => Valid AgileD8
+    | _ => Invalid
+
+union scan_state =
+    | ScanPlain
+    | ScanQuoted
+    | ScanEscaped
+
+inl quote_byte () = 34i32
+inl backslash_byte () = 92i32
+inl comma_byte () = 44i32
+inl close_paren_byte () = 41i32
+inl space_byte () = 32i32
+
+inl next_scan_state (state : scan_state) (byte : i32) : scan_state =
+    match state with
+    | ScanEscaped => ScanQuoted
+    | ScanQuoted =>
+        if i32_eq byte (backslash_byte ()) then ScanEscaped
+        elif i32_eq byte (quote_byte ()) then ScanPlain
+        else ScanQuoted
+    | ScanPlain => if i32_eq byte (quote_byte ()) then ScanQuoted else ScanPlain
+
+inl ends_field (state : scan_state) (byte : i32) : bool =
+    match state with
+    | ScanPlain => if i32_eq byte (comma_byte ()) then true else i32_eq byte (close_paren_byte ())
+    | _ => false
+
+let rec field_end (text : string) (offset : i32) (length : i32) (~state : scan_state) : i32 =
+    if i32_le length offset then length
+    else
+        inl byte = byte_at text offset
+        if ends_field state byte then offset
+        else field_end text (i32_next offset) length (next_scan_state state byte)
+
+let rec skip_spaces (text : string) (offset : i32) : i32 =
+    if i32_eq (byte_at text offset) (space_byte ()) then skip_spaces text (i32_next offset) else offset
+
+let rec field_start (text : string) (offset : i32) (length : i32) (position : i32) : i32 =
+    if i32_eq position 0i32 then offset
+    else field_start text (skip_spaces text (i32_next (field_end text offset length ScanPlain))) length (i32_prev position)
+
+inl spi_escaped (~value : string) : string =
+    inl value = rust_std_string.model.replace value "\\" "\\\\"
+    inl value = rust_std_string.model.replace value "\"" "\\\""
+    inl value = rust_std_string.model.replace value "\n" "\\n"
+    inl value = rust_std_string.model.replace value "\r" "\\r"
+    rust_std_string.model.replace value "\t" "\\t"
+inl spi_quoted (~value : string) : string = rust_std_string.model.concat5 "\"" (spi_escaped value) "\"" "" ""
+
+inl backlog_state_path (~root : string) : string = rust_std_string.model.concat5 root "/state/agile.spi" "" "" ""
+
+inl task_marker () : string = "Task (\""
+inl task_arguments_offset () : i32 = 6i32
+inl task_field_count () : i32 = 11i32
+inl declared_task (text : string) (found : i32) : bool =
+    inl start = line_start_before text found
+    rust_std_string.model.starts_with (byte_slice text start found) "inl "
+
+let rec top_level_field_count (text : string) (offset : i32) (length : i32) (counted : i32) : i32 =
+    inl stop = field_end text offset length ScanPlain
+    if i32_le length stop then -1i32
+    elif i32_eq (byte_at text stop) (close_paren_byte ()) then i32_next counted
+    else top_level_field_count text (skip_spaces text (i32_next stop)) length (i32_next counted)
+
+let rec first_malformed_task (text : string) (offset : i32) (length : i32) : i32 =
+    inl found = byte_find_from text (task_marker ()) offset
+    if i32_negative found then -1i32
+    else
+        inl arguments = $"!found + !(task_arguments_offset ())" : i32
+        if declared_task text found then
+            if i32_eq (top_level_field_count text arguments length 0i32) (task_field_count ()) then first_malformed_task text arguments length
+            else found
+        else first_malformed_task text arguments length
+inl tuple_field (text : string) (arguments : i32) (length : i32) (position : i32) : string =
+    inl start = field_start text arguments length position
+    byte_slice text start (field_end text start length ScanPlain)

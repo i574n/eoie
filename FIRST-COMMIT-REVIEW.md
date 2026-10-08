@@ -4,6 +4,15 @@ Scope: the EOIE source workspace and its supported single-flight compiler
 integration. This is separate from certifying a distributable EOIE release.
 
 
+## Evidence renewal on the dev21 compiler — October 8, morning
+
+**Compiler.** Single-flight deployed at 06:40 (core `528BE76E5B0F`: Bend backend, no comments in emitted helpers), oracle
+re-blessed with identical results (1,960 rows, `DISAGREE` 0).
+
+**Validation (06:40–06:51):** `build.ps1 -Test -CompilerContracts -Offline` 195 tests passed, 0 failed; `renew-cold-rebuild -Apply`;
+`eoie agile check --compiler` exit 0; closeout apply on a staged copy, then `test-strict-preflight.ps1 -RequireReady`:
+**`ready=True diagnostics=0`**. `eoie.exe` after the chain: SHA `504E7AC8…`.
+
 ## Evidence renewal after the comment strip — October 7, evening
 
 **Why.** Lane T removed comments across EOIE's sources (48 `.spi`, 38 `.rs`, 11 `.ps1`, 2 `.py`), which made the strict

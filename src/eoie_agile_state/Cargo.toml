@@ -18,6 +18,9 @@ agile-state-runtime-policy-domain = { path = "../agile_state_runtime_policy_doma
 agile-state-transient-schema-domain = { path = "../agile_state_transient_schema_domain" }
 eoie-agile-policy = { path = "../eoie_agile_policy" }
 eoie-agile-lease = { path = "../eoie_agile_lease" }
+agile-lease-terms = { path = "../agile_lease_terms" }
+agile-record-catalog = { path = "../agile_record_catalog" }
+agile-update-receipt = { path = "../agile_update_receipt" }
 eoie-process = { path = "../eoie_process" }
 eoie-proxy-search = { path = "../eoie_proxy_search" }
 eoie-rust-std-fs = { path = "../rust_std_fs" }

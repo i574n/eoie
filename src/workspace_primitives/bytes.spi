@@ -1,0 +1,9 @@
+inl ascii_lowercase (~text : string) : string = $'std::rc::Rc::<str>::from(!text.to_ascii_lowercase())' : string
+inl byte_at (text : string) (offset : i32) : i32 = $'!text.as_bytes().get(!offset as usize).map(|byte| i32::from(*byte)).unwrap_or(-1)' : i32
+inl byte_len (text : string) : i32 = $'!text.len() as i32' : i32
+inl byte_slice (text : string) (start : i32) (stop : i32) : string = $'std::rc::Rc::<str>::from(!text.get(!start as usize..!stop as usize).unwrap_or(""))' : string
+inl byte_find (text : string) (needle : string) : i32 = $'!text.find(&*!needle).map(|offset| offset as i32).unwrap_or(-1)' : i32
+inl byte_find_from (text : string) (needle : string) (offset : i32) : i32 =
+    $'!text.get(!offset as usize..).and_then(|rest| rest.find(&*!needle)).map(|found| (found + !offset as usize) as i32).unwrap_or(-1)' : i32
+inl line_start_before (text : string) (offset : i32) : i32 =
+    $'!text.get(..!offset as usize).and_then(|head| head.rfind(char::from(10u8))).map(|newline| newline as i32 + 1).unwrap_or(0)' : i32

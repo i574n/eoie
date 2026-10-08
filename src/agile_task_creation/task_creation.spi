@@ -1,0 +1,67 @@
+open agile_mutation_policy.model
+open rust_std_fs.model
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_len index : i32 = rust_std_env.model.argument_len index
+inl argument_byte index offset : i32 = rust_std_env.model.argument_byte index offset
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+inl i32_positive value : bool = $"0 < !value"
+inl i32_digit value : bool = if i32_le 48i32 value then i32_le value 57i32 else false
+inl i32_upper_letter value : bool = if i32_le 65i32 value then i32_le value 90i32 else false
+inl task_id_byte_allowed value : bool =
+    if i32_upper_letter value then true
+    elif i32_digit value then true
+    else i32_eq value 45i32
+let rec task_id_bytes_allowed (offset : i32) (length : i32) : bool =
+    if i32_eq offset length then true
+    elif task_id_byte_allowed (argument_byte 2i32 offset) then task_id_bytes_allowed (i32_next offset) length
+    else false
+inl validate_task_id () : validation_result string =
+    inl length = argument_len 2i32
+    if i32_positive length then
+        if task_id_bytes_allowed 0i32 length then Valid (argument_owned 2i32) else Invalid
+    else Invalid
+
+inl task_binding (~id : string) : string = ascii_lowercase (rust_std_string.model.replace id "-" "_")
+inl task_line (~id : string) kind priority difficulty (~title : string) (~tags : string) : string =
+    inl head = rust_std_string.model.concat5 "inl " (task_binding id) " () = Task (" (spi_quoted id) ", "
+    inl middle = rust_std_string.model.concat5 (spi_quoted title) ", " (agile_task_kind_text kind) ", " (agile_priority_text priority)
+    inl tail = rust_std_string.model.concat5 ", " (agile_difficulty_text difficulty) ", 0u32, Planned, \"\", " (spi_quoted tags) ", \"current\", \"current\")"
+    rust_std_string.model.concat5 head middle tail "" ""
+
+inl agile_add_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile add " id " rejected: " reason "")
+inl agile_add_success (~id : string) (~binding : string) (before : u64) (after : u64) (elapsed : u64) : i32 =
+    inl head = rust_std_string.model.concat5 "eoie agile add ok id=" id " binding=" binding " status=Planned progress=0"
+    stdout_line (rust_std_string.model.concat5 head (measured_sizes before after elapsed) "" "" "")
+inl task_exists (~id : string) (~state : string) : bool = text_contains (rust_std_string.model.concat5 "Task (\"" id "\"," "" "") state
+inl agile_add (~root : string) (~id : string) kind priority difficulty (~title : string) (~tags : string) : i32 =
+    inl started = unix_ms ()
+    inl state = backlog_state_path root
+    match probe (unchecked state) with
+    | FileMissing _ => agile_add_failure "state/agile.spi is missing" id
+    | FileReadable file =>
+        if task_exists id state then agile_add_failure "a task with this id already exists" id
+        else
+            inl original = loaded_string (read_text file)
+            inl updated = rust_std_string.model.concat5 (rust_std_string.model.trim_end_matches original "\n") "\n" (task_line id kind priority difficulty title tags) "\n" ""
+            match replace_file_checked state updated with
+            | Replaced => agile_add_success id (task_binding id) (text_bytes original) (text_bytes updated) (ms_since started)
+            | problem => agile_add_failure (file_replacement_problem problem) id
+let agile_add_entry () : i32 =
+    match validate_task_id (), parse_task_kind (argument_owned 3i32), parse_priority (argument_owned 4i32), parse_difficulty (argument_owned 5i32) with
+    | Valid id, Valid kind, Valid priority, Valid difficulty => agile_add (argument_owned 1i32) id kind priority difficulty (argument_owned 6i32) (argument_owned 7i32)
+    | Invalid, _, _, _ => agile_add_failure "the id must be uppercase letters, digits and dashes" (argument_owned 2i32)
+    | _, Invalid, _, _ => agile_add_failure "kind must be Epic, Feature, Story or TaskKind" (argument_owned 2i32)
+    | _, _, Invalid, _ => agile_add_failure "priority must be P0..P5" (argument_owned 2i32)
+    | _, _, _, Invalid => agile_add_failure "difficulty must be D0..D8" (argument_owned 2i32)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_add_run", ((fun () => agile_add_entry ()) : () -> i32))
+    inl _ = agile_add_entry ()
+    0i32

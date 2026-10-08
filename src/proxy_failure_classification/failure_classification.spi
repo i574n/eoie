@@ -1,0 +1,22 @@
+union proxy_failure =
+    | ArgumentFailure
+    | ChildProcessFailure : i32
+
+inl child_exit_digits (~message : string) : i32 =
+    $'!message.find("failed: exit code: ").and_then(|at| !message[at + 19..].split(|c: char| c.is_ascii_digit() == false).next().and_then(|digits| digits.parse::<i32>().ok())).unwrap_or(0)' : i32
+
+inl proxy_failure_of (~message : string) : proxy_failure =
+    inl code = child_exit_digits message
+    if $"!code > 0" then ChildProcessFailure code else ArgumentFailure
+
+inl process_exit_code (code : i32) : i32 = if $"!code > 255" then 255i32 else code
+
+let proxy_child_exit_code (~message : string) : i32 =
+    match proxy_failure_of message with
+    | ChildProcessFailure code => process_exit_code code
+    | ArgumentFailure => 0i32
+
+inl main () : i32 =
+    !!!!Export("eoie_proxy_child_exit_code", ((fun message => proxy_child_exit_code message) : string -> i32))
+    inl _ = proxy_child_exit_code "proxy-run failed: exit code: 3"
+    0i32

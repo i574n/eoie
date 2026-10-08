@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "task_creation.spi"
+output = "task_creation.rs"
+
+[package]
+name = "agile-task-creation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_task_creation"
+path = "task_creation.rs"

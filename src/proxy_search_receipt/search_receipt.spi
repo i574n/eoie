@@ -1,0 +1,28 @@
+open workspace_primitives.numbers
+open workspace_primitives.clock
+
+let search_clock_ms () : u64 = unix_ms ()
+
+union hit_budget =
+    | AllHitsShown
+    | HitsTruncated
+
+inl hit_budget_of (found : i32) (limit : i32) : hit_budget = if $"!found > !limit" then HitsTruncated else AllHitsShown
+
+inl hits_text (found : i32) (limit : i32) (budget : hit_budget) : string =
+    match budget with
+    | AllHitsShown => rust_std_string.model.concat5 " hits=" (i32_text found) "" "" ""
+    | HitsTruncated => rust_std_string.model.concat5 " hits=" (i32_text limit) " truncated=true found_at_least=" (i32_text found) ""
+
+let parallel_search_receipt_text (workers : i32) (found : i32) (limit : i32) (started : u64) (serial_done : u64) (parallel_done : u64) : string =
+    inl head = rust_std_string.model.concat5 "eoie proxy parallel-search ok workers=" (i32_text workers) (hits_text found limit (hit_budget_of found limit)) " parity=exact ordering=deterministic excludes=.git,node_modules,build-output,symlinks" ""
+    inl phases = rust_std_string.model.concat5 " serial_ms=" (u64_text (u64_span started serial_done)) " parallel_ms=" (u64_text (u64_span serial_done parallel_done)) ""
+    rust_std_string.model.concat5 head phases " elapsed_ms=" (u64_text (ms_since started)) ""
+
+inl main () : i32 =
+    !!!!Export("eoie_search_clock_ms", ((fun () => search_clock_ms ()) : () -> u64))
+    !!!!Export("eoie_parallel_search_receipt_text", ((fun (workers, found, limit, started, serial_done, parallel_done) => parallel_search_receipt_text workers found limit started serial_done parallel_done) : i32 * i32 * i32 * u64 * u64 * u64 -> string))
+    inl started = search_clock_ms ()
+    inl _ = parallel_search_receipt_text 56i32 7i32 50i32 started started started
+    inl _ = parallel_search_receipt_text 56i32 51i32 50i32 started started started
+    0i32

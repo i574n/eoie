@@ -31,11 +31,11 @@ inl current_cold_schema () : cold_receipt_schema = ColdReceiptV4
 inl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed
 inl current_cold_replay_flags () : u32 = 15u32
 
-inl census_gate () : string * string = "state/authority_census.spi", "e5a4c6a682bccd3abd8150ed0ef9bb8085877f7b47b87b6ae66c4efc6b86d65c"
+inl census_gate () : string * string = "state/authority_census.spi", "370ab6abd6ebd9efd866610bd699e089c2de96a3972cc39b0a44810c0e7bd751"
 inl migration_gate () : string * string = "state/migration.spi", "7cab87a7453c7f64f60ce0df8137b8859697e6623d9a6d8f5ab8253fb1fbbcee"
-inl workspace_gate () : string * string = "src/Cargo.lock", "399d4e9954dfa034d14c7cfb1ee6a54e27e030ed9b5a40d2000f91c91890f3b3"
+inl workspace_gate () : string * string = "src/Cargo.lock", "ec2e94cfc55a165ba9da18072aa77ccaa00d1ffe62f06e25a6dea52baa559ec5"
 inl state_gate () : string * string = "state/core.spi", "7018c0e131c9434eaea0d14b24e82f6e2d615afe028fe5d818a899fcaa805a81"
-inl binary_gate () : string * string = "eoie.exe", "504e7ac8a3b8acec2f23bd5c352b8cf70ec39bd241560e6b2990b836e7e719e6"
+inl binary_gate () : string * string = "eoie.exe", "01476361be87a43392c291ab25ca9dfd5879f646d8c9d844f12ac68b59d559e7"
 
 inl current_cold_proof_authority () : authority_state_domain.formal_authority_state =
     authority_state_domain.current_formal_authority ()

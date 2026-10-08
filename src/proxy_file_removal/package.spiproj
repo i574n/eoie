@@ -1,0 +1,8 @@
+packages:
+    workspace_primitives
+    rust_std_string
+    rust_std_fs
+    agile_mutation_policy
+    agile_task_text
+modules:
+    file_removal

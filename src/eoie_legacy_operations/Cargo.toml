@@ -16,6 +16,7 @@ path = "operations.rs"
 [dependencies]
 eoie-process = { path = "../eoie_process" }
 eoie-process-observation = { path = "../eoie_process_observation" }
+proxy-command-output = { path = "../proxy_command_output" }
 eoie-toolchain-proxy = { path = "../eoie_toolchain_proxy" }
 eoie-source-topology = { path = "../eoie_source_topology" }
 eoie-source-map = { path = "../eoie_source_map" }
@@ -26,6 +27,9 @@ eoie-bundle-zip = { path = "../eoie_bundle_zip" }
 evidence-currentness-domain = { path = "../evidence_currentness_domain" }
 cold-proof-domain = { path = "../cold_proof_domain" }
 eoie-patch-control-domain = { path = "../patch_control_domain" }
+proxy-text-replacement = { path = "../proxy_text_replacement" }
+proxy-file-removal = { path = "../proxy_file_removal" }
+proxy-failure-classification = { path = "../proxy_failure_classification" }
 eoie-rust-std-fs = { path = "../rust_std_fs" }
 eoie-proxy-search = { path = "../eoie_proxy_search" }
 legacy-capability-domain = { path = "../legacy_capability_domain" }

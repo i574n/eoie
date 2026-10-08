@@ -11,6 +11,58 @@ inl i32_eq a b : bool = $"!a == !b"
 inl i32_le a b : bool = $"!a <= !b"
 inl i32_nonnegative value : bool = $"0 <= !value"
 
+union agile_task_kind =
+    | AgileEpic
+    | AgileFeature
+    | AgileStory
+    | AgileTaskKind
+
+inl agile_task_kind_text kind : string =
+    match kind with
+    | AgileEpic => "Epic"
+    | AgileFeature => "Feature"
+    | AgileStory => "Story"
+    | AgileTaskKind => "TaskKind"
+
+union agile_priority =
+    | AgileP0
+    | AgileP1
+    | AgileP2
+    | AgileP3
+    | AgileP4
+    | AgileP5
+
+inl agile_priority_text priority : string =
+    match priority with
+    | AgileP0 => "P0"
+    | AgileP1 => "P1"
+    | AgileP2 => "P2"
+    | AgileP3 => "P3"
+    | AgileP4 => "P4"
+    | AgileP5 => "P5"
+
+union agile_difficulty =
+    | AgileD0
+    | AgileD1
+    | AgileD2
+    | AgileD3
+    | AgileD4
+    | AgileD5
+    | AgileD6
+    | AgileD7
+    | AgileD8
+
+inl agile_difficulty_text difficulty : string =
+    match difficulty with
+    | AgileD0 => "D0"
+    | AgileD1 => "D1"
+    | AgileD2 => "D2"
+    | AgileD3 => "D3"
+    | AgileD4 => "D4"
+    | AgileD5 => "D5"
+    | AgileD6 => "D6"
+    | AgileD7 => "D7"
+    | AgileD8 => "D8"
 inl agile_status_code status : i32 =
     match status with
     | AgilePlanned => 0i32

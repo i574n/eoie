@@ -21,5 +21,10 @@ let proxy_parallel_consumer_mode_binding (mode : i32) (output_segments : i32) : 
 let proxy_parallel_consumer_output_binding (expected_fingerprint : i32) (output_fingerprint : i32) : i32 =
     parallel_consumer_output_binding expected_fingerprint output_fingerprint
 
+let proxy_search_descends_into (~path : string) : bool = search_descends_into (search_directory_of path)
+
+let proxy_search_scope_binding (~relative : string) : i32 =
+    search_scope_code (search_scope_of relative)
+
 let proxy_hash_tree_request_binding (root_valid : i32) (relative_segments : i32) : i32 =
     hash_integrity_contract.model.tree_request_binding root_valid relative_segments

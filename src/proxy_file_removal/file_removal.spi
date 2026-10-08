@@ -1,0 +1,71 @@
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+open workspace_primitives.rooted
+
+union removed_entry =
+    | RemovedFile
+    | RemovedSymlink
+    | MissingEntry
+    | DirectoryEntry
+
+union removal_outcome =
+    | RemovalReceipt : string
+    | RemovalRejected : string
+
+
+inl entry_code (~path : string) : i32 =
+    $'std::fs::symlink_metadata(&*!path).map(|meta| if meta.file_type().is_symlink() { 1 } else if meta.is_dir() { 3 } else { 0 }).unwrap_or(2)' : i32
+inl entry_bytes (~path : string) : u64 = $'std::fs::symlink_metadata(&*!path).map(|meta| meta.len()).unwrap_or(0)' : u64
+inl unlink_error (~path : string) : string =
+    $'std::rc::Rc::<str>::from(eoie_rust_std_fs::rooted_unlink_nondirectory(std::path::Path::new(&*!path)).err().unwrap_or_default().as_str())' : string
+
+inl removed_entry_of (code : i32) : removed_entry =
+    match code with
+    | 0i32 => RemovedFile
+    | 1i32 => RemovedSymlink
+    | 3i32 => DirectoryEntry
+    | _ => MissingEntry
+
+inl entry_kind_text = function
+    | RemovedFile => "file"
+    | RemovedSymlink => "symlink"
+    | MissingEntry => "missing"
+    | DirectoryEntry => "directory"
+
+inl removal_receipt (~path : string) (entry : removed_entry) (bytes : u64) (started : u64) : removal_outcome =
+    inl head = rust_std_string.model.concat5 "eoie proxy fs-remove ok path=" path " kind=" (entry_kind_text entry) " bytes="
+    RemovalReceipt (rust_std_string.model.concat5 head (u64_text bytes) " elapsed_ms=" (u64_text (ms_since started)) "")
+
+inl remove_entry (~path : string) (entry : removed_entry) (started : u64) : removal_outcome =
+    inl bytes = entry_bytes path
+    inl problem = unlink_error path
+    if rust_std_string.model.equals problem "" then removal_receipt path entry bytes started
+    else RemovalRejected (rust_std_string.model.concat5 "fs-remove failed: " problem "" "" "")
+
+let file_removal_outcome () : removal_outcome =
+    inl started = unix_ms ()
+    inl operands = proxy_argument_count ()
+    if $"!operands == 3" then
+        inl path = rooted_path (proxy_argument 1i32) (proxy_argument 2i32)
+        if rust_std_string.model.equals path "" then RemovalRejected "fs-remove target escapes the root"
+        else
+            match removed_entry_of (entry_code path) with
+            | MissingEntry => RemovalRejected (rust_std_string.model.concat5 "fs-remove target is missing: " path "" "" "")
+            | DirectoryEntry => RemovalRejected (rust_std_string.model.concat5 "fs-remove target is a directory (use fs-remove-tree): " path "" "" "")
+            | entry => remove_entry path entry started
+    else RemovalRejected "fs-remove expects <root> <relative>"
+
+let file_removal_report () : i32 * string =
+    match file_removal_outcome () with
+    | RemovalReceipt text => 0i32, text
+    | RemovalRejected text => 2i32, text
+
+inl main () : i32 =
+    !!!!Export("eoie_file_removal_outcome", ((fun () => file_removal_report ()) : () -> i32 * string))
+    inl _ = file_removal_outcome ()
+    0i32

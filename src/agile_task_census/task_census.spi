@@ -1,0 +1,40 @@
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl i32_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+
+let rec count_status (text : string) (offset : i32) (length : i32) (~status : string) (counted : i32) : i32 =
+    inl found = byte_find_from text (task_marker ()) offset
+    if i32_negative found then counted
+    else
+        inl arguments = $"!found + !(task_arguments_offset ())" : i32
+        inl matching = if declared_task text found then rust_std_string.model.equals (tuple_field text arguments length 6i32) status else false
+        inl next = if matching then i32_next counted else counted
+        count_status text arguments length status next
+
+let status_count_text (text : string) (length : i32) (~status : string) : string =
+    rust_std_string.model.concat5 " " (ascii_lowercase status) "=" (i32_text (count_status text 0i32 length status 0i32)) ""
+
+let status_counts (text : string) (length : i32) : string =
+    rust_std_string.model.concat5 (status_count_text text length "Planned") (status_count_text text length "Active") (status_count_text text length "Blocked") (status_count_text text length "Paused") (status_count_text text length "Done")
+
+let status_count_json (text : string) (length : i32) (~separator : string) (~status : string) : string =
+    rust_std_string.model.concat5 separator "\"" (ascii_lowercase status) "\":" (i32_text (count_status text 0i32 length status 0i32))
+
+let status_counts_json (text : string) (length : i32) : string =
+    inl counts = rust_std_string.model.concat5 (status_count_json text length "" "Planned") (status_count_json text length "," "Active") (status_count_json text length "," "Blocked") (status_count_json text length "," "Paused") (status_count_json text length "," "Done")
+    rust_std_string.model.concat5 ",\"counts\":{" counts "}" "" ""
+
+let census_text (text : string) : string = status_counts text (byte_len text)
+let census_json (text : string) : string = status_counts_json text (byte_len text)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_status_counts", ((fun text => census_text text) : string -> string))
+    !!!!Export("eoie_agile_status_counts_json", ((fun text => census_json text) : string -> string))
+    inl _ = census_text ""
+    0i32

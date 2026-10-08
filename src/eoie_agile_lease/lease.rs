@@ -118,7 +118,7 @@ pub fn agile_package_input_fingerprint(state_dir: &Path, include_state: bool) ->
     u64::from_str_radix(&hash[..16], 16).ok()
 }
 
-use agile_state_runtime_policy_domain::{eoie_agile_lease_clock_phase_binding, eoie_agile_lease_readback_decision_binding, eoie_agile_prompt_lease_marker_text, eoie_agile_prompt_lease_shape_binding, eoie_agile_prompt_lease_status_code, eoie_agile_spi_escape_text, eoie_agile_state_package_line_code, eoie_agile_state_package_module_name};
+use agile_state_runtime_policy_domain::{eoie_agile_lease_clock_phase_binding, eoie_agile_lease_effective_phase_binding, eoie_agile_lease_policy_from_text, eoie_agile_lease_readback_decision_binding, eoie_agile_prompt_lease_marker_text, eoie_agile_prompt_lease_shape_binding, eoie_agile_prompt_lease_status_code, eoie_agile_spi_escape_text, eoie_agile_state_package_line_code, eoie_agile_state_package_module_name};
 use eoie_agile_policy::{eoie_agile_attestation_normalize_binding, eoie_agile_attestation_value_binding, eoie_agile_tuple_parse_binding, eoie_agile_u64_decimal_normalize_binding, eoie_agile_u64_decimal_value_binding, eoie_agile_u64_literal_normalize_binding, eoie_agile_u64_literal_value_binding};
 use eoie_rust_std_fs::read_regular_text_limited as lease_read_regular_text_limited;
 use std::path::{Path, PathBuf};
@@ -201,30 +201,19 @@ pub fn agile_prompt_lease_clock(root: &Path) -> Result<(u64, u64, u64, u64, bool
     let now_unix_ms = agile_now_unix_ms()?;
     let wrap_at_unix_ms = deadline_unix_ms.saturating_sub(guard_ms);
     let phase = eoie_agile_lease_clock_phase_binding(i32::from(now_unix_ms >= wrap_at_unix_ms), i32::from(now_unix_ms >= deadline_unix_ms));
+    let phase = eoie_agile_lease_effective_phase_binding(i32::from(eoie_agile_lease_policy_from_text(&agile_lease_terms::eoie_lease_policy_text()) == 1), phase);
     let (should_wrap, should_yield) = match phase { 0 => (false, false), 1 => (true, false), 2 => (true, true), _ => return Err("typed Spiral lease clock phase rejected".to_owned()) };
     let remaining_ms = deadline_unix_ms.saturating_sub(now_unix_ms);
     Ok((started_unix_ms, deadline_unix_ms, wrap_at_unix_ms, remaining_ms, should_wrap, should_yield))
 }
 
-use command_spec_domain::{eoie_command_effect_code, eoie_command_subcommand_effect_code};
-
 pub fn lease_effect_code() -> i32 {
-    let mut args = std::env::args();
-    let _ = args.next();
-    let verb = args.next().unwrap_or_default();
-    let sub = args.next().unwrap_or_default();
-    let base = eoie_command_effect_code(&verb);
-    let operands = args.count();
-    let key = format!("{verb}:{sub}");
-    let operand_effect = eoie_command_subcommand_effect_code(&format!("{key}/{operands}"));
-    let specialized = if operand_effect <= 3 { operand_effect } else { eoie_command_subcommand_effect_code(&key) };
-    let effect = if specialized <= 3 { specialized } else { base };
-    if effect <= 3 { effect as i32 } else { 4 }
+    agile_lease_terms::eoie_lease_effect_code()
 }
 
 fn lease_operand_args() -> Vec<String> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    let own = match (args.first().map(String::as_str), args.get(1).map(String::as_str)) { (Some("proxy"), Some("command-capture")) => 5, (Some("proxy"), Some("command-capture-env")) => 7, _ => args.len() };
+    let own = match (args.first().map(String::as_str), args.get(1).map(String::as_str)) { (Some("proxy"), Some("command-output")) => 4, (Some("proxy"), Some("command-capture")) => 5, (Some("proxy"), Some("command-capture-env")) => 7, _ => args.len() };
     args.into_iter().take(own).skip(1).collect()
 }
 
@@ -272,7 +261,7 @@ pub fn lease_guard_error() -> i32 {
     2
 }
 
-fn method1(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: bool) -> i32 {
+fn validate_title_loop_1(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: bool) -> i32 {
     loop {
         let mut v4: bool = v0 < v1;
         if v4 {
@@ -339,7 +328,7 @@ fn method1(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: bool) -> i32 {
         }
     }
 }
-fn method0() -> i32 {
+fn lease_title_entry_0() -> i32 {
     let mut v0: i32 = 2i32;
     let mut v1: i32 = usize::try_from(v0).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or(-1, |value| i32::try_from(value.len()).unwrap_or(i32::MAX));
     let mut v2: bool = 0 < v1;
@@ -347,7 +336,7 @@ fn method0() -> i32 {
         let mut v3: i32 = 0i32;
         let mut v4: i32 = 0i32;
         let mut v5: bool = false;
-        method1(v3, v1, v4, v5)
+        validate_title_loop_1(v3, v1, v4, v5)
     } else {
         let mut v7: i32 = -1;
         v7
@@ -355,7 +344,7 @@ fn method0() -> i32 {
 }
 fn closure0() -> Rc<dyn Fn() -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
-        method0()
+        lease_title_entry_0()
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_lease_title_words() -> i32 {

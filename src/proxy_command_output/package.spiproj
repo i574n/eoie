@@ -1,0 +1,6 @@
+packages:
+    workspace_primitives
+    rust_std_string
+    rust_std_fs
+modules:
+    command_output

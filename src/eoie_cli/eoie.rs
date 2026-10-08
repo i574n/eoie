@@ -1,12 +1,13 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-use command_spec_domain::{eoie_command_code, eoie_command_count, eoie_command_descriptor, eoie_command_descriptor_json, eoie_command_schema_witness, eoie_command_proxy_usage, eoie_proxy_route_code, eoie_proxy_route_witness, eoie_help_flag_code, eoie_help_flag_witness};
+use command_spec_domain::{eoie_agile_subcommand_known, eoie_command_code, eoie_command_count, eoie_command_descriptor, eoie_command_descriptor_json, eoie_command_schema_witness, eoie_command_proxy_usage, eoie_proxy_route_code, eoie_proxy_route_witness, eoie_help_flag_code, eoie_help_flag_witness};
 use canonical_plan_ir_domain::{eoie_plan_ir_count, eoie_plan_ir_decode_code, eoie_plan_ir_descriptor, eoie_plan_ir_index_valid, eoie_plan_ir_projection_witness, eoie_plan_ir_schema, eoie_plan_ir_stage_witness};
 use eoie_agile_lease::lease_authority_code;
 
 #[must_use]
 fn EoieProcessVerbCode() -> i32 {
+    if !command_spec_domain::eoie_help_request_text().is_empty() { return 5; }
     if lease_authority_code() != 0 { return 7; }
     let verb = std::env::args().nth(1).unwrap_or_else(|| "status".to_owned());
     let code = eoie_command_code(&verb);
@@ -152,7 +153,7 @@ fn EoiePatchAdapter() -> i32 {
 #[must_use]
 fn EoieAgileAdapter() -> i32 {
     let args = std::env::args().skip(2).collect::<Vec<_>>();
-    let subcommand = args.first().map(String::as_str); if !matches!(subcommand, Some("begin" | "lease" | "status" | "handoff" | "list" | "check" | "record" | "set")) { let descriptor = eoie_command_descriptor("2"); let reason = subcommand.map(|value| format!("unknown agile subcommand: {value}")).unwrap_or_else(|| "agile subcommand required".to_owned()); return eoie_actionable_error(&reason, "agile", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help agile"); }
+    let subcommand = args.first().map(String::as_str); if subcommand.map(|value| eoie_agile_subcommand_known(value) == 0).unwrap_or(true) { let descriptor = eoie_command_descriptor("2"); let reason = subcommand.map(|value| format!("unknown agile subcommand: {value}")).unwrap_or_else(|| "agile subcommand required".to_owned()); return eoie_actionable_error(&reason, "agile", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help agile"); }
     if args.len() == 4 && args[0] == "check" && args[2] == "--compiler" {
         return eoie_agile_state::agile_check_with_compiler_owned(args[1].as_str(), args[3].as_str());
     }
@@ -252,6 +253,8 @@ fn EoieProxyAdapter() -> i32 {
 
 #[must_use]
 fn EoieHelpRejected() -> i32 {
+    let request = command_spec_domain::eoie_help_request_text();
+    if !request.is_empty() { println!("{request}"); return 0; }
     let args = std::env::args().skip(2).collect::<Vec<_>>();
     let count = eoie_command_count();
     if count <= 0 { eprintln!("eoie error: typed command catalog is empty"); return 2; }
@@ -344,7 +347,7 @@ fn method0(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
                     if v8 {
                         0i32
                     } else {
-                        let mut v9: i32 = v0 - v1;
+                        let mut v9: i32 = v0.wrapping_sub(v1);
                         let mut v10: bool = v9 == v3;
                         if v10 {
                             1i32
@@ -417,9 +420,9 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn method4(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
-    let mut v4: i32 = v0 * v1;
-    let mut v5: i32 = v2 * v3;
-    let mut v6: i32 = v4 * v5;
+    let mut v4: i32 = v0.wrapping_mul(v1);
+    let mut v5: i32 = v2.wrapping_mul(v3);
+    let mut v6: i32 = v4.wrapping_mul(v5);
     v6
 }
 fn method5(mut v0: i32, mut v1: i32, mut v2: i32) -> i32 {
@@ -503,10 +506,10 @@ fn method9(mut v0: i32) -> i32 {
     }
 }
 fn method10(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
-    let mut v5: i32 = v0 * v1;
-    let mut v6: i32 = v2 * v3;
-    let mut v7: i32 = v5 * v6;
-    let mut v8: i32 = v7 * v4;
+    let mut v5: i32 = v0.wrapping_mul(v1);
+    let mut v6: i32 = v2.wrapping_mul(v3);
+    let mut v7: i32 = v5.wrapping_mul(v6);
+    let mut v8: i32 = v7.wrapping_mul(v4);
     v8
 }
 fn method12(mut v0: i32, mut v1: i32) -> i32 {
@@ -764,30 +767,30 @@ fn spiral_main() -> i32 {
             }
         };
         match &v24 {
-            US0::US0_2 => { // AgileHandler
+            US0::US0_2 => {
                 let mut v129: i32 = EoieAgileAdapter();
                 v129
             }
-            US0::US0_3 => { // BundleHandler
+            US0::US0_3 => {
                 let mut v130: i32 = EoieBundleAdapter();
                 v130
             }
-            US0::US0_5 => { // HelpHandler
+            US0::US0_5 => {
                 let mut v132: i32 = EoieHelpRejected();
                 v132
             }
-            US0::US0_7 => { // LeaseDeniedHandler
+            US0::US0_7 => {
                 2i32
             }
-            US0::US0_1 => { // PatchHandler
+            US0::US0_1 => {
                 let mut v128: i32 = EoiePatchAdapter();
                 v128
             }
-            US0::US0_4 => { // ProxyHandler
+            US0::US0_4 => {
                 let mut v131: i32 = EoieProxyAdapter();
                 v131
             }
-            US0::US0_0 => { // StatusHandler
+            US0::US0_0 => {
                 let mut v25: i32 = std::env::args().skip(2).count() as i32;
                 let mut v26: bool = 0i32 == v25;
                 if v26 {
@@ -824,8 +827,8 @@ fn spiral_main() -> i32 {
                         let mut v56: i32 = 1i32;
                         let mut v57: i32 = 1i32;
                         let mut v58: i32 = method5(v55, v56, v57);
-                        let mut v59: i32 = v54 * v58;
-                        let mut v60: i32 = v50 * v59;
+                        let mut v59: i32 = v54.wrapping_mul(v58);
+                        let mut v60: i32 = v50.wrapping_mul(v59);
                         let mut v61: i32 = 8i32;
                         let mut v62: i32 = 5i32;
                         let mut v63: i32 = method6(v61, v62);
@@ -914,11 +917,10 @@ fn spiral_main() -> i32 {
                     }
                 }
             }
-            US0::US0_6 => { // UnknownHandler
+            US0::US0_6 => {
                 let mut v133: i32 = EoieUnknownRejected();
                 v133
             }
-            _ => unreachable!(),
         }
     } else {
         let mut v142: i32 = eoie_legacy_operations::dogfood_shim_dispatch();
@@ -927,12 +929,7 @@ fn spiral_main() -> i32 {
     let mut v144: i32 = eoie_coverage_prune::coverage_finish(v143);
     v144
 }
-#[cfg(not(target_arch = "wasm32"))]
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
     std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
-}
-#[cfg(target_arch = "wasm32")]
-fn main() {
-    spiral_main();
 }

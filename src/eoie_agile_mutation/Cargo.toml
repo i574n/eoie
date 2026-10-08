@@ -17,3 +17,7 @@ path = "agile_mutation.rs"
 eoie-agile-state = { path = "../eoie_agile_state" }
 eoie-agile-lease = { path = "../eoie_agile_lease" }
 eoie-handoff = { path = "../eoie_handoff" }
+agile-task-creation = { path = "../agile_task_creation" }
+agile-task-revision = { path = "../agile_task_revision" }
+agile-task-listing = { path = "../agile_task_listing" }
+agile-backlog-scaffold = { path = "../agile_backlog_scaffold" }

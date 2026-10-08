@@ -38,12 +38,21 @@ inl all2 a b = if a then b else false
 inl all3 a b c = if a then if b then c else false else false
 inl all4 a b c d = if a then if b then if c then d else false else false else false
 
-inl agile_usage_error () : i32 = $"agile_mutation_error(\"agile supports begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\")"
+inl agile_full_usage_error () : i32 = $"agile_mutation_error(\"agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\")"
+inl agile_subcommands () : string = "init|begin|lease|status|handoff|list|check|record|set|add|edit"
+inl agile_operand_shapes () : string = "<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>"
+inl received_operands () : string = $'std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string())' : string
+inl agile_shape_error (~subcommand : string) (~shape : string) : i32 =
+    inl head = rust_std_string.model.concat5 "agile " subcommand " expects " shape ", received "
+    inl message = rust_std_string.model.concat5 head (received_operands ()) " operands; see eoie agile --help" "" ""
+    $"agile_mutation_error(&!message)"
+inl agile_usage_error () : i32 =
+    inl subcommand = argument_owned 0i32
+    inl shape = rust_std_string.model.pipe_lookup (agile_subcommands ()) (agile_operand_shapes ()) subcommand
+    if rust_std_string.model.equals shape "" then agile_full_usage_error () else agile_shape_error subcommand shape
 inl agile_title_error () : i32 = $"agile_mutation_error(\"begin title must contain 3..7 visible words\")"
 inl agile_progress_error () : i32 = $"agile_mutation_error(\"progress must be 0..100\")"
 inl agile_status_error () : i32 = $"agile_mutation_error(\"invalid agile status\")"
-inl agile_list (~root : string) : i32 = $"mutation_agile_list_owned(!root.as_ref())"
-inl agile_list_filtered (~root : string) (~status : string) : i32 = $"mutation_agile_list_filtered_owned(!root.as_ref(), !status.as_ref())"
 inl agile_check (~root : string) : i32 = $"mutation_agile_check_owned(!root.as_ref())"
 inl agile_lease_status (~root : string) : i32 = $"mutation_agile_lease_status_owned(!root.as_ref())"
 inl agile_handoff (~root : string) : i32 = $"handoff_render_owned(!root.as_ref())"
@@ -81,24 +90,31 @@ inl validate_status () : validation_result agile_status =
 let agile_entry () : i32 =
     if args_len_is 2i32 then
         inl root = argument_owned 1i32
-        match rust_std_string.model.pipe_index "list|check|lease|status|handoff|record" (argument_owned 0i32) with
-        | 0u64 => agile_list root
+        match rust_std_string.model.pipe_index "list|check|lease|status|handoff|record|init" (argument_owned 0i32) with
+        | 0u64 => $"agile_task_listing::eoie_agile_list_run()"
         | 1u64 => agile_check root
         | 2u64 | 3u64 => agile_lease_status root
         | 4u64 => agile_handoff root
         | 5u64 => agile_record root
+        | 6u64 => $"agile_backlog_scaffold::eoie_agile_init_run()"
         | _ => agile_usage_error ()
     elif args_len_is 3i32 then
-        if argument_equals 0i32 "list" then
-            agile_list_filtered (argument_owned 1i32) (argument_owned 2i32)
+        if argument_equals 0i32 "list" then $"agile_task_listing::eoie_agile_list_run()"
         elif argument_equals 0i32 "begin" then
             inl root = argument_owned 1i32
             inl title = argument_owned 2i32
             inl words : i32 = $"eoie_lease_title_words()"
             if i32_positive words then agile_begin root title words else agile_title_error ()
         else agile_usage_error ()
+    elif args_len_is 4i32 then
+        if argument_equals 0i32 "list" then $"agile_task_listing::eoie_agile_list_run()"
+        else agile_usage_error ()
+    elif args_len_is 8i32 then
+        if argument_equals 0i32 "add" then $"agile_task_creation::eoie_agile_add_run()"
+        else agile_usage_error ()
     elif args_len_is 5i32 then
-        if argument_equals 0i32 "set" then
+        if argument_equals 0i32 "edit" then $"agile_task_revision::eoie_agile_edit_run()"
+        elif argument_equals 0i32 "set" then
             inl root = argument_owned 1i32
             inl id = argument_owned 2i32
             match validate_progress (), validate_status () with

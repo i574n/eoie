@@ -16,6 +16,8 @@ inl main () : i32 =
     inl _ = model.proxy_route_witness ()
     inl _ = model.help_flag_code "--schema"
     inl _ = model.help_flag_witness ()
+    inl _ = model.agile_subcommand_known "add"
+    inl _ = model.help_request_text ()
     !!!!Export("eoie_command_code", ((fun value => command_code value) : string -> u64))
     !!!!Export("eoie_command_effect_code", ((fun value => command_effect_code value) : string -> u64))
     !!!!Export("eoie_command_subcommand_effect_code", ((fun value => command_subcommand_effect_code value) : string -> u64))
@@ -29,4 +31,6 @@ inl main () : i32 =
     !!!!Export("eoie_proxy_route_witness", ((fun () => proxy_route_witness ()) : () -> i32))
     !!!!Export("eoie_help_flag_code", ((fun value => help_flag_code value) : string -> u64))
     !!!!Export("eoie_help_flag_witness", ((fun () => help_flag_witness ()) : () -> i32))
+    !!!!Export("eoie_agile_subcommand_known", ((fun value => agile_subcommand_known value) : string -> i32))
+    !!!!Export("eoie_help_request_text", ((fun () => help_request_text ()) : () -> string))
     0i32

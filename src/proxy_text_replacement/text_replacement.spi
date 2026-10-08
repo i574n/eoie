@@ -1,0 +1,114 @@
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+open workspace_primitives.rooted
+
+union replace_mode =
+    | CheckReplacement
+    | ApplyReplacement
+
+union match_expectation =
+    | ExactlyOneMatch
+    | ExactlyMatches : u64
+    | EveryMatch
+
+union replacement_outcome =
+    | ReplacementReceipt : string
+    | ReplacementRejected : string
+
+inl u64_parsed (~text : string) : u64 = $'!text.parse::<u64>().unwrap_or(0)' : u64
+inl u64_positive (value : u64) : bool = $"0 < !value"
+inl u64_equal (a : u64) (b : u64) : bool = $"!a == !b"
+
+inl regular_file (~path : string) : bool = $'std::path::Path::new(&*!path).is_file()' : bool
+inl file_text (~path : string) : string = $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap_or_default())' : string
+inl match_count (~text : string) (~needle : string) : u64 = $'!text.match_indices(&*!needle).count() as u64' : u64
+inl replaced_text (~text : string) (~needle : string) (~replacement : string) (count : u64) : string =
+    $'std::rc::Rc::<str>::from(!text.replacen(&*!needle, &*!replacement, !count as usize))' : string
+inl replaced_everywhere (~text : string) (~needle : string) (~replacement : string) : string =
+    $'std::rc::Rc::<str>::from(!text.replace(&*!needle, &*!replacement))' : string
+
+inl parse_mode (~text : string) : validation_result replace_mode =
+    if rust_std_string.model.equals text "check" then Valid CheckReplacement
+    elif rust_std_string.model.equals text "apply" then Valid ApplyReplacement
+    else Invalid
+
+inl parse_expectation () : validation_result match_expectation =
+    match proxy_argument_count () with
+    | 6i32 => Valid ExactlyOneMatch
+    | 7i32 => if rust_std_string.model.equals (proxy_argument 6i32) "--all" then Valid EveryMatch else Invalid
+    | 8i32 =>
+        inl expected = u64_parsed (proxy_argument 7i32)
+        if rust_std_string.model.equals (proxy_argument 6i32) "--expect" then
+            if u64_positive expected then Valid (ExactlyMatches expected) else Invalid
+        else Invalid
+    | _ => Invalid
+
+inl expectation_met (expectation : match_expectation) (matches : u64) : bool =
+    match expectation with
+    | ExactlyOneMatch => u64_equal matches 1u64
+    | ExactlyMatches expected => u64_equal matches expected
+    | EveryMatch => u64_positive matches
+
+inl expectation_text = function
+    | ExactlyOneMatch => "1"
+    | ExactlyMatches expected => u64_text expected
+    | EveryMatch => "all"
+
+inl mode_text = function
+    | CheckReplacement => "check"
+    | ApplyReplacement => "apply"
+
+inl rejected (~reason : string) : replacement_outcome = ReplacementRejected reason
+
+inl receipt (mode : replace_mode) (~path : string) (matches : u64) (expectation : match_expectation) (before : u64) (after : u64) (started : u64) : replacement_outcome =
+    inl head = rust_std_string.model.concat5 "eoie proxy text-replace ok mode=" (mode_text mode) " path=" path " matches="
+    inl middle = rust_std_string.model.concat5 (u64_text matches) " expected=" (expectation_text expectation) "" ""
+    ReplacementReceipt (rust_std_string.model.concat5 head middle (measured_sizes before after (ms_since started)) "" "")
+
+inl replace_in (mode : replace_mode) (expectation : match_expectation) (~path : string) (~needle : string) (~replacement : string) (started : u64) : replacement_outcome =
+    inl original = file_text path
+    inl matches = match_count original needle
+    if expectation_met expectation matches then
+        inl updated =
+            match expectation with
+            | EveryMatch => replaced_everywhere original needle replacement
+            | _ => replaced_text original needle replacement matches
+        match mode with
+        | CheckReplacement => receipt mode path matches expectation (text_bytes original) (text_bytes updated) started
+        | ApplyReplacement =>
+            match replace_file_checked path updated with
+            | Replaced => receipt mode path matches expectation (text_bytes original) (text_bytes updated) started
+            | problem => rejected (file_replacement_problem problem)
+    else
+        inl observed = rust_std_string.model.concat5 "text-replace expected " (expectation_text expectation) " match(es), observed matches=" (u64_text matches) ""
+        rejected (rust_std_string.model.concat5 observed " (use --expect N or --all for repeated text)" "" "" "")
+
+let text_replace_outcome () : replacement_outcome =
+    inl started = unix_ms ()
+    match parse_mode (proxy_argument 1i32), parse_expectation () with
+    | Invalid, _ => rejected "text-replace mode must be check or apply"
+    | _, Invalid => rejected "text-replace expects <check|apply> <root> <relative> <old> <new> [--expect N | --all]"
+    | Valid mode, Valid expectation =>
+        inl needle = proxy_argument 4i32
+        inl replacement = proxy_argument 5i32
+        inl path = rooted_path (proxy_argument 2i32) (proxy_argument 3i32)
+        if rust_std_string.model.equals path "" then rejected "text-replace target escapes the root"
+        elif rust_std_string.model.equals needle "" then rejected "text-replace old text is empty"
+        elif rust_std_string.model.equals needle replacement then rejected "text-replace old and new text are identical"
+        elif regular_file path then replace_in mode expectation path needle replacement started
+        else rejected "text-replace target is not a regular file"
+
+let text_replace_report () : i32 * string =
+    match text_replace_outcome () with
+    | ReplacementReceipt text => 0i32, text
+    | ReplacementRejected text => 2i32, text
+
+inl main () : i32 =
+    !!!!Export("eoie_text_replace_outcome", ((fun () => text_replace_report ()) : () -> i32 * string))
+    inl _ = text_replace_outcome ()
+    0i32

@@ -155,14 +155,14 @@ fn expired_lease_blocks_first_mutation_but_keeps_wrap_surface() {
     write(&root.join("note.txt"), "old");
     write(&root.join("state/prompt.spi"), "union lease_status = | LeaseActive :: lease_status | LeaseClosed :: lease_status\nunion prompt_lease = | PromptLease :: string * string * u64 * u64 * u64 * u64 * lease_status -> prompt_lease\ninl current () : prompt_lease = PromptLease (\"fixture\", \"expired effect lease\", 3000000u64, 600000u64, 1000u64, 3601000u64, LeaseActive)\ninl main () : i32 = 0i32\n");
     let root_text = root.to_str().expect("root text");
-    let blocked = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).args(["proxy", "fs-write", root_text, "note.txt", "new"]).output().expect("blocked mutation");
+    let blocked = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).env_remove("EOIE_LEASE_POLICY").env("EOIE_CONFIG_HOME", &root).args(["proxy", "fs-write", root_text, "note.txt", "new"]).output().expect("blocked mutation");
     assert!(!blocked.status.success());
     assert!(String::from_utf8_lossy(&blocked.stderr).contains("lease authority blocked mutating effect"));
     assert_eq!(fs::read_to_string(root.join("note.txt")).expect("preserved note"), "old");
     write(&root.join("src/cargo/Cargo.toml"), "[package]\nname = \"cargo\"\n"); write(&root.join("src/cargo/package.spiproj"), "modules:\n    main\n"); write(&root.join("src/cargo/main.rs"), "fn main() {}\n");
     let topology = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).args(["proxy", "source-topology", root_text]).output().expect("topology inspection");
     assert!(topology.status.success() && String::from_utf8_lossy(&topology.stdout).contains("census_authority=source-topology"), "topology inspection stderr={}", String::from_utf8_lossy(&topology.stderr));
-    let census = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).args(["proxy", "source-topology", root_text, "state/authority_census.spi"]).output().expect("blocked census mutation");
+    let census = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).env_remove("EOIE_LEASE_POLICY").env("EOIE_CONFIG_HOME", &root).args(["proxy", "source-topology", root_text, "state/authority_census.spi"]).output().expect("blocked census mutation");
     assert!(!census.status.success() && String::from_utf8_lossy(&census.stderr).contains("lease authority blocked mutating effect") && !root.join("state/authority_census.spi").exists());
     let control = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).env("EOIE_CONTROL_READ_ONLY", "1").args(["proxy", "source-topology", root_text, "state/authority_census.spi"]).output().expect("read-only census mutation");
     assert!(!control.status.success() && String::from_utf8_lossy(&control.stderr).contains("read-only mode rejects semantic mutation") && !root.join("state/authority_census.spi").exists());
@@ -172,9 +172,9 @@ fn expired_lease_blocks_first_mutation_but_keeps_wrap_surface() {
     let inspected = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).args(["proxy", "fs-read", root_text, "note.txt"]).output().expect("inspection");
     assert_eq!(String::from_utf8_lossy(&inspected.stdout), "old");
     let scratch = temporary("lease-capture"); fs::create_dir_all(&scratch).expect("scratch"); let scratch_text = scratch.to_str().expect("scratch text"); let eoie = eoie_binary(); let eoie_text = eoie.to_str().expect("eoie text");
-    let supervised = Command::new(&eoie).current_dir(env::temp_dir()).args(["proxy", "command-capture", scratch_text, "lease.txt", "60000", eoie_text, "agile", "lease", root_text]).output().expect("supervised inspection");
+    let supervised = Command::new(&eoie).current_dir(env::temp_dir()).env_remove("EOIE_LEASE_POLICY").env("EOIE_CONFIG_HOME", &root).args(["proxy", "command-capture", scratch_text, "lease.txt", "60000", eoie_text, "agile", "lease", root_text]).output().expect("supervised inspection");
     assert!(supervised.status.success() && fs::read_to_string(scratch.join("lease.txt")).expect("capture receipt").contains("should_wrap=1"), "supervised stderr={}", String::from_utf8_lossy(&supervised.stderr));
-    let own_root = Command::new(&eoie).current_dir(env::temp_dir()).args(["proxy", "command-capture", root_text, "lease.txt", "60000", eoie_text, "agile", "lease", root_text]).output().expect("blocked capture");
+    let own_root = Command::new(&eoie).current_dir(env::temp_dir()).env_remove("EOIE_LEASE_POLICY").env("EOIE_CONFIG_HOME", &root).args(["proxy", "command-capture", root_text, "lease.txt", "60000", eoie_text, "agile", "lease", root_text]).output().expect("blocked capture");
     assert!(!own_root.status.success() && String::from_utf8_lossy(&own_root.stderr).contains("lease authority blocked mutating effect") && !root.join("lease.txt").exists()); fs::remove_dir_all(scratch).expect("cleanup scratch");
     let renewed = Command::new(eoie_binary()).current_dir(env::temp_dir()).current_dir(&root).args(["agile", "begin", root_text, "renew expired lease"]).output().expect("renew expired lease");
     assert!(renewed.status.success(), "renewal stderr={}", String::from_utf8_lossy(&renewed.stderr));

@@ -14,6 +14,7 @@ if ($List) {
     Get-EoieOwners -Root $PSScriptRoot -IncludeAuxiliary | Select-Object Package, Member, Input, Target
     return
 }
+$Package = @(Get-EoieOwners -Root $PSScriptRoot -Package $Package -IncludeAuxiliary | ForEach-Object Package | Select-Object -Unique)
 & (Join-Path $PSScriptRoot 'compiler-contracts/test-regeneration.ps1') `
     -EoieRoot $PSScriptRoot -Package $Package -CompilerBundle $CompilerBundle -IncludeAuxiliary `
     -TargetDirectory (Join-Path $PSScriptRoot 'src/target/dev-validation') `

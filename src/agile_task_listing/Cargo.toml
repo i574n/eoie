@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "task_listing.spi"
+output = "task_listing.rs"
+
+[package]
+name = "agile-task-listing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_task_listing"
+path = "task_listing.rs"
+
+[dependencies]
+agile-task-census = { path = "../agile_task_census" }

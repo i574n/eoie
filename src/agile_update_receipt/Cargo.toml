@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "update_receipt.spi"
+output = "update_receipt.rs"
+
+[package]
+name = "agile-update-receipt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_update_receipt"
+path = "update_receipt.rs"

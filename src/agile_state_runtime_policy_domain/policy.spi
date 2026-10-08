@@ -105,6 +105,21 @@ let agile_lease_clock_phase_binding (at_or_after_wrap : i32) (at_or_after_deadli
     elif !!!!EQ(at_or_after_wrap,1i32) then agile_lease_clock_phase_code LeaseClockWrap
     else agile_lease_clock_phase_code LeaseClockWork
 
+union agile_lease_policy =
+    | BoundedLeasePolicy
+    | RenewingLeasePolicy
+
+inl agile_lease_policy_code = function
+    | BoundedLeasePolicy => 0u64
+    | RenewingLeasePolicy => 1u64
+
+let agile_lease_policy_from_text (~value : string) : u64 =
+    if rust_std_string.model.equals (rust_std_string.model.trim value) "renewing" then agile_lease_policy_code RenewingLeasePolicy
+    else agile_lease_policy_code BoundedLeasePolicy
+
+let agile_lease_effective_phase_binding (renewing : i32) (phase : i32) : i32 =
+    if !!!!EQ(renewing,1i32) then agile_lease_clock_phase_code LeaseClockWork
+    else phase
 union agile_status_name =
     | PlannedStatus
     | ActiveStatus
@@ -181,6 +196,8 @@ inl main () : i32 =
     !!!!Export("eoie_agile_prompt_lease_marker_text", ((fun value => agile_prompt_lease_marker_text value) : string -> string))
     !!!!Export("eoie_agile_prompt_lease_shape_binding", ((fun (first, second) => agile_prompt_lease_shape_binding first second) : i32 * i32 -> i32))
     !!!!Export("eoie_agile_lease_clock_phase_binding", ((fun (first, second) => agile_lease_clock_phase_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_agile_lease_policy_from_text", ((fun value => agile_lease_policy_from_text value) : string -> u64))
+    !!!!Export("eoie_agile_lease_effective_phase_binding", ((fun (first, second) => agile_lease_effective_phase_binding first second) : i32 * i32 -> i32))
     !!!!Export("eoie_agile_status_text", ((fun value => agile_status_text value) : string -> string))
     !!!!Export("eoie_agile_spi_escape_text", ((fun value => agile_spi_escape_text value) : string -> string))
     !!!!Export("eoie_agile_state_package_line_code", ((fun value => agile_state_package_line_code value) : string -> u64))
@@ -198,6 +215,8 @@ inl main () : i32 =
     inl _ = agile_prompt_lease_marker_text "1"
     inl _ = agile_prompt_lease_shape_binding 7i32 1i32
     inl _ = agile_lease_clock_phase_binding 1i32 0i32
+    inl _ = agile_lease_policy_from_text "renewing"
+    inl _ = agile_lease_effective_phase_binding 1i32 2i32
     inl _ = agile_status_text "1"
     inl _ = agile_spi_escape_text "a\\b\"c\nd\r"
     inl _ = agile_state_package_line_code "modules:"

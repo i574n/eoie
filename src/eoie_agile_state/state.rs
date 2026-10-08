@@ -201,6 +201,7 @@ fn agile_begin_from_args(args: Vec<String>) -> Result<(), String> {
 }
 
 fn agile_set_from_args(args: Vec<String>, progress: i32, status_code: i32) -> Result<(), String> {
+    let started = agile_update_receipt::eoie_agile_clock_ms();
     if args.len() != 5 || agile_arg(&args, 0, "subcommand")? != "set" { return Err("agile set expects root, id, progress, status".to_owned()); }
     if eoie_agile_set_decision_binding(progress, status_code) != 1 { return Err("typed Spiral agile mutation policy rejected progress/status".to_owned()); }
     let status_code_text = status_code.to_string();
@@ -245,7 +246,7 @@ fn agile_set_from_args(args: Vec<String>, progress: i32, status_code: i32) -> Re
         agile_attest_known_mutation(root, &state, Some(original.as_bytes()))
     })();
     if let Err(error) = validate { agile_atomic_write(&state, original.as_bytes())?; return Err(format!("agile update rolled back: {error}")); }
-    println!("eoie agile set ok id={id} progress={progress} status={status} validation=runtime-attested compiler=not-required");
+    println!("{}", agile_update_receipt::eoie_agile_set_receipt_text(id, progress, status, original.len() as u64, updated.len() as u64, started));
     Ok(())
 }
 
@@ -328,7 +329,7 @@ fn agile_check_classified_from_args(args: Vec<String>) -> Result<(), String> {
     for path in &paths { if let Some(name) = path.file_name().and_then(|value| value.to_str()) { record_mask |= eoie_agile_state_record_required_name_bit(name) as i32; } }
     let record_ready = eoie_agile_state_record_preflight_binding(record_mask, 0);
     if record_ready < 0 { return Err(format!("typed agile record preflight rejected mask={record_mask}")); }
-    println!("eoie agile record-preflight ready={} missing={}", record_ready, if record_missing.is_empty() { "none".to_owned() } else { record_missing.join(",") });
+    println!("{}", agile_record_catalog::eoie_agile_record_catalog_text("v1", (record_required.len() - record_missing.len()) as i32, record_required.len() as i32, &record_missing.join(",")));
     let compiler_status = compiler.as_ref().map(|value| format!("available source={} fingerprint={} sha256={} path={}", value.source, value.fingerprint, value.sha256, value.path.display())).unwrap_or_else(|| "absent".to_owned());
     println!("eoie agile check ok files={} skipped={skipped} transient={transient} runtime_attested={runtime_attested} build_attested={build_attested} build_batches={build_batches} validation=receipt-first compiler={compiler_status}", paths.len() + 1);
     Ok(())
@@ -427,7 +428,7 @@ pub fn agile_check_with_compiler_owned(root: &str, compiler: &str) -> i32 {
 pub fn agile_lease_status_owned(root: &str) -> i32 {
     let root = std::path::Path::new(root);
     let result = agile_prompt_lease_clock(root).map(|(started, deadline, wrap_at, remaining, should_wrap, should_yield)| {
-        println!("eoie agile lease status root={} started_unix_ms={started} wrap_at_unix_ms={wrap_at} deadline_unix_ms={deadline} remaining_ms={remaining} should_wrap={} should_yield={}", root.display(), i32::from(should_wrap), i32::from(should_yield));
+        println!("{}", agile_lease_terms::eoie_lease_status_text(&root.display().to_string(), started, wrap_at, deadline, remaining, should_wrap, should_yield));
     });
     agile_finish(result)
 }

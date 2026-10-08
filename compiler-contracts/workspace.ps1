@@ -178,6 +178,14 @@ function Get-EoieOwners {
         Pop-Location
     }
     $available = @($metadata.packages | Where-Object { $_.id -in $metadata.workspace_members })
+    $byMember = @{}
+    foreach ($item in $available) { $byMember[(Split-Path (Split-Path $item.manifest_path -Parent) -Leaf)] = $item.name }
+    $Package = @(foreach ($name in $Package) {
+        if ($name -cin $available.name) { $name }
+        elseif ($byMember.ContainsKey($name)) { $byMember[$name] }
+        elseif ($name.Replace('_', '-') -cin $available.name) { $name.Replace('_', '-') }
+        else { $name }
+    })
     foreach ($name in $Package) {
         if ($name -cnotin $available.name) { throw "Unknown EOIE package '$name'. Use dev.ps1 -List to see available names." }
     }

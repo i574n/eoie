@@ -1,0 +1,29 @@
+open rust_std_fs.model
+open numbers
+
+inl text_bytes (~text : string) : u64 = $'!text.len() as u64' : u64
+inl loaded_string (loaded_text text) : string = text
+
+union file_replacement =
+    | Replaced
+    | TemporaryWriteFailed
+    | RenameFailed
+    | ReadbackMismatch
+
+inl file_replacement_problem = function
+    | Replaced => ""
+    | TemporaryWriteFailed => "could not write the replacement file"
+    | RenameFailed => "could not move the replacement file into place"
+    | ReadbackMismatch => "readback did not match the written file"
+
+inl replace_file_checked (~path : string) (~text : string) : file_replacement =
+    inl temporary = rust_std_string.model.concat5 path ".pending" "" "" ""
+    if write_text temporary text then
+        if rename path temporary then
+            if text_equals text path then Replaced else ReadbackMismatch
+        else RenameFailed
+    else TemporaryWriteFailed
+
+inl measured_sizes (before : u64) (after : u64) (elapsed : u64) : string =
+    inl sizes = rust_std_string.model.concat5 " bytes_before=" (u64_text before) " bytes_after=" (u64_text after) ""
+    rust_std_string.model.concat5 sizes " elapsed_ms=" (u64_text elapsed) "" ""

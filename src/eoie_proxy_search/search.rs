@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use eoie_rust_std_fs::{copy_regular_atomic_preserve, read_regular_limited, read_regular_text_limited, rooted_path};
@@ -50,16 +50,17 @@ fn inspection_collect(root: &Path, path: &Path, needle: &str, limit: usize, para
     if metadata.is_dir() {
         let mut children = fs::read_dir(path).map_err(|error| format!("read {}: {error}", path.display()))?.map(|entry| entry.map(|entry| entry.path()).map_err(|error| error.to_string())).collect::<Result<Vec<_>, _>>()?;
         children.sort();
+        children.retain(|child| eoie_proxy_search_descends_into(&child.to_string_lossy()));
         let nested = if parallel { children.par_iter().map(|child| inspection_collect(root, child, needle, limit, true, tagged)).collect::<Vec<_>>() } else { children.iter().map(|child| inspection_collect(root, child, needle, limit, false, tagged)).collect::<Vec<_>>() };
         let mut hits = Vec::new();
-        for result in nested { hits.extend(result?); if hits.len() > limit { return Err(format!("search hit limit exceeded: {limit}")); } }
+        for result in nested { hits.extend(result?); if hits.len() > limit { hits.truncate(limit + 1); break; } }
         hits.sort();
         Ok(hits)
     } else if metadata.is_file() {
         let Ok(source) = read_regular_text_limited(path, inspection_text_limit()) else { return Ok(Vec::new()); };
         let mut hits = Vec::new();
         let relative = path.strip_prefix(root).map_err(|_| format!("search path escaped root: {}", path.display()))?.components().map(|component| component.as_os_str().to_string_lossy().into_owned()).collect::<Vec<_>>().join("/"); let tag = if tagged { mnemonic_path_tag(&relative)? } else { String::new() }; for (index, line) in source.lines().enumerate() { if line.contains(needle) { if tagged { hits.push(format!("{tag}\t{relative}:{}:{}", index + 1, line)); } else { hits.push(format!("{}:{}:{}", path.display(), index + 1, line)); } } }
-        if hits.len() > limit { return Err(format!("search hit limit exceeded: {limit}")); }
+        hits.truncate(limit + 1);
         Ok(hits)
     } else { Ok(Vec::new()) }
 }
@@ -67,9 +68,12 @@ fn inspection_collect(root: &Path, path: &Path, needle: &str, limit: usize, para
 fn inspection_search(args: &[String]) -> Result<(), String> {
     if args.len() != 4 { return Err("fs-search expects root, relative, needle".to_owned()); }
     let root = Path::new(inspection_arg(args, 1, "root")?);
-    let path = rooted_path(root, inspection_arg(args, 2, "relative")?)?;
+    let relative = inspection_arg(args, 2, "relative")?;
+    let path = if eoie_proxy_search_scope_binding(relative) == 0 { root.to_path_buf() } else { rooted_path(root, relative)? };
     let limit = std::env::var("EOIE_SEARCH_MAX_HITS").ok().and_then(|value| value.parse().ok()).unwrap_or(20_000usize);
-    for hit in inspection_collect(root, &path, inspection_arg(args, 3, "needle")?, limit, true, false)? { println!("{hit}"); }
+    let hits = inspection_collect(root, &path, inspection_arg(args, 3, "needle")?, limit, true, false)?;
+    if hits.len() > limit { return Err(format!("search hit limit exceeded: {limit} (raise EOIE_SEARCH_MAX_HITS)")); }
+    for hit in hits { println!("{hit}"); }
     Ok(())
 }
 
@@ -77,18 +81,21 @@ fn inspection_parallel_search(args: &[String]) -> Result<(), String> {
     if args.len() != 5 { return Err("parallel-search expects root, relative, needle, max-hits".to_owned()); }
     let root = Path::new(inspection_arg(args, 1, "root")?);
     let relative = inspection_arg(args, 2, "relative")?;
-    let path = rooted_path(root, relative)?;
+    let path = if eoie_proxy_search_scope_binding(relative) == 0 { root.to_path_buf() } else { rooted_path(root, relative)? };
     let needle = inspection_arg(args, 3, "needle")?;
     if needle.is_empty() { return Err("needle must not be empty".to_owned()); }
     let limit = inspection_arg(args, 4, "max-hits")?.parse::<usize>().map_err(|_| "invalid max-hits".to_owned())?;
     let workers = std::env::var("EOIE_PARALLEL_WORKERS").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(56);
     if eoie_proxy_search_proxy_parallel_search_request_binding(0, limit as i32) != 1 || eoie_proxy_search_proxy_parallel_search_worker_binding(workers as i32, 56) != 1 { return Err("typed parallel-search request rejected".to_owned()); }
+    let started = proxy_search_receipt::eoie_search_clock_ms();
     let serial = inspection_collect(root, &path, needle, limit, false, true)?;
+    let serial_done = proxy_search_receipt::eoie_search_clock_ms();
     let pool = rayon::ThreadPoolBuilder::new().num_threads(workers).build().map_err(|error| format!("build Rayon pool: {error}"))?;
     let parallel = pool.install(|| inspection_collect(root, &path, needle, limit, true, true))?;
+    let parallel_done = proxy_search_receipt::eoie_search_clock_ms();
     if eoie_proxy_search_proxy_parallel_search_parity_binding(serial.len() as i32, parallel.len() as i32) != 1 || serial != parallel { return Err("serial and parallel search results diverged".to_owned()); }
-    for hit in &parallel { println!("{hit}"); }
-    println!("eoie proxy parallel-search ok workers={workers} hits={} parity=exact ordering=deterministic", parallel.len());
+    for hit in parallel.iter().take(limit) { println!("{hit}"); }
+    println!("{}", proxy_search_receipt::eoie_parallel_search_receipt_text(workers as i32, parallel.len() as i32, limit as i32, started, serial_done, parallel_done));
     Ok(())
 }
 
@@ -211,13 +218,9 @@ fn inspection_hash_tree(args: &[String]) -> Result<(), String> {
 }
 
 fn inspection_copy(args: &[String]) -> Result<(), String> {
-    if args.len() != 4 { return Err("fs-copy expects root, source, target".to_owned()); }
-    let root = Path::new(inspection_arg(args, 1, "root")?);
-    let source = rooted_path(root, inspection_arg(args, 2, "source")?)?;
-    let target = rooted_path(root, inspection_arg(args, 3, "target")?)?;
-    let bytes = copy_regular_atomic_preserve(&source, &target)?;
-    println!("eoie proxy fs-copy ok source={} target={} bytes={bytes}", source.display(), target.display());
-    Ok(())
+    let operand = |index: usize| args.get(index).map(String::as_str).unwrap_or("");
+    let (code, message) = proxy_file_copy::eoie_file_copy_outcome(args.len() as i32, operand(1), operand(2), operand(3));
+    if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
 }
 
 pub fn proxy_search(args: &[String]) -> Result<(), String> {
@@ -262,7 +265,39 @@ pub fn mnemonic_path_tag(input: &str) -> Result<String, String> {
     Ok(tag)
 }
 
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+#[derive(Clone)]
+enum US0 {
+    US0_0,
+    US0_1,
+    US0_2,
+    US0_3,
+    US0_4,
+}
+impl US0 {
+    fn tag(&self) -> i32 {
+        match self {
+            US0::US0_0 => 0,
+            US0::US0_1 => 1,
+            US0::US0_2 => 2,
+            US0::US0_3 => 3,
+            US0::US0_4 => 4,
+        }
+    }
+}
+#[derive(Clone)]
+enum US1 {
+    US1_0,
+    US1_1,
+}
+impl US1 {
+    fn tag(&self) -> i32 {
+        match self {
+            US1::US1_0 => 0,
+            US1::US1_1 => 1,
+        }
+    }
+}
+fn path_tag_relative_packed_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -280,10 +315,10 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn proxy_path_tag_relative_packed_binding_0(mut v0: i32, mut v1: i32) -> i32 {
+    path_tag_relative_packed_binding_1(v0, v1)
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn path_tag_packed_indices_binding_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -306,10 +341,10 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
-    method3(v0, v1)
+fn proxy_path_tag_packed_indices_binding_2(mut v0: i32, mut v1: i32) -> i32 {
+    path_tag_packed_indices_binding_3(v0, v1)
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn path_tag_shape_binding_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 3i32;
     if v2 {
         0i32
@@ -332,10 +367,10 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
-    method5(v0, v1)
+fn proxy_path_tag_shape_binding_4(mut v0: i32, mut v1: i32) -> i32 {
+    path_tag_shape_binding_5(v0, v1)
 }
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
+fn path_tag_determinism_binding_7(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -348,10 +383,10 @@ fn method7(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
-    method7(v0, v1)
+fn proxy_path_tag_determinism_binding_6(mut v0: i32, mut v1: i32) -> i32 {
+    path_tag_determinism_binding_7(v0, v1)
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
+fn path_tag_collision_binding_9(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         1i32
@@ -364,10 +399,10 @@ fn method9(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
-    method9(v0, v1)
+fn proxy_path_tag_collision_binding_8(mut v0: i32, mut v1: i32) -> i32 {
+    path_tag_collision_binding_9(v0, v1)
 }
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
+fn parallel_search_request_binding_11(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -385,10 +420,10 @@ fn method11(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method10(mut v0: i32, mut v1: i32) -> i32 {
-    method11(v0, v1)
+fn proxy_parallel_search_request_binding_10(mut v0: i32, mut v1: i32) -> i32 {
+    parallel_search_request_binding_11(v0, v1)
 }
-fn method13(mut v0: i32, mut v1: i32) -> i32 {
+fn parallel_search_worker_binding_13(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -401,10 +436,10 @@ fn method13(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method12(mut v0: i32, mut v1: i32) -> i32 {
-    method13(v0, v1)
+fn proxy_parallel_search_worker_binding_12(mut v0: i32, mut v1: i32) -> i32 {
+    parallel_search_worker_binding_13(v0, v1)
 }
-fn method15(mut v0: i32, mut v1: i32) -> i32 {
+fn parallel_search_parity_binding_15(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -422,10 +457,10 @@ fn method15(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method14(mut v0: i32, mut v1: i32) -> i32 {
-    method15(v0, v1)
+fn proxy_parallel_search_parity_binding_14(mut v0: i32, mut v1: i32) -> i32 {
+    parallel_search_parity_binding_15(v0, v1)
 }
-fn method17(mut v0: i32, mut v1: i32) -> i32 {
+fn parallel_manifest_order_binding_17(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -438,10 +473,10 @@ fn method17(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method16(mut v0: i32, mut v1: i32) -> i32 {
-    method17(v0, v1)
+fn proxy_parallel_manifest_order_binding_16(mut v0: i32, mut v1: i32) -> i32 {
+    parallel_manifest_order_binding_17(v0, v1)
 }
-fn method19(mut v0: i32, mut v1: i32) -> i32 {
+fn parallel_manifest_parity_binding_19(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == v1;
     if v2 {
         1i32
@@ -449,10 +484,10 @@ fn method19(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method18(mut v0: i32, mut v1: i32) -> i32 {
-    method19(v0, v1)
+fn proxy_parallel_manifest_parity_binding_18(mut v0: i32, mut v1: i32) -> i32 {
+    parallel_manifest_parity_binding_19(v0, v1)
 }
-fn method21(mut v0: i32, mut v1: i32) -> i32 {
+fn parallel_consumer_mode_binding_21(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -470,10 +505,10 @@ fn method21(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method20(mut v0: i32, mut v1: i32) -> i32 {
-    method21(v0, v1)
+fn proxy_parallel_consumer_mode_binding_20(mut v0: i32, mut v1: i32) -> i32 {
+    parallel_consumer_mode_binding_21(v0, v1)
 }
-fn method23(mut v0: i32, mut v1: i32) -> i32 {
+fn parallel_consumer_output_binding_23(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == v1;
     if v2 {
         1i32
@@ -481,10 +516,10 @@ fn method23(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method22(mut v0: i32, mut v1: i32) -> i32 {
-    method23(v0, v1)
+fn proxy_parallel_consumer_output_binding_22(mut v0: i32, mut v1: i32) -> i32 {
+    parallel_consumer_output_binding_23(v0, v1)
 }
-fn method25(mut v0: i32, mut v1: i32) -> i32 {
+fn tree_request_binding_25(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 < 1i32;
@@ -497,110 +532,192 @@ fn method25(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method24(mut v0: i32, mut v1: i32) -> i32 {
-    method25(v0, v1)
+fn proxy_hash_tree_request_binding_24(mut v0: i32, mut v1: i32) -> i32 {
+    tree_request_binding_25(v0, v1)
 }
-fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+fn proxy_search_descends_into_26(mut v0: Rc<str>) -> bool {
+    let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::path::Path::new(&*v0).file_name().and_then(|name| name.to_str()).unwrap_or(""));
+    let mut v2: bool = std::fs::symlink_metadata(&*v0).map(|meta| meta.file_type().is_symlink()).unwrap_or(false);
+    let mut v21: US0 = if v2 {
+        US0::US0_4
+    } else {
+        let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".git"); } LIT.with(|lit| lit.clone()) };
+        let mut v5: bool = (&*v1) == (&*v4);
+        if v5 {
+            US0::US0_2
+        } else {
+            let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("node_modules"); } LIT.with(|lit| lit.clone()) };
+            let mut v8: bool = (&*v1) == (&*v7);
+            if v8 {
+                US0::US0_3
+            } else {
+                let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("CACHEDIR.TAG"); } LIT.with(|lit| lit.clone()) };
+                let mut v11: bool = std::path::Path::new(&*v0).join(&*v10).is_file();
+                if v11 {
+                    US0::US0_1
+                } else {
+                    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".rustc_info.json"); } LIT.with(|lit| lit.clone()) };
+                    let mut v14: bool = std::path::Path::new(&*v0).join(&*v13).is_file();
+                    if v14 {
+                        US0::US0_1
+                    } else {
+                        US0::US0_0
+                    }
+                }
+            }
+        }
+    };
+    match &v21 {
+        US0::US0_1 => {
+            false
+        }
+        US0::US0_3 => {
+            false
+        }
+        US0::US0_0 => {
+            true
+        }
+        US0::US0_4 => {
+            false
+        }
+        US0::US0_2 => {
+            false
+        }
+    }
 }
-fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+fn closure0() -> Rc<dyn Fn(Rc<str>) -> bool> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> bool> = Rc::new(move |mut v0: Rc<str>| -> bool {
+        proxy_search_descends_into_26(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn proxy_search_scope_binding_27(mut v0: Rc<str>) -> i32 {
+    let mut v1: bool = &*v0 == ".";
+    let mut v4: US1 = if v1 {
+        US1::US1_0
+    } else {
+        US1::US1_1
+    };
+    match &v4 {
+        US1::US1_1 => {
+            1i32
+        }
+        US1::US1_0 => {
+            0i32
+        }
+    }
+}
+fn closure1() -> Rc<dyn Fn(Rc<str>) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> i32> = Rc::new(move |mut v0: Rc<str>| -> i32 {
+        proxy_search_scope_binding_27(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_path_tag_relative_packed_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method6(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_path_tag_packed_indices_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method8(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_path_tag_shape_binding_4(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method10(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_path_tag_determinism_binding_6(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method12(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_path_tag_collision_binding_8(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method14(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_parallel_search_request_binding_10(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method16(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_parallel_search_worker_binding_12(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method18(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_parallel_search_parity_binding_14(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure10() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method20(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_parallel_manifest_order_binding_16(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure11() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method22(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_parallel_manifest_parity_binding_18(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure12() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method24(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_parallel_consumer_mode_binding_20(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure13() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_parallel_consumer_output_binding_22(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure14() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_hash_tree_request_binding_24(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+pub fn eoie_proxy_search_descends_into(v0: &str) -> bool {
+    closure0()(Rc::<str>::from(v0))
+}
+pub fn eoie_proxy_search_scope_binding(v0: &str) -> i32 {
+    closure1()(Rc::<str>::from(v0))
 }
 pub fn eoie_proxy_search_proxy_path_tag_relative_packed_binding(v0: i32, v1: i32) -> i32 {
-    closure0()(v0, v1)
-}
-pub fn eoie_proxy_search_proxy_path_tag_packed_indices_binding(v0: i32, v1: i32) -> i32 {
-    closure1()(v0, v1)
-}
-pub fn eoie_proxy_search_proxy_path_tag_shape_binding(v0: i32, v1: i32) -> i32 {
     closure2()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_path_tag_determinism_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_path_tag_packed_indices_binding(v0: i32, v1: i32) -> i32 {
     closure3()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_path_tag_collision_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_path_tag_shape_binding(v0: i32, v1: i32) -> i32 {
     closure4()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_parallel_search_request_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_path_tag_determinism_binding(v0: i32, v1: i32) -> i32 {
     closure5()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_parallel_search_worker_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_path_tag_collision_binding(v0: i32, v1: i32) -> i32 {
     closure6()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_parallel_search_parity_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_parallel_search_request_binding(v0: i32, v1: i32) -> i32 {
     closure7()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_parallel_manifest_order_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_parallel_search_worker_binding(v0: i32, v1: i32) -> i32 {
     closure8()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_parallel_manifest_parity_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_parallel_search_parity_binding(v0: i32, v1: i32) -> i32 {
     closure9()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_parallel_consumer_mode_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_parallel_manifest_order_binding(v0: i32, v1: i32) -> i32 {
     closure10()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_parallel_consumer_output_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_parallel_manifest_parity_binding(v0: i32, v1: i32) -> i32 {
     closure11()(v0, v1)
 }
-pub fn eoie_proxy_search_proxy_hash_tree_request_binding(v0: i32, v1: i32) -> i32 {
+pub fn eoie_proxy_search_proxy_parallel_consumer_mode_binding(v0: i32, v1: i32) -> i32 {
     closure12()(v0, v1)
+}
+pub fn eoie_proxy_search_proxy_parallel_consumer_output_binding(v0: i32, v1: i32) -> i32 {
+    closure13()(v0, v1)
+}
+pub fn eoie_proxy_search_proxy_hash_tree_request_binding(v0: i32, v1: i32) -> i32 {
+    closure14()(v0, v1)
 }

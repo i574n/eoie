@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "catalog.spi"
+output = "catalog.rs"
+
+[package]
+name = "agile-record-catalog"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_record_catalog"
+path = "catalog.rs"
