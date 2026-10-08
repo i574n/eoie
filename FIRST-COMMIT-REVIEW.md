@@ -4,6 +4,24 @@ Scope: the EOIE source workspace and its supported single-flight compiler
 integration. This is separate from certifying a distributable EOIE release.
 
 
+## Evidence renewal after the comment strip — October 7, evening
+
+**Why.** Lane T removed comments across EOIE's sources (48 `.spi`, 38 `.rs`, 11 `.ps1`, 2 `.py`), which made the strict
+evidence stale. The renewal was blocked for most of the evening: the shared compiler directory held 455 rollback copies from
+the day's deploys, over the 512-entry dependency inventory cap. They were deleted at 20:5x and deploys now keep rollbacks in a
+sibling `net11.0-rollback` directory.
+
+**Compiler.** The single-flight compiler deployed at 19:31 (core `06A68645FEF2`: no comments in generated code, Lua fixes),
+oracle re-blessed with identical results (1,888 rows, `DISAGREE` 0). EOIE's compiler identity covers the whole compiler
+directory (core DLL and runtime dependencies, `DOGFOOD-COMPILER-IDENTITY`), which is why the rollback copies counted.
+
+**Validation, all on this compiler (20:52–21:09):**
+- `build.ps1 -Test -CompilerContracts -Offline`: 195 tests passed, 0 failed.
+- `renew-cold-rebuild -Apply`; `eoie agile check --compiler`: exit 0, `record-preflight ready=1 missing=none`.
+- Closeout apply on a staged copy (5 state files copied back), then `test-strict-preflight.ps1 -RequireReady`:
+  **`ready=True diagnostics=0`**. The preflight before closeout fails with 2 errors, as expected: it checks the receipts
+  this run replaces.
+- `eoie.exe` after the chain: SHA `504E7AC8…`.
 ## Regeneration on the lean single-flight compiler — October 7, morning
 
 **Why.** CI round 3 failed on ubuntu at step 5 (`test-regeneration.ps1`): the regenerated `eoie_agile_state` crate came
