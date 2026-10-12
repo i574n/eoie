@@ -38,9 +38,9 @@ inl all2 a b = if a then b else false
 inl all3 a b c = if a then if b then c else false else false
 inl all4 a b c d = if a then if b then if c then d else false else false else false
 
-inl agile_full_usage_error () : i32 = $"agile_mutation_error(\"agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\")"
-inl agile_subcommands () : string = "init|begin|lease|status|handoff|list|check|record|set|add|edit"
-inl agile_operand_shapes () : string = "<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>"
+inl agile_full_usage_error () : i32 = $"agile_mutation_error(\"agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>, show <root> <id> [--json]\")"
+inl agile_subcommands () : string = "init|begin|lease|status|handoff|list|check|record|set|add|edit|show"
+inl agile_operand_shapes () : string = "<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\n<root> <id> [--json]"
 inl received_operands () : string = $'std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string())' : string
 inl agile_shape_error (~subcommand : string) (~shape : string) : i32 =
     inl head = rust_std_string.model.concat5 "agile " subcommand " expects " shape ", received "
@@ -100,6 +100,7 @@ let agile_entry () : i32 =
         | _ => agile_usage_error ()
     elif args_len_is 3i32 then
         if argument_equals 0i32 "list" then $"agile_task_listing::eoie_agile_list_run()"
+        elif argument_equals 0i32 "show" then $"agile_task_inspection::eoie_agile_show_run()"
         elif argument_equals 0i32 "begin" then
             inl root = argument_owned 1i32
             inl title = argument_owned 2i32
@@ -108,6 +109,7 @@ let agile_entry () : i32 =
         else agile_usage_error ()
     elif args_len_is 4i32 then
         if argument_equals 0i32 "list" then $"agile_task_listing::eoie_agile_list_run()"
+        elif argument_equals 0i32 "show" then $"agile_task_inspection::eoie_agile_show_run()"
         else agile_usage_error ()
     elif args_len_is 8i32 then
         if argument_equals 0i32 "add" then $"agile_task_creation::eoie_agile_add_run()"

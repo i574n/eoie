@@ -4,6 +4,21 @@ Scope: the EOIE source workspace and its supported single-flight compiler
 integration. This is separate from certifying a distributable EOIE release.
 
 
+## Receipts batch and scripted renewal — October 12, early morning
+
+**Compiler.** A hashed snapshot of the deployed single-flight `SpiralCompiler.dll` (sha256 `7E40511B…`, built
+2026-10-11 19:04), so a concurrent deploy could not change it mid-chain.
+
+**Chain.** `compiler-contracts/renew-strict-evidence.ps1 -Test -ParallelChains 2` (07:34–08:04): structural
+preflight, `build.ps1 -Test -CompilerContracts` 195 passed, 0 failed, `agile begin`, owner growth receipt (the five new
+crates added rows), cold renewal (125 owners, slowest 8.6 s, products a and b identical), `agile check --compiler`,
+closeout preview and apply in the staged root, renewed state copied back, then `test-strict-preflight.ps1 -RequireReady`:
+**`ready=True diagnostics=0`**. `eoie.exe` after the chain: SHA `CE371E74…`.
+
+**Observed on the way.** One run exceeded the 15 s cold owner budget on a loaded machine (16.7 s at three parallel
+chains); the script now retries with fewer chains. One run failed at the very end on a stray `src/x`; the script now
+stops on such unrenewable diagnostics before starting.
+
 ## Evidence renewal on the dev21 compiler — October 8, morning
 
 **Compiler.** Single-flight deployed at 06:40 (core `528BE76E5B0F`: Bend backend, no comments in emitted helpers), oracle

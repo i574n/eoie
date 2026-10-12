@@ -1,0 +1,110 @@
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.rooted
+
+union read_limit =
+    | WholeFile
+    | LeadingBytes : u64
+
+union read_outcome =
+    | ReadShown : i32
+    | ReadRejected : string
+
+union read_extent =
+    | WholeFileShown
+    | LeadingBytesShown
+
+union content_ending =
+    | ContentClosed
+    | ContentOpen
+
+union stream_result =
+    | Streamed : u64
+    | StreamFailed
+
+inl unlimited_bytes () : u64 = $'u64::MAX' : u64
+inl stream_failure_marker () : u64 = $'u64::MAX' : u64
+inl u64_text_valid (~text : string) : bool = $'!text.parse::<u64>().is_ok()' : bool
+inl u64_parsed (~text : string) : u64 = $'!text.parse::<u64>().unwrap_or(0)' : u64
+
+inl open_problem (~path : string) : string =
+    $'std::rc::Rc::<str>::from(eoie_rust_std_fs::rooted_open_regular_read(std::path::Path::new(&*!path)).err().unwrap_or_default().as_str())' : string
+inl regular_file_bytes (~path : string) : u64 = $'eoie_rust_std_fs::rooted_regular_size(std::path::Path::new(&*!path)).unwrap_or(0)' : u64
+inl streamed_prefix (~path : string) (limit : u64) : u64 =
+    $'eoie_rust_std_fs::rooted_open_regular_read(std::path::Path::new(&*!path)).ok().and_then(|file| std::io::copy(&mut std::io::Read::take(file, !limit), &mut std::io::stdout().lock()).ok()).unwrap_or(u64::MAX)' : u64
+inl stream_result_of (count : u64) : stream_result = if $"!count == !(stream_failure_marker ())" then StreamFailed else Streamed count
+inl flushed_stdout () : i32 = $'std::io::Write::flush(&mut std::io::stdout()).map(|_| 0i32).unwrap_or(2i32)' : i32
+inl byte_before (~path : string) (shown : u64) : i32 =
+    $'eoie_rust_std_fs::rooted_open_regular_read(std::path::Path::new(&*!path)).ok().and_then(|mut file| { let offset = (!shown).checked_sub(1)?; std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(offset)).ok()?; let mut byte = [0u8; 1]; std::io::Read::read_exact(&mut file, &mut byte).ok()?; Some(i32::from(byte[0])) }).unwrap_or(-1)' : i32
+
+inl limit_bytes (limit : read_limit) : u64 =
+    match limit with
+    | WholeFile => unlimited_bytes ()
+    | LeadingBytes count => count
+
+inl parse_read_limit (~text : string) : validation_result read_limit =
+    if u64_text_valid text then Valid (LeadingBytes (u64_parsed text)) else Invalid
+
+inl read_extent_of (shown : u64) (file_bytes : u64) : read_extent = if $"!shown < !file_bytes" then LeadingBytesShown else WholeFileShown
+
+inl ascii_newline () : i32 = 10i32
+
+inl content_ending_of (last_byte : i32) : content_ending =
+    if i32_negative last_byte then ContentClosed
+    elif i32_eq last_byte (ascii_newline ()) then ContentClosed
+    else ContentOpen
+
+inl content_ending_text (ending : content_ending) : string =
+    match ending with
+    | ContentClosed => ""
+    | ContentOpen => " no_final_newline=true"
+
+inl shown_extent_text (extent : read_extent) (last_byte : i32) : string =
+    match extent with
+    | WholeFileShown => content_ending_text (content_ending_of last_byte)
+    | LeadingBytesShown => " truncated=true"
+
+let read_receipt_text (~path : string) (shown : u64) (last_byte : i32) (started : u64) : string =
+    inl file_bytes = regular_file_bytes path
+    inl head = rust_std_string.model.concat5 "eoie proxy fs-read ok bytes=" (u64_text file_bytes) " shown=" (u64_text shown) (shown_extent_text (read_extent_of shown file_bytes) last_byte)
+    rust_std_string.model.concat5 head " elapsed_ms=" (u64_text (ms_since started)) "" ""
+
+inl stream_file (~path : string) (limit : read_limit) (started : u64) : read_outcome =
+    match stream_result_of (streamed_prefix path (limit_bytes limit)) with
+    | StreamFailed => ReadRejected (rust_std_string.model.concat5 "fs-read failed while streaming: " path "" "" "")
+    | Streamed shown =>
+        if i32_eq (flushed_stdout ()) 0i32 then ReadShown (stderr_line (read_receipt_text path shown (byte_before path shown) started))
+        else ReadRejected (rust_std_string.model.concat5 "fs-read could not flush stdout: " path "" "" "")
+
+inl read_rooted (~root : string) (~relative : string) (limit : read_limit) (started : u64) : read_outcome =
+    inl path = rooted_path root relative
+    if rust_std_string.model.equals path "" then ReadRejected (rust_std_string.model.concat5 "fs-read path rejected: " (rooted_path_problem root relative) "" "" "")
+    else
+        inl problem = open_problem path
+        if rust_std_string.model.equals problem "" then stream_file path limit started
+        else ReadRejected (rust_std_string.model.concat5 "fs-read failed: " problem "" "" "")
+
+inl read_with_limit (~root : string) (~relative : string) (~limit_text : string) (started : u64) : read_outcome =
+    match parse_read_limit limit_text with
+    | Valid limit => read_rooted root relative limit started
+    | Invalid => ReadRejected "invalid byte limit"
+
+let file_reading_outcome () : read_outcome =
+    inl started = unix_ms ()
+    inl operands = proxy_argument_count ()
+    if $"!operands == 3" then read_rooted (proxy_argument 1i32) (proxy_argument 2i32) WholeFile started
+    elif $"!operands == 4" then read_with_limit (proxy_argument 1i32) (proxy_argument 2i32) (proxy_argument 3i32) started
+    else ReadRejected "fs-read expects <root> <relative> [max-bytes]"
+
+let file_reading_report () : i32 * string =
+    match file_reading_outcome () with
+    | ReadShown _ => 0i32, ""
+    | ReadRejected text => 2i32, text
+
+inl main () : i32 =
+    !!!!Export("eoie_file_reading_outcome", ((fun () => file_reading_report ()) : () -> i32 * string))
+    inl _ = read_receipt_text "file_reading.spi" 5u64 10i32 (unix_ms ())
+    inl _ = file_reading_outcome ()
+    0i32

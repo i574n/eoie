@@ -333,6 +333,19 @@ closeout evidence refresh records the same platform binary name in `state/eviden
 Run it in a staged release root, not in a checkout, because the evidence binds the
 whole `src` tree.
 
+`pwsh compiler-contracts/renew-strict-evidence.ps1` runs the whole renewal after a
+source change. It first stops on strict diagnostics that no renewal repairs (a forbidden
+source root file, a symlink, a topology limit), then runs `agile begin`, `bundle growth-receipt`, `renew-cold-rebuild.ps1 -Apply`, `agile check --compiler`,
+then closeout preview and apply in the root staged by the strict preflight, with the six
+gates and the expected migration read from the current `state/release_closeout.spi`.
+Renewed state files are copied back and `test-strict-preflight.ps1 -RequireReady` must
+pass. The compiler is a hashed snapshot of the single-flight build (or `-SpiralCompiler`),
+so a concurrent compiler deploy cannot change it mid-run. `-Test` first runs
+`build.ps1 -Test -CompilerContracts`. The owner growth receipt is renewed with the reason
+and task of its recorded change rows unless `-GrowthReason`/`-GrowthTask` name others, and
+`-ParallelChains` bounds the cold owner replay. When a busy machine pushes an owner past the
+15 s cold budget, the cold renewal is retried once per halving of the parallel chains.
+
 Inspection stays available after a lease reaches its wrap guard or expires:
 `proxy source-topology <root>` without a census path and `agile handoff` are
 classified as inspection. Writing `state/authority_census.spi` remains a mutation
@@ -356,7 +369,8 @@ pwsh eoie.ps1 agile list . Active
 
 The optional list filter accepts `Planned`, `Active`, `Blocked`, `Paused` or
 `Done` and matches the task status, including when those words appear elsewhere
-in a task description. Listing does not mutate state.
+in a task description. Listing does not mutate state. `agile show <root> <id> [--json]` prints one
+task with its full, unescaped title, its deps and tags, and is an inspection as well.
 
 See [README.windows.md](README.windows.md) for Windows filesystem and process details.
 See [FIRST-COMMIT-REVIEW.md](FIRST-COMMIT-REVIEW.md) for validation and remaining release scope.

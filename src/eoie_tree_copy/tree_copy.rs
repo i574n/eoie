@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::fs;
@@ -98,8 +98,9 @@ pub fn copy_tree_run(args: &[String]) -> Result<(), String> {
     if args.len() != 3 { return Err("fs-copy-tree expects source destination".to_owned()); }
     let source = Path::new(&args[1]);
     let destination = Path::new(&args[2]);
+    let started = proxy_file_receipt::eoie_file_clock_ms();
     let copied = legacy_copy_tree_with_hook(source, destination, |_| Ok(()))?;
-    println!("eoie proxy fs-copy-tree ok source={} destination={} files={copied}", source.display(), destination.display());
+    println!("eoie proxy fs-copy-tree ok source={} destination={} files={copied}{}", source.display(), destination.display(), proxy_file_receipt::eoie_elapsed_field(started));
     Ok(())
 }
 
@@ -108,7 +109,7 @@ pub fn copy_tree_run(args: &[String]) -> Result<(), String> {
 mod tree_copy_tests;
 
 
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn entry_allowed_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -132,11 +133,11 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        entry_allowed_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method1(mut v0: i32) -> i32 {
+fn remaining_entries_1(mut v0: i32) -> i32 {
     let mut v1: bool = v0 < 0i32;
     if v1 {
         -1i32
@@ -145,15 +146,15 @@ fn method1(mut v0: i32) -> i32 {
         if v2 {
             -1i32
         } else {
-            let mut v3: i32 = 100000i32 - v0;
+            let mut v3: i32 = 100000i32.wrapping_sub(v0);
             v3
         }
     }
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        remaining_entries_1(v0)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_tree_copy_entry_allowed_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

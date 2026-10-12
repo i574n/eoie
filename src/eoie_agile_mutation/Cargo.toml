@@ -20,4 +20,5 @@ eoie-handoff = { path = "../eoie_handoff" }
 agile-task-creation = { path = "../agile_task_creation" }
 agile-task-revision = { path = "../agile_task_revision" }
 agile-task-listing = { path = "../agile_task_listing" }
+agile-task-inspection = { path = "../agile_task_inspection" }
 agile-backlog-scaffold = { path = "../agile_backlog_scaffold" }

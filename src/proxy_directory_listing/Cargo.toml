@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "directory_listing.spi"
+output = "directory_listing.rs"
+
+[package]
+name = "proxy-directory-listing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "proxy_directory_listing"
+path = "directory_listing.rs"
+
+[dependencies]
+eoie-rust-std-fs = { path = "../rust_std_fs" }

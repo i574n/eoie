@@ -15,6 +15,7 @@ path = "tree_copy.rs"
 [dependencies]
 eoie-rust-std-fs = { path = "../rust_std_fs" }
 eoie-rust-std-fs-mutation = { path = "../rust_std_fs_mutation" }
+proxy-file-receipt = { path = "../proxy_file_receipt" }
 
 [lints.clippy]
 needless_return = "allow"

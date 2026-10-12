@@ -330,7 +330,7 @@ pub fn safe_relative_path(value: &str) -> Result<PathBuf, String> {
     }
     if value.is_empty() || path.is_absolute() { return Err(format!("unsafe relative path: {value}")); }
     for component in path.components() { if !matches!(component, std::path::Component::Normal(_)) { return Err(format!("unsafe relative path: {value}")); } }
-    Ok(path.to_path_buf())
+    Ok(path.components().collect())
 }
 
 fn reject_symlink_ancestors(root: &Path, relative: &Path) -> Result<(), String> {

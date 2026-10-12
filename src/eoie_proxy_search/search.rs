@@ -79,9 +79,8 @@ fn inspection_search(args: &[String]) -> Result<(), String> {
     let limit = std::env::var("EOIE_SEARCH_MAX_HITS").ok().and_then(|value| value.parse().ok()).unwrap_or(20_000usize);
     let started = proxy_search_receipt::eoie_search_clock_ms();
     let hits = inspection_collect(root, &path, inspection_arg(args, 3, "needle")?, limit, true, false)?;
-    if hits.len() > limit { return Err(format!("search hit limit exceeded: {limit} (raise EOIE_SEARCH_MAX_HITS)")); }
     let found = hits.len() as i32;
-    for hit in hits { println!("{hit}"); }
+    for hit in hits.iter().take(limit) { println!("{hit}"); }
     proxy_search_receipt::eoie_fs_search_receipt(found, limit as i32, started);
     Ok(())
 }

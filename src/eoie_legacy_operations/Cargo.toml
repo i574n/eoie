@@ -29,6 +29,9 @@ cold-proof-domain = { path = "../cold_proof_domain" }
 eoie-patch-control-domain = { path = "../patch_control_domain" }
 proxy-text-replacement = { path = "../proxy_text_replacement" }
 proxy-file-removal = { path = "../proxy_file_removal" }
+proxy-file-receipt = { path = "../proxy_file_receipt" }
+proxy-directory-listing = { path = "../proxy_directory_listing" }
+proxy-file-reading = { path = "../proxy_file_reading" }
 proxy-failure-classification = { path = "../proxy_failure_classification" }
 eoie-rust-std-fs = { path = "../rust_std_fs" }
 eoie-proxy-search = { path = "../eoie_proxy_search" }

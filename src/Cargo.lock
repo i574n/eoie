@@ -13,6 +13,10 @@ name = "agile-backlog-scaffold"
 version = "0.0.0"
 
 [[package]]
+name = "agile-field-rendering"
+version = "0.0.0"
+
+[[package]]
 name = "agile-lease-terms"
 version = "0.0.0"
 dependencies = [
@@ -40,6 +44,10 @@ name = "agile-task-creation"
 version = "0.0.0"
 
 [[package]]
+name = "agile-task-inspection"
+version = "0.0.0"
+
+[[package]]
 name = "agile-task-listing"
 version = "0.0.0"
 dependencies = [
@@ -49,6 +57,9 @@ dependencies = [
 [[package]]
 name = "agile-task-revision"
 version = "0.0.0"
+dependencies = [
+ "agile-field-rendering",
+]
 
 [[package]]
 name = "agile-update-receipt"
@@ -174,6 +185,7 @@ version = "0.0.0"
 dependencies = [
  "agile-backlog-scaffold",
  "agile-task-creation",
+ "agile-task-inspection",
  "agile-task-listing",
  "agile-task-revision",
  "eoie-agile-lease",
@@ -434,7 +446,10 @@ dependencies = [
  "evidence-currentness-domain",
  "legacy-capability-domain",
  "proxy-command-output",
+ "proxy-directory-listing",
  "proxy-failure-classification",
+ "proxy-file-reading",
+ "proxy-file-receipt",
  "proxy-file-removal",
  "proxy-text-replacement",
 ]
@@ -666,6 +681,7 @@ version = "0.0.0"
 dependencies = [
  "eoie-rust-std-fs",
  "eoie-rust-std-fs-mutation",
+ "proxy-file-receipt",
 ]
 
 [[package]]
@@ -842,6 +858,13 @@ name = "proxy-command-output"
 version = "0.0.0"
 
 [[package]]
+name = "proxy-directory-listing"
+version = "0.0.0"
+dependencies = [
+ "eoie-rust-std-fs",
+]
+
+[[package]]
 name = "proxy-failure-classification"
 version = "0.0.0"
 
@@ -851,6 +874,17 @@ version = "0.0.0"
 dependencies = [
  "eoie-rust-std-fs",
 ]
+
+[[package]]
+name = "proxy-file-reading"
+version = "0.0.0"
+dependencies = [
+ "eoie-rust-std-fs",
+]
+
+[[package]]
+name = "proxy-file-receipt"
+version = "0.0.0"
 
 [[package]]
 name = "proxy-file-removal"
