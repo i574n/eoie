@@ -15,3 +15,5 @@ path = "task_listing.rs"
 
 [dependencies]
 agile-task-census = { path = "../agile_task_census" }
+agile-planning-fields = { path = "../agile_planning_fields" }
+agile-planning-filters = { path = "../agile_planning_filters" }

@@ -38,9 +38,9 @@ inl all2 a b = if a then b else false
 inl all3 a b c = if a then if b then c else false else false
 inl all4 a b c d = if a then if b then if c then d else false else false else false
 
-inl agile_full_usage_error () : i32 = $"agile_mutation_error(\"agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>, show <root> <id> [--json]\")"
-inl agile_subcommands () : string = "init|begin|lease|status|handoff|list|check|record|set|add|edit|show"
-inl agile_operand_shapes () : string = "<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\n<root> <id> [--json]"
+inl agile_full_usage_error () : i32 = $"agile_mutation_error(\"agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags <root> [--dry-run|--apply]\")"
+inl agile_subcommands () : string = "init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags"
+inl agile_operand_shapes () : string = "<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\n<root> [--dry-run|--apply]"
 inl received_operands () : string = $'std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string())' : string
 inl agile_shape_error (~subcommand : string) (~shape : string) : i32 =
     inl head = rust_std_string.model.concat5 "agile " subcommand " expects " shape ", received "
@@ -87,7 +87,13 @@ inl validate_status () : validation_result agile_status =
     | 4u64 => Valid AgileDone
     | _ => Invalid
 
-let agile_entry () : i32 =
+inl planning_field_named (~name : string) : bool = rust_std_string.model.pipe_member "estimate|load|assignee" name
+inl agile_edit_route () : i32 =
+    if planning_field_named (argument_owned 3i32) then $"agile_planning_revision::eoie_agile_planning_edit_run()"
+    else $"agile_task_revision::eoie_agile_edit_run()"
+inl agile_argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+
+let agile_counted_entry () : i32 =
     if args_len_is 2i32 then
         inl root = argument_owned 1i32
         match rust_std_string.model.pipe_index "list|check|lease|status|handoff|record|init" (argument_owned 0i32) with
@@ -99,8 +105,7 @@ let agile_entry () : i32 =
         | 6u64 => $"agile_backlog_scaffold::eoie_agile_init_run()"
         | _ => agile_usage_error ()
     elif args_len_is 3i32 then
-        if argument_equals 0i32 "list" then $"agile_task_listing::eoie_agile_list_run()"
-        elif argument_equals 0i32 "show" then $"agile_task_inspection::eoie_agile_show_run()"
+        if argument_equals 0i32 "show" then $"agile_task_inspection::eoie_agile_show_run()"
         elif argument_equals 0i32 "begin" then
             inl root = argument_owned 1i32
             inl title = argument_owned 2i32
@@ -108,14 +113,13 @@ let agile_entry () : i32 =
             if i32_positive words then agile_begin root title words else agile_title_error ()
         else agile_usage_error ()
     elif args_len_is 4i32 then
-        if argument_equals 0i32 "list" then $"agile_task_listing::eoie_agile_list_run()"
-        elif argument_equals 0i32 "show" then $"agile_task_inspection::eoie_agile_show_run()"
+        if argument_equals 0i32 "show" then $"agile_task_inspection::eoie_agile_show_run()"
         else agile_usage_error ()
     elif args_len_is 8i32 then
         if argument_equals 0i32 "add" then $"agile_task_creation::eoie_agile_add_run()"
         else agile_usage_error ()
     elif args_len_is 5i32 then
-        if argument_equals 0i32 "edit" then $"agile_task_revision::eoie_agile_edit_run()"
+        if argument_equals 0i32 "edit" then agile_edit_route ()
         elif argument_equals 0i32 "set" then
             inl root = argument_owned 1i32
             inl id = argument_owned 2i32
@@ -125,6 +129,15 @@ let agile_entry () : i32 =
             | _, Invalid => agile_status_error ()
         else agile_usage_error ()
     else agile_usage_error ()
+
+let agile_entry () : i32 =
+    if i32_le 2i32 (agile_argument_count ()) then
+        match rust_std_string.model.pipe_index "list|plan|migrate-tags" (argument_owned 0i32) with
+        | 0u64 => $"agile_task_listing::eoie_agile_list_run()"
+        | 1u64 => $"agile_planning_rollup::eoie_agile_planning_rollup_run()"
+        | 2u64 => $"agile_planning_migration::eoie_agile_migrate_tags_run()"
+        | _ => agile_counted_entry ()
+    else agile_counted_entry ()
 
 inl main () : i32 =
     agile_terminal.emit_runtime ()

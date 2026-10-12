@@ -1,0 +1,37 @@
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open agile_planning_model.model
+
+let planned_value_token (field : planning_field) (~value : string) : validation_result string =
+    match field with
+    | EstimateField =>
+        match parse_planned_estimate value with
+        | Valid estimate => Valid (estimate_state_token estimate)
+        | Invalid => Invalid
+    | LoadField =>
+        match parse_planned_load value with
+        | Valid load => Valid (load_state_token load)
+        | Invalid => Invalid
+    | AssigneeField =>
+        match parse_planned_assignee value with
+        | Valid assignee => Valid (assignee_state_token assignee)
+        | Invalid => Invalid
+
+let field_value_token (field : planning_field) (~value : string) : i32 * string =
+    match planned_value_token field value with
+    | Valid token => 0i32, token
+    | Invalid => 1i32, planning_field_rule field
+
+let planning_value_token (~field_name : string) (~value : string) : i32 * string =
+    match parse_planning_field field_name with
+    | Valid field => field_value_token field value
+    | Invalid => 1i32, "field must be estimate, load or assignee"
+
+let legacy_agent_value (~value : string) : string = rust_std_string.model.pipe_lookup "yes|pair|no" "agent\npair\nuser" value
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_planning_value_token", ((fun (field_name, value) => planning_value_token field_name value) : string * string -> i32 * string))
+    !!!!Export("eoie_agile_planning_legacy_agent_value", ((fun value => legacy_agent_value value) : string -> string))
+    inl _ = planning_value_token "load" "heavy"
+    inl _ = legacy_agent_value "yes"
+    0i32

@@ -1,0 +1,33 @@
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open agile_planning_model.model
+
+inl padded (~text : string) (width : i32) : string =
+    $'{ let text = !text; let filler = (!width as usize).saturating_sub(text.chars().count()); std::rc::Rc::<str>::from(text.to_string() + &" ".repeat(filler)) }' : string
+
+inl estimate_width () : i32 = 7i32
+inl load_width () : i32 = 7i32
+inl assignee_width () : i32 = 6i32
+
+let planning_header () : string =
+    rust_std_string.model.concat5 (padded "EST" (estimate_width ())) (padded "LOAD" (load_width ())) (padded "WHO" (assignee_width ())) "" ""
+
+let planning_columns (~text : string) (~id : string) : string =
+    inl plan = planning_of text id
+    rust_std_string.model.concat5 (padded (estimate_text plan.estimate) (estimate_width ())) (padded (load_text plan.load) (load_width ())) (padded (assignee_text plan.assignee) (assignee_width ())) "" ""
+
+let planning_json (~text : string) (~id : string) : string = planning_json_fields (planning_of text id)
+
+let planning_summary_of (~text : string) (~id : string) : string = planning_summary (planning_of text id)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_planning_header", ((fun () => planning_header ()) : () -> string))
+    !!!!Export("eoie_agile_planning_columns", ((fun (text, id) => planning_columns text id) : string * string -> string))
+    !!!!Export("eoie_agile_planning_json", ((fun (text, id) => planning_json text id) : string * string -> string))
+    !!!!Export("eoie_agile_planning_summary", ((fun (text, id) => planning_summary_of text id) : string * string -> string))
+    inl _ = planning_header ()
+    inl _ = planning_columns "" "ID"
+    inl _ = planning_json "" "ID"
+    inl _ = planning_summary_of "" "ID"
+    0i32

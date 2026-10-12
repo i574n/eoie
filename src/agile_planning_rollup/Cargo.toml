@@ -1,0 +1,20 @@
+[package.metadata.eoie]
+test-requires-cli = true
+
+[package.metadata.spiral]
+entry = "planning_rollup.spi"
+output = "planning_rollup.rs"
+
+[package]
+name = "agile-planning-rollup"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_planning_rollup"
+path = "planning_rollup.rs"
+
+[dependencies]
+agile-planning-tally = { path = "../agile_planning_tally" }

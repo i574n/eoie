@@ -79,12 +79,15 @@ inl show_format_of (~flag : string) : validation_result show_format =
 inl json_string (~text : string) : string = rust_std_string.model.concat5 "\"" text "\"" "" ""
 inl json_field (~name : string) (~value : string) : string = rust_std_string.model.concat5 "\"" name "\":" value ""
 
-let task_json (record : task_record) (started : u64) : string =
+let task_json (record : task_record) (~planning : string) (started : u64) : string =
     inl head = rust_std_string.model.concat5 "{" (json_field "id" (json_string record.id)) "," (json_field "title" (json_string record.title)) ","
     inl middle = rust_std_string.model.concat5 (json_field "kind" (json_string record.kind)) "," (json_field "priority" (json_string record.priority)) "," (json_field "difficulty" (json_string record.difficulty))
     inl tail = rust_std_string.model.concat5 "," (json_field "progress" record.progress) "," (json_field "status" (json_string record.status)) ","
-    inl lists = rust_std_string.model.concat5 (json_field "deps" (json_string record.deps)) "," (json_field "tags" (json_string record.tags)) "," (json_field "elapsed_ms" (u64_text (ms_since started)))
+    inl lists = rust_std_string.model.concat5 (json_field "deps" (json_string record.deps)) "," (json_field "tags" (json_string record.tags)) (rust_std_string.model.concat5 "," planning "," (json_field "elapsed_ms" (u64_text (ms_since started))) "") ""
     rust_std_string.model.concat5 head middle tail lists "}"
+
+inl planning_summary (~text : string) (~id : string) : string = $'agile_planning_fields::eoie_agile_planning_summary(&*!text, &*!id)' : string
+inl planning_json (~text : string) (~id : string) : string = $'agile_planning_fields::eoie_agile_planning_json(&*!text, &*!id)' : string
 
 inl task_anchor (~id : string) : string = rust_std_string.model.concat5 "Task (\"" id "\"," "" ""
 
@@ -99,10 +102,11 @@ let show_receipt (record : task_record) (started : u64) : string =
     inl head = rust_std_string.model.concat5 "eoie agile show ok id=" record.id " title_bytes=" (i32_text (byte_len record.title)) " elapsed_ms="
     rust_std_string.model.concat5 head (u64_text (ms_since started)) "" "" ""
 
-let show_task (record : task_record) (started : u64) : i32 =
+let show_task (record : task_record) (~planning : string) (started : u64) : i32 =
     inl _ = stdout_line (task_summary record)
     inl _ = stdout_line (rust_std_string.model.concat5 "deps: " (dash_when_empty record.deps) "" "" "")
     inl _ = stdout_line (rust_std_string.model.concat5 "tags: " (dash_when_empty record.tags) "" "" "")
+    inl _ = stdout_line (rust_std_string.model.concat5 "planning: " planning "" "" "")
     inl _ = stdout_line record.title
     stdout_line (show_receipt record started)
 
@@ -119,8 +123,8 @@ let agile_show (~root : string) (~id : string) (format : show_format) : i32 =
         else
             inl arguments = $"!found + !(task_arguments_offset ())" : i32
             match format with
-            | ShowText => show_task (task_record_at text arguments (byte_len text)) started
-            | ShowJson => stdout_line (task_json (task_json_record_at text arguments (byte_len text)) started)
+            | ShowText => show_task (task_record_at text arguments (byte_len text)) (planning_summary text id) started
+            | ShowJson => stdout_line (task_json (task_json_record_at text arguments (byte_len text)) (planning_json text id) started)
 
 let agile_show_entry () : i32 =
     if i32_eq (argument_count ()) 3i32 then agile_show (argument_owned 1i32) (argument_owned 2i32) ShowText

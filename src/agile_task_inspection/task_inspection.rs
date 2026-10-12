@@ -97,39 +97,43 @@ fn show_receipt_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<
     let mut v19: Rc<str> = std::rc::Rc::<str>::from([&*v15, &*v17, &*v18, &*v18, &*v18].concat());
     v19.clone()
 }
-fn show_task_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: Rc<str>, mut v8: Rc<str>, mut v9: u64) -> i32 {
-    let mut v10: Rc<str> = task_summary_3(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone());
-    let mut v11: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v10.to_string() + "
+fn show_task_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: Rc<str>, mut v8: Rc<str>, mut v9: Rc<str>, mut v10: u64) -> i32 {
+    let mut v11: Rc<str> = task_summary_3(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone());
+    let mut v12: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v11.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deps: "); } LIT.with(|lit| lit.clone()) };
-    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v14: bool = v7 == v13 ;
-    let mut v16: Rc<str> = if v14 {
-        let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
-        v15.clone()
+    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deps: "); } LIT.with(|lit| lit.clone()) };
+    let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+    let mut v15: bool = v7 == v14 ;
+    let mut v17: Rc<str> = if v15 {
+        let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
+        v16.clone()
     } else {
         v7.clone()
     };
-    let mut v17: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v16, &*v13, &*v13, &*v13].concat());
-    let mut v18: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v17.to_string() + "
+    let mut v18: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v17, &*v14, &*v14, &*v14].concat());
+    let mut v19: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v18.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tags: "); } LIT.with(|lit| lit.clone()) };
-    let mut v20: bool = v8 == v13 ;
-    let mut v22: Rc<str> = if v20 {
-        let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
-        v21.clone()
+    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tags: "); } LIT.with(|lit| lit.clone()) };
+    let mut v21: bool = v8 == v14 ;
+    let mut v23: Rc<str> = if v21 {
+        let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
+        v22.clone()
     } else {
         v8.clone()
     };
-    let mut v23: Rc<str> = std::rc::Rc::<str>::from([&*v19, &*v22, &*v13, &*v13, &*v13].concat());
-    let mut v24: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v23.to_string() + "
+    let mut v24: Rc<str> = std::rc::Rc::<str>::from([&*v20, &*v23, &*v14, &*v14, &*v14].concat());
+    let mut v25: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v24.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v25: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v1.to_string() + "
+    let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("planning: "); } LIT.with(|lit| lit.clone()) };
+    let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v26, &*v9, &*v14, &*v14, &*v14].concat());
+    let mut v28: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v27.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v26: Rc<str> = show_receipt_4(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone(), v9);
-    let mut v27: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v26.to_string() + "
+    let mut v29: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v1.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    v27
+    let mut v30: Rc<str> = show_receipt_4(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone(), v10);
+    let mut v31: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v30.to_string() + "
+").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
+    v31
 }
 fn field_end_7(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US2) -> i32 {
     loop {
@@ -280,49 +284,50 @@ fn task_json_record_at_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> (Rc<str>,
     let mut v62: Rc<str> = std::rc::Rc::<str>::from(v59.get(1i32 as usize..v61 as usize).unwrap_or(""));
     (v10.clone(), v18.clone(), v23.clone(), v28.clone(), v33.clone(), v41.clone(), v46.clone(), v54.clone(), v62.clone())
 }
-fn task_json_9(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: Rc<str>, mut v8: Rc<str>, mut v9: u64) -> Rc<str> {
-    let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("{"); } LIT.with(|lit| lit.clone()) };
-    let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("id"); } LIT.with(|lit| lit.clone()) };
-    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\""); } LIT.with(|lit| lit.clone()) };
-    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v14: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v0, &*v12, &*v13, &*v13].concat());
-    let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\":"); } LIT.with(|lit| lit.clone()) };
-    let mut v16: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v11, &*v15, &*v14, &*v13].concat());
-    let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
-    let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("title"); } LIT.with(|lit| lit.clone()) };
-    let mut v19: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v1, &*v12, &*v13, &*v13].concat());
-    let mut v20: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v18, &*v15, &*v19, &*v13].concat());
-    let mut v21: Rc<str> = std::rc::Rc::<str>::from([&*v10, &*v16, &*v17, &*v20, &*v17].concat());
-    let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("kind"); } LIT.with(|lit| lit.clone()) };
-    let mut v23: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v2, &*v12, &*v13, &*v13].concat());
-    let mut v24: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v22, &*v15, &*v23, &*v13].concat());
-    let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("priority"); } LIT.with(|lit| lit.clone()) };
-    let mut v26: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v3, &*v12, &*v13, &*v13].concat());
-    let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v25, &*v15, &*v26, &*v13].concat());
-    let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("difficulty"); } LIT.with(|lit| lit.clone()) };
-    let mut v29: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v4, &*v12, &*v13, &*v13].concat());
-    let mut v30: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v28, &*v15, &*v29, &*v13].concat());
-    let mut v31: Rc<str> = std::rc::Rc::<str>::from([&*v24, &*v17, &*v27, &*v17, &*v30].concat());
-    let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("progress"); } LIT.with(|lit| lit.clone()) };
-    let mut v33: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v32, &*v15, &*v5, &*v13].concat());
-    let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status"); } LIT.with(|lit| lit.clone()) };
-    let mut v35: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v6, &*v12, &*v13, &*v13].concat());
-    let mut v36: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v34, &*v15, &*v35, &*v13].concat());
-    let mut v37: Rc<str> = std::rc::Rc::<str>::from([&*v17, &*v33, &*v17, &*v36, &*v17].concat());
-    let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deps"); } LIT.with(|lit| lit.clone()) };
-    let mut v39: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v7, &*v12, &*v13, &*v13].concat());
-    let mut v40: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v38, &*v15, &*v39, &*v13].concat());
-    let mut v41: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tags"); } LIT.with(|lit| lit.clone()) };
-    let mut v42: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v8, &*v12, &*v13, &*v13].concat());
-    let mut v43: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v41, &*v15, &*v42, &*v13].concat());
-    let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("elapsed_ms"); } LIT.with(|lit| lit.clone()) };
-    let mut v45: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v9);
-    let mut v46: Rc<str> = std::rc::Rc::<str>::from((v45).to_string());
-    let mut v47: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v44, &*v15, &*v46, &*v13].concat());
-    let mut v48: Rc<str> = std::rc::Rc::<str>::from([&*v40, &*v17, &*v43, &*v17, &*v47].concat());
-    let mut v49: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("}"); } LIT.with(|lit| lit.clone()) };
-    let mut v50: Rc<str> = std::rc::Rc::<str>::from([&*v21, &*v31, &*v37, &*v48, &*v49].concat());
-    v50.clone()
+fn task_json_9(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: Rc<str>, mut v8: Rc<str>, mut v9: Rc<str>, mut v10: u64) -> Rc<str> {
+    let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("{"); } LIT.with(|lit| lit.clone()) };
+    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("id"); } LIT.with(|lit| lit.clone()) };
+    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\""); } LIT.with(|lit| lit.clone()) };
+    let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+    let mut v15: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v0, &*v13, &*v14, &*v14].concat());
+    let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\":"); } LIT.with(|lit| lit.clone()) };
+    let mut v17: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v12, &*v16, &*v15, &*v14].concat());
+    let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
+    let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("title"); } LIT.with(|lit| lit.clone()) };
+    let mut v20: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v1, &*v13, &*v14, &*v14].concat());
+    let mut v21: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v19, &*v16, &*v20, &*v14].concat());
+    let mut v22: Rc<str> = std::rc::Rc::<str>::from([&*v11, &*v17, &*v18, &*v21, &*v18].concat());
+    let mut v23: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("kind"); } LIT.with(|lit| lit.clone()) };
+    let mut v24: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v2, &*v13, &*v14, &*v14].concat());
+    let mut v25: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v23, &*v16, &*v24, &*v14].concat());
+    let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("priority"); } LIT.with(|lit| lit.clone()) };
+    let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v3, &*v13, &*v14, &*v14].concat());
+    let mut v28: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v26, &*v16, &*v27, &*v14].concat());
+    let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("difficulty"); } LIT.with(|lit| lit.clone()) };
+    let mut v30: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v4, &*v13, &*v14, &*v14].concat());
+    let mut v31: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v29, &*v16, &*v30, &*v14].concat());
+    let mut v32: Rc<str> = std::rc::Rc::<str>::from([&*v25, &*v18, &*v28, &*v18, &*v31].concat());
+    let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("progress"); } LIT.with(|lit| lit.clone()) };
+    let mut v34: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v33, &*v16, &*v5, &*v14].concat());
+    let mut v35: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status"); } LIT.with(|lit| lit.clone()) };
+    let mut v36: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v6, &*v13, &*v14, &*v14].concat());
+    let mut v37: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v35, &*v16, &*v36, &*v14].concat());
+    let mut v38: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v34, &*v18, &*v37, &*v18].concat());
+    let mut v39: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deps"); } LIT.with(|lit| lit.clone()) };
+    let mut v40: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v7, &*v13, &*v14, &*v14].concat());
+    let mut v41: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v39, &*v16, &*v40, &*v14].concat());
+    let mut v42: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tags"); } LIT.with(|lit| lit.clone()) };
+    let mut v43: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v8, &*v13, &*v14, &*v14].concat());
+    let mut v44: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v42, &*v16, &*v43, &*v14].concat());
+    let mut v45: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("elapsed_ms"); } LIT.with(|lit| lit.clone()) };
+    let mut v46: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v10);
+    let mut v47: Rc<str> = std::rc::Rc::<str>::from((v46).to_string());
+    let mut v48: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v45, &*v16, &*v47, &*v14].concat());
+    let mut v49: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v9, &*v18, &*v48, &*v14].concat());
+    let mut v50: Rc<str> = std::rc::Rc::<str>::from([&*v41, &*v18, &*v44, &*v49, &*v14].concat());
+    let mut v51: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("}"); } LIT.with(|lit| lit.clone()) };
+    let mut v52: Rc<str> = std::rc::Rc::<str>::from([&*v22, &*v32, &*v38, &*v50, &*v51].concat());
+    v52.clone()
 }
 fn unescaped_from_13(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) -> Rc<str> {
     loop {
@@ -527,17 +532,19 @@ fn agile_show_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US0) -> i32 {
                 let mut v29: i32 = v22 + 6i32;
                 match &v2 {
                     US0::US0_ShowJson => {
-                        let mut v41: i32 = v18.len() as i32;
-                        let (mut v42, mut v43, mut v44, mut v45, mut v46, mut v47, mut v48, mut v49, mut v50): (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) = task_json_record_at_5(v18.clone(), v29, v41);
-                        let mut v51: Rc<str> = task_json_9(v42.clone(), v43.clone(), v44.clone(), v45.clone(), v46.clone(), v47.clone(), v48.clone(), v49.clone(), v50.clone(), v3);
-                        let mut v52: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v51.to_string() + "
+                        let mut v42: i32 = v18.len() as i32;
+                        let (mut v43, mut v44, mut v45, mut v46, mut v47, mut v48, mut v49, mut v50, mut v51): (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) = task_json_record_at_5(v18.clone(), v29, v42);
+                        let mut v52: Rc<str> = agile_planning_fields::eoie_agile_planning_json(&*v18, &*v1);
+                        let mut v53: Rc<str> = task_json_9(v43.clone(), v44.clone(), v45.clone(), v46.clone(), v47.clone(), v48.clone(), v49.clone(), v50.clone(), v51.clone(), v52.clone(), v3);
+                        let mut v54: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v53.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-                        v52
+                        v54
                     }
                     US0::US0_ShowText => {
                         let mut v30: i32 = v18.len() as i32;
                         let (mut v31, mut v32, mut v33, mut v34, mut v35, mut v36, mut v37, mut v38, mut v39): (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) = task_record_at_10(v18.clone(), v29, v30);
-                        show_task_2(v31.clone(), v32.clone(), v33.clone(), v34.clone(), v35.clone(), v36.clone(), v37.clone(), v38.clone(), v39.clone(), v3)
+                        let mut v40: Rc<str> = agile_planning_fields::eoie_agile_planning_summary(&*v18, &*v1);
+                        show_task_2(v31.clone(), v32.clone(), v33.clone(), v34.clone(), v35.clone(), v36.clone(), v37.clone(), v38.clone(), v39.clone(), v40.clone(), v3)
                     }
                 }
             }

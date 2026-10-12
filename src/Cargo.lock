@@ -24,6 +24,51 @@ dependencies = [
 ]
 
 [[package]]
+name = "agile-planning-fields"
+version = "0.0.0"
+
+[[package]]
+name = "agile-planning-filters"
+version = "0.0.0"
+
+[[package]]
+name = "agile-planning-migration"
+version = "0.0.0"
+dependencies = [
+ "agile-planning-fields",
+ "agile-planning-rewrite",
+ "agile-planning-values",
+]
+
+[[package]]
+name = "agile-planning-revision"
+version = "0.0.0"
+dependencies = [
+ "agile-planning-fields",
+ "agile-planning-rewrite",
+ "agile-planning-values",
+]
+
+[[package]]
+name = "agile-planning-rewrite"
+version = "0.0.0"
+
+[[package]]
+name = "agile-planning-rollup"
+version = "0.0.0"
+dependencies = [
+ "agile-planning-tally",
+]
+
+[[package]]
+name = "agile-planning-tally"
+version = "0.0.0"
+
+[[package]]
+name = "agile-planning-values"
+version = "0.0.0"
+
+[[package]]
 name = "agile-record-catalog"
 version = "0.0.0"
 
@@ -46,11 +91,16 @@ version = "0.0.0"
 [[package]]
 name = "agile-task-inspection"
 version = "0.0.0"
+dependencies = [
+ "agile-planning-fields",
+]
 
 [[package]]
 name = "agile-task-listing"
 version = "0.0.0"
 dependencies = [
+ "agile-planning-fields",
+ "agile-planning-filters",
  "agile-task-census",
 ]
 
@@ -184,6 +234,9 @@ name = "eoie-agile-mutation"
 version = "0.0.0"
 dependencies = [
  "agile-backlog-scaffold",
+ "agile-planning-migration",
+ "agile-planning-revision",
+ "agile-planning-rollup",
  "agile-task-creation",
  "agile-task-inspection",
  "agile-task-listing",

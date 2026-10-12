@@ -372,5 +372,18 @@ The optional list filter accepts `Planned`, `Active`, `Blocked`, `Paused` or
 in a task description. Listing does not mutate state. `agile show <root> <id> [--json]` prints one
 task with its full, unescaped title, its deps and tags, and is an inspection as well.
 
+Planning fields are typed: `agile edit <root> <id> estimate|load|assignee <value>` accepts minutes
+(`360`, `360m`) or hours (`6h`), `light|medium|heavy` and `agent|pair|user`, or `none` to clear
+one. The first such edit declares the `task_load`, `task_assignee`, `planned_*` and
+`task_planning` unions after `agile_item` in `state/agile.spi` and writes one
+`Planning ("<id>", Minutes 360u32, Load Heavy, Assigned Agent)` row right after the task; the
+`Task` tuple itself is unchanged. `agile list` shows EST, LOAD and WHO columns and filters with
+`--load <load>` and `--assignee <assignee>`, `show` prints them (`--json`: `estimate_minutes`,
+`load`, `assignee`), and `agile plan <root> [--json]` rolls up tasks, estimates and open minutes
+per status, load, assignee and epic (the epic itself plus tasks whose deps name it).
+`agile migrate-tags <root>` previews moving `est:`, `load:` and `agent:yes|pair|no` tags into
+these fields; `--apply` writes it once (the tag value wins, unparseable tags stay as tags) and a
+second run changes nothing.
+
 See [README.windows.md](README.windows.md) for Windows filesystem and process details.
 See [FIRST-COMMIT-REVIEW.md](FIRST-COMMIT-REVIEW.md) for validation and remaining release scope.

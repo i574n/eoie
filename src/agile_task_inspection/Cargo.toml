@@ -12,3 +12,6 @@ publish.workspace = true
 [lib]
 name = "agile_task_inspection"
 path = "task_inspection.rs"
+
+[dependencies]
+agile-planning-fields = { path = "../agile_planning_fields" }

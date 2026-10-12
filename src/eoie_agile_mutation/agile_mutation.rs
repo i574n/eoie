@@ -71,7 +71,7 @@ impl Default for US1 {
         US1::US1_Valid(<US2>::default())
     }
 }
-fn agile_entry_0() -> i32 {
+fn agile_counted_entry_1() -> i32 {
     let mut v0: i32 = 2i32;
     let mut v1: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v0 ;
     if v1 {
@@ -118,13 +118,13 @@ fn agile_entry_0() -> i32 {
                                 } else {
                                     let mut v22: i32 = 0i32;
                                     let mut v23: Rc<str> = usize::try_from(v22).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                                    let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show"); } LIT.with(|lit| lit.clone()) };
-                                    let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\n<root> <id> [--json]"); } LIT.with(|lit| lit.clone()) };
+                                    let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags"); } LIT.with(|lit| lit.clone()) };
+                                    let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\n<root> [--dry-run|--apply]"); } LIT.with(|lit| lit.clone()) };
                                     let mut v26: Rc<str> = v24.split("|").zip(v25.split(char::from(10u8))).find_map(|(key,item)| if key == &*v23 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
                                     let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                                     let mut v28: bool = v26 == v27 ;
                                     if v28 {
-                                        let mut v29: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>, show <root> <id> [--json]");
+                                        let mut v29: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags <root> [--dry-run|--apply]");
                                         v29
                                     } else {
                                         let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
@@ -149,245 +149,238 @@ fn agile_entry_0() -> i32 {
         let mut v47: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v46 ;
         if v47 {
             let mut v48: i32 = 0i32;
-            let mut v49: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("list"); } LIT.with(|lit| lit.clone()) };
+            let mut v49: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("show"); } LIT.with(|lit| lit.clone()) };
             let mut v50: bool = usize::try_from(v48).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v49.as_ref());
             if v50 {
-                let mut v51: i32 = agile_task_listing::eoie_agile_list_run();
+                let mut v51: i32 = agile_task_inspection::eoie_agile_show_run();
                 v51
             } else {
                 let mut v52: i32 = 0i32;
-                let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("show"); } LIT.with(|lit| lit.clone()) };
+                let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("begin"); } LIT.with(|lit| lit.clone()) };
                 let mut v54: bool = usize::try_from(v52).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v53.as_ref());
                 if v54 {
-                    let mut v55: i32 = agile_task_inspection::eoie_agile_show_run();
-                    v55
-                } else {
-                    let mut v56: i32 = 0i32;
-                    let mut v57: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("begin"); } LIT.with(|lit| lit.clone()) };
-                    let mut v58: bool = usize::try_from(v56).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v57.as_ref());
-                    if v58 {
-                        let mut v59: i32 = 1i32;
-                        let mut v60: Rc<str> = usize::try_from(v59).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                        let mut v61: i32 = 2i32;
-                        let mut v62: Rc<str> = usize::try_from(v61).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                        let mut v63: i32 = eoie_lease_title_words();
-                        let mut v64: bool = 0 < v63;
-                        if v64 {
-                            let mut v65: i32 = mutation_agile_begin_owned(v60.as_ref(), v62.as_ref());
-                            v65
-                        } else {
-                            let mut v66: i32 = agile_mutation_error("begin title must contain 3..7 visible words");
-                            v66
-                        }
+                    let mut v55: i32 = 1i32;
+                    let mut v56: Rc<str> = usize::try_from(v55).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                    let mut v57: i32 = 2i32;
+                    let mut v58: Rc<str> = usize::try_from(v57).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                    let mut v59: i32 = eoie_lease_title_words();
+                    let mut v60: bool = 0 < v59;
+                    if v60 {
+                        let mut v61: i32 = mutation_agile_begin_owned(v56.as_ref(), v58.as_ref());
+                        v61
                     } else {
-                        let mut v68: i32 = 0i32;
-                        let mut v69: Rc<str> = usize::try_from(v68).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                        let mut v70: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show"); } LIT.with(|lit| lit.clone()) };
-                        let mut v71: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\n<root> <id> [--json]"); } LIT.with(|lit| lit.clone()) };
-                        let mut v72: Rc<str> = v70.split("|").zip(v71.split(char::from(10u8))).find_map(|(key,item)| if key == &*v69 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-                        let mut v73: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        let mut v74: bool = v72 == v73 ;
-                        if v74 {
-                            let mut v75: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>, show <root> <id> [--json]");
-                            v75
-                        } else {
-                            let mut v76: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
-                            let mut v77: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
-                            let mut v78: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
-                            let mut v79: Rc<str> = std::rc::Rc::<str>::from([&*v76, &*v69, &*v77, &*v72, &*v78].concat());
-                            let mut v80: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
-                            let mut v81: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
-                            let mut v82: Rc<str> = std::rc::Rc::<str>::from([&*v79, &*v80, &*v81, &*v73, &*v73].concat());
-                            let mut v83: i32 = agile_mutation_error(&v82);
-                            v83
-                        }
+                        let mut v62: i32 = agile_mutation_error("begin title must contain 3..7 visible words");
+                        v62
+                    }
+                } else {
+                    let mut v64: i32 = 0i32;
+                    let mut v65: Rc<str> = usize::try_from(v64).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                    let mut v66: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags"); } LIT.with(|lit| lit.clone()) };
+                    let mut v67: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\n<root> [--dry-run|--apply]"); } LIT.with(|lit| lit.clone()) };
+                    let mut v68: Rc<str> = v66.split("|").zip(v67.split(char::from(10u8))).find_map(|(key,item)| if key == &*v65 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+                    let mut v69: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                    let mut v70: bool = v68 == v69 ;
+                    if v70 {
+                        let mut v71: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags <root> [--dry-run|--apply]");
+                        v71
+                    } else {
+                        let mut v72: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
+                        let mut v73: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
+                        let mut v74: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
+                        let mut v75: Rc<str> = std::rc::Rc::<str>::from([&*v72, &*v65, &*v73, &*v68, &*v74].concat());
+                        let mut v76: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
+                        let mut v77: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
+                        let mut v78: Rc<str> = std::rc::Rc::<str>::from([&*v75, &*v76, &*v77, &*v69, &*v69].concat());
+                        let mut v79: i32 = agile_mutation_error(&v78);
+                        v79
                     }
                 }
             }
         } else {
-            let mut v88: i32 = 4i32;
-            let mut v89: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v88 ;
-            if v89 {
-                let mut v90: i32 = 0i32;
-                let mut v91: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("list"); } LIT.with(|lit| lit.clone()) };
-                let mut v92: bool = usize::try_from(v90).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v91.as_ref());
-                if v92 {
-                    let mut v93: i32 = agile_task_listing::eoie_agile_list_run();
-                    v93
+            let mut v83: i32 = 4i32;
+            let mut v84: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v83 ;
+            if v84 {
+                let mut v85: i32 = 0i32;
+                let mut v86: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("show"); } LIT.with(|lit| lit.clone()) };
+                let mut v87: bool = usize::try_from(v85).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v86.as_ref());
+                if v87 {
+                    let mut v88: i32 = agile_task_inspection::eoie_agile_show_run();
+                    v88
                 } else {
-                    let mut v94: i32 = 0i32;
-                    let mut v95: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("show"); } LIT.with(|lit| lit.clone()) };
-                    let mut v96: bool = usize::try_from(v94).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v95.as_ref());
-                    if v96 {
-                        let mut v97: i32 = agile_task_inspection::eoie_agile_show_run();
-                        v97
+                    let mut v89: i32 = 0i32;
+                    let mut v90: Rc<str> = usize::try_from(v89).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                    let mut v91: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags"); } LIT.with(|lit| lit.clone()) };
+                    let mut v92: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\n<root> [--dry-run|--apply]"); } LIT.with(|lit| lit.clone()) };
+                    let mut v93: Rc<str> = v91.split("|").zip(v92.split(char::from(10u8))).find_map(|(key,item)| if key == &*v90 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+                    let mut v94: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                    let mut v95: bool = v93 == v94 ;
+                    if v95 {
+                        let mut v96: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags <root> [--dry-run|--apply]");
+                        v96
                     } else {
-                        let mut v98: i32 = 0i32;
-                        let mut v99: Rc<str> = usize::try_from(v98).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                        let mut v100: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show"); } LIT.with(|lit| lit.clone()) };
-                        let mut v101: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\n<root> <id> [--json]"); } LIT.with(|lit| lit.clone()) };
-                        let mut v102: Rc<str> = v100.split("|").zip(v101.split(char::from(10u8))).find_map(|(key,item)| if key == &*v99 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-                        let mut v103: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        let mut v104: bool = v102 == v103 ;
-                        if v104 {
-                            let mut v105: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>, show <root> <id> [--json]");
-                            v105
-                        } else {
-                            let mut v106: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
-                            let mut v107: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
-                            let mut v108: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
-                            let mut v109: Rc<str> = std::rc::Rc::<str>::from([&*v106, &*v99, &*v107, &*v102, &*v108].concat());
-                            let mut v110: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
-                            let mut v111: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
-                            let mut v112: Rc<str> = std::rc::Rc::<str>::from([&*v109, &*v110, &*v111, &*v103, &*v103].concat());
-                            let mut v113: i32 = agile_mutation_error(&v112);
-                            v113
-                        }
+                        let mut v97: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
+                        let mut v98: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
+                        let mut v99: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
+                        let mut v100: Rc<str> = std::rc::Rc::<str>::from([&*v97, &*v90, &*v98, &*v93, &*v99].concat());
+                        let mut v101: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
+                        let mut v102: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
+                        let mut v103: Rc<str> = std::rc::Rc::<str>::from([&*v100, &*v101, &*v102, &*v94, &*v94].concat());
+                        let mut v104: i32 = agile_mutation_error(&v103);
+                        v104
                     }
                 }
             } else {
-                let mut v117: i32 = 8i32;
-                let mut v118: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v117 ;
-                if v118 {
-                    let mut v119: i32 = 0i32;
-                    let mut v120: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("add"); } LIT.with(|lit| lit.clone()) };
-                    let mut v121: bool = usize::try_from(v119).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v120.as_ref());
-                    if v121 {
-                        let mut v122: i32 = agile_task_creation::eoie_agile_add_run();
-                        v122
+                let mut v107: i32 = 8i32;
+                let mut v108: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v107 ;
+                if v108 {
+                    let mut v109: i32 = 0i32;
+                    let mut v110: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("add"); } LIT.with(|lit| lit.clone()) };
+                    let mut v111: bool = usize::try_from(v109).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v110.as_ref());
+                    if v111 {
+                        let mut v112: i32 = agile_task_creation::eoie_agile_add_run();
+                        v112
                     } else {
-                        let mut v123: i32 = 0i32;
-                        let mut v124: Rc<str> = usize::try_from(v123).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                        let mut v125: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show"); } LIT.with(|lit| lit.clone()) };
-                        let mut v126: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\n<root> <id> [--json]"); } LIT.with(|lit| lit.clone()) };
-                        let mut v127: Rc<str> = v125.split("|").zip(v126.split(char::from(10u8))).find_map(|(key,item)| if key == &*v124 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-                        let mut v128: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        let mut v129: bool = v127 == v128 ;
-                        if v129 {
-                            let mut v130: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>, show <root> <id> [--json]");
-                            v130
+                        let mut v113: i32 = 0i32;
+                        let mut v114: Rc<str> = usize::try_from(v113).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                        let mut v115: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags"); } LIT.with(|lit| lit.clone()) };
+                        let mut v116: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\n<root> [--dry-run|--apply]"); } LIT.with(|lit| lit.clone()) };
+                        let mut v117: Rc<str> = v115.split("|").zip(v116.split(char::from(10u8))).find_map(|(key,item)| if key == &*v114 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+                        let mut v118: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                        let mut v119: bool = v117 == v118 ;
+                        if v119 {
+                            let mut v120: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags <root> [--dry-run|--apply]");
+                            v120
                         } else {
-                            let mut v131: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
-                            let mut v132: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
-                            let mut v133: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
-                            let mut v134: Rc<str> = std::rc::Rc::<str>::from([&*v131, &*v124, &*v132, &*v127, &*v133].concat());
-                            let mut v135: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
-                            let mut v136: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
-                            let mut v137: Rc<str> = std::rc::Rc::<str>::from([&*v134, &*v135, &*v136, &*v128, &*v128].concat());
-                            let mut v138: i32 = agile_mutation_error(&v137);
-                            v138
+                            let mut v121: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
+                            let mut v122: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
+                            let mut v123: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
+                            let mut v124: Rc<str> = std::rc::Rc::<str>::from([&*v121, &*v114, &*v122, &*v117, &*v123].concat());
+                            let mut v125: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
+                            let mut v126: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
+                            let mut v127: Rc<str> = std::rc::Rc::<str>::from([&*v124, &*v125, &*v126, &*v118, &*v118].concat());
+                            let mut v128: i32 = agile_mutation_error(&v127);
+                            v128
                         }
                     }
                 } else {
-                    let mut v141: i32 = 5i32;
-                    let mut v142: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v141 ;
-                    if v142 {
-                        let mut v143: i32 = 0i32;
-                        let mut v144: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("edit"); } LIT.with(|lit| lit.clone()) };
-                        let mut v145: bool = usize::try_from(v143).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v144.as_ref());
-                        if v145 {
-                            let mut v146: i32 = agile_task_revision::eoie_agile_edit_run();
-                            v146
+                    let mut v131: i32 = 5i32;
+                    let mut v132: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v131 ;
+                    if v132 {
+                        let mut v133: i32 = 0i32;
+                        let mut v134: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("edit"); } LIT.with(|lit| lit.clone()) };
+                        let mut v135: bool = usize::try_from(v133).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v134.as_ref());
+                        if v135 {
+                            let mut v136: i32 = 3i32;
+                            let mut v137: Rc<str> = usize::try_from(v136).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                            let mut v138: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("estimate|load|assignee"); } LIT.with(|lit| lit.clone()) };
+                            let mut v139: bool = v138.split("|").any(|item| item == &*v137);
+                            if v139 {
+                                let mut v140: i32 = agile_planning_revision::eoie_agile_planning_edit_run();
+                                v140
+                            } else {
+                                let mut v141: i32 = agile_task_revision::eoie_agile_edit_run();
+                                v141
+                            }
                         } else {
-                            let mut v147: i32 = 0i32;
-                            let mut v148: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("set"); } LIT.with(|lit| lit.clone()) };
-                            let mut v149: bool = usize::try_from(v147).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v148.as_ref());
-                            if v149 {
-                                let mut v150: i32 = 1i32;
-                                let mut v151: Rc<str> = usize::try_from(v150).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                                let mut v152: i32 = 2i32;
-                                let mut v153: Rc<str> = usize::try_from(v152).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                                let mut v154: i32 = 3i32;
-                                let mut v155: i32 = usize::try_from(v154).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or(-1, |value| i32::try_from(value.len()).unwrap_or(i32::MAX));
-                                let mut v156: i32 = 3i32;
-                                let mut v157: i32 = 0i32;
-                                let mut v158: i32 = usize::try_from(v156).ok().and_then(|index| std::env::args().skip(2).nth(index)).and_then(|value| usize::try_from(v157).ok().and_then(|offset| value.as_bytes().get(offset).copied())).map_or(-1, i32::from);
-                                let mut v159: bool = 48i32 <= v158;
-                                let mut v161: bool = if v159 {
-                                    let mut v160: bool = v158 <= 57i32;
-                                    v160
+                            let mut v143: i32 = 0i32;
+                            let mut v144: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("set"); } LIT.with(|lit| lit.clone()) };
+                            let mut v145: bool = usize::try_from(v143).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == v144.as_ref());
+                            if v145 {
+                                let mut v146: i32 = 1i32;
+                                let mut v147: Rc<str> = usize::try_from(v146).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                                let mut v148: i32 = 2i32;
+                                let mut v149: Rc<str> = usize::try_from(v148).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                                let mut v150: i32 = 3i32;
+                                let mut v151: i32 = usize::try_from(v150).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or(-1, |value| i32::try_from(value.len()).unwrap_or(i32::MAX));
+                                let mut v152: i32 = 3i32;
+                                let mut v153: i32 = 0i32;
+                                let mut v154: i32 = usize::try_from(v152).ok().and_then(|index| std::env::args().skip(2).nth(index)).and_then(|value| usize::try_from(v153).ok().and_then(|offset| value.as_bytes().get(offset).copied())).map_or(-1, i32::from);
+                                let mut v155: bool = 48i32 <= v154;
+                                let mut v157: bool = if v155 {
+                                    let mut v156: bool = v154 <= 57i32;
+                                    v156
                                 } else {
                                     false
                                 };
-                                let mut v164: i32 = if v161 {
-                                    let mut v162: i32 = v158 - 48;
-                                    v162
+                                let mut v160: i32 = if v157 {
+                                    let mut v158: i32 = v154 - 48;
+                                    v158
                                 } else {
-                                    let mut v163: i32 = -1;
-                                    v163
+                                    let mut v159: i32 = -1;
+                                    v159
                                 };
-                                let mut v165: i32 = 3i32;
-                                let mut v166: i32 = 1i32;
-                                let mut v167: i32 = usize::try_from(v165).ok().and_then(|index| std::env::args().skip(2).nth(index)).and_then(|value| usize::try_from(v166).ok().and_then(|offset| value.as_bytes().get(offset).copied())).map_or(-1, i32::from);
-                                let mut v168: bool = 48i32 <= v167;
-                                let mut v170: bool = if v168 {
-                                    let mut v169: bool = v167 <= 57i32;
-                                    v169
+                                let mut v161: i32 = 3i32;
+                                let mut v162: i32 = 1i32;
+                                let mut v163: i32 = usize::try_from(v161).ok().and_then(|index| std::env::args().skip(2).nth(index)).and_then(|value| usize::try_from(v162).ok().and_then(|offset| value.as_bytes().get(offset).copied())).map_or(-1, i32::from);
+                                let mut v164: bool = 48i32 <= v163;
+                                let mut v166: bool = if v164 {
+                                    let mut v165: bool = v163 <= 57i32;
+                                    v165
                                 } else {
                                     false
                                 };
-                                let mut v173: i32 = if v170 {
-                                    let mut v171: i32 = v167 - 48;
-                                    v171
+                                let mut v169: i32 = if v166 {
+                                    let mut v167: i32 = v163 - 48;
+                                    v167
                                 } else {
-                                    let mut v172: i32 = -1;
-                                    v172
+                                    let mut v168: i32 = -1;
+                                    v168
                                 };
-                                let mut v174: i32 = 3i32;
-                                let mut v175: i32 = 2i32;
-                                let mut v176: i32 = usize::try_from(v174).ok().and_then(|index| std::env::args().skip(2).nth(index)).and_then(|value| usize::try_from(v175).ok().and_then(|offset| value.as_bytes().get(offset).copied())).map_or(-1, i32::from);
-                                let mut v177: bool = 48i32 <= v176;
-                                let mut v179: bool = if v177 {
-                                    let mut v178: bool = v176 <= 57i32;
-                                    v178
+                                let mut v170: i32 = 3i32;
+                                let mut v171: i32 = 2i32;
+                                let mut v172: i32 = usize::try_from(v170).ok().and_then(|index| std::env::args().skip(2).nth(index)).and_then(|value| usize::try_from(v171).ok().and_then(|offset| value.as_bytes().get(offset).copied())).map_or(-1, i32::from);
+                                let mut v173: bool = 48i32 <= v172;
+                                let mut v175: bool = if v173 {
+                                    let mut v174: bool = v172 <= 57i32;
+                                    v174
                                 } else {
                                     false
                                 };
-                                let mut v182: i32 = if v179 {
-                                    let mut v180: i32 = v176 - 48;
-                                    v180
+                                let mut v178: i32 = if v175 {
+                                    let mut v176: i32 = v172 - 48;
+                                    v176
                                 } else {
-                                    let mut v181: i32 = -1;
-                                    v181
+                                    let mut v177: i32 = -1;
+                                    v177
                                 };
-                                let mut v183: bool = v155 == 1i32;
-                                let mut v184: bool = 0 <= v164;
-                                let mut v185: bool = v183 && v184;
-                                let mut v209: US0 = if v185 {
-                                    US0::US0_Valid(v164)
+                                let mut v179: bool = v151 == 1i32;
+                                let mut v180: bool = 0 <= v160;
+                                let mut v181: bool = v179 && v180;
+                                let mut v205: US0 = if v181 {
+                                    US0::US0_Valid(v160)
                                 } else {
-                                    let mut v187: bool = v155 == 2i32;
-                                    let mut v188: bool = 0 <= v164;
-                                    let mut v189: bool = 0 <= v173;
-                                    let mut v191: bool = if v187 {
-                                        let mut v190: bool = v188 && v189;
-                                        v190
+                                    let mut v183: bool = v151 == 2i32;
+                                    let mut v184: bool = 0 <= v160;
+                                    let mut v185: bool = 0 <= v169;
+                                    let mut v187: bool = if v183 {
+                                        let mut v186: bool = v184 && v185;
+                                        v186
                                     } else {
                                         false
                                     };
-                                    if v191 {
-                                        let mut v192: i32 = v164 * 10 + v173;
-                                        US0::US0_Valid(v192)
+                                    if v187 {
+                                        let mut v188: i32 = v160 * 10 + v169;
+                                        US0::US0_Valid(v188)
                                     } else {
-                                        let mut v194: bool = v155 == 3i32;
-                                        let mut v195: bool = 0 <= v164;
-                                        let mut v196: bool = 0 <= v173;
-                                        let mut v197: bool = 0 <= v182;
-                                        let mut v200: bool = if v194 {
-                                            if v195 {
-                                                let mut v198: bool = v196 && v197;
-                                                v198
+                                        let mut v190: bool = v151 == 3i32;
+                                        let mut v191: bool = 0 <= v160;
+                                        let mut v192: bool = 0 <= v169;
+                                        let mut v193: bool = 0 <= v178;
+                                        let mut v196: bool = if v190 {
+                                            if v191 {
+                                                let mut v194: bool = v192 && v193;
+                                                v194
                                             } else {
                                                 false
                                             }
                                         } else {
                                             false
                                         };
-                                        if v200 {
-                                            let mut v201: i32 = v164 * 100 + v173 * 10 + v182;
-                                            let mut v202: bool = v201 <= 100i32;
-                                            if v202 {
-                                                US0::US0_Valid(v201)
+                                        if v196 {
+                                            let mut v197: i32 = v160 * 100 + v169 * 10 + v178;
+                                            let mut v198: bool = v197 <= 100i32;
+                                            if v198 {
+                                                US0::US0_Valid(v197)
                                             } else {
                                                 US0::US0_Invalid
                                             }
@@ -396,34 +389,34 @@ fn agile_entry_0() -> i32 {
                                         }
                                     }
                                 };
-                                let mut v210: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Planned|Active|Blocked|Paused|Done"); } LIT.with(|lit| lit.clone()) };
-                                let mut v211: i32 = 4i32;
-                                let mut v212: Rc<str> = usize::try_from(v211).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                                let mut v213: u64 = v210.split("|").position(|item| item == &*v212).map(|index| index as u64).unwrap_or(u64::MAX);
-                                let mut v214: bool = 0u64 == v213;
-                                let mut v234: US1 = if v214 {
-                                    let mut v215: US2 = US2::US2_AgilePlanned;
-                                    US1::US1_Valid(v215.clone())
+                                let mut v206: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Planned|Active|Blocked|Paused|Done"); } LIT.with(|lit| lit.clone()) };
+                                let mut v207: i32 = 4i32;
+                                let mut v208: Rc<str> = usize::try_from(v207).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                                let mut v209: u64 = v206.split("|").position(|item| item == &*v208).map(|index| index as u64).unwrap_or(u64::MAX);
+                                let mut v210: bool = 0u64 == v209;
+                                let mut v230: US1 = if v210 {
+                                    let mut v211: US2 = US2::US2_AgilePlanned;
+                                    US1::US1_Valid(v211.clone())
                                 } else {
-                                    let mut v217: bool = 1u64 == v213;
-                                    if v217 {
-                                        let mut v218: US2 = US2::US2_AgileActive;
-                                        US1::US1_Valid(v218.clone())
+                                    let mut v213: bool = 1u64 == v209;
+                                    if v213 {
+                                        let mut v214: US2 = US2::US2_AgileActive;
+                                        US1::US1_Valid(v214.clone())
                                     } else {
-                                        let mut v220: bool = 2u64 == v213;
-                                        if v220 {
-                                            let mut v221: US2 = US2::US2_AgileBlocked;
-                                            US1::US1_Valid(v221.clone())
+                                        let mut v216: bool = 2u64 == v209;
+                                        if v216 {
+                                            let mut v217: US2 = US2::US2_AgileBlocked;
+                                            US1::US1_Valid(v217.clone())
                                         } else {
-                                            let mut v223: bool = 3u64 == v213;
-                                            if v223 {
-                                                let mut v224: US2 = US2::US2_AgilePaused;
-                                                US1::US1_Valid(v224.clone())
+                                            let mut v219: bool = 3u64 == v209;
+                                            if v219 {
+                                                let mut v220: US2 = US2::US2_AgilePaused;
+                                                US1::US1_Valid(v220.clone())
                                             } else {
-                                                let mut v226: bool = 4u64 == v213;
-                                                if v226 {
-                                                    let mut v227: US2 = US2::US2_AgileDone;
-                                                    US1::US1_Valid(v227.clone())
+                                                let mut v222: bool = 4u64 == v209;
+                                                if v222 {
+                                                    let mut v223: US2 = US2::US2_AgileDone;
+                                                    US1::US1_Valid(v223.clone())
                                                 } else {
                                                     US1::US1_Invalid
                                                 }
@@ -431,21 +424,21 @@ fn agile_entry_0() -> i32 {
                                         }
                                     }
                                 };
-                                match &v209 {
+                                match &v205 {
                                     US0::US0_Invalid => {
-                                        let mut v246: i32 = agile_mutation_error("progress must be 0..100");
-                                        v246
+                                        let mut v242: i32 = agile_mutation_error("progress must be 0..100");
+                                        v242
                                     }
-                                    US0::US0_Valid(v235) => {
-                                        let mut v235: i32 = *v235;
-                                        match &v234 {
+                                    US0::US0_Valid(v231) => {
+                                        let mut v231: i32 = *v231;
+                                        match &v230 {
                                             US1::US1_Invalid => {
-                                                let mut v243: i32 = agile_mutation_error("invalid agile status");
-                                                v243
+                                                let mut v239: i32 = agile_mutation_error("invalid agile status");
+                                                v239
                                             }
-                                            US1::US1_Valid(v236) => {
-                                                let mut v236: US2 = v236.clone();
-                                                let mut v241: i32 = match &v236 {
+                                            US1::US1_Valid(v232) => {
+                                                let mut v232: US2 = v232.clone();
+                                                let mut v237: i32 = match &v232 {
                                                     US2::US2_AgileActive => {
                                                         1i32
                                                     }
@@ -462,62 +455,93 @@ fn agile_entry_0() -> i32 {
                                                         0i32
                                                     }
                                                 };
-                                                let mut v242: i32 = mutation_agile_set_owned(v151.as_ref(), v153.as_ref(), v235, v241);
-                                                v242
+                                                let mut v238: i32 = mutation_agile_set_owned(v147.as_ref(), v149.as_ref(), v231, v237);
+                                                v238
                                             }
                                         }
                                     }
                                 }
                             } else {
-                                let mut v249: i32 = 0i32;
-                                let mut v250: Rc<str> = usize::try_from(v249).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                                let mut v251: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show"); } LIT.with(|lit| lit.clone()) };
-                                let mut v252: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\n<root> <id> [--json]"); } LIT.with(|lit| lit.clone()) };
-                                let mut v253: Rc<str> = v251.split("|").zip(v252.split(char::from(10u8))).find_map(|(key,item)| if key == &*v250 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-                                let mut v254: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                                let mut v255: bool = v253 == v254 ;
-                                if v255 {
-                                    let mut v256: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>, show <root> <id> [--json]");
-                                    v256
+                                let mut v245: i32 = 0i32;
+                                let mut v246: Rc<str> = usize::try_from(v245).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                                let mut v247: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags"); } LIT.with(|lit| lit.clone()) };
+                                let mut v248: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\n<root> [--dry-run|--apply]"); } LIT.with(|lit| lit.clone()) };
+                                let mut v249: Rc<str> = v247.split("|").zip(v248.split(char::from(10u8))).find_map(|(key,item)| if key == &*v246 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+                                let mut v250: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                                let mut v251: bool = v249 == v250 ;
+                                if v251 {
+                                    let mut v252: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags <root> [--dry-run|--apply]");
+                                    v252
                                 } else {
-                                    let mut v257: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
-                                    let mut v258: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
-                                    let mut v259: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
-                                    let mut v260: Rc<str> = std::rc::Rc::<str>::from([&*v257, &*v250, &*v258, &*v253, &*v259].concat());
-                                    let mut v261: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
-                                    let mut v262: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
-                                    let mut v263: Rc<str> = std::rc::Rc::<str>::from([&*v260, &*v261, &*v262, &*v254, &*v254].concat());
-                                    let mut v264: i32 = agile_mutation_error(&v263);
-                                    v264
+                                    let mut v253: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
+                                    let mut v254: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
+                                    let mut v255: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
+                                    let mut v256: Rc<str> = std::rc::Rc::<str>::from([&*v253, &*v246, &*v254, &*v249, &*v255].concat());
+                                    let mut v257: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
+                                    let mut v258: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
+                                    let mut v259: Rc<str> = std::rc::Rc::<str>::from([&*v256, &*v257, &*v258, &*v250, &*v250].concat());
+                                    let mut v260: i32 = agile_mutation_error(&v259);
+                                    v260
                                 }
                             }
                         }
                     } else {
-                        let mut v268: i32 = 0i32;
-                        let mut v269: Rc<str> = usize::try_from(v268).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                        let mut v270: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show"); } LIT.with(|lit| lit.clone()) };
-                        let mut v271: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>\n<root> <id> [--json]"); } LIT.with(|lit| lit.clone()) };
-                        let mut v272: Rc<str> = v270.split("|").zip(v271.split(char::from(10u8))).find_map(|(key,item)| if key == &*v269 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-                        let mut v273: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        let mut v274: bool = v272 == v273 ;
-                        if v274 {
-                            let mut v275: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags> <value>, show <root> <id> [--json]");
-                            v275
+                        let mut v264: i32 = 0i32;
+                        let mut v265: Rc<str> = usize::try_from(v264).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                        let mut v266: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags"); } LIT.with(|lit| lit.clone()) };
+                        let mut v267: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\n<root> [--dry-run|--apply]"); } LIT.with(|lit| lit.clone()) };
+                        let mut v268: Rc<str> = v266.split("|").zip(v267.split(char::from(10u8))).find_map(|(key,item)| if key == &*v265 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+                        let mut v269: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                        let mut v270: bool = v268 == v269 ;
+                        if v270 {
+                            let mut v271: i32 = agile_mutation_error("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags <root> [--dry-run|--apply]");
+                            v271
                         } else {
-                            let mut v276: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
-                            let mut v277: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
-                            let mut v278: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
-                            let mut v279: Rc<str> = std::rc::Rc::<str>::from([&*v276, &*v269, &*v277, &*v272, &*v278].concat());
-                            let mut v280: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
-                            let mut v281: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
-                            let mut v282: Rc<str> = std::rc::Rc::<str>::from([&*v279, &*v280, &*v281, &*v273, &*v273].concat());
-                            let mut v283: i32 = agile_mutation_error(&v282);
-                            v283
+                            let mut v272: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile "); } LIT.with(|lit| lit.clone()) };
+                            let mut v273: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expects "); } LIT.with(|lit| lit.clone()) };
+                            let mut v274: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(", received "); } LIT.with(|lit| lit.clone()) };
+                            let mut v275: Rc<str> = std::rc::Rc::<str>::from([&*v272, &*v265, &*v273, &*v268, &*v274].concat());
+                            let mut v276: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string());
+                            let mut v277: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" operands; see eoie agile --help"); } LIT.with(|lit| lit.clone()) };
+                            let mut v278: Rc<str> = std::rc::Rc::<str>::from([&*v275, &*v276, &*v277, &*v269, &*v269].concat());
+                            let mut v279: i32 = agile_mutation_error(&v278);
+                            v279
                         }
                     }
                 }
             }
         }
+    }
+}
+fn agile_entry_0() -> i32 {
+    let mut v0: i32 = std::env::args().skip(2).count() as i32;
+    let mut v1: bool = 2i32 <= v0;
+    if v1 {
+        let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("list|plan|migrate-tags"); } LIT.with(|lit| lit.clone()) };
+        let mut v3: i32 = 0i32;
+        let mut v4: Rc<str> = usize::try_from(v3).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+        let mut v5: u64 = v2.split("|").position(|item| item == &*v4).map(|index| index as u64).unwrap_or(u64::MAX);
+        let mut v6: bool = 0u64 == v5;
+        if v6 {
+            let mut v7: i32 = agile_task_listing::eoie_agile_list_run();
+            v7
+        } else {
+            let mut v8: bool = 1u64 == v5;
+            if v8 {
+                let mut v9: i32 = agile_planning_rollup::eoie_agile_planning_rollup_run();
+                v9
+            } else {
+                let mut v10: bool = 2u64 == v5;
+                if v10 {
+                    let mut v11: i32 = agile_planning_migration::eoie_agile_migrate_tags_run();
+                    v11
+                } else {
+                    agile_counted_entry_1()
+                }
+            }
+        }
+    } else {
+        agile_counted_entry_1()
     }
 }
 fn closure0() -> Rc<dyn Fn() -> i32> {

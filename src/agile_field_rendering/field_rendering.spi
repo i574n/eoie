@@ -91,7 +91,7 @@ inl field_value_rule = function
     | EditDifficulty => "difficulty must be D0..D8"
     | _ => "the value was rejected"
 
-inl unknown_field_rule () : string = "field must be title, title-append, kind, priority, difficulty, deps or tags"
+inl unknown_field_rule () : string = "field must be title, title-append, kind, priority, difficulty, deps, tags, estimate, load or assignee"
 
 inl rejected_token () : string = ""
 

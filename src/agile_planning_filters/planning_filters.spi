@@ -1,0 +1,49 @@
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open agile_planning_model.model
+
+union planning_filter =
+    | AnyPlanning
+    | ExactPlanning : i32
+    | RejectedPlanningFilter
+
+inl any_filter_text () : string = "all"
+
+let load_filter_of (~value : string) : planning_filter =
+    if rust_std_string.model.equals value (any_filter_text ()) then AnyPlanning
+    else
+        match parse_planned_load value with
+        | Valid load => ExactPlanning (planned_load_code load)
+        | Invalid => RejectedPlanningFilter
+
+let assignee_filter_of (~value : string) : planning_filter =
+    if rust_std_string.model.equals value (any_filter_text ()) then AnyPlanning
+    else
+        match parse_planned_assignee value with
+        | Valid assignee => ExactPlanning (planned_assignee_code assignee)
+        | Invalid => RejectedPlanningFilter
+
+inl filter_holds (filter : planning_filter) (code : i32) : bool =
+    match filter with
+    | AnyPlanning => true
+    | ExactPlanning wanted => i32_eq wanted code
+    | RejectedPlanningFilter => false
+
+inl filter_accepted (filter : planning_filter) : bool =
+    match filter with
+    | RejectedPlanningFilter => false
+    | _ => true
+
+let planning_filters_valid (~load : string) (~assignee : string) : bool =
+    if filter_accepted (load_filter_of load) then filter_accepted (assignee_filter_of assignee) else false
+
+let planning_selected (~text : string) (~id : string) (~load : string) (~assignee : string) : bool =
+    inl plan = planning_of text id
+    if filter_holds (load_filter_of load) (planned_load_code plan.load) then filter_holds (assignee_filter_of assignee) (planned_assignee_code plan.assignee) else false
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_planning_filters_valid", ((fun (load, assignee) => planning_filters_valid load assignee) : string * string -> bool))
+    !!!!Export("eoie_agile_planning_selected", ((fun (text, id, load, assignee) => planning_selected text id load assignee) : string * string * string * string -> bool))
+    inl _ = planning_filters_valid "heavy" "all"
+    inl _ = planning_selected "" "ID" "heavy" "agent"
+    0i32

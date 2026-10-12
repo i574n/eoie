@@ -22,3 +22,6 @@ agile-task-revision = { path = "../agile_task_revision" }
 agile-task-listing = { path = "../agile_task_listing" }
 agile-task-inspection = { path = "../agile_task_inspection" }
 agile-backlog-scaffold = { path = "../agile_backlog_scaffold" }
+agile-planning-revision = { path = "../agile_planning_revision" }
+agile-planning-rollup = { path = "../agile_planning_rollup" }
+agile-planning-migration = { path = "../agile_planning_migration" }

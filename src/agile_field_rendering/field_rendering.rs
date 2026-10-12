@@ -671,7 +671,7 @@ fn edit_field_rule_4(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: US0 = parse_edit_field_1(v0.clone());
     match &v1 {
         US0::US0_Invalid => {
-            let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("field must be title, title-append, kind, priority, difficulty, deps or tags"); } LIT.with(|lit| lit.clone()) };
+            let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("field must be title, title-append, kind, priority, difficulty, deps, tags, estimate, load or assignee"); } LIT.with(|lit| lit.clone()) };
             v10.clone()
         }
         US0::US0_Valid(v2) => {
