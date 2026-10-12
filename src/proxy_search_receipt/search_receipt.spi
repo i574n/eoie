@@ -1,7 +1,22 @@
 open workspace_primitives.numbers
 open workspace_primitives.clock
+open workspace_primitives.console
 
 let search_clock_ms () : u64 = unix_ms ()
+
+union receipt_stream =
+    | AfterContent
+    | BesideDigest
+
+inl emit_receipt (stream : receipt_stream) (~text : string) : i32 =
+    match stream with
+    | AfterContent => stdout_line text
+    | BesideDigest => stderr_line text
+
+inl elapsed_text (started : u64) : string = rust_std_string.model.concat5 " elapsed_ms=" (u64_text (ms_since started)) "" "" ""
+
+inl phases_text (started : u64) (serial_done : u64) (parallel_done : u64) : string =
+    rust_std_string.model.concat5 " serial_ms=" (u64_text (u64_span started serial_done)) " parallel_ms=" (u64_text (u64_span serial_done parallel_done)) ""
 
 union hit_budget =
     | AllHitsShown
@@ -16,13 +31,74 @@ inl hits_text (found : i32) (limit : i32) (budget : hit_budget) : string =
 
 let parallel_search_receipt_text (workers : i32) (found : i32) (limit : i32) (started : u64) (serial_done : u64) (parallel_done : u64) : string =
     inl head = rust_std_string.model.concat5 "eoie proxy parallel-search ok workers=" (i32_text workers) (hits_text found limit (hit_budget_of found limit)) " parity=exact ordering=deterministic excludes=.git,node_modules,build-output,symlinks" ""
-    inl phases = rust_std_string.model.concat5 " serial_ms=" (u64_text (u64_span started serial_done)) " parallel_ms=" (u64_text (u64_span serial_done parallel_done)) ""
-    rust_std_string.model.concat5 head phases " elapsed_ms=" (u64_text (ms_since started)) ""
+    rust_std_string.model.concat5 head (phases_text started serial_done parallel_done) (elapsed_text started) "" ""
+
+let fs_search_receipt_text (found : i32) (limit : i32) (started : u64) : string =
+    rust_std_string.model.concat5 "eoie proxy fs-search ok" (hits_text found limit (hit_budget_of found limit)) " excludes=.git,node_modules,build-output,symlinks" (elapsed_text started) ""
+
+union slice_extent =
+    | SliceFilled
+    | SliceReachedEnd
+
+inl slice_extent_of (shown : u64) (requested : u64) : slice_extent = if $"!shown < !requested" then SliceReachedEnd else SliceFilled
+
+inl slice_extent_text (extent : slice_extent) : string =
+    match extent with
+    | SliceFilled => ""
+    | SliceReachedEnd => " end_of_file=true"
+
+let fs_slice_receipt_text (start : u64) (shown : u64) (requested : u64) (started : u64) : string =
+    inl head = rust_std_string.model.concat5 "eoie proxy fs-slice ok start=" (u64_text start) " lines=" (u64_text shown) " requested="
+    rust_std_string.model.concat5 head (u64_text requested) (slice_extent_text (slice_extent_of shown requested)) (elapsed_text started) ""
+
+let fs_context_receipt_text (offset : u64) (window : u64) (file_bytes : u64) (started : u64) : string =
+    inl head = rust_std_string.model.concat5 "eoie proxy fs-context ok offset=" (u64_text offset) " window_bytes=" (u64_text window) " file_bytes="
+    rust_std_string.model.concat5 head (u64_text file_bytes) (elapsed_text started) "" ""
+
+inl regular_file_bytes (~path : string) : u64 = $'std::fs::metadata(&*!path).map(|meta| meta.len()).unwrap_or(0)' : u64
+
+let hash_receipt_text (~path : string) (started : u64) : string =
+    rust_std_string.model.concat5 "eoie proxy hash ok bytes=" (u64_text (regular_file_bytes path)) (elapsed_text started) "" ""
+
+let hash_tree_receipt_text (~relative : string) (started : u64) : string =
+    rust_std_string.model.concat5 "eoie proxy hash-tree ok relative=" relative (elapsed_text started) "" ""
+
+let parallel_manifest_receipt_text (workers : i32) (entries : i32) (~digest : string) (started : u64) (serial_done : u64) (parallel_done : u64) : string =
+    inl head = rust_std_string.model.concat5 "eoie proxy parallel-manifest ok workers=" (i32_text workers) " entries=" (i32_text entries) " sha256="
+    rust_std_string.model.concat5 head digest " parity=exact ordering=deterministic" (phases_text started serial_done parallel_done) (elapsed_text started)
+
+let parallel_search_receipt (workers : i32) (found : i32) (limit : i32) (started : u64) (serial_done : u64) (parallel_done : u64) : i32 =
+    emit_receipt AfterContent (parallel_search_receipt_text workers found limit started serial_done parallel_done)
+
+let fs_search_receipt (found : i32) (limit : i32) (started : u64) : i32 = emit_receipt AfterContent (fs_search_receipt_text found limit started)
+
+let fs_slice_receipt (start : u64) (shown : u64) (requested : u64) (started : u64) : i32 = emit_receipt AfterContent (fs_slice_receipt_text start shown requested started)
+
+let fs_context_receipt (offset : u64) (window : u64) (file_bytes : u64) (started : u64) : i32 = emit_receipt AfterContent (fs_context_receipt_text offset window file_bytes started)
+
+let hash_receipt (~path : string) (started : u64) : i32 = emit_receipt BesideDigest (hash_receipt_text path started)
+
+let hash_tree_receipt (~relative : string) (started : u64) : i32 = emit_receipt BesideDigest (hash_tree_receipt_text relative started)
+
+let parallel_manifest_receipt (workers : i32) (entries : i32) (~digest : string) (started : u64) (serial_done : u64) (parallel_done : u64) : i32 =
+    emit_receipt AfterContent (parallel_manifest_receipt_text workers entries digest started serial_done parallel_done)
 
 inl main () : i32 =
     !!!!Export("eoie_search_clock_ms", ((fun () => search_clock_ms ()) : () -> u64))
-    !!!!Export("eoie_parallel_search_receipt_text", ((fun (workers, found, limit, started, serial_done, parallel_done) => parallel_search_receipt_text workers found limit started serial_done parallel_done) : i32 * i32 * i32 * u64 * u64 * u64 -> string))
+    !!!!Export("eoie_parallel_search_receipt", ((fun (workers, found, limit, started, serial_done, parallel_done) => parallel_search_receipt workers found limit started serial_done parallel_done) : i32 * i32 * i32 * u64 * u64 * u64 -> i32))
+    !!!!Export("eoie_fs_search_receipt", ((fun (found, limit, started) => fs_search_receipt found limit started) : i32 * i32 * u64 -> i32))
+    !!!!Export("eoie_fs_slice_receipt", ((fun (start, shown, requested, started) => fs_slice_receipt start shown requested started) : u64 * u64 * u64 * u64 -> i32))
+    !!!!Export("eoie_fs_context_receipt", ((fun (offset, window, file_bytes, started) => fs_context_receipt offset window file_bytes started) : u64 * u64 * u64 * u64 -> i32))
+    !!!!Export("eoie_hash_receipt", ((fun (path, started) => hash_receipt path started) : string * u64 -> i32))
+    !!!!Export("eoie_hash_tree_receipt", ((fun (relative, started) => hash_tree_receipt relative started) : string * u64 -> i32))
+    !!!!Export("eoie_parallel_manifest_receipt", ((fun (workers, entries, digest, started, serial_done, parallel_done) => parallel_manifest_receipt workers entries digest started serial_done parallel_done) : i32 * i32 * string * u64 * u64 * u64 -> i32))
     inl started = search_clock_ms ()
     inl _ = parallel_search_receipt_text 56i32 7i32 50i32 started started started
     inl _ = parallel_search_receipt_text 56i32 51i32 50i32 started started started
+    inl _ = fs_search_receipt_text 7i32 50i32 started
+    inl _ = fs_slice_receipt_text 1u64 3u64 5u64 started
+    inl _ = fs_context_receipt_text 10u64 20u64 40u64 started
+    inl _ = hash_receipt_text "search_receipt.spi" started
+    inl _ = hash_tree_receipt_text "src" started
+    inl _ = parallel_manifest_receipt_text 56i32 3i32 "0000000000000000000000000000000000000000000000000000000000000000" started started started
     0i32

@@ -24,8 +24,12 @@ fn inspection_slice(args: &[String]) -> Result<(), String> {
     let path = rooted_path(root, inspection_arg(args, 2, "relative")?)?;
     let start = inspection_arg(args, 3, "start")?.parse::<usize>().map_err(|_| "invalid start".to_owned())?;
     let count = inspection_arg(args, 4, "count")?.parse::<usize>().map_err(|_| "invalid count".to_owned())?;
+    let started = proxy_search_receipt::eoie_search_clock_ms();
     let source = read_regular_text_limited(&path, inspection_text_limit())?;
-    for line in inspection_slice_lines(&source, start, count) { println!("{line}"); }
+    let lines = inspection_slice_lines(&source, start, count);
+    let shown = lines.len() as u64;
+    for line in lines { println!("{line}"); }
+    proxy_search_receipt::eoie_fs_slice_receipt(start as u64, shown, count as u64, started);
     Ok(())
 }
 
@@ -36,11 +40,13 @@ fn inspection_context(args: &[String]) -> Result<(), String> {
     let needle = inspection_arg(args, 3, "needle")?.as_bytes();
     if needle.is_empty() { return Err("needle must not be empty".to_owned()); }
     let radius = inspection_arg(args, 4, "radius-bytes")?.parse::<usize>().map_err(|_| "invalid radius-bytes".to_owned())?;
+    let started = proxy_search_receipt::eoie_search_clock_ms();
     let source = read_regular_limited(&path, inspection_text_limit())?;
     let position = source.windows(needle.len()).position(|window| window == needle).ok_or_else(|| "needle not found".to_owned())?;
     let from = position.saturating_sub(radius);
     let to = source.len().min(position + needle.len() + radius);
     println!("{}", String::from_utf8_lossy(&source[from..to]));
+    proxy_search_receipt::eoie_fs_context_receipt(position as u64, (to - from) as u64, source.len() as u64, started);
     Ok(())
 }
 
@@ -71,9 +77,12 @@ fn inspection_search(args: &[String]) -> Result<(), String> {
     let relative = inspection_arg(args, 2, "relative")?;
     let path = if eoie_proxy_search_scope_binding(relative) == 0 { root.to_path_buf() } else { rooted_path(root, relative)? };
     let limit = std::env::var("EOIE_SEARCH_MAX_HITS").ok().and_then(|value| value.parse().ok()).unwrap_or(20_000usize);
+    let started = proxy_search_receipt::eoie_search_clock_ms();
     let hits = inspection_collect(root, &path, inspection_arg(args, 3, "needle")?, limit, true, false)?;
     if hits.len() > limit { return Err(format!("search hit limit exceeded: {limit} (raise EOIE_SEARCH_MAX_HITS)")); }
+    let found = hits.len() as i32;
     for hit in hits { println!("{hit}"); }
+    proxy_search_receipt::eoie_fs_search_receipt(found, limit as i32, started);
     Ok(())
 }
 
@@ -95,7 +104,7 @@ fn inspection_parallel_search(args: &[String]) -> Result<(), String> {
     let parallel_done = proxy_search_receipt::eoie_search_clock_ms();
     if eoie_proxy_search_proxy_parallel_search_parity_binding(serial.len() as i32, parallel.len() as i32) != 1 || serial != parallel { return Err("serial and parallel search results diverged".to_owned()); }
     for hit in parallel.iter().take(limit) { println!("{hit}"); }
-    println!("{}", proxy_search_receipt::eoie_parallel_search_receipt_text(workers as i32, parallel.len() as i32, limit as i32, started, serial_done, parallel_done));
+    proxy_search_receipt::eoie_parallel_search_receipt(workers as i32, parallel.len() as i32, limit as i32, started, serial_done, parallel_done);
     Ok(())
 }
 
@@ -128,9 +137,12 @@ fn inspection_parallel_manifest(args: &[String]) -> Result<(), String> {
     let consumer = if args.len()==6 { let mode=match inspection_arg(args,4,"mode")?{"preview"=>0,"apply"=>1,_=>return Err("parallel-manifest consumer mode must be preview or apply".to_owned())}; let output=inspection_arg(args,5,"output-relative")?; let segments=std::path::Path::new(output).components().count() as i32; if eoie_proxy_search_proxy_parallel_consumer_mode_binding(mode,segments)!=1{return Err("typed parallel consumer request rejected".to_owned())} Some((mode,rooted_path(root,output)?)) } else { None };
     let workers = std::env::var("EOIE_PARALLEL_WORKERS").ok().and_then(|value| value.parse::<usize>().ok()).unwrap_or(56);
     if eoie_proxy_search_proxy_parallel_search_request_binding(0, limit as i32) != 1 || eoie_proxy_search_proxy_parallel_search_worker_binding(workers as i32, 56) != 1 { return Err("typed parallel-manifest request rejected".to_owned()); }
+    let started = proxy_search_receipt::eoie_search_clock_ms();
     let serial = manifest_collect(root, &path, limit, false)?;
+    let serial_done = proxy_search_receipt::eoie_search_clock_ms();
     let pool = rayon::ThreadPoolBuilder::new().num_threads(workers).build().map_err(|error| format!("build Rayon pool: {error}"))?;
     let parallel = pool.install(|| manifest_collect(root, &path, limit, true))?;
+    let parallel_done = proxy_search_receipt::eoie_search_clock_ms();
     let sorted = i32::from(parallel.windows(2).all(|window| window[0] <= window[1]));
     let unique = i32::from(parallel.windows(2).all(|window| window[0] != window[1]));
     let serial_hash = inspection_sha256(serial.join("\n").into_bytes());
@@ -143,7 +155,7 @@ fn inspection_parallel_manifest(args: &[String]) -> Result<(), String> {
     let payload=consumer_payload(parallel.len(),&parallel_hash);
     if let Some((mode,target))=consumer { let serial_output_hash=inspection_sha256(serial_payload.clone()); let output_hash=inspection_sha256(payload.clone()); let serial_output_prefix=i32::from_str_radix(&serial_output_hash[..7],16).map_err(|error|format!("consumer fingerprint: {error}"))?; let output_prefix=i32::from_str_radix(&output_hash[..7],16).map_err(|error|format!("consumer fingerprint: {error}"))?; if serial_payload!=payload || eoie_proxy_search_proxy_parallel_consumer_output_binding(serial_output_prefix,output_prefix)!=1{return Err("serial and parallel consumer outputs diverged".to_owned())} if mode==1 { inspection_consumer_write(&target,&payload)?; let observed=fs::read(&target).map_err(|error|format!("read {}: {error}",target.display()))?; if observed!=payload{return Err("parallel consumer bytes diverged".to_owned())} } println!("eoie proxy parallel-manifest consumer={} output={} bytes={} sha256={} manifest_sha256={}",if mode==0{"preview"}else{"apply"},target.display(),payload.len(),output_hash,parallel_hash); }
     for entry in &parallel { println!("{entry}"); }
-    println!("eoie proxy parallel-manifest ok workers={workers} entries={} sha256={parallel_hash} parity=exact ordering=deterministic", parallel.len());
+    proxy_search_receipt::eoie_parallel_manifest_receipt(workers as i32, parallel.len() as i32, &parallel_hash, started, serial_done, parallel_done);
     Ok(())
 }
 
@@ -171,7 +183,9 @@ pub fn inspection_file_sha256(path: &Path) -> Result<String, String> {
 
 fn inspection_hash(args: &[String]) -> Result<(), String> {
     let path = match args.len() { 2 => PathBuf::from(inspection_arg(args, 1, "path")?), 3 => rooted_path(Path::new(inspection_arg(args, 1, "root")?), inspection_arg(args, 2, "relative")?)?, _ => return Err("hash expects path or root, relative".to_owned()) };
+    let started = proxy_search_receipt::eoie_search_clock_ms();
     println!("{}", inspection_file_sha256(&path)?);
+    proxy_search_receipt::eoie_hash_receipt(&path.to_string_lossy(), started);
     Ok(())
 }
 
@@ -213,7 +227,9 @@ fn inspection_hash_tree(args: &[String]) -> Result<(), String> {
     let relative = inspection_arg(args, 2, "relative")?;
     let segments = Path::new(relative).components().count() as i32;
     if eoie_proxy_search_proxy_hash_tree_request_binding(i32::from(root.is_dir()), segments) != 1 { return Err("typed hash-tree request rejected".to_owned()); }
+    let started = proxy_search_receipt::eoie_search_clock_ms();
     println!("{}", inspection_tree_sha256(root, relative)?);
+    proxy_search_receipt::eoie_hash_tree_receipt(relative, started);
     Ok(())
 }
 
@@ -267,34 +283,44 @@ pub fn mnemonic_path_tag(input: &str) -> Result<String, String> {
 
 #[derive(Clone)]
 enum US0 {
-    US0_0,
-    US0_1,
-    US0_2,
-    US0_3,
-    US0_4,
+    US0_SourceDirectory,
+    US0_BuildOutputDirectory,
+    US0_VersionControlDirectory,
+    US0_PackageInstallDirectory,
+    US0_SymlinkEntry,
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0 => 0,
-            US0::US0_1 => 1,
-            US0::US0_2 => 2,
-            US0::US0_3 => 3,
-            US0::US0_4 => 4,
+            US0::US0_SourceDirectory => 0,
+            US0::US0_BuildOutputDirectory => 1,
+            US0::US0_VersionControlDirectory => 2,
+            US0::US0_PackageInstallDirectory => 3,
+            US0::US0_SymlinkEntry => 4,
         }
+    }
+}
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_SourceDirectory
     }
 }
 #[derive(Clone)]
 enum US1 {
-    US1_0,
-    US1_1,
+    US1_SearchWholeRoot,
+    US1_SearchRootedEntry,
 }
 impl US1 {
     fn tag(&self) -> i32 {
         match self {
-            US1::US1_0 => 0,
-            US1::US1_1 => 1,
+            US1::US1_SearchWholeRoot => 0,
+            US1::US1_SearchRootedEntry => 1,
         }
+    }
+}
+impl Default for US1 {
+    fn default() -> Self {
+        US1::US1_SearchWholeRoot
     }
 }
 fn path_tag_relative_packed_binding_1(mut v0: i32, mut v1: i32) -> i32 {
@@ -539,48 +565,48 @@ fn proxy_search_descends_into_26(mut v0: Rc<str>) -> bool {
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::path::Path::new(&*v0).file_name().and_then(|name| name.to_str()).unwrap_or(""));
     let mut v2: bool = std::fs::symlink_metadata(&*v0).map(|meta| meta.file_type().is_symlink()).unwrap_or(false);
     let mut v21: US0 = if v2 {
-        US0::US0_4
+        US0::US0_SymlinkEntry
     } else {
         let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".git"); } LIT.with(|lit| lit.clone()) };
         let mut v5: bool = (&*v1) == (&*v4);
         if v5 {
-            US0::US0_2
+            US0::US0_VersionControlDirectory
         } else {
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("node_modules"); } LIT.with(|lit| lit.clone()) };
             let mut v8: bool = (&*v1) == (&*v7);
             if v8 {
-                US0::US0_3
+                US0::US0_PackageInstallDirectory
             } else {
                 let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("CACHEDIR.TAG"); } LIT.with(|lit| lit.clone()) };
                 let mut v11: bool = std::path::Path::new(&*v0).join(&*v10).is_file();
                 if v11 {
-                    US0::US0_1
+                    US0::US0_BuildOutputDirectory
                 } else {
                     let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".rustc_info.json"); } LIT.with(|lit| lit.clone()) };
                     let mut v14: bool = std::path::Path::new(&*v0).join(&*v13).is_file();
                     if v14 {
-                        US0::US0_1
+                        US0::US0_BuildOutputDirectory
                     } else {
-                        US0::US0_0
+                        US0::US0_SourceDirectory
                     }
                 }
             }
         }
     };
     match &v21 {
-        US0::US0_1 => {
+        US0::US0_BuildOutputDirectory => {
             false
         }
-        US0::US0_3 => {
+        US0::US0_PackageInstallDirectory => {
             false
         }
-        US0::US0_0 => {
+        US0::US0_SourceDirectory => {
             true
         }
-        US0::US0_4 => {
+        US0::US0_SymlinkEntry => {
             false
         }
-        US0::US0_2 => {
+        US0::US0_VersionControlDirectory => {
             false
         }
     }
@@ -593,15 +619,15 @@ fn closure0() -> Rc<dyn Fn(Rc<str>) -> bool> {
 fn proxy_search_scope_binding_27(mut v0: Rc<str>) -> i32 {
     let mut v1: bool = &*v0 == ".";
     let mut v4: US1 = if v1 {
-        US1::US1_0
+        US1::US1_SearchWholeRoot
     } else {
-        US1::US1_1
+        US1::US1_SearchRootedEntry
     };
     match &v4 {
-        US1::US1_1 => {
+        US1::US1_SearchRootedEntry => {
             1i32
         }
-        US1::US1_0 => {
+        US1::US1_SearchWholeRoot => {
             0i32
         }
     }
