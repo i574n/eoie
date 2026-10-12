@@ -19,7 +19,7 @@ impl Fixture {
         let binary = env::var_os("EOIE_BIN_UNDER_TEST").map(PathBuf::from).unwrap_or_else(|| {
             env::current_exe().unwrap().parent().unwrap().parent().unwrap().join(format!("eoie{}", env::consts::EXE_SUFFIX))
         });
-        Command::new(binary).args(["agile", verb]).arg(&self.0).args(rest).output().unwrap()
+        Command::new(binary).current_dir(env::temp_dir()).args(["agile", verb]).arg(&self.0).args(rest).output().unwrap()
     }
     fn ok(&self, verb: &str, rest: &[&str]) -> String {
         let output = self.agile(verb, rest);

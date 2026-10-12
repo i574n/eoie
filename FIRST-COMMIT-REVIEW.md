@@ -4,6 +4,25 @@ Scope: the EOIE source workspace and its supported single-flight compiler
 integration. This is separate from certifying a distributable EOIE release.
 
 
+## Typed agile planning fields — October 12, afternoon
+
+**Model.** Estimate, load and assignee are typed per task: `task_load` (Light, Medium, Heavy), `task_assignee`
+(Agent, Pair, User) and the `planned_estimate`, `planned_load` and `planned_assignee` options, stored as one
+`Planning ("<id>", Minutes 360u32, Load Heavy, Assigned Agent)` row after its task. The 11-field `Task` tuple
+is unchanged, so `set`, `check`, `record`, `handoff`, the census and older binaries read a migrated backlog
+exactly as before (golden diff of every old verb, baseline against candidate, on a plain and a migrated copy
+of the live backlog: only the intended columns, fields and usage text differ).
+
+**Crates.** `agile_planning_model` (package) feeds eight owners kept apart by the 1000-line gate:
+`agile_planning_values` (value to state token), `agile_planning_rewrite` (row store), `agile_planning_fields`
+and `agile_planning_filters` (list and show), `agile_planning_tally` and `agile_planning_rollup` (`agile plan`),
+`agile_planning_revision` (`agile edit … estimate|load|assignee`) and `agile_planning_migration`
+(`agile migrate-tags`). CLI scenarios live in `agile_planning_rollup/tests/planning_cli.rs`; they run the CLI
+from the temporary directory so a committed, expired lease cannot block them.
+
+**Headroom.** The listing crate is at 956 lines and the migration crate at 988, so the next regeneration
+drift has to be absorbed by splitting, not by growth.
+
 ## Receipts batch and scripted renewal — October 12, early morning
 
 **Compiler.** A hashed snapshot of the deployed single-flight `SpiralCompiler.dll` (sha256 `7E40511B…`, built

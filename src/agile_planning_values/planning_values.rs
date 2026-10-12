@@ -376,8 +376,13 @@ fn parse_planned_estimate_4(mut v0: Rc<str>) -> US5 {
                     }
                 };
                 let mut v25: i32 = v18 * v24;
-                let mut v26: US6 = US6::US6_EstimateMinutes(v25);
-                US5::US5_Valid(v26.clone())
+                let mut v26: bool = v25 <= 999999i32;
+                if v26 {
+                    let mut v27: US6 = US6::US6_EstimateMinutes(v25);
+                    US5::US5_Valid(v27.clone())
+                } else {
+                    US5::US5_Invalid
+                }
             }
         }
     }
@@ -540,7 +545,7 @@ fn field_value_token_1(mut v0: US0, mut v1: Rc<str>) -> (i32, Rc<str>) {
                     v6.clone()
                 }
                 US0::US0_EstimateField => {
-                    let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("estimate must be whole minutes (360, 360m) or hours (6h), at most 6 digits, or none"); } LIT.with(|lit| lit.clone()) };
+                    let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("estimate must be whole minutes (360, 360m) or hours (6h), at most 999999 minutes, or none"); } LIT.with(|lit| lit.clone()) };
                     v4.clone()
                 }
                 US0::US0_LoadField => {
