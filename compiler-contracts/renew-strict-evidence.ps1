@@ -6,6 +6,7 @@ param(
     [ValidateRange(1, 56)][int]$ParallelChains = 3,
     [string]$GrowthReason,
     [string]$GrowthTask,
+    [ValidateRange(1, 86400000)][int]$TestTimeoutMs = 2700000,
     [switch]$Test
 )
 $ErrorActionPreference = 'Stop'
@@ -61,7 +62,7 @@ try {
     if ($unrenewable.Count) { throw "strict renewal: renewal cannot repair these diagnostics, fix the tree first:`n$($unrenewable -join "`n")" }
     if ($Test) {
         Write-Step 'build.ps1 -Test -CompilerContracts'
-        Invoke-Checked 'build' { & pwsh -NoProfile -File (Join-Path $EoieRoot 'build.ps1') -Test -CompilerContracts -Offline }
+        Invoke-Checked 'build' { & pwsh -NoProfile -File (Join-Path $EoieRoot 'build.ps1') -Test -CompilerContracts -Offline -TimeoutMs $TestTimeoutMs }
     }
     Write-Step 'agile begin'
     Invoke-Checked 'agile begin' { & $eoie agile begin $EoieRoot $LeaseTitle }

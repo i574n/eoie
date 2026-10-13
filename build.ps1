@@ -6,7 +6,8 @@ param(
     [string]$TargetDirectory,
     [switch]$CompilerContracts,
     [switch]$Offline,
-    [string]$SpiralCompiler
+    [string]$SpiralCompiler,
+    [ValidateRange(1, 86400000)][int]$TimeoutMs
 )
 $ErrorActionPreference = 'Stop'
 $targetRoot = if ($TargetDirectory) { [IO.Path]::GetFullPath($TargetDirectory, $PWD.Path) } else { Join-Path $PSScriptRoot 'src/target' }
@@ -28,6 +29,7 @@ if ($SkipRelease) { $arguments += '--skip-release' }
 if ($Offline) { $arguments += '--offline' }
 if ($CompilerContracts) { $arguments += '--compiler-contracts' }
 if ($SpiralCompiler) { $arguments += @('--compiler', $SpiralCompiler) }
+if ($TimeoutMs) { $arguments += @('--timeout-ms', $TimeoutMs) }
 foreach ($name in $Package) { $arguments += @('--package', $name) }
 & $driver @arguments
 if ($LASTEXITCODE -ne 0) { throw "Native Spiral developer workflow failed (exit $LASTEXITCODE)." }

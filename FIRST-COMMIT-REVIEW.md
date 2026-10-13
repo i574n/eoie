@@ -23,6 +23,11 @@ from the temporary directory so a committed, expired lease cannot block them.
 **Headroom.** The listing crate is at 956 lines and the migration crate at 988, so the next regeneration
 drift has to be absorbed by splitting, not by growth.
 
+**Evidence.** Two renewal chains stopped when the workspace `cargo test` process exceeded the driver's 900 s
+budget on a loaded machine; `renew-strict-evidence.ps1 -TestTimeoutMs` (default 45 minutes) now raises it. The
+next chain (17:43–18:19, compiler snapshot `04874C52…`): 197 tests passed, 0 failed, cold renewal of 133 owners
+(slowest 12.4 s) with identical products, `ready=True diagnostics=0`. `eoie.exe` after the chain: SHA `8E92F11E…`.
+
 ## Receipts batch and scripted renewal — October 12, early morning
 
 **Compiler.** A hashed snapshot of the deployed single-flight `SpiralCompiler.dll` (sha256 `7E40511B…`, built

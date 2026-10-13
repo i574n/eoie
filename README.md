@@ -343,7 +343,9 @@ pass. The compiler is a hashed snapshot of the single-flight build (or `-SpiralC
 so a concurrent compiler deploy cannot change it mid-run. `-Test` first runs
 `build.ps1 -Test -CompilerContracts`. The owner growth receipt is renewed with the reason
 and task of its recorded change rows unless `-GrowthReason`/`-GrowthTask` name others, and
-`-ParallelChains` bounds the cold owner replay. When a busy machine pushes an owner past the
+`-ParallelChains` bounds the cold owner replay. `-TestTimeoutMs` (default 45 minutes, passed to
+`build.ps1 -TimeoutMs`) bounds each Cargo process of the workspace test run; the driver's own
+15-minute default was exceeded on a loaded 16 GB machine. When a busy machine pushes an owner past the
 15 s cold budget, the cold renewal is retried once per halving of the parallel chains.
 
 Inspection stays available after a lease reaches its wrap guard or expires:
