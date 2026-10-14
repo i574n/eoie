@@ -1,0 +1,95 @@
+open rust_std_fs.model
+open agile_task_text.model
+open agile_note_model.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+inl argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+
+inl ascii_upper_a () : i32 = 65i32
+inl ascii_upper_z () : i32 = 90i32
+inl ascii_zero () : i32 = 48i32
+inl ascii_nine () : i32 = 57i32
+inl ascii_dash () : i32 = 45i32
+
+inl negated (value : bool) : bool = if value then false else true
+
+inl id_byte (code : i32) : bool =
+    if i32_le (ascii_upper_a ()) code then i32_le code (ascii_upper_z ())
+    elif i32_le (ascii_zero ()) code then i32_le code (ascii_nine ())
+    else i32_eq code (ascii_dash ())
+
+let rec id_bytes_valid (~text : string) (~offset : i32) (~length : i32) : bool =
+    if i32_le length offset then true
+    elif id_byte (byte_at text offset) then id_bytes_valid text (i32_next offset) length
+    else false
+
+inl id_well_formed (~id : string) : bool = if i32_le (byte_len id) 0i32 then false else id_bytes_valid id 0i32 (byte_len id)
+
+type rename_tally =
+    {
+        items : i32
+        deps_tasks : string
+        deps_count : i32
+        title_tasks : string
+        title_count : i32
+    }
+
+let binding_declared (~text : string) (~binding : string) : bool =
+    inl needle = rust_std_string.model.concat5 "\ninl " binding " (" "" ""
+    if rust_std_string.model.starts_with text (rust_std_string.model.concat5 "inl " binding " (" "" "") then true
+    else negated (i32_negative (byte_find text needle))
+
+inl starts_with_digit (~id : string) : bool =
+    inl first = byte_at id 0i32
+    if i32_le (ascii_zero ()) first then i32_le first (ascii_nine ()) else false
+
+inl renamed_text (~text : string) (~old : string) (~new : string) : string * rename_tally =
+    inl updated, items, deps_count, deps_tasks, title_count, title_tasks =
+        $'agile_rename_rewrite::eoie_agile_renamed_text(&*!text, &*!old, &*!new)' : string * i32 * i32 * string * i32 * string
+    updated, { items = items; deps_tasks = deps_tasks; deps_count = deps_count; title_tasks = title_tasks; title_count = title_count }
+inl rename_failure (~reason : string) (~old : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile rename " old " rejected: " reason "")
+
+inl dash_when_empty (~text : string) : string = if rust_std_string.model.equals text "" then "-" else text
+
+inl rename_success (~old : string) (~new : string) (tally : rename_tally) (before : u64) (after : u64) (elapsed : u64) : i32 =
+    inl head = rust_std_string.model.concat5 "eoie agile rename ok old=" old " new=" new " items="
+    inl deps = rust_std_string.model.concat5 (i32_text tally.items) " deps_rewritten=" (i32_text tally.deps_count) " deps_in=" (dash_when_empty tally.deps_tasks)
+    inl titles = rust_std_string.model.concat5 " titles_mentioning_old=" (i32_text tally.title_count) " titles_in=" (dash_when_empty tally.title_tasks) ""
+    stdout_line (rust_std_string.model.concat5 head deps titles (measured_sizes before after elapsed) "")
+
+let renamed (~root : string) (~old : string) (~new : string) : i32 =
+    inl started = unix_ms ()
+    inl state = backlog_state_path root
+    match probe (unchecked state) with
+    | FileMissing _ => rename_failure "state/agile.spi is missing" old
+    | FileReadable file =>
+        inl original = loaded_string (read_text file)
+        if negated (task_declared original old) then rename_failure "no task with this id" old
+        elif task_declared original new then rename_failure (rust_std_string.model.concat5 "the id " new " is already taken" "" "") old
+        elif binding_declared original (item_binding new) then rename_failure (rust_std_string.model.concat5 "the name inl " (item_binding new) " is already declared" "" "") old
+        elif binding_declared original (planning_binding new) then rename_failure (rust_std_string.model.concat5 "the name inl " (planning_binding new) " is already declared" "" "") old
+        else
+            inl updated, tally = renamed_text original old new
+            match state_written state original updated with
+            | StateWritten => rename_success old new tally (text_bytes original) (text_bytes updated) (ms_since started)
+            | problem => rename_failure (state_write_problem problem) old
+
+let rename_entry () : i32 =
+    inl old = argument_owned 2i32
+    inl new = argument_owned 3i32
+    if negated (i32_eq (argument_count ()) 4i32) then rename_failure "usage: agile rename <root> <old-id> <new-id>" old
+    elif negated (id_well_formed new) then rename_failure "a task id is upper-case letters, digits and -" old
+    elif starts_with_digit new then rename_failure "the new id must start with a letter, so its inl name is a valid identifier" old
+    elif rust_std_string.model.equals old new then rename_failure "the new id equals the old one" old
+    else renamed (argument_owned 1i32) old new
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_rename_run", ((fun () => rename_entry ()) : () -> i32))
+    inl _ = rename_entry ()
+    0i32

@@ -1,0 +1,202 @@
+open rust_std_fs.model
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.files
+
+type task_note =
+    {
+        at : string
+        author : string
+        text : string
+    }
+
+union item_kind =
+    | TaskItem
+    | PlanningItem
+    | NoteItem
+
+inl item_constructor = function
+    | TaskItem => "Task ("
+    | PlanningItem => "Planning ("
+    | NoteItem => "Note ("
+
+inl item_anchor (kind : item_kind) (~id : string) : string = rust_std_string.model.concat5 (item_constructor kind) "\"" id "\"," ""
+inl item_arguments_offset (kind : item_kind) : i32 = byte_len (item_constructor kind)
+
+inl item_binding (~id : string) : string = ascii_lowercase (rust_std_string.model.replace id "-" "_")
+inl planning_binding (~id : string) : string = rust_std_string.model.concat5 "planning_of_" (item_binding id) "" "" ""
+inl note_binding (~id : string) (seq : i32) : string = rust_std_string.model.concat5 "note_of_" (item_binding id) "_" (i32_text seq) ""
+
+inl note_schema () : string = "union task_note =\n    | Note :: string * u32 * string * string * string -> task_note"
+inl note_schema_marker () : string = "union task_note ="
+inl planning_union_marker () : string = "-> task_planning"
+inl agile_item_marker () : string = "-> agile_item"
+
+let note_row (~id : string) (seq : i32) (note : task_note) : string =
+    inl head = rust_std_string.model.concat5 "inl " (note_binding id seq) " () = Note (" (spi_quoted id) ", "
+    inl middle = rust_std_string.model.concat5 (i32_text seq) "u32, " (spi_quoted note.at) ", " (spi_quoted note.author)
+    rust_std_string.model.concat5 head middle ", " (spi_quoted note.text) ")"
+
+let rec declared_from (text : string) (~needle : string) (offset : i32) : i32 =
+    inl found = byte_find_from text needle offset
+    if i32_negative found then found
+    elif declared_task text found then found
+    else declared_from text needle (i32_next found)
+
+let rec declared_count (text : string) (~needle : string) (offset : i32) (counted : i32) : i32 =
+    inl found = declared_from text needle offset
+    if i32_negative found then counted else declared_count text needle (i32_next found) (i32_next counted)
+
+let rec last_declared (text : string) (~needle : string) (offset : i32) (latest : i32) : i32 =
+    inl found = declared_from text needle offset
+    if i32_negative found then latest else last_declared text needle (i32_next found) found
+
+inl item_offset (text : string) (kind : item_kind) (~id : string) : i32 = declared_from text (item_anchor kind id) 0i32
+inl task_declared (text : string) (~id : string) : bool = if i32_negative (item_offset text TaskItem id) then false else true
+inl note_count (text : string) (~id : string) : i32 = declared_count text (item_anchor NoteItem id) 0i32 0i32
+
+inl line_end_after (text : string) (offset : i32) : i32 =
+    inl found = byte_find_from text "\n" offset
+    if i32_negative found then byte_len text else found
+
+inl spliced (text : string) (start : i32) (stop : i32) (~middle : string) : string =
+    rust_std_string.model.concat5 (byte_slice text 0i32 start) middle (byte_slice text stop (byte_len text)) "" ""
+
+inl later (a : i32) (b : i32) : i32 = if i32_le a b then b else a
+
+let notes_insertion (text : string) (~id : string) : i32 =
+    inl task = item_offset text TaskItem id
+    inl planning = item_offset text PlanningItem id
+    inl note = last_declared text (item_anchor NoteItem id) 0i32 (-1i32)
+    line_end_after text (later task (later planning note))
+
+let note_schema_ensured (text : string) : string =
+    if i32_negative (byte_find text (note_schema_marker ())) then
+        inl planning = byte_find text (planning_union_marker ())
+        inl anchor = if i32_negative planning then byte_find text (agile_item_marker ()) else planning
+        if i32_negative anchor then rust_std_string.model.concat5 (note_schema ()) "\n\n" text "" ""
+        else
+            inl stop = line_end_after text anchor
+            spliced text stop stop (rust_std_string.model.concat5 "\n\n" (note_schema ()) "" "" "")
+    else text
+
+let notes_appended (text : string) (~id : string) (~rows : string) : string =
+    inl at = notes_insertion text id
+    spliced text at at (rust_std_string.model.concat5 "\n" rows "" "" "")
+
+inl ascii_n () : i32 = 110i32
+inl ascii_r () : i32 = 114i32
+inl ascii_t () : i32 = 116i32
+
+inl escape_target (text : string) (escaped : i32) : string =
+    inl code = byte_at text escaped
+    if i32_eq code (ascii_n ()) then "\n"
+    elif i32_eq code (ascii_r ()) then "\r"
+    elif i32_eq code (ascii_t ()) then "\t"
+    else byte_slice text escaped (i32_next escaped)
+
+let rec unescaped_from (~text : string) (~offset : i32) (~run_start : i32) (~length : i32) (~decoded : string) : string =
+    if i32_le length offset then rust_std_string.model.concat5 decoded (byte_slice text run_start length) "" "" ""
+    elif i32_eq (byte_at text offset) (backslash_byte ()) then
+        inl escaped = i32_next offset
+        inl resumed = i32_next escaped
+        unescaped_from text resumed resumed length (rust_std_string.model.concat5 decoded (byte_slice text run_start offset) (escape_target text escaped) "" "")
+    else unescaped_from text (i32_next offset) run_start length decoded
+
+inl quote_stripped (~token : string) : string = byte_slice token 1i32 (i32_prev (byte_len token))
+
+let unquoted (~token : string) : string =
+    inl inner = quote_stripped token
+    unescaped_from inner 0i32 0i32 (byte_len inner) ""
+
+inl item_field (text : string) (kind : item_kind) (found : i32) (position : i32) : string =
+    tuple_field text ($"!found + !(item_arguments_offset kind)" : i32) (byte_len text) position
+
+let note_at (text : string) (found : i32) : task_note =
+    { at = unquoted (item_field text NoteItem found 2i32); author = unquoted (item_field text NoteItem found 3i32); text = unquoted (item_field text NoteItem found 4i32) }
+
+inl note_line (note : task_note) : string = rust_std_string.model.concat5 note.at "  " note.author "  " note.text
+
+let note_json_at (text : string) (found : i32) : string =
+    inl field = item_field text NoteItem found
+    inl head = rust_std_string.model.concat5 "{\"at\":" (field 2i32) ",\"author\":" (field 3i32) ","
+    rust_std_string.model.concat5 head "\"text\":" (field 4i32) "}" ""
+
+let rec note_lines_from (text : string) (~needle : string) (offset : i32) (~lines : string) : string =
+    inl found = declared_from text needle offset
+    if i32_negative found then lines
+    else note_lines_from text needle (i32_next found) (rust_std_string.model.concat5 lines "\n" (note_line (note_at text found)) "" "")
+
+let rec note_json_from (text : string) (~needle : string) (offset : i32) (~items : string) (~joint : string) : string =
+    inl found = declared_from text needle offset
+    if i32_negative found then items
+    else note_json_from text needle (i32_next found) (rust_std_string.model.concat5 items joint (note_json_at text found) "" "") ","
+
+let notes_text (text : string) (~id : string) : string =
+    inl count = note_count text id
+    if i32_eq count 0i32 then ""
+    else note_lines_from text (item_anchor NoteItem id) 0i32 (rust_std_string.model.concat5 "notes (" (i32_text count) ")" "" "")
+
+let notes_json (text : string) (~id : string) : string =
+    rust_std_string.model.concat5 "\"notes\":[" (note_json_from text (item_anchor NoteItem id) 0i32 "" "") "]" "" ""
+
+inl u64_div (a : u64) (b : u64) : u64 = $"!a / !b"
+inl u64_rem (a : u64) (b : u64) : u64 = $"!a % !b"
+inl u64_add (a : u64) (b : u64) : u64 = $"!a + !b"
+inl u64_sub (a : u64) (b : u64) : u64 = $"!a - !b"
+inl u64_mul (a : u64) (b : u64) : u64 = $"!a * !b"
+inl u64_lt (a : u64) (b : u64) : bool = $"!a < !b"
+
+inl two_digits (value : u64) : string = if u64_lt value 10u64 then rust_std_string.model.concat5 "0" (u64_text value) "" "" "" else u64_text value
+
+type civil_date =
+    {
+        year : u64
+        month : u64
+        day : u64
+    }
+
+let civil_of_days (days : u64) : civil_date =
+    inl z = u64_add days 719468u64
+    inl era = u64_div z 146097u64
+    inl doe = u64_sub z (u64_mul era 146097u64)
+    inl yoe = u64_div (u64_sub (u64_add (u64_sub doe (u64_div doe 1460u64)) (u64_div doe 36524u64)) (u64_div doe 146096u64)) 365u64
+    inl doy = u64_sub doe (u64_sub (u64_add (u64_mul 365u64 yoe) (u64_div yoe 4u64)) (u64_div yoe 100u64))
+    inl mp = u64_div (u64_add (u64_mul 5u64 doy) 2u64) 153u64
+    inl day = u64_add (u64_sub doy (u64_div (u64_add (u64_mul 153u64 mp) 2u64) 5u64)) 1u64
+    inl month = if u64_lt mp 10u64 then u64_add mp 3u64 else u64_sub mp 9u64
+    inl year = u64_add (u64_add yoe (u64_mul era 400u64)) (if u64_lt month 3u64 then 1u64 else 0u64)
+    { year = year; month = month; day = day }
+
+let utc_stamp (unix_ms : u64) : string =
+    inl seconds = u64_div unix_ms 1000u64
+    inl date = civil_of_days (u64_div seconds 86400u64)
+    inl minute_of_day = u64_div (u64_rem seconds 86400u64) 60u64
+    inl head = rust_std_string.model.concat5 (u64_text date.year) "-" (two_digits date.month) "-" (two_digits date.day)
+    inl clock = rust_std_string.model.concat5 (two_digits (u64_div minute_of_day 60u64)) ":" (two_digits (u64_rem minute_of_day 60u64)) "Z" ""
+    rust_std_string.model.concat5 head "T" clock "" ""
+
+union state_write =
+    | StateWritten
+    | StateChangedSinceRead
+    | StateWriteFailed : string
+
+inl pause_marker (~path : string) : string = rust_std_string.model.concat5 path ".paused" "" "" ""
+inl pause_after_read_for_tests (~path : string) : () =
+    inl marker = pause_marker path
+    $'std::env::var("EOIE_AGILE_TEST_PAUSE_MS").ok().and_then(|value| value.parse::<u64>().ok()).map(|ms| { let _ = std::fs::write(&*!marker, b""); std::thread::sleep(std::time::Duration::from_millis(ms)); let _ = std::fs::remove_file(&*!marker); }).unwrap_or(())' : ()
+
+let state_written (~path : string) (~original : string) (~updated : string) : state_write =
+    inl _ = pause_after_read_for_tests path
+    if text_equals original path then
+        match replace_file_checked path updated with
+        | Replaced => StateWritten
+        | problem => StateWriteFailed (file_replacement_problem problem)
+    else StateChangedSinceRead
+
+inl state_write_problem = function
+    | StateWritten => ""
+    | StateChangedSinceRead => "state/agile.spi changed since it was read; nothing written, run the call again"
+    | StateWriteFailed reason => reason

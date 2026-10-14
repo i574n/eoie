@@ -88,6 +88,8 @@ let task_json (record : task_record) (~planning : string) (started : u64) : stri
 
 inl planning_summary (~text : string) (~id : string) : string = $'agile_planning_fields::eoie_agile_planning_summary(&*!text, &*!id)' : string
 inl planning_json (~text : string) (~id : string) : string = $'agile_planning_fields::eoie_agile_planning_json(&*!text, &*!id)' : string
+inl notes_text (~text : string) (~id : string) : string = $'agile_note_listing::eoie_agile_notes_text(&*!text, &*!id)' : string
+inl notes_json (~text : string) (~id : string) : string = $'agile_note_listing::eoie_agile_notes_json(&*!text, &*!id)' : string
 
 inl task_anchor (~id : string) : string = rust_std_string.model.concat5 "Task (\"" id "\"," "" ""
 
@@ -102,12 +104,13 @@ let show_receipt (record : task_record) (started : u64) : string =
     inl head = rust_std_string.model.concat5 "eoie agile show ok id=" record.id " title_bytes=" (i32_text (byte_len record.title)) " elapsed_ms="
     rust_std_string.model.concat5 head (u64_text (ms_since started)) "" "" ""
 
-let show_task (record : task_record) (~planning : string) (started : u64) : i32 =
+let show_task (record : task_record) (~planning : string) (~notes : string) (started : u64) : i32 =
     inl _ = stdout_line (task_summary record)
     inl _ = stdout_line (rust_std_string.model.concat5 "deps: " (dash_when_empty record.deps) "" "" "")
     inl _ = stdout_line (rust_std_string.model.concat5 "tags: " (dash_when_empty record.tags) "" "" "")
     inl _ = stdout_line (rust_std_string.model.concat5 "planning: " planning "" "" "")
     inl _ = stdout_line record.title
+    inl _ = if rust_std_string.model.equals notes "" then 0i32 else stdout_line notes
     stdout_line (show_receipt record started)
 
 inl agile_show_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile show " id " rejected: " reason "")
@@ -123,8 +126,8 @@ let agile_show (~root : string) (~id : string) (format : show_format) : i32 =
         else
             inl arguments = $"!found + !(task_arguments_offset ())" : i32
             match format with
-            | ShowText => show_task (task_record_at text arguments (byte_len text)) (planning_summary text id) started
-            | ShowJson => stdout_line (task_json (task_json_record_at text arguments (byte_len text)) (planning_json text id) started)
+            | ShowText => show_task (task_record_at text arguments (byte_len text)) (planning_summary text id) (notes_text text id) started
+            | ShowJson => stdout_line (task_json (task_json_record_at text arguments (byte_len text)) (rust_std_string.model.concat5 (planning_json text id) "," (notes_json text id) "" "") started)
 
 let agile_show_entry () : i32 =
     if i32_eq (argument_count ()) 3i32 then agile_show (argument_owned 1i32) (argument_owned 2i32) ShowText

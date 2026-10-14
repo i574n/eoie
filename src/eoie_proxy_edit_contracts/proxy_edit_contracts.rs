@@ -31,7 +31,7 @@ fn fs_write(root: &Path, relative: &str, flags: &[&str], text: &str) -> Output {
 
 fn temporary(label: &str) -> PathBuf {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH).expect("clock").as_nanos();
-    let root = env::temp_dir().join(format!("eoie-proxy-edit-{label}-{}-{stamp}", std::process::id()));
+    let root = env::temp_dir().join(format!("eoie-proxy-edit~{label}-{}-{stamp}", std::process::id()));
     fs::create_dir_all(&root).expect("fixture root");
     root
 }

@@ -1,0 +1,8 @@
+open agile_note_model.model
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_notes_text", ((fun (text, id) => notes_text text id) : string * string -> string))
+    !!!!Export("eoie_agile_notes_json", ((fun (text, id) => notes_json text id) : string * string -> string))
+    inl _ = notes_text "" "X"
+    inl _ = notes_json "" "X"
+    0i32

@@ -1,0 +1,68 @@
+open rust_std_fs.model
+open agile_task_text.model
+open agile_note_model.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+inl argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+
+inl default_author () : string = "user"
+
+union note_author_choice =
+    | AuthorDefault
+    | AuthorNamed : string
+    | AuthorMalformed
+
+inl author_choice () : note_author_choice =
+    inl count = argument_count ()
+    if i32_eq count 4i32 then AuthorDefault
+    elif i32_eq count 6i32 then
+        if rust_std_string.model.equals (argument_owned 4i32) "--as" then
+            inl named = rust_std_string.model.trim (argument_owned 5i32)
+            if rust_std_string.model.equals named "" then AuthorMalformed else AuthorNamed named
+        else AuthorMalformed
+    else AuthorMalformed
+
+inl note_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile note " id " rejected: " reason "")
+
+inl note_success (~id : string) (seq : i32) (note : task_note) (before : u64) (after : u64) (elapsed : u64) : i32 =
+    inl head = rust_std_string.model.concat5 "eoie agile note ok id=" id " note=" (i32_text seq) " at="
+    inl middle = rust_std_string.model.concat5 note.at " author=" (spi_quoted note.author) " text_bytes=" (i32_text (byte_len note.text))
+    stdout_line (rust_std_string.model.concat5 head middle (measured_sizes before after elapsed) "" "")
+
+let note_added (~root : string) (~id : string) (~author : string) (~body : string) : i32 =
+    inl started = unix_ms ()
+    inl state = backlog_state_path root
+    match probe (unchecked state) with
+    | FileMissing _ => note_failure "state/agile.spi is missing" id
+    | FileReadable file =>
+        inl original = loaded_string (read_text file)
+        if task_declared original id then
+            inl schema_ready = note_schema_ensured original
+            inl seq = i32_next (note_count schema_ready id)
+            inl note = { at = utc_stamp started; author = author; text = body }
+            inl updated = notes_appended schema_ready id (note_row id seq note)
+            match state_written state original updated with
+            | StateWritten => note_success id seq note (text_bytes original) (text_bytes updated) (ms_since started)
+            | problem => note_failure (state_write_problem problem) id
+        else note_failure "no task with this id" id
+
+let note_entry () : i32 =
+    inl id = argument_owned 2i32
+    inl body = rust_std_string.model.trim (argument_owned 3i32)
+    if rust_std_string.model.equals body "" then note_failure "the note text is empty" id
+    else
+        match author_choice () with
+        | AuthorDefault => note_added (argument_owned 1i32) id (default_author ()) body
+        | AuthorNamed author => note_added (argument_owned 1i32) id author body
+        | AuthorMalformed => note_failure "usage: agile note <root> <id> <text> [--as <author>]" id
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_note_run", ((fun () => note_entry ()) : () -> i32))
+    inl _ = note_entry ()
+    0i32

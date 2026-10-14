@@ -391,6 +391,14 @@ per status, load, assignee and epic (the epic itself plus tasks whose deps name 
 `agile migrate-tags <root>` previews moving `est:`, `load:` and `agent:yes|pair|no` tags into
 these fields; `--apply` writes it once (the tag value wins, unparseable tags stay as tags) and a
 second run changes nothing.
+`agile note <root> <id> <text> [--as <author>]` appends a dated note (`Note` items with id,
+sequence, UTC instant, author and text, kept after the task's lines; the `task_note` union is added
+on first use), and `agile show` prints the notes under the title (`--json`: a `notes` array).
+`agile notes from-title <root> <id>` keeps the title up to its first `"; "` and moves every tail
+into a note, dated from a leading `yyyy-MM-dd HH:mm` or `HH:mm` stamp (author `migrated`).
+`agile rename <root> <old-id> <new-id>` renames the task, its planning and notes, and every `deps`
+entry that names it, in one write; titles that mention the old id are counted, not changed. Each of
+these writes only if `state/agile.spi` still holds what the call read.
 
 See [README.windows.md](README.windows.md) for Windows filesystem and process details.
 See [FIRST-COMMIT-REVIEW.md](FIRST-COMMIT-REVIEW.md) for validation and remaining release scope.

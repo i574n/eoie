@@ -54,12 +54,14 @@ inl agile_add (~root : string) (~id : string) kind priority difficulty (~title :
             | Replaced => agile_add_success id (task_binding id) (text_bytes original) (text_bytes updated) (ms_since started)
             | problem => agile_add_failure (file_replacement_problem problem) id
 let agile_add_entry () : i32 =
-    match validate_task_id (), parse_task_kind (argument_owned 3i32), parse_priority (argument_owned 4i32), parse_difficulty (argument_owned 5i32) with
-    | Valid id, Valid kind, Valid priority, Valid difficulty => agile_add (argument_owned 1i32) id kind priority difficulty (argument_owned 6i32) (argument_owned 7i32)
-    | Invalid, _, _, _ => agile_add_failure "the id must be uppercase letters, digits and dashes" (argument_owned 2i32)
-    | _, Invalid, _, _ => agile_add_failure "kind must be Epic, Feature, Story or TaskKind" (argument_owned 2i32)
-    | _, _, Invalid, _ => agile_add_failure "priority must be P0..P5" (argument_owned 2i32)
-    | _, _, _, Invalid => agile_add_failure "difficulty must be D0..D8" (argument_owned 2i32)
+    if i32_digit (argument_byte 2i32 0i32) then agile_add_failure "the id must start with a letter, so its inl name is a valid identifier" (argument_owned 2i32)
+    else
+        match validate_task_id (), parse_task_kind (argument_owned 3i32), parse_priority (argument_owned 4i32), parse_difficulty (argument_owned 5i32) with
+        | Valid id, Valid kind, Valid priority, Valid difficulty => agile_add (argument_owned 1i32) id kind priority difficulty (argument_owned 6i32) (argument_owned 7i32)
+        | Invalid, _, _, _ => agile_add_failure "the id must be uppercase letters, digits and dashes" (argument_owned 2i32)
+        | _, Invalid, _, _ => agile_add_failure "kind must be Epic, Feature, Story or TaskKind" (argument_owned 2i32)
+        | _, _, Invalid, _ => agile_add_failure "priority must be P0..P5" (argument_owned 2i32)
+        | _, _, _, Invalid => agile_add_failure "difficulty must be D0..D8" (argument_owned 2i32)
 
 inl main () : i32 =
     !!!!Export("eoie_agile_add_run", ((fun () => agile_add_entry ()) : () -> i32))

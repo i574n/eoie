@@ -97,43 +97,51 @@ fn show_receipt_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<
     let mut v19: Rc<str> = std::rc::Rc::<str>::from([&*v15, &*v17, &*v18, &*v18, &*v18].concat());
     v19.clone()
 }
-fn show_task_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: Rc<str>, mut v8: Rc<str>, mut v9: Rc<str>, mut v10: u64) -> i32 {
-    let mut v11: Rc<str> = task_summary_3(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone());
-    let mut v12: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v11.to_string() + "
+fn show_task_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: Rc<str>, mut v8: Rc<str>, mut v9: Rc<str>, mut v10: Rc<str>, mut v11: u64) -> i32 {
+    let mut v12: Rc<str> = task_summary_3(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone());
+    let mut v13: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v12.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deps: "); } LIT.with(|lit| lit.clone()) };
-    let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v15: bool = v7 == v14 ;
-    let mut v17: Rc<str> = if v15 {
-        let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
-        v16.clone()
+    let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deps: "); } LIT.with(|lit| lit.clone()) };
+    let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+    let mut v16: bool = v7 == v15 ;
+    let mut v18: Rc<str> = if v16 {
+        let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
+        v17.clone()
     } else {
         v7.clone()
     };
-    let mut v18: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v17, &*v14, &*v14, &*v14].concat());
-    let mut v19: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v18.to_string() + "
+    let mut v19: Rc<str> = std::rc::Rc::<str>::from([&*v14, &*v18, &*v15, &*v15, &*v15].concat());
+    let mut v20: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v19.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tags: "); } LIT.with(|lit| lit.clone()) };
-    let mut v21: bool = v8 == v14 ;
-    let mut v23: Rc<str> = if v21 {
-        let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
-        v22.clone()
+    let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tags: "); } LIT.with(|lit| lit.clone()) };
+    let mut v22: bool = v8 == v15 ;
+    let mut v24: Rc<str> = if v22 {
+        let mut v23: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
+        v23.clone()
     } else {
         v8.clone()
     };
-    let mut v24: Rc<str> = std::rc::Rc::<str>::from([&*v20, &*v23, &*v14, &*v14, &*v14].concat());
-    let mut v25: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v24.to_string() + "
+    let mut v25: Rc<str> = std::rc::Rc::<str>::from([&*v21, &*v24, &*v15, &*v15, &*v15].concat());
+    let mut v26: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v25.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("planning: "); } LIT.with(|lit| lit.clone()) };
-    let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v26, &*v9, &*v14, &*v14, &*v14].concat());
-    let mut v28: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v27.to_string() + "
+    let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("planning: "); } LIT.with(|lit| lit.clone()) };
+    let mut v28: Rc<str> = std::rc::Rc::<str>::from([&*v27, &*v9, &*v15, &*v15, &*v15].concat());
+    let mut v29: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v28.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v29: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v1.to_string() + "
+    let mut v30: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v1.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    let mut v30: Rc<str> = show_receipt_4(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone(), v10);
-    let mut v31: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v30.to_string() + "
+    let mut v31: bool = v10 == v15 ;
+    let mut v33: i32 = if v31 {
+        0i32
+    } else {
+        let mut v32: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v10.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-    v31
+        v32
+    };
+    let mut v34: Rc<str> = show_receipt_4(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone(), v11);
+    let mut v35: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v34.to_string() + "
+").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
+    v35
 }
 fn field_end_7(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US2) -> i32 {
     loop {
@@ -532,19 +540,23 @@ fn agile_show_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US0) -> i32 {
                 let mut v29: i32 = v22 + 6i32;
                 match &v2 {
                     US0::US0_ShowJson => {
-                        let mut v42: i32 = v18.len() as i32;
-                        let (mut v43, mut v44, mut v45, mut v46, mut v47, mut v48, mut v49, mut v50, mut v51): (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) = task_json_record_at_5(v18.clone(), v29, v42);
-                        let mut v52: Rc<str> = agile_planning_fields::eoie_agile_planning_json(&*v18, &*v1);
-                        let mut v53: Rc<str> = task_json_9(v43.clone(), v44.clone(), v45.clone(), v46.clone(), v47.clone(), v48.clone(), v49.clone(), v50.clone(), v51.clone(), v52.clone(), v3);
-                        let mut v54: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v53.to_string() + "
+                        let mut v43: i32 = v18.len() as i32;
+                        let (mut v44, mut v45, mut v46, mut v47, mut v48, mut v49, mut v50, mut v51, mut v52): (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) = task_json_record_at_5(v18.clone(), v29, v43);
+                        let mut v53: Rc<str> = agile_planning_fields::eoie_agile_planning_json(&*v18, &*v1);
+                        let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
+                        let mut v55: Rc<str> = agile_note_listing::eoie_agile_notes_json(&*v18, &*v1);
+                        let mut v56: Rc<str> = std::rc::Rc::<str>::from([&*v53, &*v54, &*v55, &*v5, &*v5].concat());
+                        let mut v57: Rc<str> = task_json_9(v44.clone(), v45.clone(), v46.clone(), v47.clone(), v48.clone(), v49.clone(), v50.clone(), v51.clone(), v52.clone(), v56.clone(), v3);
+                        let mut v58: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v57.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-                        v54
+                        v58
                     }
                     US0::US0_ShowText => {
                         let mut v30: i32 = v18.len() as i32;
                         let (mut v31, mut v32, mut v33, mut v34, mut v35, mut v36, mut v37, mut v38, mut v39): (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) = task_record_at_10(v18.clone(), v29, v30);
                         let mut v40: Rc<str> = agile_planning_fields::eoie_agile_planning_summary(&*v18, &*v1);
-                        show_task_2(v31.clone(), v32.clone(), v33.clone(), v34.clone(), v35.clone(), v36.clone(), v37.clone(), v38.clone(), v39.clone(), v40.clone(), v3)
+                        let mut v41: Rc<str> = agile_note_listing::eoie_agile_notes_text(&*v18, &*v1);
+                        show_task_2(v31.clone(), v32.clone(), v33.clone(), v34.clone(), v35.clone(), v36.clone(), v37.clone(), v38.clone(), v39.clone(), v40.clone(), v41.clone(), v3)
                     }
                 }
             }

@@ -24,6 +24,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "agile-note-listing"
+version = "0.0.0"
+
+[[package]]
 name = "agile-planning-fields"
 version = "0.0.0"
 
@@ -73,6 +77,10 @@ name = "agile-record-catalog"
 version = "0.0.0"
 
 [[package]]
+name = "agile-rename-rewrite"
+version = "0.0.0"
+
+[[package]]
 name = "agile-state-decision-domain"
 version = "0.0.0"
 
@@ -96,6 +104,7 @@ version = "0.0.0"
 name = "agile-task-inspection"
 version = "0.0.0"
 dependencies = [
+ "agile-note-listing",
  "agile-planning-fields",
 ]
 
@@ -109,11 +118,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "agile-task-notes"
+version = "0.0.0"
+
+[[package]]
+name = "agile-task-rename"
+version = "0.0.0"
+dependencies = [
+ "agile-rename-rewrite",
+]
+
+[[package]]
 name = "agile-task-revision"
 version = "0.0.0"
 dependencies = [
  "agile-field-rendering",
 ]
+
+[[package]]
+name = "agile-title-notes"
+version = "0.0.0"
+dependencies = [
+ "agile-title-tails",
+]
+
+[[package]]
+name = "agile-title-tails"
+version = "0.0.0"
 
 [[package]]
 name = "agile-update-receipt"
@@ -253,7 +284,10 @@ dependencies = [
  "agile-task-creation",
  "agile-task-inspection",
  "agile-task-listing",
+ "agile-task-notes",
+ "agile-task-rename",
  "agile-task-revision",
+ "agile-title-notes",
  "eoie-agile-lease",
  "eoie-agile-state",
  "eoie-handoff",

@@ -25,3 +25,6 @@ agile-backlog-scaffold = { path = "../agile_backlog_scaffold" }
 agile-planning-revision = { path = "../agile_planning_revision" }
 agile-planning-rollup = { path = "../agile_planning_rollup" }
 agile-planning-migration = { path = "../agile_planning_migration" }
+agile-task-notes = { path = "../agile_task_notes" }
+agile-title-notes = { path = "../agile_title_notes" }
+agile-task-rename = { path = "../agile_task_rename" }

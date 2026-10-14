@@ -32,7 +32,7 @@ inl proxy_flags_follow (index : i32) : bool = $'std::env::args().nth(2 + !index 
 inl proxy_argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
 
 inl proxy_words (first : i32) (last : i32) : string =
-    $'std::rc::Rc::<str>::from(std::env::args().skip(2 + !first as usize).take((!last - !first).max(0) as usize).map(|word| Some(word.clone()).filter(|plain| plain.is_empty() == false && plain.chars().all(|c| c.is_ascii_alphanumeric() || "_-./:=+,".contains(c) || c == char::from(92u8))).unwrap_or_else(|| [String::from(char::from(39u8)), word.replace(char::from(39u8), &String::from_iter([char::from(39u8); 2])), String::from(char::from(39u8))].concat())).collect::<Vec<_>>().join(" ").as_str())' : string
+    $'std::rc::Rc::<str>::from(std::env::args().skip(2 + !first as usize).take((!last - !first).max(0) as usize).map(|word| Some(word.clone()).filter(|plain| plain.is_empty() == false && plain.chars().enumerate().all(|(at, c)| c.is_ascii_alphanumeric() || "_-./:=+,".contains(c) || c == char::from(92u8) || (c == char::from(126u8) && at > 0))).unwrap_or_else(|| [String::from(char::from(39u8)), word.replace(char::from(39u8), &String::from_iter([char::from(39u8); 2])), String::from(char::from(39u8))].concat())).collect::<Vec<_>>().join(" ").as_str())' : string
 
 inl joined (~a : string) (~b : string) (~c : string) : string = $'std::rc::Rc::<str>::from([&*!a, &*!b, &*!c].concat().as_str())' : string
 
