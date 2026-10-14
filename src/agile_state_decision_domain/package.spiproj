@@ -1,0 +1,5 @@
+packages:
+    state_series_contract
+    rust_std_string
+modules:
+    main

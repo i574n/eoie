@@ -27,4 +27,5 @@ path = "dev.rs"
 [dependencies]
 eoie-process = { path = "../eoie_process" }
 predicate-lex-domain = { path = "../predicate_lex_domain" }
+predicate-literal-domain = { path = "../predicate_literal_domain" }
 developer-metadata-domain = { path = "../developer_metadata_domain" }

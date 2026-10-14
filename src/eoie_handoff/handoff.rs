@@ -134,7 +134,7 @@ pub fn release_closeout_run(args:&[String])->Result<(),String>{if args.len()!=12
 if eoie_handoff_release_closeout_mode_binding(1,3)!=1{return Err("typed closeout apply rejected".to_owned())}
 if let Some(parent)=receipt.parent(){fs::create_dir_all(parent).map_err(|e|format!("create {}: {e}",parent.display()))?}binary_install_atomic_write(&receipt,body.as_bytes())?;let verification=if release_closeout_fault(){Err("injected release closeout fault after-write".to_owned())}else{fs::read(&receipt).map_err(|e|format!("readback closeout {}: {e}",receipt.display())).and_then(|observed|if observed==body.as_bytes(){Ok(())}else{Err("release closeout runtime readback mismatch".to_owned())})};if let Err(error)=verification{let _=binary_install_restore(&receipt,original.as_ref());return Err(format!("release closeout rolled back: {error}"))}let installed=fs::read(&receipt).map_err(|e|format!("read {}: {e}",receipt.display()))?;let registry_ok=i32::from(installed.windows(registry_hash.len()).any(|window|window==registry_hash.as_bytes()));let commit_mask=i32::from(installed==body.as_bytes())+2+4*registry_ok;if eoie_handoff_release_closeout_commit_binding(commit_mask,7)!=1{let _=binary_install_restore(&receipt,original.as_ref());return Err("typed release closeout completion rejected rollback=restored".to_owned())}let proof_refresh=eoie_source_topology::refresh_authority_census(root).and_then(|_|cold_proof_domain::refresh_cold_proof_census_gate(root));if let Err(error)=proof_refresh{let _=binary_install_restore(&receipt,original.as_ref());let _=binary_install_atomic_write(&census_path,&census_original);let _=binary_install_atomic_write(&cold_proof_path,&cold_proof_original);let _=binary_install_atomic_write(&evidence_path,&evidence_original);return Err(format!("release closeout proof refresh failed rollback=restored: {error}"))}let refreshed_cold_hash=match eoie_proxy_search::inspection_file_sha256(&cold_proof_path){Ok(hash)=>hash,Err(error)=>{let _=binary_install_restore(&receipt,original.as_ref());let _=binary_install_atomic_write(&census_path,&census_original);let _=binary_install_atomic_write(&cold_proof_path,&cold_proof_original);let _=binary_install_atomic_write(&evidence_path,&evidence_original);return Err(format!("release closeout attested cold-proof hash failed rollback=restored: {error}"))}};let mut attested_gates=gates.clone();for gate in &mut attested_gates{if gate.0=="contracts"{gate.3=refreshed_cold_hash.clone();}}let attested_canonical=attested_gates.iter().map(|(n,_,p,h)|format!("{n}|{p}|{h}\n")).collect::<String>();let attested_registry_hash=eoie_proxy_search::inspection_sha256(attested_canonical.into_bytes());let attested_body=release_closeout_body(observed,&attested_gates,&attested_registry_hash);if let Err(error)=binary_install_atomic_write(&receipt,attested_body.as_bytes()){let _=binary_install_restore(&receipt,original.as_ref());let _=binary_install_atomic_write(&census_path,&census_original);let _=binary_install_atomic_write(&cold_proof_path,&cold_proof_original);let _=binary_install_atomic_write(&evidence_path,&evidence_original);return Err(format!("release closeout attested reseal failed rollback=restored: {error}"))}let installed=match fs::read(&receipt){Ok(value)=>value,Err(error)=>{let _=binary_install_restore(&receipt,original.as_ref());let _=binary_install_atomic_write(&census_path,&census_original);let _=binary_install_atomic_write(&cold_proof_path,&cold_proof_original);let _=binary_install_atomic_write(&evidence_path,&evidence_original);return Err(format!("release closeout attested readback failed rollback=restored: {error}"))}};let installed_hash=eoie_proxy_search::inspection_sha256(installed.clone());let registry_ok=i32::from(installed.windows(attested_registry_hash.len()).any(|window|window==attested_registry_hash.as_bytes()));let commit_mask=i32::from(installed==attested_body.as_bytes())+2+4*registry_ok;if eoie_handoff_release_closeout_commit_binding(commit_mask,7)!=1{let _=binary_install_restore(&receipt,original.as_ref());let _=binary_install_atomic_write(&census_path,&census_original);let _=binary_install_atomic_write(&cold_proof_path,&cold_proof_original);let _=binary_install_atomic_write(&evidence_path,&evidence_original);return Err("typed attested release closeout completion rejected rollback=restored".to_owned())}let refresh_mask=match evidence_currentness_domain::refresh_release_closeout_evidence(root,&installed_hash,installed.len() as u64){Ok(mask)=>mask,Err(error)=>{let _=binary_install_restore(&receipt,original.as_ref());let _=binary_install_atomic_write(&census_path,&census_original);let _=binary_install_atomic_write(&cold_proof_path,&cold_proof_original);let _=binary_install_atomic_write(&evidence_path,&evidence_original);return Err(format!("release closeout evidence refresh failed rollback=restored: {error}"))}};if eoie_handoff_release_closeout_refresh_binding(refresh_mask,127)!=1{let _=binary_install_restore(&receipt,original.as_ref());let _=binary_install_atomic_write(&census_path,&census_original);let _=binary_install_atomic_write(&cold_proof_path,&cold_proof_original);let _=binary_install_atomic_write(&evidence_path,&evidence_original);return Err(format!("typed release closeout evidence refresh rejected mask={refresh_mask} rollback=restored"))}println!("eoie proxy release-closeout apply ok receipt={} migration={observed} gates=6 registry_sha256={attested_registry_hash} receipt_sha256={installed_hash} evidence_refresh=true mutation=true",receipt.display());Ok(())}
 
-fn method1(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
+fn loop_1(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
     loop {
         let mut v3: bool = v2 == v1;
         if v3 {
@@ -202,22 +202,22 @@ fn method1(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
         }
     }
 }
-fn method0(mut v0: Rc<str>) -> bool {
+fn check_0(mut v0: Rc<str>) -> bool {
     let mut v1: u64 = (v0.clone().len() as u64);
     let mut v2: bool = 1u64 <= v1;
     if v2 {
         let mut v3: u64 = 0u64;
-        method1(v0.clone(), v1, v3)
+        loop_1(v0.clone(), v1, v3)
     } else {
         false
     }
 }
 fn closure0() -> Rc<dyn Fn(Rc<str>) -> bool> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> bool> = Rc::new(move |mut v0: Rc<str>| -> bool {
-        method0(v0.clone())
+        check_0(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method3(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
+fn loop_3(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
     loop {
         let mut v3: bool = v2 == v1;
         if v3 {
@@ -263,7 +263,7 @@ fn method3(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
         }
     }
 }
-fn method2(mut v0: Rc<str>) -> bool {
+fn check_2(mut v0: Rc<str>) -> bool {
     let mut v1: u64 = (v0.clone().len() as u64);
     let mut v2: bool = v1 < 64u64;
     let mut v4: bool = if v2 {
@@ -274,17 +274,17 @@ fn method2(mut v0: Rc<str>) -> bool {
     };
     if v4 {
         let mut v5: u64 = 0u64;
-        method3(v0.clone(), v1, v5)
+        loop_3(v0.clone(), v1, v5)
     } else {
         false
     }
 }
 fn closure1() -> Rc<dyn Fn(Rc<str>) -> bool> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> bool> = Rc::new(move |mut v0: Rc<str>| -> bool {
-        method2(v0.clone())
+        check_2(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn binary_install_shape_binding_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -297,7 +297,7 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn binary_install_source_binding_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -315,7 +315,7 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
+fn binary_install_freshness_binding_6(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -348,7 +348,7 @@ fn method6(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
+fn binary_install_running_destination_binding_7(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 < 1i32;
     if v2 {
         0i32
@@ -366,7 +366,7 @@ fn method7(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
+fn binary_install_permission_binding_8(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -379,7 +379,7 @@ fn method8(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
+fn binary_install_mode_binding_9(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -417,7 +417,7 @@ fn method9(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method10(mut v0: i32, mut v1: i32) -> i32 {
+fn binary_install_commit_binding_10(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -435,7 +435,7 @@ fn method10(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
+fn release_closeout_shape_binding_11(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 63i32;
     if v2 {
         0i32
@@ -458,7 +458,7 @@ fn method11(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method12(mut v0: i32, mut v1: i32) -> i32 {
+fn release_closeout_migration_binding_12(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -481,7 +481,7 @@ fn method12(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method13(mut v0: i32, mut v1: i32) -> i32 {
+fn release_closeout_evidence_binding_13(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 7i32;
     if v2 {
         0i32
@@ -504,7 +504,7 @@ fn method13(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method14(mut v0: i32, mut v1: i32) -> i32 {
+fn release_closeout_mode_binding_14(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -542,7 +542,7 @@ fn method14(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method15(mut v0: i32, mut v1: i32) -> i32 {
+fn release_closeout_commit_binding_15(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 7i32;
     if v2 {
         0i32
@@ -565,7 +565,7 @@ fn method15(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method16(mut v0: i32, mut v1: i32) -> i32 {
+fn release_closeout_refresh_binding_16(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 127i32;
     if v2 {
         0i32
@@ -590,67 +590,67 @@ fn method16(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
+        binary_install_shape_binding_4(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
+        binary_install_source_binding_5(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method6(v0, v1)
+        binary_install_freshness_binding_6(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method7(v0, v1)
+        binary_install_running_destination_binding_7(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method8(v0, v1)
+        binary_install_permission_binding_8(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method9(v0, v1)
+        binary_install_mode_binding_9(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method10(v0, v1)
+        binary_install_commit_binding_10(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method11(v0, v1)
+        release_closeout_shape_binding_11(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure10() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method12(v0, v1)
+        release_closeout_migration_binding_12(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure11() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method13(v0, v1)
+        release_closeout_evidence_binding_13(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure12() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method14(v0, v1)
+        release_closeout_mode_binding_14(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure13() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method15(v0, v1)
+        release_closeout_commit_binding_15(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure14() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method16(v0, v1)
+        release_closeout_refresh_binding_16(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn binary_install_safe_text(v0: &str) -> bool {

@@ -1,5 +1,10 @@
 # EOIE source workspace
 
+Every eoie operation is one call: a patch batch, a multi-file write or a gated
+change is passed inline and validated, rehearsed and applied by that same call,
+with one receipt. A verb that needs a plan file written first, or separate
+check/rehearse/apply calls, does not meet this rule (EOIE-ONE-CALL).
+
 This repository is the source workspace extracted from the EOIE bundle. Generated
 Rust is checked in so a normal build does not require a Spiral compiler. New
 application policy, migration tools and test scenarios belong in native Spiral.

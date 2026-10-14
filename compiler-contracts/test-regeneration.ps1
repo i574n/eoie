@@ -12,7 +12,8 @@ param(
     [switch]$SkipRelease,
     [switch]$Publish,
     [switch]$CompilerContracts,
-    [switch]$Offline
+    [switch]$Offline,
+    [switch]$KeepStaged
 )
 $ErrorActionPreference = 'Stop'
 if ($TargetDirectory) { $TargetDirectory = [IO.Path]::GetFullPath($TargetDirectory, $PWD.Path) }
@@ -27,7 +28,11 @@ $CompilerBundle = Resolve-EoieSpiralBundle $CompilerBundle
 . (Join-Path $CompilerBundle 'scripts/env.ps1')
 $dotnet = Resolve-SpiralDotnet
 $compiler = Get-SpiralCompilerDll 'single-flight'
-$work = Join-Path (Get-SpiralCacheDir) ('eoie-regeneration/' + [guid]::NewGuid().ToString('N'))
+$regenerationRoot = Join-Path (Get-SpiralCacheDir) 'eoie-regeneration'
+foreach ($stale in @(Get-ChildItem -LiteralPath $regenerationRoot -Directory -ErrorAction SilentlyContinue | Where-Object LastWriteTime -lt (Get-Date).AddDays(-2))) {
+    try { Remove-Item -LiteralPath $stale.FullName -Recurse -Force -ErrorAction Stop } catch { Write-Host "Could not prune stale regeneration workspace $($stale.FullName): $($_.Exception.Message)" }
+}
+$work = Join-Path $regenerationRoot ([guid]::NewGuid().ToString('N'))
 $compiler = Copy-EoieCompilerSnapshot -Compiler $compiler -Destination (Join-Path $work 'compiler')
 $staged = Join-Path $work 'eoie'
 $snapshot = [Collections.Generic.List[object]]::new()
@@ -212,4 +217,9 @@ if ($Publish) {
     }
     Write-Host "Published $changed changed owners; $($rows.Count - $changed) unchanged."
 }
-Write-Host "EOIE regeneration passed for $($rows.Count) selected owners. Staged workspace: $staged"
+if ($KeepStaged) {
+    Write-Host "EOIE regeneration passed for $($rows.Count) selected owners. Staged workspace: $staged"
+} else {
+    Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "EOIE regeneration passed for $($rows.Count) selected owners. Staged workspace removed: $work"
+}

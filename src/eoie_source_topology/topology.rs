@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[path = "ownership.rs"] mod ownership;
@@ -20,6 +20,7 @@ struct SourceTopology {
     package_only: usize,
     crate_max_lines: usize,
     crate_max: String,
+    crates: Vec<(String, usize)>,
 }
 
 #[derive(Default, Debug, Eq, PartialEq)]
@@ -68,8 +69,7 @@ fn topology_relative(root: &Path, path: &Path) -> String {
 fn topology_generic_ignore(path: &Path) -> bool {
     match eoie_source_directory_kind(path.file_name().and_then(|value| value.to_str()).unwrap_or_default()) {
         0 | 4 => true,
-        2 => path.join("CACHEDIR.TAG").is_file(),
-        _ => false,
+        kind => eoie_source_topology_build_cache_binding(kind, i32::from(path.join("CACHEDIR.TAG").is_file()), i32::from(path.parent().is_some_and(|parent| parent.join("Cargo.toml").is_file()))) == 1,
     }
 }
 
@@ -199,6 +199,7 @@ fn topology_generic_packages(root: &Path, path: &Path, inherited_vendor: bool, s
             stats.cargo_crates += 1;
             let lines = topology_generic_crate_lines(path)?;
             let name = topology_relative(root, path);
+            stats.crates.push((name.clone(), lines));
             if lines > stats.crate_max_lines || (lines == stats.crate_max_lines && name < stats.crate_max) { stats.crate_max_lines = lines; stats.crate_max = name; }
         } else if spiral {
             stats.package_only += 1;
@@ -271,7 +272,7 @@ pub fn refresh_authority_census(root: &Path) -> Result<(), String> {
 }
 
 pub fn source_stats_run(args: &[String]) -> Result<(), String> {
-    if args.len() != 2 { return Err("source-stats expects root".to_owned()); }
+    let listed = match (args.len(), args.get(2).map(String::as_str)) { (2, _) => false, (3, Some("--crates")) => true, _ => return Err("source-stats expects root [--crates]".to_owned()) };
     let root = Path::new(topology_arg(args, 1, "root")?);
     let (stats, surfaces) = topology_collect_generic(root)?;
     let limits = eoie_source_topology_limit_binding(stats.rust_max_lines as i32, stats.crate_max_lines as i32);
@@ -284,6 +285,11 @@ pub fn source_stats_run(args: &[String]) -> Result<(), String> {
     println!("own_spiral_files={} own_rust_files={} generated_rust_files={} vendor_spiral_files={} vendor_rust_files={} rust_global_site_count={} census_authority=source-stats", surfaces.own_spiral_files, surfaces.own_rust_files, surfaces.generated_rust_files, surfaces.vendor_spiral_files, surfaces.vendor_rust_files, stats.rust_global_sites);
     println!("cargo_crate_count={} vendor_cargo_crate_count={} cargo_crate_max_lines={} cargo_crate_max={} density_gate_observed={}", stats.cargo_crates, surfaces.vendor_cargo_crates, stats.crate_max_lines, stats.crate_max, if limits == 1 { "within-eoie-limit" } else { "above-eoie-limit" });
     println!("spiral_package_count={} vendor_spiral_package_count={} package_only_spiral_count={} package_classification=recursive-generic rust_max_file_lines={} rust_max_file={}", stats.spiral_packages, surfaces.vendor_spiral_packages, stats.package_only, stats.rust_max_lines, stats.rust_max_file);
+    if listed {
+        let mut crates = stats.crates.clone();
+        crates.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+        for (name, lines) in crates { println!("crate={name} lines={lines} headroom={}", eoie_source_topology_crate_headroom_binding(lines as i32)); }
+    }
     Ok(())
 }
 
@@ -336,7 +342,27 @@ fn distinguishes_cargo_crates_from_package_only_spiral() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+#[derive(Clone)]
+enum US0 {
+    US0_CacheDirTagged,
+    US0_TargetBesideCargoManifest,
+    US0_NoBuildCacheEvidence,
+}
+impl US0 {
+    fn tag(&self) -> i32 {
+        match self {
+            US0::US0_CacheDirTagged => 0,
+            US0::US0_TargetBesideCargoManifest => 1,
+            US0::US0_NoBuildCacheEvidence => 2,
+        }
+    }
+}
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_CacheDirTagged
+    }
+}
+fn topology_limit_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = 1000i32 < v0;
     if v2 {
         0i32
@@ -349,7 +375,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn topology_package_only_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -372,7 +398,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn source_surface_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -405,38 +431,75 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
+fn build_cache_binding_3(mut v0: u64, mut v1: i32, mut v2: i32) -> i32 {
+    let mut v3: bool = v1 == 1i32;
+    let mut v4: bool = v2 == 1i32;
+    let mut v11: US0 = if v3 {
+        US0::US0_CacheDirTagged
+    } else {
+        let mut v6: bool = v0 == 2u64;
+        let mut v7: bool = v6 && v4;
+        if v7 {
+            US0::US0_TargetBesideCargoManifest
+        } else {
+            US0::US0_NoBuildCacheEvidence
+        }
+    };
+    match &v11 {
+        US0::US0_NoBuildCacheEvidence => {
+            0i32
+        }
+        _ => {
+            1i32
+        }
+    }
+}
+fn crate_headroom_binding_4(mut v0: i32) -> i32 {
+    let mut v1: i32 = 1000i32.wrapping_sub(v0);
+    v1
+}
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        topology_limit_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        topology_package_only_binding_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        source_surface_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method3(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = Rc::<str>::from(".git");
+fn closure3() -> Rc<dyn Fn(u64, i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(u64, i32, i32) -> i32> = Rc::new(move |mut v0: u64, mut v1: i32, mut v2: i32| -> i32 {
+        build_cache_binding_3(v0, v1, v2)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure4() -> Rc<dyn Fn(i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32) -> i32> = Rc::new(move |mut v0: i32| -> i32 {
+        crate_headroom_binding_4(v0)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn source_directory_kind_5(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".git"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
         0u64
     } else {
-        let mut v3: Rc<str> = Rc::<str>::from("vendor");
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("vendor"); } LIT.with(|lit| lit.clone()) };
         let mut v4: bool = v0 == v3 ;
         if v4 {
             1u64
         } else {
-            let mut v5: Rc<str> = Rc::<str>::from("target");
+            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("target"); } LIT.with(|lit| lit.clone()) };
             let mut v6: bool = v0 == v5 ;
             if v6 {
                 2u64
             } else {
-                let mut v7: Rc<str> = Rc::<str>::from(".cache");
+                let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cache"); } LIT.with(|lit| lit.clone()) };
                 let mut v8: bool = v0 == v7 ;
                 if v8 {
                     4u64
@@ -447,10 +510,10 @@ fn method3(mut v0: Rc<str>) -> u64 {
         }
     }
 }
-fn closure3() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method3(v0.clone())
-    })
+fn closure5() -> Rc<dyn Fn(Rc<str>) -> u64> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        source_directory_kind_5(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_source_topology_limit_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)
@@ -461,6 +524,12 @@ pub fn eoie_source_topology_package_only_binding(v0: i32, v1: i32) -> i32 {
 pub fn eoie_source_surface_binding(v0: i32, v1: i32) -> i32 {
     closure2()(v0, v1)
 }
+pub fn eoie_source_topology_build_cache_binding(v0: u64, v1: i32, v2: i32) -> i32 {
+    closure3()(v0, v1, v2)
+}
+pub fn eoie_source_topology_crate_headroom_binding(v0: i32) -> i32 {
+    closure4()(v0)
+}
 pub fn eoie_source_directory_kind(v0: &str) -> u64 {
-    closure3()(Rc::<str>::from(v0))
+    closure5()(Rc::<str>::from(v0))
 }

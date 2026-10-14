@@ -14,6 +14,7 @@ name = "eoie_agile_state"
 path = "state.rs"
 
 [dependencies]
+agile-state-decision-domain = { path = "../agile_state_decision_domain" }
 agile-state-runtime-policy-domain = { path = "../agile_state_runtime_policy_domain" }
 agile-state-transient-schema-domain = { path = "../agile_state_transient_schema_domain" }
 eoie-agile-policy = { path = "../eoie_agile_policy" }
@@ -21,6 +22,7 @@ eoie-agile-lease = { path = "../eoie_agile_lease" }
 agile-lease-terms = { path = "../agile_lease_terms" }
 agile-record-catalog = { path = "../agile_record_catalog" }
 agile-update-receipt = { path = "../agile_update_receipt" }
+eoie-compiler-discovery = { path = "../eoie_compiler_discovery" }
 eoie-process = { path = "../eoie_process" }
 eoie-proxy-search = { path = "../eoie_proxy_search" }
 eoie-rust-std-fs = { path = "../rust_std_fs" }

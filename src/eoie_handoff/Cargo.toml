@@ -2,14 +2,6 @@
 entry = "handoff.spi"
 output = "handoff.rs"
 
-[[package.metadata.spiral.auxiliary]]
-entry = "predicate_tests.spi"
-output = "predicate_tests.rs"
-
-[[test]]
-name = "typed_predicates"
-path = "predicate_tests.rs"
-
 [package]
 name = "eoie-handoff"
 version.workspace = true

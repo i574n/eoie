@@ -16,7 +16,7 @@ fn every_advertised_proxy_has_specific_usage() {
 
 #[test]
 fn source_inspection_help_describes_read_and_optional_write_forms() {
-    assert_eq!(&*eoie_command_proxy_usage("source-stats"), "proxy source-stats <root>");
+    assert_eq!(&*eoie_command_proxy_usage("source-stats"), "proxy source-stats <root> [--crates]");
     assert_eq!(&*eoie_command_proxy_usage("source-topology"), "proxy source-topology <root> [state/authority_census.spi]");
     assert_eq!(&*eoie_command_proxy_usage("source-map"), "proxy source-map <root>");
     assert_eq!(&*eoie_command_proxy_usage("source-diff"), "proxy source-diff <left-root> <right-root>");

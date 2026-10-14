@@ -14,3 +14,4 @@ path = "runtime.rs"
 
 [dependencies]
 predicate-lex-domain = { path = "../predicate_lex_domain" }
+predicate-literal-domain = { path = "../predicate_literal_domain" }

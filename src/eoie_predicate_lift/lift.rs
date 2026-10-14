@@ -3,23 +3,28 @@ use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
 enum US0 {
-    US0_0(Rc<str>),
-    US0_1(Rc<str>),
+    US0_Rejected(Rc<str>),
+    US0_Candidate(Rc<str>),
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0(..) => 0,
-            US0::US0_1(..) => 1,
+            US0::US0_Rejected(..) => 0,
+            US0::US0_Candidate(..) => 1,
         }
     }
 }
-fn method0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> US0 {
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_Rejected({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
+    }
+}
+fn rewrite_0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> US0 {
     let (mut v3, mut v4): (bool, Rc<str>) = predicate_rewrite_domain::eoie_predicate_rewrite(&*v0,&*v1,&*v2);
     if v3 {
-        US0::US0_1(v4.clone())
+        US0::US0_Candidate(v4.clone())
     } else {
-        US0::US0_0(v4.clone())
+        US0::US0_Rejected(v4.clone())
     }
 }
 fn spiral_main() -> i32 {
@@ -40,9 +45,9 @@ fn spiral_main() -> i32 {
         };
         if v9 {
             let mut v10: Rc<str> = std::rc::Rc::<str>::from(String::from_utf8(eoie_rust_std_fs::read_regular_limited(std::path::Path::new(&*v4),1024*1024).expect("read input")).expect("input must be UTF-8"));
-            let mut v11: US0 = method0(v10.clone(), v3.clone(), v2.clone());
+            let mut v11: US0 = rewrite_0(v10.clone(), v3.clone(), v2.clone());
             match &v11 {
-                US0::US0_1(v16) => { // Candidate
+                US0::US0_Candidate(v16) => {
                     let mut v16: Rc<str> = v16.clone();
                     let mut v17: i32 = std::fs::OpenOptions::new().write(true).create_new(true).open(&*v5).and_then(|mut file| std::io::Write::write_all(&mut file,v16.as_bytes())).map_or(2,|()|0);
                     let mut v18: bool = v17 == 0i32 ;
@@ -57,7 +62,7 @@ fn spiral_main() -> i32 {
                     };
                     v17
                 }
-                US0::US0_0(v12) => { // Rejected
+                US0::US0_Rejected(v12) => {
                     let mut v12: Rc<str> = v12.clone();
                     let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                     let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };

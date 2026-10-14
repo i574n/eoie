@@ -97,11 +97,11 @@ inl decode_lease_clock code =
 
 inl lease_preflight () : i32 = 0i32
 
-inl migration_status () : i32 = bootstrap_policy.model.settled_migration_status_code ()
-inl workspace_state_status () : i32 = bootstrap_policy.model.workspace_state_candidate_status ()
-inl compiler_session_status () : i32 = bootstrap_policy.model.compiler_session_candidate_status ()
-inl legacy_bundle_writer_status () : i32 = bootstrap_policy.model.legacy_bundle_writer_candidate_status ()
-inl ingest_frontier_status () : i32 = bootstrap_policy.model.ingest_frontier_candidate_status ()
+inl migration_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_settled_migration_status()"
+inl workspace_state_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_workspace_state_status()"
+inl compiler_session_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_compiler_session_status()"
+inl legacy_bundle_writer_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_legacy_bundle_writer_status()"
+inl ingest_frontier_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_ingest_frontier_status()"
 inl process_batch_status () : i32 = $"process_batch_plan_domain::eoie_batch_matrix_auto_chain_budget(60000, 16000)"
 
 inl run_status () : i32 =

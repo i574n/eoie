@@ -21,8 +21,57 @@ let proxy_run_token_code (~input : string) : u64 =
     rust_std_string.model.pipe_index "--timeout-ms|--cwd|--program|--env|--unset|--" input
 
 let proxy_write_token_code (~input : string) : u64 =
-    rust_std_string.model.pipe_index "--replace-existing|--expect-hash|--expect-nonempty|--" input
+    rust_std_string.model.pipe_index "--replace-existing|--expect-hash|--expect-nonempty|--|--create-or-replace" input
 
+union proxy_write_action =
+    | CreateMissingFile
+    | ReplaceExistingFile
+    | RejectOverwriteWithoutFlag
+    | RejectEmptyTarget
+    | RejectPreconditionsOnMissingFile
+
+type proxy_write_flags =
+    {
+        replace_existing : bool
+        create_or_replace : bool
+        expect_hash : bool
+        expect_nonempty : bool
+        original_empty : bool
+    }
+
+inl packed_flag (packed : i32) (bit : i32) : bool = !!!!EQ(!!!!Mod(!!!!Div(packed, bit), 2i32), 1i32)
+
+inl proxy_write_flags_of (packed : i32) : proxy_write_flags =
+    {
+        replace_existing = packed_flag packed 1i32
+        create_or_replace = packed_flag packed 2i32
+        expect_hash = packed_flag packed 4i32
+        expect_nonempty = packed_flag packed 8i32
+        original_empty = packed_flag packed 16i32
+    }
+
+let proxy_write_action (existed : bool) (flags : proxy_write_flags) : proxy_write_action =
+    if existed then
+        if flags.replace_existing || flags.create_or_replace then
+            if flags.expect_nonempty && flags.original_empty then RejectEmptyTarget else ReplaceExistingFile
+        else RejectOverwriteWithoutFlag
+    elif flags.replace_existing || flags.expect_hash || flags.expect_nonempty then RejectPreconditionsOnMissingFile
+    else CreateMissingFile
+
+inl proxy_write_action_code (action : proxy_write_action) : i32 =
+    match action with
+    | CreateMissingFile => 0i32
+    | ReplaceExistingFile => 1i32
+    | RejectOverwriteWithoutFlag => 2i32
+    | RejectEmptyTarget => 3i32
+    | RejectPreconditionsOnMissingFile => 4i32
+
+let proxy_write_action_binding (existed : i32) (packed : i32) : i32 =
+    if !!!!LT(packed, 0i32) then -1i32
+    elif !!!!LT(31i32, packed) then -1i32
+    elif !!!!LT(existed, 0i32) then -1i32
+    elif !!!!LT(1i32, existed) then -1i32
+    else proxy_write_action_code (proxy_write_action (!!!!EQ(existed, 1i32)) (proxy_write_flags_of packed))
 let proxy_usage_bridge (~input : string) : string =
     command_spec_domain.model.proxy_usage input
 
@@ -38,6 +87,7 @@ inl emit_main () : i32 =
     inl _ = proxy_exact_replace_verify_binding 1i32 1i32
     inl _ = proxy_run_token_code "--cwd"
     inl _ = proxy_write_token_code "--expect-hash"
+    inl _ = proxy_write_action_binding 0i32 2i32
     inl _ = proxy_usage_bridge "fs-read"
     !!!!Export("eoie_legacy_operations_proxy_dogfood_shim_decision_packed_binding", ((fun (first, second) => proxy_dogfood_shim_decision_packed_binding first second) : i32 * i32 -> i32))
     !!!!Export("eoie_legacy_operations_proxy_dogfood_shim_install_packed_binding", ((fun (first, second) => proxy_dogfood_shim_install_packed_binding first second) : i32 * i32 -> i32))
@@ -47,5 +97,6 @@ inl emit_main () : i32 =
     !!!!Export("eoie_legacy_operations_proxy_exact_replace_verify_binding", ((fun (first, second) => proxy_exact_replace_verify_binding first second) : i32 * i32 -> i32))
     !!!!Export("eoie_legacy_operations_proxy_run_token_code", ((fun value => proxy_run_token_code value) : string -> u64))
     !!!!Export("eoie_legacy_operations_proxy_write_token_code", ((fun value => proxy_write_token_code value) : string -> u64))
+    !!!!Export("eoie_legacy_operations_proxy_write_action_binding", ((fun (existed, packed) => proxy_write_action_binding existed packed) : i32 * i32 -> i32))
     !!!!Export("eoie_legacy_operations_proxy_usage", ((fun value => proxy_usage_bridge value) : string -> string))
     0i32

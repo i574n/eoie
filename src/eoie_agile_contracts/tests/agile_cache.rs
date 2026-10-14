@@ -35,7 +35,7 @@ fn main() {
     fn check(&self, compiler: bool) -> Output {
         let binary = env::var_os("EOIE_BIN_UNDER_TEST").map(PathBuf::from).unwrap_or_else(|| env::current_exe().unwrap().parent().unwrap().parent().unwrap().join(format!("eoie{}", env::consts::EXE_SUFFIX)));
         let mut command = Command::new(binary);
-        command.args(["agile", "check"]).arg(&self.root).env_remove("EOIE_SPIRAL_COMPILE").env("EOIE_CONFIG_HOME", &self.root).env("PATH", "");
+        command.args(["agile", "check"]).arg(&self.root).env_remove("EOIE_SPIRAL_COMPILE").env_remove("SPIRAL_COMPILER_DLL").env("SPIRAL_BIN_CACHE_DIR", &self.root).env("EOIE_CONFIG_HOME", &self.root).env("PATH", "");
         if compiler { command.arg("--compiler").arg(&self.compiler); }
         command.output().unwrap()
     }
@@ -130,7 +130,7 @@ fn task_updates_preserve_unrelated_drift_but_clean_updates_remain_compiler_free(
     fs::write(&agile, "union task_kind = | TaskKind :: task_kind\nunion priority = | P0 :: priority\nunion difficulty = | D1 :: difficulty\nunion task_status = | Active :: task_status\nunion agile_item = | Task :: string * string * task_kind * priority * difficulty * u32 * task_status * string * string * string * string -> agile_item\ninl task () = Task (\"ID\", \"Task fixture\", TaskKind, P0, D1, 0u32, Active, \"\", \"\", \"\", \"\")\ninl main () : i32 = 0i32\n").unwrap();
     fixture.successful();
     let binary = env::var_os("EOIE_BIN_UNDER_TEST").map(PathBuf::from).unwrap_or_else(|| env::current_exe().unwrap().parent().unwrap().parent().unwrap().join(format!("eoie{}", env::consts::EXE_SUFFIX)));
-    let update = || Command::new(&binary).args(["agile", "set"]).arg(&fixture.root).args(["ID", "50", "Active"]).output().unwrap();
+    let update = || Command::new(&binary).args(["agile", "set"]).arg(&fixture.root).args(["ID", "50", "Active"]).env_remove("SPIRAL_COMPILER_DLL").env("SPIRAL_BIN_CACHE_DIR", &fixture.root).output().unwrap();
     assert!(update().status.success());
     assert!(fixture.check(false).status.success(), "clean runtime mutation stopped working without a compiler");
     let source = fs::read_to_string(&agile).unwrap();
@@ -139,7 +139,10 @@ fn task_updates_preserve_unrelated_drift_but_clean_updates_remain_compiler_free(
     let before = fs::read(&receipt).unwrap();
     assert!(update().status.success());
     assert!(before == fs::read(&receipt).unwrap(), "task update certified an unrelated source edit");
-    assert!(!fixture.check(false).status.success(), "unrelated drift passed without compiler attestation");
+    let drift = fixture.check(false);
+    assert!(!drift.status.success(), "unrelated drift passed without compiler attestation");
+    let deployed = fixture.root.join("bin/single-flight/SpiralCompiler/Release/net11.0/SpiralCompiler.dll");
+    assert!(String::from_utf8_lossy(&drift.stderr).contains(&format!("the deployed compiler {}", deployed.display())), "{}", String::from_utf8_lossy(&drift.stderr));
 }
 #[test]
 fn history_appends_preserve_unrelated_drift_but_clean_appends_remain_compiler_free() {
@@ -153,7 +156,7 @@ fn history_appends_preserve_unrelated_drift_but_clean_appends_remain_compiler_fr
     fs::write(&history, "union series_record = | SeriesRecord :: u32 * u32 * u32 * string * string * u64 * string * string * u64 * string -> series_record\ninl retired_module_count () : u32 = 0u32\ninl main () : i32 = 0i32\n").unwrap();
     fixture.successful();
     let binary = env::var_os("EOIE_BIN_UNDER_TEST").map(PathBuf::from).unwrap_or_else(|| env::current_exe().unwrap().parent().unwrap().parent().unwrap().join(format!("eoie{}", env::consts::EXE_SUFFIX)));
-    let append = || Command::new(&binary).args(["agile", "record"]).arg(&fixture.root).output().unwrap();
+    let append = || Command::new(&binary).args(["agile", "record"]).arg(&fixture.root).env_remove("SPIRAL_COMPILER_DLL").env("SPIRAL_BIN_CACHE_DIR", &fixture.root).output().unwrap();
     let output = append();
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     assert!(fixture.check(false).status.success(), "clean history append stopped working without a compiler");

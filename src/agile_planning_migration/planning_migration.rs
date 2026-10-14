@@ -724,7 +724,7 @@ fn tags_migration_1(mut v0: Rc<str>, mut v1: US0) -> i32 {
                         migration_written_2(v5.clone(), v26.clone(), v27, v28, v29, v16.clone(), v2)
                     }
                     US0::US0_MigrationDryRun => {
-                        let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("dry-run"); } LIT.with(|lit| lit.clone()) };
+                        let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("preview"); } LIT.with(|lit| lit.clone()) };
                         migration_receipt_3(v30.clone(), v26.clone(), v27, v28, v29, v16.clone(), v2)
                     }
                 }
@@ -741,58 +741,50 @@ fn tags_migration_1(mut v0: Rc<str>, mut v1: US0) -> i32 {
 }
 fn tags_migration_entry_0() -> i32 {
     let mut v0: i32 = std::env::args().skip(2).count() as i32;
-    let mut v1: bool = v0 == 2i32;
+    let mut v1: bool = v0 == 3i32;
     if v1 {
         let mut v2: i32 = 1i32;
         let mut v3: Rc<str> = usize::try_from(v2).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-        let mut v4: US0 = US0::US0_MigrationDryRun;
-        tags_migration_1(v3.clone(), v4.clone())
-    } else {
-        let mut v6: bool = v0 == 3i32;
-        if v6 {
-            let mut v7: i32 = 2i32;
-            let mut v8: Rc<str> = usize::try_from(v7).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-            let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--apply"); } LIT.with(|lit| lit.clone()) };
-            let mut v10: bool = v8 == v9 ;
-            let mut v19: US6 = if v10 {
-                let mut v11: US0 = US0::US0_MigrationApply;
-                US6::US6_Valid(v11.clone())
-            } else {
-                let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--dry-run"); } LIT.with(|lit| lit.clone()) };
-                let mut v14: bool = v8 == v13 ;
-                if v14 {
-                    let mut v15: US0 = US0::US0_MigrationDryRun;
-                    US6::US6_Valid(v15.clone())
-                } else {
-                    US6::US6_Invalid
-                }
-            };
-            match &v19 {
-                US6::US6_Invalid => {
-                    let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("migrate-tags expects <root> [--dry-run|--apply]"); } LIT.with(|lit| lit.clone()) };
-                    let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile migrate-tags rejected: "); } LIT.with(|lit| lit.clone()) };
-                    let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                    let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v25, &*v24, &*v26, &*v26, &*v26].concat());
-                    let mut v28: i32 = std::io::Write::write_all(&mut std::io::stderr(), ("eoie error: ".to_string() + &*v27 + "
-").as_bytes()).map(|_| 2i32).unwrap_or(2i32);
-                    v28
-                }
-                US6::US6_Valid(v20) => {
-                    let mut v20: US0 = v20.clone();
-                    let mut v21: i32 = 1i32;
-                    let mut v22: Rc<str> = usize::try_from(v21).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                    tags_migration_1(v22.clone(), v20.clone())
-                }
-            }
+        let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("apply"); } LIT.with(|lit| lit.clone()) };
+        let mut v5: bool = v3 == v4 ;
+        let mut v14: US6 = if v5 {
+            let mut v6: US0 = US0::US0_MigrationApply;
+            US6::US6_Valid(v6.clone())
         } else {
-            let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("migrate-tags expects <root> [--dry-run|--apply]"); } LIT.with(|lit| lit.clone()) };
-            let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile migrate-tags rejected: "); } LIT.with(|lit| lit.clone()) };
-            let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            let mut v34: Rc<str> = std::rc::Rc::<str>::from([&*v32, &*v31, &*v33, &*v33, &*v33].concat());
-            let mut v35: i32 = std::io::Write::write_all(&mut std::io::stderr(), ("eoie error: ".to_string() + &*v34 + "
+            let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("preview"); } LIT.with(|lit| lit.clone()) };
+            let mut v9: bool = v3 == v8 ;
+            if v9 {
+                let mut v10: US0 = US0::US0_MigrationDryRun;
+                US6::US6_Valid(v10.clone())
+            } else {
+                US6::US6_Invalid
+            }
+        };
+        match &v14 {
+            US6::US6_Invalid => {
+                let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("migrate-tags expects preview <root> or apply <root>"); } LIT.with(|lit| lit.clone()) };
+                let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile migrate-tags rejected: "); } LIT.with(|lit| lit.clone()) };
+                let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                let mut v22: Rc<str> = std::rc::Rc::<str>::from([&*v20, &*v19, &*v21, &*v21, &*v21].concat());
+                let mut v23: i32 = std::io::Write::write_all(&mut std::io::stderr(), ("eoie error: ".to_string() + &*v22 + "
 ").as_bytes()).map(|_| 2i32).unwrap_or(2i32);
-            v35
+                v23
+            }
+            US6::US6_Valid(v15) => {
+                let mut v15: US0 = v15.clone();
+                let mut v16: i32 = 2i32;
+                let mut v17: Rc<str> = usize::try_from(v16).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                tags_migration_1(v17.clone(), v15.clone())
+            }
         }
+    } else {
+        let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("migrate-tags expects preview <root> or apply <root>"); } LIT.with(|lit| lit.clone()) };
+        let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile migrate-tags rejected: "); } LIT.with(|lit| lit.clone()) };
+        let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        let mut v29: Rc<str> = std::rc::Rc::<str>::from([&*v27, &*v26, &*v28, &*v28, &*v28].concat());
+        let mut v30: i32 = std::io::Write::write_all(&mut std::io::stderr(), ("eoie error: ".to_string() + &*v29 + "
+").as_bytes()).map(|_| 2i32).unwrap_or(2i32);
+        v30
     }
 }
 fn closure0() -> Rc<dyn Fn() -> i32> {

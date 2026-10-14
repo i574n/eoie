@@ -45,7 +45,7 @@ function Assert-Contract([bool]$Condition, [string]$Message) {
 }
 function Invoke-Regeneration([string]$Label, [bool]$Success, [string[]]$Extra = @(), [string]$Diagnostic = '') {
     $output = & $pwsh -NoProfile -File (Join-Path $PSScriptRoot 'test-regeneration.ps1') `
-        -EoieRoot $root -CompilerBundle $bundle -Package alpha -Offline -TargetDirectory $targetDirectory @Extra 2>&1
+        -EoieRoot $root -CompilerBundle $bundle -Package alpha -Offline -KeepStaged -TargetDirectory $targetDirectory @Extra 2>&1
     $code = $LASTEXITCODE
     if (($code -eq 0) -ne $Success) { throw "$Label failed (exit $code):`n$($output -join "`n")" }
     if ($Diagnostic -and -not ($output -join "`n").Contains($Diagnostic)) { throw "$Label missed expected diagnostic '$Diagnostic':`n$($output -join "`n")" }

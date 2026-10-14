@@ -119,3 +119,22 @@ let source_rebuild_count_binding (expected : i32) (observed : i32) : i32 =
     elif !!!!LT(expected,observed) then 0i32
     elif !!!!LT(observed,expected) then 0i32
     else 1i32
+
+union build_cache_evidence =
+    | CacheDirTagged
+    | TargetBesideCargoManifest
+    | NoBuildCacheEvidence
+
+inl build_cache_evidence_of (kind : u64) (cachedir_tag : bool) (beside_manifest : bool) : build_cache_evidence =
+    if cachedir_tag then CacheDirTagged
+    elif !!!!EQ(kind, source_directory_code BuildCacheDirectory) && beside_manifest then TargetBesideCargoManifest
+    else NoBuildCacheEvidence
+
+let build_cache_binding (kind : u64) (cachedir_tag : i32) (beside_manifest : i32) : i32 =
+    match build_cache_evidence_of kind (!!!!EQ(cachedir_tag,1i32)) (!!!!EQ(beside_manifest,1i32)) with
+    | NoBuildCacheEvidence => 0i32
+    | _ => 1i32
+
+inl cargo_crate_line_limit () : i32 = 1000i32
+
+let crate_headroom_binding (lines : i32) : i32 = !!!!Sub(cargo_crate_line_limit (), lines)

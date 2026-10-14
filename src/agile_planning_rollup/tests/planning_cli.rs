@@ -26,6 +26,14 @@ impl Fixture {
         assert!(output.status.success(), "{verb} {rest:?}: {}", String::from_utf8_lossy(&output.stderr));
         String::from_utf8(output.stdout).unwrap()
     }
+    fn ok_mode(&self, verb: &str, mode: &str) -> String {
+        let binary = env::var_os("EOIE_BIN_UNDER_TEST").map(PathBuf::from).unwrap_or_else(|| {
+            env::current_exe().unwrap().parent().unwrap().parent().unwrap().join(format!("eoie{}", env::consts::EXE_SUFFIX))
+        });
+        let output = Command::new(binary).current_dir(env::temp_dir()).args(["agile", verb, mode]).arg(&self.0).output().unwrap();
+        assert!(output.status.success(), "{verb} {mode}: {}", String::from_utf8_lossy(&output.stderr));
+        String::from_utf8(output.stdout).unwrap()
+    }
     fn rejected(&self, verb: &str, rest: &[&str]) -> String {
         let output = self.agile(verb, rest);
         assert!(!output.status.success(), "{verb} {rest:?} was accepted");
@@ -70,17 +78,17 @@ fn tag_migration_is_previewed_applied_once_and_keeps_rejected_tags() {
     let c = task("ID-C", "TaskKind", "Done", "", "plain");
     let fixture = Fixture::new("migrate", &[&a, &b, &c]);
     let before = fixture.state();
-    let preview = fixture.ok("migrate-tags", &["--dry-run"]);
+    let preview = fixture.ok_mode("migrate-tags", "preview");
     assert!(preview.contains("ID-A moved=3 estimate=300m load=heavy assignee=agent tags=eoie"), "{preview}");
     assert!(preview.contains("ID-B moved=2 estimate=- load=light assignee=user tags=est:abc,kino rejected=est:abc"), "{preview}");
-    assert!(preview.contains("eoie agile migrate-tags dry-run tasks=2 tags_moved=5 rejected=1"), "{preview}");
+    assert!(preview.contains("eoie agile migrate-tags preview tasks=2 tags_moved=5 rejected=1"), "{preview}");
     assert_eq!(fixture.state(), before);
-    assert!(fixture.ok("migrate-tags", &["--apply"]).contains("eoie agile migrate-tags ok tasks=2"));
+    assert!(fixture.ok_mode("migrate-tags", "apply").contains("eoie agile migrate-tags ok tasks=2"));
     let migrated = fixture.state();
     assert!(migrated.contains("\"eoie\", \"current\""), "{migrated}");
     assert!(migrated.contains("\"est:abc,kino\""), "{migrated}");
     assert!(migrated.contains("Planning (\"ID-B\", Unestimated, Load Light, Assigned User)"), "{migrated}");
-    let again = fixture.ok("migrate-tags", &["--apply"]);
+    let again = fixture.ok_mode("migrate-tags", "apply");
     assert!(again.contains("ok unchanged tasks=0 tags_moved=0 rejected=1"), "{again}");
     assert_eq!(fixture.state(), migrated);
     let heavy = fixture.ok("list", &["--load", "heavy"]);

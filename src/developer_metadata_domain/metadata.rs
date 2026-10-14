@@ -1,17 +1,16 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
     let bytes = value.as_bytes();
     let length = bytes.len() as i64;
     if from < 0 || from > length || to < from - 1 || to >= length { std::process::abort(); }
-    if to < from { return Rc::<str>::from(""); }
-    // A slice that starts or ends inside a code point fails like the C and Delphi backends (abort / Halt(3)).
+    if to < from { return { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }; }
     if (bytes[from as usize] & 0xC0) == 0x80 || (to + 1 < length && (bytes[(to + 1) as usize] & 0xC0) == 0x80) { std::process::exit(3); }
     let slice = &bytes[from as usize..(to + 1) as usize];
     match std::str::from_utf8(slice) { Ok(text) => Rc::<str>::from(text), Err(error) => Rc::<str>::from(std::str::from_utf8(&slice[..error.valid_up_to()]).unwrap_or("")) }
 }
-fn method2(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
+fn find_char_loop_2(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -30,32 +29,32 @@ fn method2(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
     }
 }
 fn method4() -> Rc<str> {
-    let mut v0: Rc<str> = Rc::<str>::from("");
+    let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     v0.clone()
 }
-fn method3() -> Rc<str> {
+fn codec_empty_3() -> Rc<str> {
     method4()
 }
-fn method6(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
+fn composite_end_6(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
     loop {
         let (mut v3, mut v4, mut v5, mut v6): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v1);
         let mut v7: bool = v6 == false ;
         let mut v10: bool = if v7 {
             true
         } else {
-            let mut v8: Rc<str> = Rc::<str>::from("");
+            let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             let mut v9: bool = v5 == v8 ;
             v9
         };
         if v10 {
             return -2i32;
         } else {
-            let mut v11: Rc<str> = Rc::<str>::from("{");
+            let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("{"); } LIT.with(|lit| lit.clone()) };
             let mut v12: bool = v5 == v11 ;
             let mut v15: bool = if v12 {
                 true
             } else {
-                let mut v13: Rc<str> = Rc::<str>::from("[");
+                let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("["); } LIT.with(|lit| lit.clone()) };
                 let mut v14: bool = v5 == v13 ;
                 v14
             };
@@ -64,12 +63,12 @@ fn method6(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
                 (v0, v1, v2) = (v0.clone(), v4, v16);
                 continue;
             } else {
-                let mut v18: Rc<str> = Rc::<str>::from("}");
+                let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("}"); } LIT.with(|lit| lit.clone()) };
                 let mut v19: bool = v5 == v18 ;
                 let mut v22: bool = if v19 {
                     true
                 } else {
-                    let mut v20: Rc<str> = Rc::<str>::from("]");
+                    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("]"); } LIT.with(|lit| lit.clone()) };
                     let mut v21: bool = v5 == v20 ;
                     v21
                 };
@@ -90,33 +89,33 @@ fn method6(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
         }
     }
 }
-fn method7(mut v0: Rc<str>, mut v1: i32) -> i32 {
+fn scalar_end_7(mut v0: Rc<str>, mut v1: i32) -> i32 {
     loop {
         let (mut v2, mut v3, mut v4, mut v5): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v1);
         let mut v6: bool = v5 == false ;
         if v6 {
             return -2i32;
         } else {
-            let mut v7: Rc<str> = Rc::<str>::from("");
+            let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             let mut v8: bool = v4 == v7 ;
             let mut v11: bool = if v8 {
                 true
             } else {
-                let mut v9: Rc<str> = Rc::<str>::from(",");
+                let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
                 let mut v10: bool = v4 == v9 ;
                 v10
             };
             let mut v14: bool = if v11 {
                 true
             } else {
-                let mut v12: Rc<str> = Rc::<str>::from("}");
+                let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("}"); } LIT.with(|lit| lit.clone()) };
                 let mut v13: bool = v4 == v12 ;
                 v13
             };
             let mut v17: bool = if v14 {
                 true
             } else {
-                let mut v15: Rc<str> = Rc::<str>::from("]");
+                let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("]"); } LIT.with(|lit| lit.clone()) };
                 let mut v16: bool = v4 == v15 ;
                 v16
             };
@@ -129,19 +128,19 @@ fn method7(mut v0: Rc<str>, mut v1: i32) -> i32 {
         }
     }
 }
-fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
+fn fields_8(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
     loop {
         let (mut v3, mut v4, mut v5, mut v6): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v1);
         let mut v7: bool = v6 == false ;
         if v7 {
             return -2i32;
         } else {
-            let mut v8: Rc<str> = Rc::<str>::from("}");
+            let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("}"); } LIT.with(|lit| lit.clone()) };
             let mut v9: bool = v5 == v8 ;
             if v9 {
                 return -1i32;
             } else {
-                let (mut v10, mut v11, mut v12): (Rc<str>, i32, bool) = predicate_lex_domain::eoie_predicate_literal(&*v0,v3);
+                let (mut v10, mut v11, mut v12): (Rc<str>, i32, bool) = predicate_literal_domain::eoie_predicate_literal(&*v0,v3);
                 let (mut v13, mut v14, mut v15, mut v16): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v4);
                 let mut v17: bool = v12 == false ;
                 let mut v19: bool = if v17 {
@@ -153,7 +152,7 @@ fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
                 let mut v23: bool = if v19 {
                     true
                 } else {
-                    let mut v20: Rc<str> = Rc::<str>::from(":");
+                    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(":"); } LIT.with(|lit| lit.clone()) };
                     let mut v21: bool = v15 == v20 ;
                     let mut v22: bool = v21 == false;
                     v22
@@ -171,27 +170,27 @@ fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
                         let mut v33: bool = if v30 {
                             true
                         } else {
-                            let mut v31: Rc<str> = Rc::<str>::from("");
+                            let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                             let mut v32: bool = v28 == v31 ;
                             v32
                         };
                         let mut v43: i32 = if v33 {
                             -2i32
                         } else {
-                            let mut v34: Rc<str> = Rc::<str>::from("{");
+                            let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("{"); } LIT.with(|lit| lit.clone()) };
                             let mut v35: bool = v28 == v34 ;
                             let mut v38: bool = if v35 {
                                 true
                             } else {
-                                let mut v36: Rc<str> = Rc::<str>::from("[");
+                                let mut v36: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("["); } LIT.with(|lit| lit.clone()) };
                                 let mut v37: bool = v28 == v36 ;
                                 v37
                             };
                             if v38 {
                                 let mut v39: i32 = 1i32;
-                                method6(v0.clone(), v27, v39)
+                                composite_end_6(v0.clone(), v27, v39)
                             } else {
-                                method7(v0.clone(), v27)
+                                scalar_end_7(v0.clone(), v27)
                             }
                         };
                         let mut v44: bool = v43 < 0i32;
@@ -207,7 +206,7 @@ fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
                                 if v50 {
                                     return -1i32;
                                 } else {
-                                    let mut v51: Rc<str> = Rc::<str>::from(",");
+                                    let mut v51: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
                                     let mut v52: bool = v47 == v51 ;
                                     if v52 {
                                         (v0, v1, v2) = (v0.clone(), v46, v2.clone());
@@ -224,25 +223,25 @@ fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
         }
     }
 }
-fn method9(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
+fn members_9(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
     loop {
         let (mut v3, mut v4, mut v5, mut v6): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v1);
         let mut v7: bool = v6 == false ;
         if v7 {
             return -1i32;
         } else {
-            let mut v8: Rc<str> = Rc::<str>::from("]");
+            let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("]"); } LIT.with(|lit| lit.clone()) };
             let mut v9: bool = v5 == v8 ;
             if v9 {
                 return 0i32;
             } else {
-                let mut v10: Rc<str> = Rc::<str>::from(",");
+                let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
                 let mut v11: bool = v5 == v10 ;
                 if v11 {
                     (v0, v1, v2) = (v0.clone(), v4, v2.clone());
                     continue;
                 } else {
-                    let (mut v13, mut v14, mut v15): (Rc<str>, i32, bool) = predicate_lex_domain::eoie_predicate_literal(&*v0,v3);
+                    let (mut v13, mut v14, mut v15): (Rc<str>, i32, bool) = predicate_literal_domain::eoie_predicate_literal(&*v0,v3);
                     let mut v16: bool = v15 == false ;
                     if v16 {
                         return -1i32;
@@ -260,14 +259,14 @@ fn method9(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>) -> i32 {
         }
     }
 }
-fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: bool, mut v5: i32) -> i32 {
+fn packages_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: bool, mut v5: i32) -> i32 {
     loop {
         let (mut v6, mut v7, mut v8, mut v9): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v1);
         let mut v10: bool = v9 == false ;
         if v10 {
             return -5i32;
         } else {
-            let mut v11: Rc<str> = Rc::<str>::from("]");
+            let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("]"); } LIT.with(|lit| lit.clone()) };
             let mut v12: bool = v8 == v11 ;
             if v12 {
                 if v4 {
@@ -276,13 +275,13 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                     return -2i32;
                 }
             } else {
-                let mut v14: Rc<str> = Rc::<str>::from(",");
+                let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
                 let mut v15: bool = v8 == v14 ;
                 if v15 {
                     (v0, v1, v2, v3, v4, v5) = (v0.clone(), v7, v2, v3.clone(), v4, v5);
                     continue;
                 } else {
-                    let mut v17: Rc<str> = Rc::<str>::from("{");
+                    let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("{"); } LIT.with(|lit| lit.clone()) };
                     let mut v18: bool = v8 == v17 ;
                     let mut v19: bool = v18 == false;
                     if v19 {
@@ -293,7 +292,7 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                         let mut v27: bool = if v24 {
                             true
                         } else {
-                            let mut v25: Rc<str> = Rc::<str>::from("");
+                            let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                             let mut v26: bool = v22 == v25 ;
                             v26
                         };
@@ -304,15 +303,15 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                             let mut v31: bool = if v28 {
                                 true
                             } else {
-                                let mut v29: Rc<str> = Rc::<str>::from("[");
+                                let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("["); } LIT.with(|lit| lit.clone()) };
                                 let mut v30: bool = v22 == v29 ;
                                 v30
                             };
                             if v31 {
                                 let mut v32: i32 = 1i32;
-                                method6(v0.clone(), v21, v32)
+                                composite_end_6(v0.clone(), v21, v32)
                             } else {
-                                method7(v0.clone(), v21)
+                                scalar_end_7(v0.clone(), v21)
                             }
                         };
                         let mut v37: bool = v6 < 0i32;
@@ -327,8 +326,8 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                                 false
                             };
                             if v43 {
-                                let mut v44: Rc<str> = Rc::<str>::from("name");
-                                method8(v0.clone(), v39, v44.clone())
+                                let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("name"); } LIT.with(|lit| lit.clone()) };
+                                fields_8(v0.clone(), v39, v44.clone())
                             } else {
                                 -2i32
                             }
@@ -344,14 +343,14 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                                 false
                             };
                             if v53 {
-                                let mut v54: Rc<str> = Rc::<str>::from("id");
-                                method8(v0.clone(), v49, v54.clone())
+                                let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("id"); } LIT.with(|lit| lit.clone()) };
+                                fields_8(v0.clone(), v49, v54.clone())
                             } else {
                                 -2i32
                             }
                         };
-                        let (mut v58, mut v59, mut v60): (Rc<str>, i32, bool) = predicate_lex_domain::eoie_predicate_literal(&*v0,v47);
-                        let (mut v61, mut v62, mut v63): (Rc<str>, i32, bool) = predicate_lex_domain::eoie_predicate_literal(&*v0,v57);
+                        let (mut v58, mut v59, mut v60): (Rc<str>, i32, bool) = predicate_literal_domain::eoie_predicate_literal(&*v0,v47);
+                        let (mut v61, mut v62, mut v63): (Rc<str>, i32, bool) = predicate_literal_domain::eoie_predicate_literal(&*v0,v57);
                         let mut v64: bool = v36 < 0i32;
                         let mut v66: bool = if v64 {
                             true
@@ -370,7 +369,7 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                         } else {
                             let mut v69: bool = v58 == v3 ;
                             if v69 {
-                                let mut v70: i32 = method9(v0.clone(), v2, v61.clone());
+                                let mut v70: i32 = members_9(v0.clone(), v2, v61.clone());
                                 let mut v71: bool = v70 < 0i32;
                                 if v71 {
                                     return -5i32;
@@ -391,8 +390,8 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                                                     false
                                                 };
                                                 if v78 {
-                                                    let mut v79: Rc<str> = Rc::<str>::from("metadata");
-                                                    method8(v0.clone(), v74, v79.clone())
+                                                    let mut v79: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("metadata"); } LIT.with(|lit| lit.clone()) };
+                                                    fields_8(v0.clone(), v74, v79.clone())
                                                 } else {
                                                     -2i32
                                                 }
@@ -409,8 +408,8 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                                                     false
                                                 };
                                                 if v89 {
-                                                    let mut v90: Rc<str> = Rc::<str>::from("eoie");
-                                                    method8(v0.clone(), v85, v90.clone())
+                                                    let mut v90: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie"); } LIT.with(|lit| lit.clone()) };
+                                                    fields_8(v0.clone(), v85, v90.clone())
                                                 } else {
                                                     -2i32
                                                 }
@@ -421,7 +420,7 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                                             } else {
                                                 let (mut v95, mut v96, mut v97, mut v98): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v93);
                                                 let mut v101: bool = if v98 {
-                                                    let mut v99: Rc<str> = Rc::<str>::from("null");
+                                                    let mut v99: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("null"); } LIT.with(|lit| lit.clone()) };
                                                     let mut v100: bool = v97 == v99 ;
                                                     v100
                                                 } else {
@@ -449,8 +448,8 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                                                             false
                                                         };
                                                         let mut v114: i32 = if v111 {
-                                                            let mut v112: Rc<str> = Rc::<str>::from("test-requires-cli");
-                                                            method8(v0.clone(), v107, v112.clone())
+                                                            let mut v112: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("test-requires-cli"); } LIT.with(|lit| lit.clone()) };
+                                                            fields_8(v0.clone(), v107, v112.clone())
                                                         } else {
                                                             -2i32
                                                         };
@@ -464,7 +463,7 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                                                             } else {
                                                                 let (mut v117, mut v118, mut v119, mut v120): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v114);
                                                                 let mut v123: bool = if v120 {
-                                                                    let mut v121: Rc<str> = Rc::<str>::from("true");
+                                                                    let mut v121: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("true"); } LIT.with(|lit| lit.clone()) };
                                                                     let mut v122: bool = v119 == v121 ;
                                                                     v122
                                                                 } else {
@@ -474,7 +473,7 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
                                                                     1i32
                                                                 } else {
                                                                     let mut v126: bool = if v120 {
-                                                                        let mut v124: Rc<str> = Rc::<str>::from("false");
+                                                                        let mut v124: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("false"); } LIT.with(|lit| lit.clone()) };
                                                                         let mut v125: bool = v119 == v124 ;
                                                                         v125
                                                                     } else {
@@ -516,13 +515,13 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: b
         }
     }
 }
-fn method1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: u8, mut v4: i32, mut v5: i32, mut v6: i32) -> i32 {
+fn selected_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: u8, mut v4: i32, mut v5: i32, mut v6: i32) -> i32 {
     loop {
         let mut v7: i32 = (v1.clone().len() as i32);
-        let mut v8: i32 = method2(v1.clone(), v2, v7, v3);
+        let mut v8: i32 = find_char_loop_2(v1.clone(), v2, v7, v3);
         let mut v9: bool = v2 == v8 ;
         let mut v13: Rc<str> = if v9 {
-            method3()
+            codec_empty_3()
         } else {
             let mut v11: i32 = v8 - 1i32 ;
             let mut v12: Rc<str> = string_slice(&v1.clone(), v2 as i64, v11 as i64);
@@ -530,7 +529,7 @@ fn method1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: u8, mut v4: i3
         };
         let mut v14: bool = false;
         let mut v15: i32 = 0i32;
-        let mut v16: i32 = method5(v0.clone(), v4, v5, v13.clone(), v14, v15);
+        let mut v16: i32 = packages_5(v0.clone(), v4, v5, v13.clone(), v14, v15);
         let mut v17: bool = v16 < 0i32;
         if v17 {
             return v16;
@@ -552,32 +551,32 @@ fn method1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: u8, mut v4: i3
         }
     }
 }
-fn method0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> i32 {
+fn inspect_0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> i32 {
     let (mut v3, mut v4, mut v5, mut v6): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,0i32);
     let mut v9: bool = if v6 {
-        let mut v7: Rc<str> = Rc::<str>::from("{");
+        let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("{"); } LIT.with(|lit| lit.clone()) };
         let mut v8: bool = v5 == v7 ;
         v8
     } else {
         false
     };
     let mut v12: i32 = if v9 {
-        let mut v10: Rc<str> = Rc::<str>::from("packages");
-        method8(v0.clone(), v4, v10.clone())
+        let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("packages"); } LIT.with(|lit| lit.clone()) };
+        fields_8(v0.clone(), v4, v10.clone())
     } else {
         -2i32
     };
     let (mut v13, mut v14, mut v15, mut v16): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,0i32);
     let mut v19: bool = if v16 {
-        let mut v17: Rc<str> = Rc::<str>::from("{");
+        let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("{"); } LIT.with(|lit| lit.clone()) };
         let mut v18: bool = v15 == v17 ;
         v18
     } else {
         false
     };
     let mut v22: i32 = if v19 {
-        let mut v20: Rc<str> = Rc::<str>::from("workspace_members");
-        method8(v0.clone(), v14, v20.clone())
+        let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("workspace_members"); } LIT.with(|lit| lit.clone()) };
+        fields_8(v0.clone(), v14, v20.clone())
     } else {
         -2i32
     };
@@ -595,14 +594,14 @@ fn method0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> i32 {
         let (mut v30, mut v31, mut v32, mut v33): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v22);
         let mut v34: bool = v29 && v33;
         let mut v37: bool = if v34 {
-            let mut v35: Rc<str> = Rc::<str>::from("[");
+            let mut v35: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("["); } LIT.with(|lit| lit.clone()) };
             let mut v36: bool = v28 == v35 ;
             v36
         } else {
             false
         };
         let mut v40: bool = if v37 {
-            let mut v38: Rc<str> = Rc::<str>::from("[");
+            let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("["); } LIT.with(|lit| lit.clone()) };
             let mut v39: bool = v32 == v38 ;
             v39
         } else {
@@ -612,16 +611,16 @@ fn method0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> i32 {
             let mut v41: i32 = 0i32;
             let mut v42: u8 = v2.clone().as_bytes()[0i32 as usize];
             let mut v43: i32 = 0i32;
-            method1(v0.clone(), v1.clone(), v41, v42, v27, v31, v43)
+            selected_1(v0.clone(), v1.clone(), v41, v42, v27, v31, v43)
         } else {
             -5i32
         }
     }
 }
 fn closure0() -> Rc<dyn Fn(Rc<str>, Rc<str>, Rc<str>) -> i32> {
-    Rc::new(move |mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>| -> i32 {
-        method0(v0.clone(), v1.clone(), v2.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, Rc<str>, Rc<str>) -> i32> = Rc::new(move |mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>| -> i32 {
+        inspect_0(v0.clone(), v1.clone(), v2.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_developer_requirements(v0: &str, v1: &str, v2: &str) -> i32 {
     closure0()(Rc::<str>::from(v0), Rc::<str>::from(v1), Rc::<str>::from(v2))

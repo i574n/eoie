@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "predicate_tests.rs"
+
+[package]
+name = "typed-predicate-contracts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[[test]]
+name = "typed_predicates"
+path = "predicate_tests.rs"
+
+[dependencies]
+eoie-handoff = { path = "../eoie_handoff" }

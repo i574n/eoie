@@ -168,23 +168,21 @@ let tags_migration (~root : string) (mode : migration_mode) : i32 =
         if i32_negative (first_malformed_task original 0i32 (byte_len original)) then
             inl migration = migrated_from (fresh_migration original) 0i32
             match mode with
-            | MigrationDryRun => migration_receipt "dry-run" migration original started
+            | MigrationDryRun => migration_receipt "preview" migration original started
             | MigrationApply => migration_written path migration original started
         else migration_failure "malformed Task fields"
 
-inl migration_mode_of (~flag : string) : validation_result migration_mode =
-    if rust_std_string.model.equals flag "--apply" then Valid MigrationApply
-    elif rust_std_string.model.equals flag "--dry-run" then Valid MigrationDryRun
+inl migration_mode_of (~mode : string) : validation_result migration_mode =
+    if rust_std_string.model.equals mode "apply" then Valid MigrationApply
+    elif rust_std_string.model.equals mode "preview" then Valid MigrationDryRun
     else Invalid
 
 let tags_migration_entry () : i32 =
-    inl count = argument_count ()
-    if i32_eq count 2i32 then tags_migration (argument_owned 1i32) MigrationDryRun
-    elif i32_eq count 3i32 then
-        match migration_mode_of (argument_owned 2i32) with
-        | Valid mode => tags_migration (argument_owned 1i32) mode
-        | Invalid => migration_failure "migrate-tags expects <root> [--dry-run|--apply]"
-    else migration_failure "migrate-tags expects <root> [--dry-run|--apply]"
+    if i32_eq (argument_count ()) 3i32 then
+        match migration_mode_of (argument_owned 1i32) with
+        | Valid mode => tags_migration (argument_owned 2i32) mode
+        | Invalid => migration_failure "migrate-tags expects preview <root> or apply <root>"
+    else migration_failure "migrate-tags expects preview <root> or apply <root>"
 
 inl main () : i32 =
     !!!!Export("eoie_agile_migrate_tags_run", ((fun () => tags_migration_entry ()) : () -> i32))

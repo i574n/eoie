@@ -303,462 +303,68 @@ fn EoieUnknownRejected() -> i32 { let verb = std::env::args().nth(1).unwrap_or_d
 
 #[derive(Clone)]
 enum US0 {
-    US0_0,
-    US0_1,
-    US0_2,
-    US0_3,
-    US0_4,
-    US0_5,
-    US0_6,
-    US0_7,
+    US0_StatusHandler,
+    US0_PatchHandler,
+    US0_AgileHandler,
+    US0_BundleHandler,
+    US0_ProxyHandler,
+    US0_HelpHandler,
+    US0_UnknownHandler,
+    US0_LeaseDeniedHandler,
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0 => 0,
-            US0::US0_1 => 1,
-            US0::US0_2 => 2,
-            US0::US0_3 => 3,
-            US0::US0_4 => 4,
-            US0::US0_5 => 5,
-            US0::US0_6 => 6,
-            US0::US0_7 => 7,
+            US0::US0_StatusHandler => 0,
+            US0::US0_PatchHandler => 1,
+            US0::US0_AgileHandler => 2,
+            US0::US0_BundleHandler => 3,
+            US0::US0_ProxyHandler => 4,
+            US0::US0_HelpHandler => 5,
+            US0::US0_UnknownHandler => 6,
+            US0::US0_LeaseDeniedHandler => 7,
         }
     }
 }
-fn method0(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
-    let mut v4: bool = v0 < 1i32;
-    if v4 {
-        0i32
-    } else {
-        let mut v5: bool = v1 < 1i32;
-        if v5 {
-            0i32
-        } else {
-            let mut v6: bool = v2 < 1i32;
-            if v6 {
-                0i32
-            } else {
-                let mut v7: bool = v3 < 0i32;
-                if v7 {
-                    0i32
-                } else {
-                    let mut v8: bool = v0 < v1;
-                    if v8 {
-                        0i32
-                    } else {
-                        let mut v9: i32 = v0.wrapping_sub(v1);
-                        let mut v10: bool = v9 == v3;
-                        if v10 {
-                            1i32
-                        } else {
-                            0i32
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-fn method1(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
-    let mut v4: bool = v0 < 1i32;
-    if v4 {
-        0i32
-    } else {
-        let mut v5: bool = v1 < v0;
-        if v5 {
-            0i32
-        } else {
-            let mut v6: bool = v2 < 1i32;
-            if v6 {
-                0i32
-            } else {
-                let mut v7: bool = v3 < 500i32;
-                if v7 {
-                    0i32
-                } else {
-                    1i32
-                }
-            }
-        }
-    }
-}
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v0 < 1i32;
-    if v2 {
-        0i32
-    } else {
-        let mut v3: bool = 1000i32 < v0;
-        if v3 {
-            0i32
-        } else {
-            let mut v4: bool = v1 < 1i32;
-            if v4 {
-                0i32
-            } else {
-                let mut v5: bool = 1000i32 < v1;
-                if v5 {
-                    0i32
-                } else {
-                    1i32
-                }
-            }
-        }
-    }
-}
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v0 == 4500000i32;
-    if v2 {
-        let mut v3: bool = v1 == 600000i32;
-        if v3 {
-            1i32
-        } else {
-            0i32
-        }
-    } else {
-        0i32
-    }
-}
-fn method4(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
-    let mut v4: i32 = v0.wrapping_mul(v1);
-    let mut v5: i32 = v2.wrapping_mul(v3);
-    let mut v6: i32 = v4.wrapping_mul(v5);
-    v6
-}
-fn method5(mut v0: i32, mut v1: i32, mut v2: i32) -> i32 {
-    let mut v3: bool = v0 == 0i32;
-    if v3 {
-        let mut v4: bool = v2 == 0i32;
-        if v4 {
-            1i32
-        } else {
-            0i32
-        }
-    } else {
-        let mut v6: bool = v1 == 1i32;
-        if v6 {
-            let mut v7: bool = v2 == 1i32;
-            if v7 {
-                1i32
-            } else {
-                0i32
-            }
-        } else {
-            let mut v9: bool = v2 == 2i32;
-            if v9 {
-                1i32
-            } else {
-                0i32
-            }
-        }
-    }
-}
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v0 < 1i32;
-    if v2 {
-        0i32
-    } else {
-        let mut v3: bool = v1 < 0i32;
-        if v3 {
-            0i32
-        } else {
-            let mut v4: bool = v1 < v0;
-            if v4 {
-                1i32
-            } else {
-                0i32
-            }
-        }
-    }
-}
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v1 == 0i32;
-    if v2 {
-        1i32
-    } else {
-        let mut v3: bool = v1 == 1i32;
-        if v3 {
-            let mut v4: bool = v0 == 1i32;
-            if v4 {
-                1i32
-            } else {
-                0i32
-            }
-        } else {
-            0i32
-        }
-    }
-}
-fn method8(mut v0: i32) -> i32 {
-    let mut v1: bool = v0 == 0i32;
-    if v1 {
-        1i32
-    } else {
-        0i32
-    }
-}
-fn method9(mut v0: i32) -> i32 {
-    let mut v1: bool = v0 == 0i32;
-    if v1 {
-        1i32
-    } else {
-        0i32
-    }
-}
-fn method10(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
-    let mut v5: i32 = v0.wrapping_mul(v1);
-    let mut v6: i32 = v2.wrapping_mul(v3);
-    let mut v7: i32 = v5.wrapping_mul(v6);
-    let mut v8: i32 = v7.wrapping_mul(v4);
-    v8
-}
-fn method12(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v0 < 1i32;
-    if v2 {
-        0i32
-    } else {
-        let mut v3: bool = 1i32 < v0;
-        if v3 {
-            0i32
-        } else {
-            let mut v4: bool = v1 < 1i32;
-            if v4 {
-                0i32
-            } else {
-                let mut v5: bool = 1i32 < v1;
-                if v5 {
-                    0i32
-                } else {
-                    1i32
-                }
-            }
-        }
-    }
-}
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
-    method12(v0, v1)
-}
-fn method13(mut v0: i32, mut v1: i32) -> i32 {
-    method12(v0, v1)
-}
-fn method14(mut v0: i32, mut v1: i32) -> i32 {
-    method12(v0, v1)
-}
-fn method15(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v0 < 1i32;
-    if v2 {
-        0i32
-    } else {
-        let mut v3: bool = 1i32 < v0;
-        if v3 {
-            0i32
-        } else {
-            let mut v4: bool = v1 < 2i32;
-            if v4 {
-                0i32
-            } else {
-                let mut v5: bool = 2i32 < v1;
-                if v5 {
-                    0i32
-                } else {
-                    1i32
-                }
-            }
-        }
-    }
-}
-fn method16(mut v0: i32, mut v1: i32) -> i32 {
-    method12(v0, v1)
-}
-fn method17(mut v0: i32, mut v1: i32) -> i32 {
-    method12(v0, v1)
-}
-fn method18(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i32, mut v5: i32) -> i32 {
-    let mut v6: bool = v0 < 1i32;
-    if v6 {
-        0i32
-    } else {
-        let mut v7: bool = v1 < 1i32;
-        if v7 {
-            0i32
-        } else {
-            let mut v8: bool = v2 < 1i32;
-            if v8 {
-                0i32
-            } else {
-                let mut v9: bool = v3 < 1i32;
-                if v9 {
-                    0i32
-                } else {
-                    let mut v10: bool = v4 < 1i32;
-                    if v10 {
-                        0i32
-                    } else {
-                        let mut v11: bool = v5 < 1i32;
-                        if v11 {
-                            0i32
-                        } else {
-                            1i32
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-fn method19(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v0 < 1i32;
-    if v2 {
-        0i32
-    } else {
-        let mut v3: bool = v1 < 0i32;
-        if v3 {
-            0i32
-        } else {
-            let mut v4: bool = v1 < 1i32;
-            if v4 {
-                1i32
-            } else {
-                2i32
-            }
-        }
-    }
-}
-fn method20(mut v0: i32) -> i32 {
-    let mut v1: bool = v0 < 0i32;
-    if v1 {
-        0i32
-    } else {
-        let mut v2: bool = 0i32 < v0;
-        if v2 {
-            0i32
-        } else {
-            1i32
-        }
-    }
-}
-fn method21(mut v0: i32, mut v1: i32, mut v2: i32) -> i32 {
-    let mut v3: i32 = method20(v2);
-    let mut v4: bool = v0 < 1i32;
-    if v4 {
-        0i32
-    } else {
-        let mut v5: bool = v1 < 1i32;
-        if v5 {
-            0i32
-        } else {
-            let mut v6: bool = v3 < 1i32;
-            if v6 {
-                0i32
-            } else {
-                1i32
-            }
-        }
-    }
-}
-fn method22(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v0 < 0i32;
-    if v2 {
-        0i32
-    } else {
-        let mut v3: bool = v1 < 0i32;
-        if v3 {
-            0i32
-        } else {
-            let mut v4: bool = v0 < 1i32;
-            if v4 {
-                let mut v5: bool = v1 < 1i32;
-                if v5 {
-                    0i32
-                } else {
-                    1i32
-                }
-            } else {
-                1i32
-            }
-        }
-    }
-}
-fn method23(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: bool = v0 < 1i32;
-    if v2 {
-        0i32
-    } else {
-        let mut v3: bool = v1 < 1i32;
-        if v3 {
-            0i32
-        } else {
-            let mut v4: bool = 3i32 < v1;
-            if v4 {
-                0i32
-            } else {
-                1i32
-            }
-        }
-    }
-}
-fn method24(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
-    let mut v5: bool = v0 < 1i32;
-    if v5 {
-        0i32
-    } else {
-        let mut v6: bool = v1 < 1i32;
-        if v6 {
-            0i32
-        } else {
-            let mut v7: bool = v2 < 1i32;
-            if v7 {
-                0i32
-            } else {
-                let mut v8: bool = v3 < 1i32;
-                if v8 {
-                    0i32
-                } else {
-                    let mut v9: bool = v4 < 1i32;
-                    if v9 {
-                        0i32
-                    } else {
-                        1i32
-                    }
-                }
-            }
-        }
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_StatusHandler
     }
 }
 fn spiral_main() -> i32 {
     let mut v0: i32 = eoie_legacy_operations::dogfood_shim_argv0_code();
     let mut v1: bool = 0i32 == v0;
-    let mut v143: i32 = if v1 {
+    let mut v70: i32 = if v1 {
         let mut v2: i32 = EoieProcessVerbCode();
         let mut v3: bool = 0i32 == v2;
         let mut v24: US0 = if v3 {
-            US0::US0_0
+            US0::US0_StatusHandler
         } else {
             let mut v5: bool = 1i32 == v2;
             if v5 {
-                US0::US0_1
+                US0::US0_PatchHandler
             } else {
                 let mut v7: bool = 2i32 == v2;
                 if v7 {
-                    US0::US0_2
+                    US0::US0_AgileHandler
                 } else {
                     let mut v9: bool = 3i32 == v2;
                     if v9 {
-                        US0::US0_3
+                        US0::US0_BundleHandler
                     } else {
                         let mut v11: bool = 4i32 == v2;
                         if v11 {
-                            US0::US0_4
+                            US0::US0_ProxyHandler
                         } else {
                             let mut v13: bool = 5i32 == v2;
                             if v13 {
-                                US0::US0_5
+                                US0::US0_HelpHandler
                             } else {
                                 let mut v15: bool = 7i32 == v2;
                                 if v15 {
-                                    US0::US0_7
+                                    US0::US0_LeaseDeniedHandler
                                 } else {
-                                    US0::US0_6
+                                    US0::US0_UnknownHandler
                                 }
                             }
                         }
@@ -767,167 +373,94 @@ fn spiral_main() -> i32 {
             }
         };
         match &v24 {
-            US0::US0_2 => {
-                let mut v129: i32 = EoieAgileAdapter();
-                v129
+            US0::US0_AgileHandler => {
+                let mut v56: i32 = EoieAgileAdapter();
+                v56
             }
-            US0::US0_3 => {
-                let mut v130: i32 = EoieBundleAdapter();
-                v130
+            US0::US0_BundleHandler => {
+                let mut v57: i32 = EoieBundleAdapter();
+                v57
             }
-            US0::US0_5 => {
-                let mut v132: i32 = EoieHelpRejected();
-                v132
+            US0::US0_HelpHandler => {
+                let mut v59: i32 = EoieHelpRejected();
+                v59
             }
-            US0::US0_7 => {
+            US0::US0_LeaseDeniedHandler => {
                 2i32
             }
-            US0::US0_1 => {
-                let mut v128: i32 = EoiePatchAdapter();
-                v128
+            US0::US0_PatchHandler => {
+                let mut v55: i32 = EoiePatchAdapter();
+                v55
             }
-            US0::US0_4 => {
-                let mut v131: i32 = EoieProxyAdapter();
-                v131
+            US0::US0_ProxyHandler => {
+                let mut v58: i32 = EoieProxyAdapter();
+                v58
             }
-            US0::US0_0 => {
+            US0::US0_StatusHandler => {
                 let mut v25: i32 = std::env::args().skip(2).count() as i32;
                 let mut v26: bool = 0i32 == v25;
                 if v26 {
-                    let mut v27: i32 = 162i32;
-                    let mut v28: i32 = 68i32;
-                    let mut v29: i32 = 162i32;
-                    let mut v30: i32 = 94i32;
-                    let mut v31: i32 = method0(v27, v28, v29, v30);
-                    let mut v32: i32 = 44i32;
-                    let mut v33: i32 = 69i32;
-                    let mut v34: i32 = 637i32;
-                    let mut v35: i32 = 500i32;
-                    let mut v36: i32 = method1(v32, v33, v34, v35);
-                    let mut v37: i32 = 974i32;
-                    let mut v38: i32 = 1000i32;
-                    let mut v39: i32 = 59i32;
-                    let mut v40: i32 = 62i32;
-                    let mut v41: i32 = method2(v37, v38);
-                    let mut v42: i32 = 4500000i32;
-                    let mut v43: i32 = 600000i32;
-                    let mut v44: i32 = method3(v42, v43);
-                    let mut v45: i32 = method4(v31, v36, v41, v44);
-                    let mut v46: bool = 1i32 == v45;
-                    if v46 {
-                        let mut v47: i32 = 0i32;
-                        let mut v48: i32 = 0i32;
-                        let mut v49: i32 = 0i32;
-                        let mut v50: i32 = method5(v47, v48, v49);
-                        let mut v51: i32 = 1i32;
-                        let mut v52: i32 = 0i32;
-                        let mut v53: i32 = 2i32;
-                        let mut v54: i32 = method5(v51, v52, v53);
-                        let mut v55: i32 = 1i32;
-                        let mut v56: i32 = 1i32;
-                        let mut v57: i32 = 1i32;
-                        let mut v58: i32 = method5(v55, v56, v57);
-                        let mut v59: i32 = v54.wrapping_mul(v58);
-                        let mut v60: i32 = v50.wrapping_mul(v59);
-                        let mut v61: i32 = 8i32;
-                        let mut v62: i32 = 5i32;
-                        let mut v63: i32 = method6(v61, v62);
-                        let mut v64: i32 = 1i32;
-                        let mut v65: i32 = 1i32;
-                        let mut v66: i32 = method7(v64, v65);
-                        let mut v67: i32 = 0i32;
-                        let mut v68: i32 = method8(v67);
-                        let mut v69: i32 = 0i32;
-                        let mut v70: i32 = method9(v69);
-                        let mut v71: i32 = method10(v63, v60, v66, v68, v70);
-                        let mut v72: bool = 1i32 == v71;
-                        if v72 {
-                            let mut v73: i32 = 1i32;
-                            let mut v74: i32 = 1i32;
-                            let mut v75: i32 = method11(v73, v74);
-                            let mut v76: i32 = 1i32;
-                            let mut v77: i32 = 1i32;
-                            let mut v78: i32 = method13(v76, v77);
-                            let mut v79: i32 = 1i32;
-                            let mut v80: i32 = 1i32;
-                            let mut v81: i32 = method14(v79, v80);
-                            let mut v82: i32 = 1i32;
-                            let mut v83: i32 = 2i32;
-                            let mut v84: i32 = method15(v82, v83);
-                            let mut v85: i32 = 1i32;
-                            let mut v86: i32 = 1i32;
-                            let mut v87: i32 = method16(v85, v86);
-                            let mut v88: i32 = 1i32;
-                            let mut v89: i32 = 1i32;
-                            let mut v90: i32 = method17(v88, v89);
-                            let mut v91: i32 = method18(v75, v78, v81, v84, v87, v90);
-                            let mut v92: bool = 1i32 == v91;
-                            if v92 {
-                                let mut v93: i32 = 1i32;
-                                let mut v94: i32 = 2i32;
-                                let mut v95: i32 = method19(v93, v94);
-                                let mut v96: i32 = 0i32;
-                                let mut v97: i32 = method20(v96);
-                                let mut v98: i32 = 1i32;
-                                let mut v99: i32 = 1i32;
-                                let mut v100: i32 = 0i32;
-                                let mut v101: i32 = method21(v98, v99, v100);
-                                let mut v102: i32 = 1i32;
-                                let mut v103: i32 = 2i32;
-                                let mut v104: i32 = method22(v102, v103);
-                                let mut v105: i32 = 3i32;
-                                let mut v106: i32 = 3i32;
-                                let mut v107: i32 = method23(v105, v106);
-                                let mut v108: i32 = method24(v95, v97, v101, v104, v107);
-                                let mut v109: bool = 1i32 == v108;
-                                if v109 {
-                                    let mut v110: i32 = process_batch_plan_domain::eoie_batch_matrix_auto_chain_budget(60000, 16000);
-                                    let mut v111: bool = 1i32 == v110;
-                                    if v111 {
-                                        let mut v112: i32 = EoieStatusOk(987i32);
-                                        v112
+                    let mut v27: i32 = bootstrap_authority_status::eoie_bootstrap_workspace_state_status();
+                    let mut v28: bool = 1i32 == v27;
+                    if v28 {
+                        let mut v29: i32 = bootstrap_authority_status::eoie_bootstrap_compiler_session_status();
+                        let mut v30: bool = 1i32 == v29;
+                        if v30 {
+                            let mut v31: i32 = bootstrap_authority_status::eoie_bootstrap_legacy_bundle_writer_status();
+                            let mut v32: bool = 1i32 == v31;
+                            if v32 {
+                                let mut v33: i32 = bootstrap_authority_status::eoie_bootstrap_ingest_frontier_status();
+                                let mut v34: bool = 1i32 == v33;
+                                if v34 {
+                                    let mut v35: i32 = process_batch_plan_domain::eoie_batch_matrix_auto_chain_budget(60000, 16000);
+                                    let mut v36: bool = 1i32 == v35;
+                                    if v36 {
+                                        let mut v37: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
+                                        let mut v38: i32 = EoieStatusOk(v37);
+                                        v38
                                     } else {
-                                        let mut v113: i32 = EoieStatusAuthorityError();
-                                        v113
+                                        let mut v39: i32 = EoieStatusAuthorityError();
+                                        v39
                                     }
                                 } else {
-                                    let mut v115: i32 = EoieStatusAuthorityError();
-                                    v115
+                                    let mut v41: i32 = EoieStatusAuthorityError();
+                                    v41
                                 }
                             } else {
-                                let mut v117: i32 = EoieStatusAuthorityError();
-                                v117
+                                let mut v43: i32 = EoieStatusAuthorityError();
+                                v43
                             }
                         } else {
-                            let mut v119: i32 = EoieStatusAuthorityError();
-                            v119
+                            let mut v45: i32 = EoieStatusAuthorityError();
+                            v45
                         }
                     } else {
-                        let mut v121: i32 = EoieStatusAuthorityError();
-                        v121
+                        let mut v47: i32 = EoieStatusAuthorityError();
+                        v47
                     }
                 } else {
-                    let mut v123: bool = 1i32 == v25;
-                    if v123 {
-                        let mut v124: i32 = EoieStatusLive(987i32);
-                        v124
+                    let mut v49: bool = 1i32 == v25;
+                    if v49 {
+                        let mut v50: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
+                        let mut v51: i32 = EoieStatusLive(v50);
+                        v51
                     } else {
-                        let mut v125: i32 = EoieStatusArityError();
-                        v125
+                        let mut v52: i32 = EoieStatusArityError();
+                        v52
                     }
                 }
             }
-            US0::US0_6 => {
-                let mut v133: i32 = EoieUnknownRejected();
-                v133
+            US0::US0_UnknownHandler => {
+                let mut v60: i32 = EoieUnknownRejected();
+                v60
             }
         }
     } else {
-        let mut v142: i32 = eoie_legacy_operations::dogfood_shim_dispatch();
-        v142
+        let mut v69: i32 = eoie_legacy_operations::dogfood_shim_dispatch();
+        v69
     };
-    let mut v144: i32 = eoie_coverage_prune::coverage_finish(v143);
-    v144
+    let mut v71: i32 = eoie_coverage_prune::coverage_finish(v70);
+    v71
 }
 fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();

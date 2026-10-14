@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
@@ -6,12 +6,11 @@ fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
     let length = bytes.len() as i64;
     if from < 0 || from > length || to < from - 1 || to >= length { std::process::abort(); }
     if to < from { return { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }; }
-    // A slice that starts or ends inside a code point fails like the C and Delphi backends (abort / Halt(3)).
     if (bytes[from as usize] & 0xC0) == 0x80 || (to + 1 < length && (bytes[(to + 1) as usize] & 0xC0) == 0x80) { std::process::exit(3); }
     let slice = &bytes[from as usize..(to + 1) as usize];
     match std::str::from_utf8(slice) { Ok(text) => Rc::<str>::from(text), Err(error) => Rc::<str>::from(std::str::from_utf8(&slice[..error.valid_up_to()]).unwrap_or("")) }
 }
-fn method0(mut v0: i32, mut v1: i32) -> bool {
+fn validate_0(mut v0: i32, mut v1: i32) -> bool {
     loop {
         let mut v2: bool = v0 == v1;
         if v2 {
@@ -52,7 +51,7 @@ fn method0(mut v0: i32, mut v1: i32) -> bool {
                 }
             };
             if v20 {
-                let mut v21: i32 = v0 + 1i32;
+                let mut v21: i32 = v0.wrapping_add(1i32);
                 (v0, v1) = (v21, v1);
                 continue;
             } else {
@@ -84,7 +83,7 @@ fn method0(mut v0: i32, mut v1: i32) -> bool {
                     }
                 };
                 if v36 {
-                    let mut v37: i32 = v0 + 1i32;
+                    let mut v37: i32 = v0.wrapping_add(1i32);
                     let mut v38: bool = v37 < v1;
                     if v38 {
                         let mut v39: Rc<str> = std::env::args().nth(v37 as usize).map(std::rc::Rc::<str>::from).unwrap_or_default();
@@ -98,7 +97,7 @@ fn method0(mut v0: i32, mut v1: i32) -> bool {
                             if v43 {
                                 return false;
                             } else {
-                                let mut v44: i32 = v0 + 2i32;
+                                let mut v44: i32 = v0.wrapping_add(2i32);
                                 (v0, v1) = (v44, v1);
                                 continue;
                             }
@@ -113,7 +112,7 @@ fn method0(mut v0: i32, mut v1: i32) -> bool {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32, mut v2: Rc<str>) -> bool {
+fn has_from_1(mut v0: i32, mut v1: i32, mut v2: Rc<str>) -> bool {
     loop {
         let mut v3: bool = v0 == v1;
         if v3 {
@@ -156,20 +155,20 @@ fn method1(mut v0: i32, mut v1: i32, mut v2: Rc<str>) -> bool {
                 } else {
                     1i32
                 };
-                let mut v21: i32 = v0 + v20;
+                let mut v21: i32 = v0.wrapping_add(v20);
                 (v0, v1, v2) = (v21, v1, v2.clone());
                 continue;
             }
         }
     }
 }
-fn method3(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
+fn arg_3(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
     let mut v2: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v4: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v2, &*v1, &*v3, &*v3].concat());
     v4.clone()
 }
-fn method2(mut v0: i32, mut v1: i32, mut v2: Rc<str>, mut v3: bool) -> Rc<str> {
+fn packages_from_2(mut v0: i32, mut v1: i32, mut v2: Rc<str>, mut v3: bool) -> Rc<str> {
     loop {
         let mut v4: bool = v0 == v1;
         if v4 {
@@ -211,30 +210,30 @@ fn method2(mut v0: i32, mut v1: i32, mut v2: Rc<str>, mut v3: bool) -> Rc<str> {
             let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--package"); } LIT.with(|lit| lit.clone()) };
             let mut v22: bool = v5 == v21 ;
             let mut v32: Rc<str> = if v22 {
-                let mut v23: i32 = v0 + 1i32;
+                let mut v23: i32 = v0.wrapping_add(1i32);
                 let mut v24: Rc<str> = std::env::args().nth(v23 as usize).map(std::rc::Rc::<str>::from).unwrap_or_default();
                 if v3 {
-                    let mut v25: Rc<str> = method3(v2.clone(), v21.clone());
-                    method3(v25.clone(), v24.clone())
+                    let mut v25: Rc<str> = arg_3(v2.clone(), v21.clone());
+                    arg_3(v25.clone(), v24.clone())
                 } else {
                     let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                     let mut v28: bool = v2 == v27 ;
                     if v28 {
                         v24.clone()
                     } else {
-                        method3(v2.clone(), v24.clone())
+                        arg_3(v2.clone(), v24.clone())
                     }
                 }
             } else {
                 v2.clone()
             };
-            let mut v33: i32 = v0 + v20;
+            let mut v33: i32 = v0.wrapping_add(v20);
             (v0, v1, v2, v3) = (v33, v1, v32.clone(), v3);
             continue;
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32, mut v2: Rc<str>, mut v3: Rc<str>) -> Rc<str> {
+fn value_from_4(mut v0: i32, mut v1: i32, mut v2: Rc<str>, mut v3: Rc<str>) -> Rc<str> {
     loop {
         let mut v4: bool = v0 == v1;
         if v4 {
@@ -275,42 +274,42 @@ fn method4(mut v0: i32, mut v1: i32, mut v2: Rc<str>, mut v3: Rc<str>) -> Rc<str
             };
             let mut v21: bool = v2 == v5 ;
             let mut v24: Rc<str> = if v21 {
-                let mut v22: i32 = v0 + 1i32;
+                let mut v22: i32 = v0.wrapping_add(1i32);
                 let mut v23: Rc<str> = std::env::args().nth(v22 as usize).map(std::rc::Rc::<str>::from).unwrap_or_default();
                 v23.clone()
             } else {
                 v3.clone()
             };
-            let mut v25: i32 = v0 + v20;
+            let mut v25: i32 = v0.wrapping_add(v20);
             (v0, v1, v2, v3) = (v25, v1, v2.clone(), v24.clone());
             continue;
         }
     }
 }
-fn method5(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
+fn append_5(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v1, &*v2, &*v2, &*v2].concat());
     v3.clone()
 }
-fn method7(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
+fn argument_7(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
     let mut v2: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v4: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v2, &*v1, &*v3, &*v3].concat());
     v4.clone()
 }
-fn method6(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: bool, mut v3: u64) -> i32 {
+fn requirements_6(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: bool, mut v3: u64) -> i32 {
     let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("metadata"); } LIT.with(|lit| lit.clone()) };
     let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--no-deps"); } LIT.with(|lit| lit.clone()) };
-    let mut v6: Rc<str> = method7(v4.clone(), v5.clone());
+    let mut v6: Rc<str> = argument_7(v4.clone(), v5.clone());
     let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--format-version"); } LIT.with(|lit| lit.clone()) };
-    let mut v8: Rc<str> = method7(v6.clone(), v7.clone());
+    let mut v8: Rc<str> = argument_7(v6.clone(), v7.clone());
     let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
-    let mut v10: Rc<str> = method7(v8.clone(), v9.clone());
+    let mut v10: Rc<str> = argument_7(v8.clone(), v9.clone());
     let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--locked"); } LIT.with(|lit| lit.clone()) };
-    let mut v12: Rc<str> = method7(v10.clone(), v11.clone());
+    let mut v12: Rc<str> = argument_7(v10.clone(), v11.clone());
     let mut v15: Rc<str> = if v2 {
         let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--offline"); } LIT.with(|lit| lit.clone()) };
-        method7(v12.clone(), v13.clone())
+        argument_7(v12.clone(), v13.clone())
     } else {
         v12.clone()
     };
@@ -349,7 +348,7 @@ fn method6(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: bool, mut v3: u64) -> i32 {
     };
     v20
 }
-fn method9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
+fn find_char_loop_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -371,28 +370,28 @@ fn method11() -> Rc<str> {
     let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     v0.clone()
 }
-fn method10() -> Rc<str> {
+fn codec_empty_10() -> Rc<str> {
     method11()
 }
-fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: u8) -> Rc<str> {
+fn quoted_arguments_8(mut v0: Rc<str>, mut v1: i32, mut v2: u8) -> Rc<str> {
     let mut v3: i32 = (v0.clone().len() as i32);
-    let mut v4: i32 = method9(v0.clone(), v1, v3, v2);
+    let mut v4: i32 = find_char_loop_9(v0.clone(), v1, v3, v2);
     let mut v5: bool = v1 == v4 ;
     let mut v9: Rc<str> = if v5 {
-        method10()
+        codec_empty_10()
     } else {
         let mut v7: i32 = v4 - 1i32 ;
         let mut v8: Rc<str> = string_slice(&v0.clone(), v1 as i64, v7 as i64);
         v8.clone()
     };
-    let mut v10: Rc<str> = predicate_lex_domain::eoie_predicate_encode(&*v9);
+    let mut v10: Rc<str> = predicate_literal_domain::eoie_predicate_encode(&*v9);
     let mut v11: bool = v4 == v3 ;
     if v11 {
         v10.clone()
     } else {
         let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" "); } LIT.with(|lit| lit.clone()) };
         let mut v13: i32 = v4 + 1i32 ;
-        let mut v14: Rc<str> = method8(v0.clone(), v13, v2);
+        let mut v14: Rc<str> = quoted_arguments_8(v0.clone(), v13, v2);
         let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         let mut v16: Rc<str> = std::rc::Rc::<str>::from([&*v10, &*v12, &*v14, &*v15, &*v15].concat());
         v16.clone()
@@ -401,12 +400,12 @@ fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: u8) -> Rc<str> {
 fn spiral_main() -> i32 {
     let mut v0: i32 = std::env::args().count() as i32;
     let mut v1: i32 = 1i32;
-    let mut v2: bool = method0(v1, v0);
+    let mut v2: bool = validate_0(v1, v0);
     if v2 {
         let mut v3: i32 = 1i32;
         let mut v4: i32 = std::env::args().count() as i32;
         let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--help"); } LIT.with(|lit| lit.clone()) };
-        let mut v6: bool = method1(v3, v4, v5.clone());
+        let mut v6: bool = has_from_1(v3, v4, v5.clone());
         if v6 {
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-dev [--test] [--skip-release] [--package NAME] [--offline] [--root PATH] [--target-dir PATH] [--compiler-contracts] [--compiler PATH] [--timeout-ms N] [--dry-run]\nBuilds a candidate; installation remains a separately validated operation.\n"); } LIT.with(|lit| lit.clone()) };
             std::io::Write::write_all(&mut std::io::stdout(),v7.as_bytes()).unwrap();
@@ -415,23 +414,23 @@ fn spiral_main() -> i32 {
             let mut v8: i32 = 1i32;
             let mut v9: i32 = std::env::args().count() as i32;
             let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--test"); } LIT.with(|lit| lit.clone()) };
-            let mut v11: bool = method1(v8, v9, v10.clone());
+            let mut v11: bool = has_from_1(v8, v9, v10.clone());
             let mut v12: i32 = 1i32;
             let mut v13: i32 = std::env::args().count() as i32;
             let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--skip-release"); } LIT.with(|lit| lit.clone()) };
-            let mut v15: bool = method1(v12, v13, v14.clone());
+            let mut v15: bool = has_from_1(v12, v13, v14.clone());
             let mut v16: i32 = 1i32;
             let mut v17: i32 = std::env::args().count() as i32;
             let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--compiler-contracts"); } LIT.with(|lit| lit.clone()) };
-            let mut v19: bool = method1(v16, v17, v18.clone());
+            let mut v19: bool = has_from_1(v16, v17, v18.clone());
             let mut v20: i32 = 1i32;
             let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             let mut v22: bool = false;
-            let mut v23: Rc<str> = method2(v20, v0, v21.clone(), v22);
+            let mut v23: Rc<str> = packages_from_2(v20, v0, v21.clone(), v22);
             let mut v24: i32 = 1i32;
             let mut v25: i32 = std::env::args().count() as i32;
             let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--compiler"); } LIT.with(|lit| lit.clone()) };
-            let mut v27: Rc<str> = method4(v24, v25, v26.clone(), v21.clone());
+            let mut v27: Rc<str> = value_from_4(v24, v25, v26.clone(), v21.clone());
             let mut v28: bool = v27 == v21 ;
             let mut v31: Rc<str> = if v28 {
                 let mut v29: Rc<str> = std::env::var("EOIE_SPIRAL_COMPILE").map(std::rc::Rc::<str>::from).unwrap_or_default();
@@ -444,25 +443,25 @@ fn spiral_main() -> i32 {
             let mut v33: i32 = std::env::args().count() as i32;
             let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--timeout-ms"); } LIT.with(|lit| lit.clone()) };
             let mut v35: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("900000"); } LIT.with(|lit| lit.clone()) };
-            let mut v36: Rc<str> = method4(v32, v33, v34.clone(), v35.clone());
+            let mut v36: Rc<str> = value_from_4(v32, v33, v34.clone(), v35.clone());
             let mut v37: u64 = v36.parse::<u64>().unwrap_or(0);
             let mut v38: i32 = 1i32;
             let mut v39: i32 = std::env::args().count() as i32;
             let mut v40: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--root"); } LIT.with(|lit| lit.clone()) };
             let mut v41: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("."); } LIT.with(|lit| lit.clone()) };
-            let mut v42: Rc<str> = method4(v38, v39, v40.clone(), v41.clone());
+            let mut v42: Rc<str> = value_from_4(v38, v39, v40.clone(), v41.clone());
             let mut v43: Rc<str> = std::path::absolute(&*v42).ok().and_then(|p| p.to_str().map(std::rc::Rc::<str>::from)).unwrap_or_default();
             let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/src/target"); } LIT.with(|lit| lit.clone()) };
-            let mut v45: Rc<str> = method5(v43.clone(), v44.clone());
+            let mut v45: Rc<str> = append_5(v43.clone(), v44.clone());
             let mut v46: i32 = 1i32;
             let mut v47: i32 = std::env::args().count() as i32;
             let mut v48: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--target-dir"); } LIT.with(|lit| lit.clone()) };
-            let mut v49: Rc<str> = method4(v46, v47, v48.clone(), v45.clone());
+            let mut v49: Rc<str> = value_from_4(v46, v47, v48.clone(), v45.clone());
             let mut v50: Rc<str> = std::path::absolute(&*v49).ok().and_then(|p| p.to_str().map(std::rc::Rc::<str>::from)).unwrap_or_default();
             let mut v51: i32 = 1i32;
             let mut v52: i32 = std::env::args().count() as i32;
             let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--dry-run"); } LIT.with(|lit| lit.clone()) };
-            let mut v54: bool = method1(v51, v52, v53.clone());
+            let mut v54: bool = has_from_1(v51, v52, v53.clone());
             let mut v55: bool = v11 == false;
             let mut v60: bool = if v55 {
                 let mut v56: bool = v15 || v19;
@@ -479,7 +478,7 @@ fn spiral_main() -> i32 {
             if v60 {
                 let mut v61: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--skip-release, --package and --compiler-contracts require --test"); } LIT.with(|lit| lit.clone()) };
                 let mut v62: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-                let mut v63: Rc<str> = method5(v61.clone(), v62.clone());
+                let mut v63: Rc<str> = append_5(v61.clone(), v62.clone());
                 std::io::Write::write_all(&mut std::io::stdout(),v63.as_bytes()).unwrap();
                 2i32
             } else {
@@ -494,7 +493,7 @@ fn spiral_main() -> i32 {
                 if v67 {
                     let mut v68: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--compiler must identify an existing file"); } LIT.with(|lit| lit.clone()) };
                     let mut v69: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-                    let mut v70: Rc<str> = method5(v68.clone(), v69.clone());
+                    let mut v70: Rc<str> = append_5(v68.clone(), v69.clone());
                     std::io::Write::write_all(&mut std::io::stdout(),v70.as_bytes()).unwrap();
                     2i32
                 } else {
@@ -507,7 +506,7 @@ fn spiral_main() -> i32 {
                     if v72 {
                         let mut v73: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--compiler-contracts requires --compiler or EOIE_SPIRAL_COMPILE"); } LIT.with(|lit| lit.clone()) };
                         let mut v74: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-                        let mut v75: Rc<str> = method5(v73.clone(), v74.clone());
+                        let mut v75: Rc<str> = append_5(v73.clone(), v74.clone());
                         std::io::Write::write_all(&mut std::io::stdout(),v75.as_bytes()).unwrap();
                         2i32
                     } else {
@@ -521,7 +520,7 @@ fn spiral_main() -> i32 {
                         if v78 {
                             let mut v79: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--timeout-ms must be between 1 and 3600000"); } LIT.with(|lit| lit.clone()) };
                             let mut v80: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-                            let mut v81: Rc<str> = method5(v79.clone(), v80.clone());
+                            let mut v81: Rc<str> = append_5(v79.clone(), v80.clone());
                             std::io::Write::write_all(&mut std::io::stdout(),v81.as_bytes()).unwrap();
                             2i32
                         } else {
@@ -530,7 +529,7 @@ fn spiral_main() -> i32 {
                             if v83 {
                                 let mut v84: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--root must contain src/Cargo.toml"); } LIT.with(|lit| lit.clone()) };
                                 let mut v85: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-                                let mut v86: Rc<str> = method5(v84.clone(), v85.clone());
+                                let mut v86: Rc<str> = append_5(v84.clone(), v85.clone());
                                 std::io::Write::write_all(&mut std::io::stdout(),v86.as_bytes()).unwrap();
                                 2i32
                             } else {
@@ -544,19 +543,19 @@ fn spiral_main() -> i32 {
                                 if v89 {
                                     let mut v90: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("The workflow executable is running from the build target; bootstrap eoie-dev with a separate --target-dir"); } LIT.with(|lit| lit.clone()) };
                                     let mut v91: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-                                    let mut v92: Rc<str> = method5(v90.clone(), v91.clone());
+                                    let mut v92: Rc<str> = append_5(v90.clone(), v91.clone());
                                     std::io::Write::write_all(&mut std::io::stdout(),v92.as_bytes()).unwrap();
                                     2i32
                                 } else {
                                     let mut v93: i32 = 1i32;
                                     let mut v94: i32 = std::env::args().count() as i32;
                                     let mut v95: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--offline"); } LIT.with(|lit| lit.clone()) };
-                                    let mut v96: bool = method1(v93, v94, v95.clone());
+                                    let mut v96: bool = has_from_1(v93, v94, v95.clone());
                                     let mut v97: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--locked"); } LIT.with(|lit| lit.clone()) };
-                                    let mut v98: Rc<str> = method3(v97.clone(), v48.clone());
-                                    let mut v99: Rc<str> = method3(v98.clone(), v50.clone());
+                                    let mut v98: Rc<str> = arg_3(v97.clone(), v48.clone());
+                                    let mut v99: Rc<str> = arg_3(v98.clone(), v50.clone());
                                     let mut v101: Rc<str> = if v96 {
-                                        method3(v99.clone(), v95.clone())
+                                        arg_3(v99.clone(), v95.clone())
                                     } else {
                                         v99.clone()
                                     };
@@ -564,7 +563,7 @@ fn spiral_main() -> i32 {
                                     let mut v104: i32 = if v102 {
                                         1i32
                                     } else {
-                                        method6(v43.clone(), v23.clone(), v96, v37)
+                                        requirements_6(v43.clone(), v23.clone(), v96, v37)
                                     };
                                     let mut v105: bool = v104 < 0i32;
                                     if v105 {
@@ -578,16 +577,16 @@ fn spiral_main() -> i32 {
                                         };
                                         let mut v123: i32 = if v107 {
                                             let mut v108: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("build"); } LIT.with(|lit| lit.clone()) };
-                                            let mut v109: Rc<str> = method3(v108.clone(), v101.clone());
+                                            let mut v109: Rc<str> = arg_3(v108.clone(), v101.clone());
                                             let mut v110: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--package"); } LIT.with(|lit| lit.clone()) };
-                                            let mut v111: Rc<str> = method3(v109.clone(), v110.clone());
+                                            let mut v111: Rc<str> = arg_3(v109.clone(), v110.clone());
                                             let mut v112: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-cli"); } LIT.with(|lit| lit.clone()) };
-                                            let mut v113: Rc<str> = method3(v111.clone(), v112.clone());
+                                            let mut v113: Rc<str> = arg_3(v111.clone(), v112.clone());
                                             if v54 {
                                                 let mut v114: i32 = 0i32;
                                                 let mut v115: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
                                                 let mut v116: u8 = v115.clone().as_bytes()[0i32 as usize];
-                                                let mut v117: Rc<str> = method8(v113.clone(), v114, v116);
+                                                let mut v117: Rc<str> = quoted_arguments_8(v113.clone(), v114, v116);
                                                 let mut v118: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("cargo "); } LIT.with(|lit| lit.clone()) };
                                                 let mut v119: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                                                 let mut v120: Rc<str> = std::rc::Rc::<str>::from([&*v118, &*v117, &*v119, &*v21, &*v21].concat());
@@ -604,21 +603,21 @@ fn spiral_main() -> i32 {
                                         if v124 {
                                             let mut v148: i32 = if v11 {
                                                 let mut v125: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("test"); } LIT.with(|lit| lit.clone()) };
-                                                let mut v126: Rc<str> = method3(v125.clone(), v101.clone());
+                                                let mut v126: Rc<str> = arg_3(v125.clone(), v101.clone());
                                                 let mut v127: bool = v23 == v21 ;
                                                 let mut v133: Rc<str> = if v127 {
                                                     let mut v128: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--workspace"); } LIT.with(|lit| lit.clone()) };
-                                                    method3(v126.clone(), v128.clone())
+                                                    arg_3(v126.clone(), v128.clone())
                                                 } else {
                                                     let mut v130: i32 = 1i32;
                                                     let mut v131: bool = true;
-                                                    method2(v130, v0, v126.clone(), v131)
+                                                    packages_from_2(v130, v0, v126.clone(), v131)
                                                 };
                                                 let mut v138: Rc<str> = if v19 {
                                                     let mut v134: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v135: Rc<str> = method3(v133.clone(), v134.clone());
+                                                    let mut v135: Rc<str> = arg_3(v133.clone(), v134.clone());
                                                     let mut v136: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--include-ignored"); } LIT.with(|lit| lit.clone()) };
-                                                    method3(v135.clone(), v136.clone())
+                                                    arg_3(v135.clone(), v136.clone())
                                                 } else {
                                                     v133.clone()
                                                 };
@@ -626,7 +625,7 @@ fn spiral_main() -> i32 {
                                                     let mut v139: i32 = 0i32;
                                                     let mut v140: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
                                                     let mut v141: u8 = v140.clone().as_bytes()[0i32 as usize];
-                                                    let mut v142: Rc<str> = method8(v138.clone(), v139, v141);
+                                                    let mut v142: Rc<str> = quoted_arguments_8(v138.clone(), v139, v141);
                                                     let mut v143: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("cargo "); } LIT.with(|lit| lit.clone()) };
                                                     let mut v144: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                                                     let mut v145: Rc<str> = std::rc::Rc::<str>::from([&*v143, &*v142, &*v144, &*v21, &*v21].concat());
@@ -645,18 +644,18 @@ fn spiral_main() -> i32 {
                                                     0i32
                                                 } else {
                                                     let mut v150: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("build"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v151: Rc<str> = method3(v150.clone(), v101.clone());
+                                                    let mut v151: Rc<str> = arg_3(v150.clone(), v101.clone());
                                                     let mut v152: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--release"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v153: Rc<str> = method3(v151.clone(), v152.clone());
+                                                    let mut v153: Rc<str> = arg_3(v151.clone(), v152.clone());
                                                     let mut v154: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--package"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v155: Rc<str> = method3(v153.clone(), v154.clone());
+                                                    let mut v155: Rc<str> = arg_3(v153.clone(), v154.clone());
                                                     let mut v156: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-cli"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v157: Rc<str> = method3(v155.clone(), v156.clone());
+                                                    let mut v157: Rc<str> = arg_3(v155.clone(), v156.clone());
                                                     if v54 {
                                                         let mut v158: i32 = 0i32;
                                                         let mut v159: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
                                                         let mut v160: u8 = v159.clone().as_bytes()[0i32 as usize];
-                                                        let mut v161: Rc<str> = method8(v157.clone(), v158, v160);
+                                                        let mut v161: Rc<str> = quoted_arguments_8(v157.clone(), v158, v160);
                                                         let mut v162: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("cargo "); } LIT.with(|lit| lit.clone()) };
                                                         let mut v163: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                                                         let mut v164: Rc<str> = std::rc::Rc::<str>::from([&*v162, &*v161, &*v163, &*v21, &*v21].concat());
@@ -684,17 +683,12 @@ fn spiral_main() -> i32 {
     } else {
         let mut v178: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Invalid option or missing value; use --help"); } LIT.with(|lit| lit.clone()) };
         let mut v179: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-        let mut v180: Rc<str> = method5(v178.clone(), v179.clone());
+        let mut v180: Rc<str> = append_5(v178.clone(), v179.clone());
         std::io::Write::write_all(&mut std::io::stdout(),v180.as_bytes()).unwrap();
         2i32
     }
 }
-#[cfg(not(target_arch = "wasm32"))]
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
     std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
-}
-#[cfg(target_arch = "wasm32")]
-fn main() {
-    spiral_main();
 }

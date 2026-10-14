@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone, Debug)]
@@ -154,13 +154,29 @@ pub fn resolve_spiral_compiler(explicit: Option<&str>) -> Result<Option<SpiralCo
         return validate_spiral_compiler(std::path::Path::new(value.as_ref()), "environment").map(Some);
     }
     if let Some(value) = configured_spiral_compiler()? { return Ok(Some(value)); }
-    path_spiral_compiler()
+    if let Some(value) = path_spiral_compiler()? { return Ok(Some(value)); }
+    deployed_spiral_compiler()
+}
+
+pub fn deployed_spiral_compiler_path() -> Option<std::path::PathBuf> {
+    if let Some(value) = std::env::var_os("SPIRAL_COMPILER_DLL").filter(|value| !value.is_empty()) { return Some(std::path::PathBuf::from(value)); }
+    let cache = if let Some(value) = std::env::var_os("SPIRAL_BIN_CACHE_DIR").filter(|value| !value.is_empty()) { std::path::PathBuf::from(value) }
+        else if cfg!(windows) { std::path::PathBuf::from(std::env::var_os("LOCALAPPDATA")?).join("spiral-bin") }
+        else { std::path::PathBuf::from(std::env::var_os("HOME")?).join(".cache/spiral-bin") };
+    Some(cache.join("bin/single-flight/SpiralCompiler/Release/net11.0/SpiralCompiler.dll"))
+}
+
+fn deployed_spiral_compiler() -> Result<Option<SpiralCompilerDiscovery>, String> {
+    match deployed_spiral_compiler_path() {
+        Some(path) if path.is_file() => validate_spiral_compiler(&path, "deployed").map(Some),
+        _ => Ok(None),
+    }
 }
 
 fn spiral_main() -> i32 {
     0i32
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

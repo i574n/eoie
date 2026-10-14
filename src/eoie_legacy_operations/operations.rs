@@ -175,7 +175,7 @@ pub fn eoie_bundle_run() -> i32 {
     eoie_bundle_family()
 }
 #[must_use]
-pub fn eoie_proxy_run() -> i32 { let args = env::args().skip(2).collect::<Vec<_>>(); if let Err(error) = eoie_proxy(&args) { let child_exit = proxy_failure_classification::eoie_proxy_child_exit_code(&error); if child_exit > 0 { eprintln!("eoie error: {error}"); return child_exit; } let operation = args.first().map(String::as_str).unwrap_or(""); let usage = eoie_legacy_operations_proxy_usage(operation); if usage.is_empty() { eprintln!("eoie error: {error}\nintent: proxy capability\nusage: eoie proxy <capability> ...\nvalid: see eoie help proxy\ncorrected: eoie help proxy"); } else { eprintln!("eoie error: {error}\nintent: proxy capability\nusage: eoie {usage}\nvalid: {usage}\ncorrected: eoie {usage}"); } 2 } else { 0 } }
+pub fn eoie_proxy_run() -> i32 { let args = env::args().skip(2).collect::<Vec<_>>(); if let Err(error) = eoie_proxy(&args) { let child_exit = proxy_failure_classification::eoie_proxy_child_exit_code(&error); if child_exit > 0 { eprintln!("eoie error: {error}"); return child_exit; } let operation = args.first().map(String::as_str).unwrap_or(""); let usage = eoie_legacy_operations_proxy_usage(operation); let repaired = proxy_failure_classification::eoie_proxy_corrected_command(&error); let corrected = if repaired.is_empty() { format!("eoie {usage}") } else { repaired.to_string() }; if usage.is_empty() { eprintln!("eoie error: {error}\nintent: proxy capability\nusage: eoie proxy <capability> ...\nvalid: see eoie help proxy\ncorrected: eoie help proxy"); } else { eprintln!("eoie error: {error}\nintent: proxy capability\nusage: eoie {usage}\nvalid: {usage}\ncorrected: {corrected}"); } 2 } else { 0 } }
 
 fn eoie_arg<'a>(args: &'a [String], index: usize, name: &str) -> Result<&'a str, String> {
     args.get(index)
@@ -196,9 +196,7 @@ fn eoie_proxy(args: &[String]) -> Result<(), String> {
             let (code, message) = proxy_file_reading::eoie_file_reading_outcome();
             if code == 0 { Ok(()) } else { Err(message.to_string()) }
         }
-        "fs-write" => {             let started = proxy_file_receipt::eoie_file_clock_ms();             let root = Path::new(eoie_arg(args, 1, "root")?);             let path = eoie_rooted(root, eoie_arg(args, 2, "relative")?)?;             let usage = "usage: eoie proxy fs-write <root> <relative> [--replace-existing] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>; creating a missing file needs no replace flag";             if args.len() < 4 { return Err(format!("fs-write requires an explicit payload argument; {usage}")); }             let mut replace_existing = false;             let mut expect_hash: Option<&str> = None;             let mut expect_nonempty = false;             let mut payload_start = 3usize;             if args.get(3).is_some_and(|value| eoie_legacy_operations_proxy_write_token_code(value) < 4) {                 let mut index = 3usize;                 let mut separator_seen = false;                 while index < args.len() {                     match eoie_legacy_operations_proxy_write_token_code(args[index].as_str()) {                         0 => { replace_existing = true; index += 1; }                         1 => { index += 1; expect_hash = Some(eoie_arg(args, index, "sha256")?); index += 1; }                         2 => { expect_nonempty = true; index += 1; }                         3 => { payload_start = index + 1; separator_seen = true; break; }                         _ => return Err(format!("unexpected fs-write option: {}; {usage}", args[index])),                     }                 }                 if !separator_seen { return Err(format!("guarded fs-write requires -- before the payload; {usage}")); }             }             let text = args[payload_start..].join(" ");             let existed = path.exists();             let original = if existed { Some(fs::read(&path).map_err(|error| format!("read {} before replace: {error}", path.display()))?) } else { None };             if existed {                 if !replace_existing { return Err(format!("fs-write refuses to overwrite existing file without --replace-existing: {}; {usage}", path.display())); }
-                if expect_nonempty && original.as_ref().is_some_and(Vec::is_empty) { return Err(format!("fs-write --expect-nonempty rejected empty target: {}", path.display())); }
-                if let Some(expected) = expect_hash {                     let observed = eoie_proxy_search::inspection_file_sha256(&path)?;                     if observed != expected { return Err(format!("fs-write expected hash mismatch path={} expected={} observed={}", path.display(), expected, observed)); }                 }             } else if replace_existing || expect_hash.is_some() || expect_nonempty {                 return Err(format!("fs-write replacement preconditions require an existing file: {}; {usage}", path.display()));             }             eoie_atomic_write(&path, text.as_bytes())?;             let observed = fs::read(&path).map_err(|error| format!("readback {}: {error}", path.display()))?;             if observed != text.as_bytes() {                 if let Some(original) = original.as_ref() { let _ = eoie_atomic_write(&path, original); } else { let _ = eoie_remove_leaf_nofollow(&path); }                 return Err("fs-write readback mismatch; prior state restored".to_owned());             }             println!("eoie proxy fs-write ok mode={} path={} bytes={} replace_existing={} expect_hash={} expect_nonempty={}{}", if existed {"replace"} else {"create"}, path.display(), text.len(), i32::from(replace_existing), i32::from(expect_hash.is_some()), i32::from(expect_nonempty), proxy_file_receipt::eoie_elapsed_field(started));             Ok(()) }
+        "fs-write" => {             let started = proxy_file_receipt::eoie_file_clock_ms();             let root = Path::new(eoie_arg(args, 1, "root")?);             let path = eoie_rooted(root, eoie_arg(args, 2, "relative")?)?;             let usage = "usage: eoie proxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>; creating a missing file needs no replace flag, --create-or-replace writes whether or not it exists";             if args.len() < 4 { return Err(format!("fs-write requires an explicit payload argument; {usage}")); }             let mut replace_existing = false;             let mut create_or_replace = false;             let mut expect_hash: Option<&str> = None;             let mut expect_nonempty = false;             let mut payload_start = 3usize;             if args.get(3).is_some_and(|value| eoie_legacy_operations_proxy_write_token_code(value) < 5) {                 let mut index = 3usize;                 let mut separator_seen = false;                 while index < args.len() {                     match eoie_legacy_operations_proxy_write_token_code(args[index].as_str()) {                         0 => { replace_existing = true; index += 1; }                         1 => { index += 1; expect_hash = Some(eoie_arg(args, index, "sha256")?); index += 1; }                         2 => { expect_nonempty = true; index += 1; }                         3 => { payload_start = index + 1; separator_seen = true; break; }                         4 => { create_or_replace = true; index += 1; }                         _ => return Err(format!("unexpected fs-write option: {}; {usage}", args[index])),                     }                 }                 if !separator_seen { return Err(format!("guarded fs-write requires -- before the payload; {usage}")); }             }             let text = args[payload_start..].join(" ");             let existed = path.exists();             let original = if existed { Some(fs::read(&path).map_err(|error| format!("read {} before replace: {error}", path.display()))?) } else { None };             let packed = i32::from(replace_existing) + 2 * i32::from(create_or_replace) + 4 * i32::from(expect_hash.is_some()) + 8 * i32::from(expect_nonempty) + 16 * i32::from(original.as_ref().is_some_and(Vec::is_empty));             match eoie_legacy_operations_proxy_write_action_binding(i32::from(existed), packed) {                 0 => {}                 2 => return Err(format!("fs-write refuses to overwrite existing file without --replace-existing or --create-or-replace: {}; {usage}", path.display())),                 3 => return Err(format!("fs-write --expect-nonempty rejected empty target: {}", path.display())),                 4 => return Err(format!("fs-write replacement preconditions require an existing file: {}; {usage}", path.display())),                 _ => if let Some(expected) = expect_hash {                     let observed = eoie_proxy_search::inspection_file_sha256(&path)?;                     if observed != expected { return Err(format!("fs-write expected hash mismatch path={} expected={} observed={}", path.display(), expected, observed)); }                 },             }             eoie_atomic_write(&path, text.as_bytes())?;             let observed = fs::read(&path).map_err(|error| format!("readback {}: {error}", path.display()))?;             if observed != text.as_bytes() {                 if let Some(original) = original.as_ref() { let _ = eoie_atomic_write(&path, original); } else { let _ = eoie_remove_leaf_nofollow(&path); }                 return Err("fs-write readback mismatch; prior state restored".to_owned());             }             println!("eoie proxy fs-write ok mode={} path={} bytes={} replace_existing={} create_or_replace={} expect_hash={} expect_nonempty={}{}", if existed {"replace"} else {"create"}, path.display(), text.len(), i32::from(replace_existing), i32::from(create_or_replace), i32::from(expect_hash.is_some()), i32::from(expect_nonempty), proxy_file_receipt::eoie_elapsed_field(started));             Ok(()) }
         "text-replace" => {
             let (code, message) = proxy_text_replacement::eoie_text_replace_outcome();
             if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
@@ -410,6 +408,30 @@ pub fn legacy_restart_baton_run(args: &[String]) -> Result<(), String> {
     println!("eoie proxy restart-baton ok receipt={} migration={observed} bundle_bytes={bundle_bytes} bundle_sha256={bundle_hash} lease_sha256={lease_hash} workstream={workstream} next_gate={next_gate} receipt=spiral-typed-atomic", receipt.display());
     Ok(())
 }
+#[derive(Clone)]
+enum US0 {
+    US0_CreateMissingFile,
+    US0_ReplaceExistingFile,
+    US0_RejectOverwriteWithoutFlag,
+    US0_RejectEmptyTarget,
+    US0_RejectPreconditionsOnMissingFile,
+}
+impl US0 {
+    fn tag(&self) -> i32 {
+        match self {
+            US0::US0_CreateMissingFile => 0,
+            US0::US0_ReplaceExistingFile => 1,
+            US0::US0_RejectOverwriteWithoutFlag => 2,
+            US0::US0_RejectEmptyTarget => 3,
+            US0::US0_RejectPreconditionsOnMissingFile => 4,
+        }
+    }
+}
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_CreateMissingFile
+    }
+}
 fn shim_decision_binding_2(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
     let mut v4: bool = v0 < 0i32;
     if v4 {
@@ -602,18 +624,96 @@ fn proxy_run_token_code_14(mut v0: Rc<str>) -> u64 {
     v2
 }
 fn proxy_write_token_code_15(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--replace-existing|--expect-hash|--expect-nonempty|--"); } LIT.with(|lit| lit.clone()) };
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--replace-existing|--expect-hash|--expect-nonempty|--|--create-or-replace"); } LIT.with(|lit| lit.clone()) };
     let mut v2: u64 = v1.split("|").position(|item| item == &*v0).map(|index| index as u64).unwrap_or(u64::MAX);
     v2
 }
-fn proxy_usage_17(mut v0: Rc<str>) -> Rc<str> {
+fn proxy_write_action_17(mut v0: bool, mut v1: bool, mut v2: bool, mut v3: bool, mut v4: bool, mut v5: bool) -> US0 {
+    if v0 {
+        let mut v6: bool = v1 || v2;
+        if v6 {
+            let mut v7: bool = v4 && v5;
+            if v7 {
+                US0::US0_RejectEmptyTarget
+            } else {
+                US0::US0_ReplaceExistingFile
+            }
+        } else {
+            US0::US0_RejectOverwriteWithoutFlag
+        }
+    } else {
+        let mut v13: bool = v1 || v3;
+        let mut v14: bool = v13 || v4;
+        if v14 {
+            US0::US0_RejectPreconditionsOnMissingFile
+        } else {
+            US0::US0_CreateMissingFile
+        }
+    }
+}
+fn proxy_write_action_binding_16(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: bool = v1 < 0i32;
+    if v2 {
+        -1i32
+    } else {
+        let mut v3: bool = 31i32 < v1;
+        if v3 {
+            -1i32
+        } else {
+            let mut v4: bool = v0 < 0i32;
+            if v4 {
+                -1i32
+            } else {
+                let mut v5: bool = 1i32 < v0;
+                if v5 {
+                    -1i32
+                } else {
+                    let mut v6: bool = v0 == 1i32;
+                    let mut v7: i32 = v1.wrapping_rem(2i32);
+                    let mut v8: bool = v7 == 1i32;
+                    let mut v9: i32 = v1.wrapping_div(2i32);
+                    let mut v10: i32 = v9.wrapping_rem(2i32);
+                    let mut v11: bool = v10 == 1i32;
+                    let mut v12: i32 = v1.wrapping_div(4i32);
+                    let mut v13: i32 = v12.wrapping_rem(2i32);
+                    let mut v14: bool = v13 == 1i32;
+                    let mut v15: i32 = v1.wrapping_div(8i32);
+                    let mut v16: i32 = v15.wrapping_rem(2i32);
+                    let mut v17: bool = v16 == 1i32;
+                    let mut v18: i32 = v1.wrapping_div(16i32);
+                    let mut v19: i32 = v18.wrapping_rem(2i32);
+                    let mut v20: bool = v19 == 1i32;
+                    let mut v21: US0 = proxy_write_action_17(v6, v8, v11, v14, v17, v20);
+                    match &v21 {
+                        US0::US0_CreateMissingFile => {
+                            0i32
+                        }
+                        US0::US0_RejectEmptyTarget => {
+                            3i32
+                        }
+                        US0::US0_RejectOverwriteWithoutFlag => {
+                            2i32
+                        }
+                        US0::US0_RejectPreconditionsOnMissingFile => {
+                            4i32
+                        }
+                        US0::US0_ReplaceExistingFile => {
+                            1i32
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+fn proxy_usage_19(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("plan-ir-inspect|plan-ir-check|install-self|self-upgrade-check|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|fs-list|fs-read|fs-context|fs-search|parallel-search|hash|hash-tree|fs-write|text-replace|fs-remove|fs-remove-tree|run|archive-extract|zip-extract|toolchain|portable-toolchain|legacy-surface|restart-baton|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-slice|parallel-manifest|product-diff|fs-copy|spiral-session-shutdown|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|source-map|spi-diff|source-diff|source-recovery-diff|cold-rebuild-matrix|cold-rebuild-owner|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|formal-receipts-renew|coverage-register"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("proxy plan-ir-inspect <index>\nproxy plan-ir-check\nproxy install-self <source-binary> <installed-binary> <canonical-link>\nproxy self-upgrade-check <current-root> <candidate-root>\nproxy fs-chmod <root> <relative-path> <octal-mode>\nproxy fs-symlink <root> <target-relative> <link-relative>\nproxy fs-copy-tree <source> <destination>\nproxy command-output <root> <timeout-ms> <program> [args...]\nproxy command-capture <root> <receipt-relative> <timeout-ms> <program> [args...]\nproxy command-capture-env <root> <receipt-relative> <timeout-ms> <cwd-relative> <env-cell> <program> [args...]\nproxy fs-list <root> [relative]\nproxy fs-read <root> <relative> [max-bytes]\nproxy fs-context <root> <relative> <needle> <radius-bytes>\nproxy fs-search <root> <relative> <needle>\nproxy parallel-search <root> <relative> <needle> <max-hits>\nproxy hash <root> <relative>\nproxy hash-tree <root> <relative>\nproxy fs-write <root> <relative> [--replace-existing] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>\nproxy text-replace <check|apply> <root> <relative> <old> <new> [--all|--expect <count>]\nproxy fs-remove <root> <relative>\nproxy fs-remove-tree <root> <relative> [--missing-ok]\nproxy run --cwd <directory> --program <program> [--timeout-ms <ms>] [--env KEY=VALUE]... [--unset KEY]... [-- <args...>]\nproxy archive-extract <archive> <destination>\nproxy zip-extract <archive> <destination>\nproxy toolchain <root> <action> ...\nproxy portable-toolchain <root> ...\nproxy legacy-surface\nproxy restart-baton <root> <receipt-relative> <bundle-absolute> <expected-migration> <active-workstream> <touched-sources> <next-gate>\nproxy command-capture-matrix <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]\nproxy command-capture-matrix-gate <root> <report-relative>\nproxy batch-plan <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]\nproxy batch-plan-resume <root> <report-relative> <resume-relative>\nproxy fs-slice <root> <relative> <start> <count>\nproxy parallel-manifest <root> <relative> <max-entries> [preview|apply <output-relative>]\nproxy product-diff <left-root> <right-root>\nproxy fs-copy <root> <source> <target>\nproxy spiral-session-shutdown <compiler> [timeout-ms]\nproxy prune-build-cache <root> <relative-target>\nproxy prune-compiler-sidecars <root> [--dry-run]\nproxy incident-recovery snapshot <root> <source-relative> <snapshot-parent-relative> <receipt-relative> | restore <root> <target-relative> <snapshot-relative> <receipt-relative>\nproxy external-payload <register|hydrate|dehydrate> <root> <payload-relative> <cache-relative> <receipt-relative>\nproxy differential-compare <root> <oracle> <direct> <receipt>\nproxy coverage-assess <test.lcov> <smoke.lcov> <test-floor> <smoke-floor> <combined-floor>\nproxy coverage-export <profraw-dir> <binary-path> <grcov> <llvm-bin-dir> <source-root> <output-lcov> <timeout-ms>\nproxy coverage-union <output-lcov> <input-lcov> <input-lcov> [input-lcov ...]\nproxy coverage-run <root> <cargo> <compiler> <target-dir> <profraw-dir> <public|workspace|smoke|owner:package> <timeout-ms>\nproxy source-stats <root>\nproxy source-topology <root> [state/authority_census.spi]\nproxy ingest-map <root>\nproxy ingest-trim-check <root>\nproxy ingest-extracted-manifest <root>\nproxy ingest-targets <root>\nproxy ingest-targets-derive <root>\nproxy frontier-map <root>\nproxy spi-map <root>\nproxy source-map <root>\nproxy spi-diff <left-root> <right-root>\nproxy source-diff <left-root> <right-root>\nproxy source-recovery-diff <current-root> <candidate-root> [candidate-root ...]\nproxy cold-rebuild-matrix <root> <matrix-relative> <eoie> <compiler> <dotnet> <rustfmt> [compiler-timeout-ms]\nproxy cold-rebuild-owner <root> <snapshot-relative> <input-relative> <output-relative> <compiler> <dotnet> <rustfmt-or-empty> <timeout-ms> <workspace-root-or-empty>\nproxy source-author <preview|apply> <root> <target-relative> <template-relative> <expected-target-sha256|missing> <expected-template-sha256> KEY=VALUE...\nproxy fs-batch-write <preview|apply> <root> <plan.spi>\nproxy fs-actions <preview|apply> <root> <plan.spi>\nproxy binary-install <preview|apply> <root> <source-relative> <destination-relative> <provenance-relative> <expected-source-sha256> <expected-destination-sha256|missing> <expected-provenance-sha256|missing> <mode-octal>\nproxy release-closeout <preview|apply> <root> <receipt-relative> <expected-migration> <expected-receipt-sha256|missing> <name|relative|sha256>... (six gates)\nproxy shim install <root> <relative-dir> <block|warn|pass> | uninstall <root> <relative-dir> | status <root> <relative-dir>\nproxy prune-uncovered <root> <relative> <test.lcov> <smoke.lcov> -- <validation-program> [args...]\nproxy formal-receipts-renew <root>\nproxy coverage-register <root> <current.lcov> <seed.lcov>"); } LIT.with(|lit| lit.clone()) };
+    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("proxy plan-ir-inspect <index>\nproxy plan-ir-check\nproxy install-self <source-binary> <installed-binary> <canonical-link>\nproxy self-upgrade-check <current-root> <candidate-root>\nproxy fs-chmod <root> <relative-path> <octal-mode>\nproxy fs-symlink <root> <target-relative> <link-relative>\nproxy fs-copy-tree <source> <destination>\nproxy command-output <root> <timeout-ms> <program> [args...]\nproxy command-capture <root> <receipt-relative> <timeout-ms> <program> [args...]\nproxy command-capture-env <root> <receipt-relative> <timeout-ms> <cwd-relative> <env-cell> <program> [args...]\nproxy fs-list <root> [relative]\nproxy fs-read <root> <relative> [max-bytes]\nproxy fs-context <root> <relative> <needle> <radius-bytes>\nproxy fs-search <root> <relative> <needle>\nproxy parallel-search <root> <relative> <needle> <max-hits>\nproxy hash <root> <relative>\nproxy hash-tree <root> <relative>\nproxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>\nproxy text-replace <check|apply> <root> <relative> <old> <new> [--all|--expect <count>]\nproxy fs-remove <root> <relative>\nproxy fs-remove-tree <root> <relative> [--missing-ok]\nproxy run --cwd <directory> --program <program> [--timeout-ms <ms>] [--env KEY=VALUE]... [--unset KEY]... [-- <args...>]\nproxy archive-extract <archive> <destination>\nproxy zip-extract <archive> <destination>\nproxy toolchain <root> <action> ...\nproxy portable-toolchain <root> ...\nproxy legacy-surface\nproxy restart-baton <root> <receipt-relative> <bundle-absolute> <expected-migration> <active-workstream> <touched-sources> <next-gate>\nproxy command-capture-matrix <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]\nproxy command-capture-matrix-gate <root> <report-relative>\nproxy batch-plan <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]\nproxy batch-plan-resume <root> <report-relative> <resume-relative>\nproxy fs-slice <root> <relative> <start> <count>\nproxy parallel-manifest <root> <relative> <max-entries> [preview|apply <output-relative>]\nproxy product-diff <left-root> <right-root>\nproxy fs-copy <root> <source> <target>\nproxy spiral-session-shutdown <compiler> [timeout-ms]\nproxy prune-build-cache <root> <relative-target>\nproxy prune-compiler-sidecars <root> [--dry-run]\nproxy incident-recovery snapshot <root> <source-relative> <snapshot-parent-relative> <receipt-relative> | restore <root> <target-relative> <snapshot-relative> <receipt-relative>\nproxy external-payload <register|hydrate|dehydrate> <root> <payload-relative> <cache-relative> <receipt-relative>\nproxy differential-compare <root> <oracle> <direct> <receipt>\nproxy coverage-assess <test.lcov> <smoke.lcov> <test-floor> <smoke-floor> <combined-floor>\nproxy coverage-export <profraw-dir> <binary-path> <grcov> <llvm-bin-dir> <source-root> <output-lcov> <timeout-ms>\nproxy coverage-union <output-lcov> <input-lcov> <input-lcov> [input-lcov ...]\nproxy coverage-run <root> <cargo> <compiler> <target-dir> <profraw-dir> <public|workspace|smoke|owner:package> <timeout-ms>\nproxy source-stats <root> [--crates]\nproxy source-topology <root> [state/authority_census.spi]\nproxy ingest-map <root>\nproxy ingest-trim-check <root>\nproxy ingest-extracted-manifest <root>\nproxy ingest-targets <root>\nproxy ingest-targets-derive <root>\nproxy frontier-map <root>\nproxy spi-map <root>\nproxy source-map <root>\nproxy spi-diff <left-root> <right-root>\nproxy source-diff <left-root> <right-root>\nproxy source-recovery-diff <current-root> <candidate-root> [candidate-root ...]\nproxy cold-rebuild-matrix <root> <matrix-relative> <eoie> <compiler> <dotnet> <rustfmt> [compiler-timeout-ms]\nproxy cold-rebuild-owner <root> <snapshot-relative> <input-relative> <output-relative> <compiler> <dotnet> <rustfmt-or-empty> <timeout-ms> <workspace-root-or-empty>\nproxy source-author <preview|apply> <root> <target-relative> <template-relative> <expected-target-sha256|missing> <expected-template-sha256> KEY=VALUE...\nproxy fs-batch-write <preview|apply> <root> <plan.spi>\nproxy fs-actions <preview|apply> <root> <plan.spi>\nproxy binary-install <preview|apply> <root> <source-relative> <destination-relative> <provenance-relative> <expected-source-sha256> <expected-destination-sha256|missing> <expected-provenance-sha256|missing> <mode-octal>\nproxy release-closeout <preview|apply> <root> <receipt-relative> <expected-migration> <expected-receipt-sha256|missing> <name|relative|sha256>... (six gates)\nproxy shim install <root> <relative-dir> <block|warn|pass> | uninstall <root> <relative-dir> | status <root> <relative-dir>\nproxy prune-uncovered <root> <relative> <test.lcov> <smoke.lcov> -- <validation-program> [args...]\nproxy formal-receipts-renew <root>\nproxy coverage-register <root> <current.lcov> <seed.lcov>"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = v1.split("|").zip(v2.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
     v3.clone()
 }
-fn proxy_usage_bridge_16(mut v0: Rc<str>) -> Rc<str> {
-    proxy_usage_17(v0.clone())
+fn proxy_usage_bridge_18(mut v0: Rc<str>) -> Rc<str> {
+    proxy_usage_19(v0.clone())
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
@@ -655,9 +755,14 @@ fn closure7() -> Rc<dyn Fn(Rc<str>) -> u64> {
         proxy_write_token_code_15(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn closure8() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
+fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_write_action_binding_16(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure9() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        proxy_usage_bridge_16(v0.clone())
+        proxy_usage_bridge_18(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_legacy_operations_proxy_dogfood_shim_decision_packed_binding(v0: i32, v1: i32) -> i32 {
@@ -684,6 +789,9 @@ pub fn eoie_legacy_operations_proxy_run_token_code(v0: &str) -> u64 {
 pub fn eoie_legacy_operations_proxy_write_token_code(v0: &str) -> u64 {
     closure7()(Rc::<str>::from(v0))
 }
+pub fn eoie_legacy_operations_proxy_write_action_binding(v0: i32, v1: i32) -> i32 {
+    closure8()(v0, v1)
+}
 pub fn eoie_legacy_operations_proxy_usage(v0: &str) -> Rc<str> {
-    closure8()(Rc::<str>::from(v0))
+    closure9()(Rc::<str>::from(v0))
 }

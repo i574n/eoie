@@ -1,0 +1,7 @@
+inl main () : i32 =
+    !!!!Export("eoie_bootstrap_settled_migration_status", ((fun () => bootstrap_policy.model.settled_migration_status_code ()) : () -> i32))
+    !!!!Export("eoie_bootstrap_workspace_state_status", ((fun () => bootstrap_policy.model.workspace_state_candidate_status ()) : () -> i32))
+    !!!!Export("eoie_bootstrap_compiler_session_status", ((fun () => bootstrap_policy.model.compiler_session_candidate_status ()) : () -> i32))
+    !!!!Export("eoie_bootstrap_legacy_bundle_writer_status", ((fun () => bootstrap_policy.model.legacy_bundle_writer_candidate_status ()) : () -> i32))
+    !!!!Export("eoie_bootstrap_ingest_frontier_status", ((fun () => bootstrap_policy.model.ingest_frontier_candidate_status ()) : () -> i32))
+    0i32

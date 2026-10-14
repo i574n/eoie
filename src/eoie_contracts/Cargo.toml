@@ -15,6 +15,3 @@ publish.workspace = true
 [lib]
 name = "eoie_contracts"
 path = "contracts.rs"
-
-[dev-dependencies]
-eoie-release-hygiene = { path = "../eoie_release_hygiene" }

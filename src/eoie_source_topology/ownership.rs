@@ -147,6 +147,16 @@ mod tests {
     }
 
     #[test]
+    fn an_untagged_target_beside_a_cargo_manifest_is_a_build_cache() {
+        let fixture = Fixture::new("");
+        let (_, before) = crate::topology_collect_generic(&fixture.0).unwrap();
+        std::fs::create_dir_all(fixture.0.join("target/debug/build")).unwrap();
+        std::fs::write(fixture.0.join("target/debug/build/out.rs"), "fn built() {}\n".repeat(2000)).unwrap();
+        let (stats, after) = crate::topology_collect_generic(&fixture.0).unwrap();
+        assert_eq!((before.own_rust_files, before.generated_rust_files), (after.own_rust_files, after.generated_rust_files));
+        assert!(stats.crates.iter().all(|(_, lines)| *lines < 1000), "{:?}", stats.crates);
+    }
+    #[test]
     fn toml_comments_and_quoted_keys_are_supported() {
         let fixture = Fixture::new("[package.metadata.\"spiral\"] # declaration\nentry = \"logic.spi\" # input\noutput = \"generated.rs\"\n");
         assert!(source_declared_owner(&fixture.0).unwrap().is_some());
