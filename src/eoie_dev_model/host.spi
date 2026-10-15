@@ -14,3 +14,6 @@ inl cargo (root : string) (args : string) (compiler : string) (timeout : u64) : 
 
 inl capture (root : string) (args : string) (timeout : u64) : bool * string =
     $'{ let mut command=std::process::Command::new("cargo"); command.current_dir(std::path::Path::new(&*!root).join("src")).args(!args.split(char::from(0u8))); match eoie_process::run_bounded_capture_with_input(&mut command,!timeout,None) { Ok(capture) => match String::from_utf8(capture.stdout) { Ok(text) => (capture.termination == eoie_process::ProcessTermination::Exited(0), std::rc::Rc::<str>::from(text)), Err(error) => (false,std::rc::Rc::<str>::from(error.to_string())) }, Err(error) => (false,std::rc::Rc::<str>::from(error)) } }' : bool * string
+
+inl spiral_tests (root : string) (target : string) (names : string) (dry : bool) (timeout : u64) : i32 =
+    $'eoie_dev_spiral_tests::eoie_dev_spiral_tests_run(&*!root,&*!target,&*!names,&char::from(0u8).to_string(),!dry,!timeout)' : i32

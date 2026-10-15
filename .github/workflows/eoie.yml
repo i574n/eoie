@@ -35,6 +35,22 @@ jobs:
           channel: '1.88.0'
           # cold-owner-format formats generated owners with rustfmt (eoie_cold_rebuild_matrix's tests use it too).
           components: rustfmt
+      - uses: actions/checkout@v6
+        with:
+          repository: i574n/The-Spiral-Language
+          path: spiral/deps/The-Spiral-Language
+          submodules: recursive
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '27'
+          elixir-version: '1.18'
+          gleam-version: '1.19.1'
+      - name: Fetch Kino dependencies for Spiral test blocks
+        working-directory: spiral/apps/kino
+        run: |
+          mix local.hex --force
+          mix local.rebar --force
+          mix deps.get
       - name: Verify targeted development workflow
         run: |
           ./compiler-contracts/test-dev-workflow.ps1

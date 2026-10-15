@@ -1,0 +1,6 @@
+packages:
+    rust_std_string
+modules:
+    registry
+    notebook
+    main

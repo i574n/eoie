@@ -601,7 +601,7 @@ fn spiral_main() -> i32 {
                                         };
                                         let mut v124: bool = v123 == 0i32;
                                         if v124 {
-                                            let mut v148: i32 = if v11 {
+                                            let mut v151: i32 = if v11 {
                                                 let mut v125: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("test"); } LIT.with(|lit| lit.clone()) };
                                                 let mut v126: Rc<str> = arg_3(v125.clone(), v101.clone());
                                                 let mut v127: bool = v23 == v21 ;
@@ -621,7 +621,7 @@ fn spiral_main() -> i32 {
                                                 } else {
                                                     v133.clone()
                                                 };
-                                                if v54 {
+                                                let mut v147: i32 = if v54 {
                                                     let mut v139: i32 = 0i32;
                                                     let mut v140: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
                                                     let mut v141: u8 = v140.clone().as_bytes()[0i32 as usize];
@@ -634,40 +634,47 @@ fn spiral_main() -> i32 {
                                                 } else {
                                                     let mut v146: i32 = { let mut command=std::process::Command::new("cargo"); command.current_dir(std::path::Path::new(&*v43).join("src")); command.args(v138.split(char::from(0u8))); if v31.len() > 0 { command.env("EOIE_SPIRAL_COMPILE", &*v31); } if std::env::var_os("CARGO_BUILD_JOBS").is_none() { command.env("CARGO_BUILD_JOBS", "2"); } if std::env::var_os("RUST_TEST_THREADS").is_none() { command.env("RUST_TEST_THREADS", "1"); } match eoie_process::run_bounded(&mut command,v37) { Ok(status) => status.code().unwrap_or(1), Err(error) => { let _=std::io::Write::write_all(&mut std::io::stderr(),error.as_bytes()); 2 } } };
                                                     v146
+                                                };
+                                                let mut v148: bool = v147 == 0i32;
+                                                if v148 {
+                                                    let mut v149: i32 = eoie_dev_spiral_tests::eoie_dev_spiral_tests_run(&*v43,&*v50,&*v23,&char::from(0u8).to_string(),v54,v37);
+                                                    v149
+                                                } else {
+                                                    v147
                                                 }
                                             } else {
                                                 0i32
                                             };
-                                            let mut v149: bool = v148 == 0i32;
-                                            if v149 {
+                                            let mut v152: bool = v151 == 0i32;
+                                            if v152 {
                                                 if v15 {
                                                     0i32
                                                 } else {
-                                                    let mut v150: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("build"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v151: Rc<str> = arg_3(v150.clone(), v101.clone());
-                                                    let mut v152: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--release"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v153: Rc<str> = arg_3(v151.clone(), v152.clone());
-                                                    let mut v154: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--package"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v155: Rc<str> = arg_3(v153.clone(), v154.clone());
-                                                    let mut v156: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-cli"); } LIT.with(|lit| lit.clone()) };
-                                                    let mut v157: Rc<str> = arg_3(v155.clone(), v156.clone());
+                                                    let mut v153: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("build"); } LIT.with(|lit| lit.clone()) };
+                                                    let mut v154: Rc<str> = arg_3(v153.clone(), v101.clone());
+                                                    let mut v155: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--release"); } LIT.with(|lit| lit.clone()) };
+                                                    let mut v156: Rc<str> = arg_3(v154.clone(), v155.clone());
+                                                    let mut v157: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--package"); } LIT.with(|lit| lit.clone()) };
+                                                    let mut v158: Rc<str> = arg_3(v156.clone(), v157.clone());
+                                                    let mut v159: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-cli"); } LIT.with(|lit| lit.clone()) };
+                                                    let mut v160: Rc<str> = arg_3(v158.clone(), v159.clone());
                                                     if v54 {
-                                                        let mut v158: i32 = 0i32;
-                                                        let mut v159: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
-                                                        let mut v160: u8 = v159.clone().as_bytes()[0i32 as usize];
-                                                        let mut v161: Rc<str> = quoted_arguments_8(v157.clone(), v158, v160);
-                                                        let mut v162: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("cargo "); } LIT.with(|lit| lit.clone()) };
-                                                        let mut v163: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-                                                        let mut v164: Rc<str> = std::rc::Rc::<str>::from([&*v162, &*v161, &*v163, &*v21, &*v21].concat());
-                                                        std::io::Write::write_all(&mut std::io::stdout(),v164.as_bytes()).unwrap();
+                                                        let mut v161: i32 = 0i32;
+                                                        let mut v162: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
+                                                        let mut v163: u8 = v162.clone().as_bytes()[0i32 as usize];
+                                                        let mut v164: Rc<str> = quoted_arguments_8(v160.clone(), v161, v163);
+                                                        let mut v165: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("cargo "); } LIT.with(|lit| lit.clone()) };
+                                                        let mut v166: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
+                                                        let mut v167: Rc<str> = std::rc::Rc::<str>::from([&*v165, &*v164, &*v166, &*v21, &*v21].concat());
+                                                        std::io::Write::write_all(&mut std::io::stdout(),v167.as_bytes()).unwrap();
                                                         0i32
                                                     } else {
-                                                        let mut v165: i32 = { let mut command=std::process::Command::new("cargo"); command.current_dir(std::path::Path::new(&*v43).join("src")); command.args(v157.split(char::from(0u8))); if v31.len() > 0 { command.env("EOIE_SPIRAL_COMPILE", &*v31); } if std::env::var_os("CARGO_BUILD_JOBS").is_none() { command.env("CARGO_BUILD_JOBS", "2"); } if std::env::var_os("RUST_TEST_THREADS").is_none() { command.env("RUST_TEST_THREADS", "1"); } match eoie_process::run_bounded(&mut command,v37) { Ok(status) => status.code().unwrap_or(1), Err(error) => { let _=std::io::Write::write_all(&mut std::io::stderr(),error.as_bytes()); 2 } } };
-                                                        v165
+                                                        let mut v168: i32 = { let mut command=std::process::Command::new("cargo"); command.current_dir(std::path::Path::new(&*v43).join("src")); command.args(v160.split(char::from(0u8))); if v31.len() > 0 { command.env("EOIE_SPIRAL_COMPILE", &*v31); } if std::env::var_os("CARGO_BUILD_JOBS").is_none() { command.env("CARGO_BUILD_JOBS", "2"); } if std::env::var_os("RUST_TEST_THREADS").is_none() { command.env("RUST_TEST_THREADS", "1"); } match eoie_process::run_bounded(&mut command,v37) { Ok(status) => status.code().unwrap_or(1), Err(error) => { let _=std::io::Write::write_all(&mut std::io::stderr(),error.as_bytes()); 2 } } };
+                                                        v168
                                                     }
                                                 }
                                             } else {
-                                                v148
+                                                v151
                                             }
                                         } else {
                                             v123
@@ -681,10 +688,10 @@ fn spiral_main() -> i32 {
             }
         }
     } else {
-        let mut v178: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Invalid option or missing value; use --help"); } LIT.with(|lit| lit.clone()) };
-        let mut v179: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-        let mut v180: Rc<str> = append_5(v178.clone(), v179.clone());
-        std::io::Write::write_all(&mut std::io::stdout(),v180.as_bytes()).unwrap();
+        let mut v181: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Invalid option or missing value; use --help"); } LIT.with(|lit| lit.clone()) };
+        let mut v182: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
+        let mut v183: Rc<str> = append_5(v181.clone(), v182.clone());
+        std::io::Write::write_all(&mut std::io::stdout(),v183.as_bytes()).unwrap();
         2i32
     }
 }

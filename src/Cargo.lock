@@ -484,9 +484,17 @@ name = "eoie-dev"
 version = "0.0.0"
 dependencies = [
  "developer-metadata-domain",
+ "eoie-dev-spiral-tests",
  "eoie-process",
  "predicate-lex-domain",
  "predicate-literal-domain",
+]
+
+[[package]]
+name = "eoie-dev-spiral-tests"
+version = "0.0.0"
+dependencies = [
+ "eoie-process",
 ]
 
 [[package]]

@@ -85,7 +85,6 @@ inl execute forall result. (root : string) (compiler : string) (timeout : u64) (
             show args
             0i32
         else host.cargo root args compiler timeout
-
 inl reject (message : string) : i32 =
     host.print (append message "\n")
     2i32
@@ -129,7 +128,8 @@ inl run () : i32 =
                                 inl args = arg "test" common
                                 inl args = if empty names then arg args "--workspace" else packages_from 1i32 length args true
                                 inl args = if contracts then arg (arg args "--") "--include-ignored" else args
-                                execute root compiler timeout dry (Cargo args)
+                                inl cargo_tested = execute root compiler timeout dry (Cargo args)
+                                if !!!!EQ(cargo_tested,0i32) then host.spiral_tests root target names dry timeout else cargo_tested
                             else 0i32
                         if !!!!EQ(tested,0i32) then
                             if skip then 0i32
