@@ -3,18 +3,23 @@ use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
 enum US0 {
-    US0_0,
-    US0_1(Rc<str>),
+    US0_RecordCatalogComplete,
+    US0_RecordCatalogPartial(Rc<str>),
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0 => 0,
-            US0::US0_1(..) => 1,
+            US0::US0_RecordCatalogComplete => 0,
+            US0::US0_RecordCatalogPartial(..) => 1,
         }
     }
 }
-fn method0(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) -> Rc<str> {
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_RecordCatalogComplete
+    }
+}
+fn agile_record_catalog_text_0(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) -> Rc<str> {
     let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie agile records catalog="); } LIT.with(|lit| lit.clone()) };
     let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" present="); } LIT.with(|lit| lit.clone()) };
     let mut v6: Rc<str> = std::rc::Rc::<str>::from((v1).to_string());
@@ -25,17 +30,17 @@ fn method0(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) -> Rc<str
     let mut v11: Rc<str> = std::rc::Rc::<str>::from([&*v8, &*v9, &*v10, &*v10, &*v10].concat());
     let mut v12: bool = v1 == v2;
     let mut v15: US0 = if v12 {
-        US0::US0_0
+        US0::US0_RecordCatalogComplete
     } else {
-        US0::US0_1(v3.clone())
+        US0::US0_RecordCatalogPartial(v3.clone())
     };
     match &v15 {
-        US0::US0_0 => {
+        US0::US0_RecordCatalogComplete => {
             let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" missing=none"); } LIT.with(|lit| lit.clone()) };
             let mut v17: Rc<str> = std::rc::Rc::<str>::from([&*v11, &*v16, &*v10, &*v10, &*v10].concat());
             v17.clone()
         }
-        US0::US0_1(v18) => {
+        US0::US0_RecordCatalogPartial(v18) => {
             let mut v18: Rc<str> = v18.clone();
             let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" missing="); } LIT.with(|lit| lit.clone()) };
             let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" (agile check does not need them)"); } LIT.with(|lit| lit.clone()) };
@@ -46,7 +51,7 @@ fn method0(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) -> Rc<str
 }
 fn closure0() -> Rc<dyn Fn(Rc<str>, i32, i32, Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, i32, i32, Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>| -> Rc<str> {
-        method0(v0.clone(), v1, v2, v3.clone())
+        agile_record_catalog_text_0(v0.clone(), v1, v2, v3.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_agile_record_catalog_text(v0: &str, v1: i32, v2: i32, v3: &str) -> Rc<str> {

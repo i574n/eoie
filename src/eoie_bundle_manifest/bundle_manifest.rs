@@ -619,7 +619,7 @@ pub fn archive_extract_generic_run(args: &[String]) -> Result<(), String> {
     }
 }
 
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn manifest_parity_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -642,7 +642,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn manifest_executable_mode_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         1i32
@@ -667,15 +667,15 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
+        manifest_parity_binding_0(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
+        manifest_executable_mode_binding_1(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn bundle_portable_mode_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -695,7 +695,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
+        bundle_portable_mode_binding_2(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_bundle_manifest_parity_binding(v0: i32, v1: i32) -> i32 {

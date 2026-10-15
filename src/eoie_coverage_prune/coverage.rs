@@ -439,7 +439,7 @@ pub fn coverage_union(args: &[String]) -> Result<(), String> {
 mod coverage_union_tests {
     #[test] fn coverage_union_merges_max_hits_and_writes_receipt() { let root = std::env::temp_dir().join(format!("eoie-coverage-union-{}", std::process::id())); let _ = std::fs::remove_dir_all(&root); std::fs::create_dir_all(&root).expect("root"); let first = root.join("first.lcov"); let second = root.join("second.lcov"); let output = root.join("union.lcov"); std::fs::write(&first, b"SF:src/a.rs\nDA:1,1\nDA:2,0\nend_of_record\n").expect("first"); std::fs::write(&second, b"SF:src/a.rs\nDA:1,3\nDA:2,1\nend_of_record\n").expect("second"); let args = vec!["coverage-union".to_owned(), output.to_string_lossy().into_owned(), first.to_string_lossy().into_owned(), second.to_string_lossy().into_owned()]; super::coverage_union(&args).expect("union"); let text = std::fs::read_to_string(&output).expect("output"); assert!(text.contains("DA:1,3")); assert!(text.contains("DA:2,1")); let receipt = std::fs::read_to_string(format!("{}.receipt", output.display())).expect("receipt"); assert!(receipt.contains("inputs=2")); std::fs::remove_dir_all(root).expect("cleanup"); }
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn coverage_jobs_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     if v2 {
         let mut v3: bool = v1 < 2i32;
@@ -465,7 +465,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
+        coverage_jobs_binding_0(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_coverage_jobs(v0: i32, v1: i32) -> i32 {

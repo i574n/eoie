@@ -1,28 +1,27 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
     let bytes = value.as_bytes();
     let length = bytes.len() as i64;
     if from < 0 || from > length || to < from - 1 || to >= length { std::process::abort(); }
-    if to < from { return Rc::<str>::from(""); }
-    // A slice that starts or ends inside a code point fails like the C and Delphi backends (abort / Halt(3)).
+    if to < from { return { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }; }
     if (bytes[from as usize] & 0xC0) == 0x80 || (to + 1 < length && (bytes[(to + 1) as usize] & 0xC0) == 0x80) { std::process::exit(3); }
     let slice = &bytes[from as usize..(to + 1) as usize];
     match std::str::from_utf8(slice) { Ok(text) => Rc::<str>::from(text), Err(error) => Rc::<str>::from(std::str::from_utf8(&slice[..error.valid_up_to()]).unwrap_or("")) }
 }
 fn method3() -> Rc<str> {
-    let mut v0: Rc<str> = Rc::<str>::from("");
+    let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     v0.clone()
 }
-fn method2() -> Rc<str> {
+fn codec_empty_2() -> Rc<str> {
     method3()
 }
-fn method5(mut v0: Rc<str>) -> u8 {
+fn codec_runtime_char_5(mut v0: Rc<str>) -> u8 {
     let mut v1: u8 = v0.clone().as_bytes()[0i32 as usize];
     v1
 }
-fn method4(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
+fn skip_spaces_loop_4(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
     loop {
         let mut v3: bool = v1 == v2 ;
         if v3 {
@@ -35,8 +34,8 @@ fn method4(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
                 (v0, v1, v2) = (v0.clone(), v6, v2);
                 continue;
             } else {
-                let mut v8: Rc<str> = Rc::<str>::from("\t");
-                let mut v9: u8 = method5(v8.clone());
+                let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
+                let mut v9: u8 = codec_runtime_char_5(v8.clone());
                 let mut v10: bool = v4 == v9 ;
                 if v10 {
                     let mut v11: i32 = v1 + 1i32 ;
@@ -49,7 +48,7 @@ fn method4(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
         }
     }
 }
-fn method6(mut v0: Rc<str>, mut v1: i32) -> i32 {
+fn agile_tuple_trim_right_6(mut v0: Rc<str>, mut v1: i32) -> i32 {
     loop {
         let mut v2: bool = v1 == 0i32 ;
         if v2 {
@@ -61,8 +60,8 @@ fn method6(mut v0: Rc<str>, mut v1: i32) -> i32 {
             let mut v9: bool = if v5 {
                 true
             } else {
-                let mut v6: Rc<str> = Rc::<str>::from("\t");
-                let mut v7: u8 = method5(v6.clone());
+                let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
+                let mut v7: u8 = codec_runtime_char_5(v6.clone());
                 let mut v8: bool = v4 == v7 ;
                 v8
             };
@@ -75,19 +74,19 @@ fn method6(mut v0: Rc<str>, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool, mut v5: bool, mut v6: Rc<str>) -> Rc<str> {
+fn agile_tuple_parse_loop_1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool, mut v5: bool, mut v6: Rc<str>) -> Rc<str> {
     loop {
         let mut v7: bool = v1 == v2 ;
         if v7 {
             if v4 {
-                return method2();
+                return codec_empty_2();
             } else {
                 if v5 {
-                    return method2();
+                    return codec_empty_2();
                 } else {
                     let mut v10: bool = v3 == v2 ;
                     let mut v14: Rc<str> = if v10 {
-                        method2()
+                        codec_empty_2()
                     } else {
                         let mut v12: i32 = v2 - 1i32 ;
                         let mut v13: Rc<str> = string_slice(&v0.clone(), v3 as i64, v12 as i64);
@@ -95,22 +94,22 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool,
                     };
                     let mut v15: i32 = 0i32;
                     let mut v16: i32 = (v14.clone().len() as i32);
-                    let mut v17: i32 = method4(v14.clone(), v15, v16);
-                    let mut v18: i32 = method6(v14.clone(), v16);
+                    let mut v17: i32 = skip_spaces_loop_4(v14.clone(), v15, v16);
+                    let mut v18: i32 = agile_tuple_trim_right_6(v14.clone(), v16);
                     let mut v19: bool = v18 < v17;
                     let mut v26: Rc<str> = if v19 {
-                        method2()
+                        codec_empty_2()
                     } else {
                         let mut v21: bool = v17 == v18 ;
                         if v21 {
-                            method2()
+                            codec_empty_2()
                         } else {
                             let mut v23: i32 = v18 - 1i32 ;
                             let mut v24: Rc<str> = string_slice(&v14.clone(), v17 as i64, v23 as i64);
                             v24.clone()
                         }
                     };
-                    let mut v27: Rc<str> = Rc::<str>::from(format!("{}{}", v26.clone(), Rc::<str>::from("\n")));
+                    let mut v27: Rc<str> = Rc::<str>::from(format!("{}{}", v26.clone(), { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) }));
                     let mut v28: Rc<str> = Rc::<str>::from(format!("{}{}", v6.clone(), v27.clone()));
                     return v28.clone();
                 }
@@ -125,8 +124,8 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool,
                     (v0, v1, v2, v3, v4, v5, v6) = (v0.clone(), v32, v2, v3, v33, v34, v6.clone());
                     continue;
                 } else {
-                    let mut v36: Rc<str> = Rc::<str>::from("\\");
-                    let mut v37: u8 = method5(v36.clone());
+                    let mut v36: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\\"); } LIT.with(|lit| lit.clone()) };
+                    let mut v37: u8 = codec_runtime_char_5(v36.clone());
                     let mut v38: bool = v31 == v37 ;
                     if v38 {
                         let mut v39: i32 = v1 + 1i32 ;
@@ -135,8 +134,8 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool,
                         (v0, v1, v2, v3, v4, v5, v6) = (v0.clone(), v39, v2, v3, v40, v41, v6.clone());
                         continue;
                     } else {
-                        let mut v43: Rc<str> = Rc::<str>::from("\"");
-                        let mut v44: u8 = method5(v43.clone());
+                        let mut v43: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\""); } LIT.with(|lit| lit.clone()) };
+                        let mut v44: u8 = codec_runtime_char_5(v43.clone());
                         let mut v45: bool = v31 == v44 ;
                         if v45 {
                             let mut v46: i32 = v1 + 1i32 ;
@@ -154,8 +153,8 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool,
                     }
                 }
             } else {
-                let mut v57: Rc<str> = Rc::<str>::from("\"");
-                let mut v58: u8 = method5(v57.clone());
+                let mut v57: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\""); } LIT.with(|lit| lit.clone()) };
+                let mut v58: u8 = codec_runtime_char_5(v57.clone());
                 let mut v59: bool = v31 == v58 ;
                 if v59 {
                     let mut v60: i32 = v1 + 1i32 ;
@@ -168,7 +167,7 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool,
                     if v64 {
                         let mut v65: bool = v3 == v1 ;
                         let mut v69: Rc<str> = if v65 {
-                            method2()
+                            codec_empty_2()
                         } else {
                             let mut v67: i32 = v1 - 1i32 ;
                             let mut v68: Rc<str> = string_slice(&v0.clone(), v3 as i64, v67 as i64);
@@ -176,15 +175,15 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool,
                         };
                         let mut v70: i32 = 0i32;
                         let mut v71: i32 = (v69.clone().len() as i32);
-                        let mut v72: i32 = method4(v69.clone(), v70, v71);
-                        let mut v73: i32 = method6(v69.clone(), v71);
+                        let mut v72: i32 = skip_spaces_loop_4(v69.clone(), v70, v71);
+                        let mut v73: i32 = agile_tuple_trim_right_6(v69.clone(), v71);
                         let mut v74: bool = v73 < v72;
                         let mut v81: Rc<str> = if v74 {
-                            method2()
+                            codec_empty_2()
                         } else {
                             let mut v76: bool = v72 == v73 ;
                             if v76 {
-                                method2()
+                                codec_empty_2()
                             } else {
                                 let mut v78: i32 = v73 - 1i32 ;
                                 let mut v79: Rc<str> = string_slice(&v69.clone(), v72 as i64, v78 as i64);
@@ -195,7 +194,7 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool,
                         let mut v83: i32 = v1 + 1i32 ;
                         let mut v84: bool = false;
                         let mut v85: bool = false;
-                        let mut v86: Rc<str> = Rc::<str>::from(format!("{}{}", v81.clone(), Rc::<str>::from("\n")));
+                        let mut v86: Rc<str> = Rc::<str>::from(format!("{}{}", v81.clone(), { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) }));
                         let mut v87: Rc<str> = Rc::<str>::from(format!("{}{}", v6.clone(), v86.clone()));
                         (v0, v1, v2, v3, v4, v5, v6) = (v0.clone(), v82, v2, v83, v84, v85, v87.clone());
                         continue;
@@ -211,16 +210,16 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: bool,
         }
     }
 }
-fn method0(mut v0: Rc<str>) -> Rc<str> {
+fn agile_tuple_parse_0(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = 0i32;
     let mut v2: i32 = (v0.clone().len() as i32);
     let mut v3: i32 = 0i32;
     let mut v4: bool = false;
     let mut v5: bool = false;
-    let mut v6: Rc<str> = Rc::<str>::from("");
-    method1(v0.clone(), v1, v2, v3, v4, v5, v6.clone())
+    let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+    agile_tuple_parse_loop_1(v0.clone(), v1, v2, v3, v4, v5, v6.clone())
 }
-fn method8(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
+fn starts_with_loop_8(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
     loop {
         let mut v5: bool = v3 == v4 ;
         if v5 {
@@ -240,7 +239,7 @@ fn method8(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i
         }
     }
 }
-fn method10(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
+fn codec_u64_decimal_valid_loop_10(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -330,25 +329,25 @@ fn method10(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
         }
     }
 }
-fn method9(mut v0: Rc<str>) -> Rc<str> {
+fn codec_u64_decimal_normalize_9(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: bool = v1 == 0i32 ;
     if v2 {
-        method2()
+        codec_empty_2()
     } else {
         let mut v4: i32 = 0i32;
         let mut v5: u64 = 0u64;
-        let mut v6: bool = method10(v0.clone(), v4, v1, v5);
+        let mut v6: bool = codec_u64_decimal_valid_loop_10(v0.clone(), v4, v1, v5);
         if v6 {
             v0.clone()
         } else {
-            method2()
+            codec_empty_2()
         }
     }
 }
-fn method7(mut v0: Rc<str>) -> Rc<str> {
+fn agile_attestation_normalize_7(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = (v0.clone().len() as i32);
-    let mut v2: Rc<str> = Rc::<str>::from("runtime");
+    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("runtime"); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v0 == v2 ;
     if v3 {
         v2.clone()
@@ -357,36 +356,36 @@ fn method7(mut v0: Rc<str>) -> Rc<str> {
         let mut v10: bool = if v4 {
             false
         } else {
-            let mut v5: Rc<str> = Rc::<str>::from("build:");
+            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("build:"); } LIT.with(|lit| lit.clone()) };
             let mut v6: i32 = 0i32;
             let mut v7: i32 = 0i32;
             let mut v8: i32 = 6i32;
-            method8(v0.clone(), v5.clone(), v6, v7, v8)
+            starts_with_loop_8(v0.clone(), v5.clone(), v6, v7, v8)
         };
         if v10 {
             let mut v11: bool = 6i32 == v1 ;
             let mut v15: Rc<str> = if v11 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v13: i32 = v1 - 1i32 ;
                 let mut v14: Rc<str> = string_slice(&v0.clone(), 6i32 as i64, v13 as i64);
                 v14.clone()
             };
-            let mut v16: Rc<str> = method9(v15.clone());
-            let mut v17: Rc<str> = Rc::<str>::from("");
+            let mut v16: Rc<str> = codec_u64_decimal_normalize_9(v15.clone());
+            let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             let mut v18: bool = v16 == v17 ;
             if v18 {
-                method2()
+                codec_empty_2()
             } else {
-                let mut v20: Rc<str> = Rc::<str>::from(format!("{}{}", Rc::<str>::from("build:"), v16.clone()));
+                let mut v20: Rc<str> = Rc::<str>::from(format!("{}{}", { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("build:"); } LIT.with(|lit| lit.clone()) }, v16.clone()));
                 v20.clone()
             }
         } else {
-            method2()
+            codec_empty_2()
         }
     }
 }
-fn method13(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
+fn codec_u64_decimal_value_loop_13(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -452,8 +451,8 @@ fn method13(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
         }
     }
 }
-fn method12(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method9(v0.clone());
+fn codec_u64_decimal_value_12(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = codec_u64_decimal_normalize_9(v0.clone());
     let mut v2: i32 = (v1.clone().len() as i32);
     let mut v3: bool = v2 == 0i32 ;
     if v3 {
@@ -461,13 +460,13 @@ fn method12(mut v0: Rc<str>) -> u64 {
     } else {
         let mut v4: i32 = 0i32;
         let mut v5: u64 = 0u64;
-        method13(v1.clone(), v4, v2, v5)
+        codec_u64_decimal_value_loop_13(v1.clone(), v4, v2, v5)
     }
 }
-fn method11(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method7(v0.clone());
+fn agile_attestation_value_11(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = agile_attestation_normalize_7(v0.clone());
     let mut v2: i32 = (v1.clone().len() as i32);
-    let mut v3: Rc<str> = Rc::<str>::from("runtime");
+    let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("runtime"); } LIT.with(|lit| lit.clone()) };
     let mut v4: bool = v1 == v3 ;
     if v4 {
         0u64
@@ -476,63 +475,63 @@ fn method11(mut v0: Rc<str>) -> u64 {
         let mut v11: bool = if v5 {
             false
         } else {
-            let mut v6: Rc<str> = Rc::<str>::from("build:");
+            let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("build:"); } LIT.with(|lit| lit.clone()) };
             let mut v7: i32 = 0i32;
             let mut v8: i32 = 0i32;
             let mut v9: i32 = 6i32;
-            method8(v1.clone(), v6.clone(), v7, v8, v9)
+            starts_with_loop_8(v1.clone(), v6.clone(), v7, v8, v9)
         };
         if v11 {
             let mut v12: bool = 6i32 == v2 ;
             let mut v16: Rc<str> = if v12 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v14: i32 = v2 - 1i32 ;
                 let mut v15: Rc<str> = string_slice(&v1.clone(), 6i32 as i64, v14 as i64);
                 v15.clone()
             };
-            method12(v16.clone())
+            codec_u64_decimal_value_12(v16.clone())
         } else {
             0u64
         }
     }
 }
-fn method15(mut v0: Rc<str>) -> Rc<str> {
+fn agile_u64_decimal_normalize_15(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = 0i32;
     let mut v2: i32 = (v0.clone().len() as i32);
-    let mut v3: i32 = method4(v0.clone(), v1, v2);
-    let mut v4: i32 = method6(v0.clone(), v2);
+    let mut v3: i32 = skip_spaces_loop_4(v0.clone(), v1, v2);
+    let mut v4: i32 = agile_tuple_trim_right_6(v0.clone(), v2);
     let mut v5: bool = v4 < v3;
     let mut v12: Rc<str> = if v5 {
-        method2()
+        codec_empty_2()
     } else {
         let mut v7: bool = v3 == v4 ;
         if v7 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v9: i32 = v4 - 1i32 ;
             let mut v10: Rc<str> = string_slice(&v0.clone(), v3 as i64, v9 as i64);
             v10.clone()
         }
     };
-    method9(v12.clone())
+    codec_u64_decimal_normalize_9(v12.clone())
 }
-fn method14(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method15(v0.clone());
-    method12(v1.clone())
+fn agile_u64_decimal_value_14(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = agile_u64_decimal_normalize_15(v0.clone());
+    codec_u64_decimal_value_12(v1.clone())
 }
-fn method17(mut v0: Rc<str>) -> Rc<str> {
+fn agile_u64_literal_normalize_17(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = 0i32;
     let mut v2: i32 = (v0.clone().len() as i32);
-    let mut v3: i32 = method4(v0.clone(), v1, v2);
-    let mut v4: i32 = method6(v0.clone(), v2);
+    let mut v3: i32 = skip_spaces_loop_4(v0.clone(), v1, v2);
+    let mut v4: i32 = agile_tuple_trim_right_6(v0.clone(), v2);
     let mut v5: bool = v4 < v3;
     let mut v12: Rc<str> = if v5 {
-        method2()
+        codec_empty_2()
     } else {
         let mut v7: bool = v3 == v4 ;
         if v7 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v9: i32 = v4 - 1i32 ;
             let mut v10: Rc<str> = string_slice(&v0.clone(), v3 as i64, v9 as i64);
@@ -542,7 +541,7 @@ fn method17(mut v0: Rc<str>) -> Rc<str> {
     let mut v13: i32 = (v12.clone().len() as i32);
     let mut v14: bool = v13 < 4i32;
     if v14 {
-        method2()
+        codec_empty_2()
     } else {
         let mut v16: i32 = v13 - 3i32 ;
         let mut v17: u8 = v12.clone().as_bytes()[v16 as usize];
@@ -558,29 +557,29 @@ fn method17(mut v0: Rc<str>) -> Rc<str> {
                 if v24 {
                     let mut v25: bool = 0i32 == v16 ;
                     let mut v29: Rc<str> = if v25 {
-                        method2()
+                        codec_empty_2()
                     } else {
                         let mut v27: i32 = v16 - 1i32 ;
                         let mut v28: Rc<str> = string_slice(&v12.clone(), 0i32 as i64, v27 as i64);
                         v28.clone()
                     };
-                    method9(v29.clone())
+                    codec_u64_decimal_normalize_9(v29.clone())
                 } else {
-                    method2()
+                    codec_empty_2()
                 }
             } else {
-                method2()
+                codec_empty_2()
             }
         } else {
-            method2()
+            codec_empty_2()
         }
     }
 }
-fn method16(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method17(v0.clone());
-    method12(v1.clone())
+fn agile_u64_literal_value_16(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = agile_u64_literal_normalize_17(v0.clone());
+    codec_u64_decimal_value_12(v1.clone())
 }
-fn method19(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_set_decision_19(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = 0 <= v0;
     let mut v4: bool = if v2 {
         let mut v3: bool = v0 <= 100i32;
@@ -620,15 +619,15 @@ fn method19(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method18(mut v0: i32, mut v1: i32) -> i32 {
-    method19(v0, v1)
+fn agile_set_decision_binding_18(mut v0: i32, mut v1: i32) -> i32 {
+    agile_set_decision_19(v0, v1)
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method18(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        agile_set_decision_binding_18(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method22(mut v0: i32) -> i32 {
+fn agile_task_shape_decision_22(mut v0: i32) -> i32 {
     let mut v1: bool = v0 == 11i32;
     if v1 {
         1i32
@@ -636,8 +635,8 @@ fn method22(mut v0: i32) -> i32 {
         0i32
     }
 }
-fn method21(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: i32 = method22(v0);
+fn agile_task_identity_decision_21(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: i32 = agile_task_shape_decision_22(v0);
     let mut v3: bool = v2 == 1i32;
     if v3 {
         let mut v4: bool = v1 == 1i32;
@@ -650,15 +649,15 @@ fn method21(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method20(mut v0: i32, mut v1: i32) -> i32 {
-    method21(v0, v1)
+fn agile_task_identity_binding_20(mut v0: i32, mut v1: i32) -> i32 {
+    agile_task_identity_decision_21(v0, v1)
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method20(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        agile_task_identity_binding_20(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method24(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_receipt_content_decision_24(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -671,15 +670,15 @@ fn method24(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method23(mut v0: i32, mut v1: i32) -> i32 {
-    method24(v0, v1)
+fn agile_receipt_content_binding_23(mut v0: i32, mut v1: i32) -> i32 {
+    agile_receipt_content_decision_24(v0, v1)
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method23(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        agile_receipt_content_binding_23(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method26(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_receipt_snapshot_decision_26(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 == 0i32;
     if v2 {
         let mut v3: bool = v0 == 1i32;
@@ -692,15 +691,15 @@ fn method26(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method25(mut v0: i32, mut v1: i32) -> i32 {
-    method26(v0, v1)
+fn agile_receipt_snapshot_binding_25(mut v0: i32, mut v1: i32) -> i32 {
+    agile_receipt_snapshot_decision_26(v0, v1)
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method25(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        agile_receipt_snapshot_binding_25(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method28(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_receipt_build_current_decision_28(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -713,48 +712,48 @@ fn method28(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method27(mut v0: i32, mut v1: i32) -> i32 {
-    method28(v0, v1)
+fn agile_receipt_build_current_binding_27(mut v0: i32, mut v1: i32) -> i32 {
+    agile_receipt_build_current_decision_28(v0, v1)
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method27(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        agile_receipt_build_current_binding_27(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method0(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        agile_tuple_parse_0(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method7(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        agile_attestation_normalize_7(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method11(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        agile_attestation_value_11(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method15(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        agile_u64_decimal_normalize_15(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method14(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        agile_u64_decimal_value_14(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure10() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method17(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        agile_u64_literal_normalize_17(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure11() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method16(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        agile_u64_literal_value_16(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_agile_set_decision_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

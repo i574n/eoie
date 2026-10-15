@@ -1,47 +1,62 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 #![allow(dead_code)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
 enum US0 {
-    US0_0(i32),
-    US0_1,
+    US0_QuotedOk(i32),
+    US0_QuotedError,
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0(..) => 0,
-            US0::US0_1 => 1,
+            US0::US0_QuotedOk(..) => 0,
+            US0::US0_QuotedError => 1,
         }
+    }
+}
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_QuotedOk(<i32>::default())
     }
 }
 #[derive(Clone)]
 enum US1 {
-    US1_0(i32),
-    US1_1,
+    US1_ParsedPatch(i32),
+    US1_InvalidPatch,
 }
 impl US1 {
     fn tag(&self) -> i32 {
         match self {
-            US1::US1_0(..) => 0,
-            US1::US1_1 => 1,
+            US1::US1_ParsedPatch(..) => 0,
+            US1::US1_InvalidPatch => 1,
         }
+    }
+}
+impl Default for US1 {
+    fn default() -> Self {
+        US1::US1_ParsedPatch(<i32>::default())
     }
 }
 #[derive(Clone)]
 enum US2 {
-    US2_0(i32),
-    US2_1,
+    US2_SeparatorOk(i32),
+    US2_SeparatorError,
 }
 impl US2 {
     fn tag(&self) -> i32 {
         match self {
-            US2::US2_0(..) => 0,
-            US2::US2_1 => 1,
+            US2::US2_SeparatorOk(..) => 0,
+            US2::US2_SeparatorError => 1,
         }
     }
 }
-fn method0(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
+impl Default for US2 {
+    fn default() -> Self {
+        US2::US2_SeparatorOk(<i32>::default())
+    }
+}
+fn skip_spaces_0(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
     loop {
         let mut v3: bool = v1 < v2;
         if v3 {
@@ -66,7 +81,7 @@ fn method0(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> US0 {
+fn scan_quoted_1(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> US0 {
     loop {
         let mut v3: bool = v1 < v2;
         if v3 {
@@ -74,7 +89,7 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> US0 {
             let mut v5: bool = v4 == 34i32;
             if v5 {
                 let mut v6: i32 = v1 + 1i32;
-                return US0::US0_0(v6);
+                return US0::US0_QuotedOk(v6);
             } else {
                 let mut v8: bool = v4 == 92i32;
                 if v8 {
@@ -109,10 +124,10 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> US0 {
                             (v0, v1, v2) = (v0.clone(), v21, v2);
                             continue;
                         } else {
-                            return US0::US0_1;
+                            return US0::US0_QuotedError;
                         }
                     } else {
-                        return US0::US0_1;
+                        return US0::US0_QuotedError;
                     }
                 } else {
                     let mut v27: i32 = v1 + 1i32;
@@ -121,11 +136,11 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> US0 {
                 }
             }
         } else {
-            return US0::US0_1;
+            return US0::US0_QuotedError;
         }
     }
 }
-fn method3(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> bool {
+fn safe_path_loop_3(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> bool {
     loop {
         let mut v4: bool = v1 < v2;
         if v4 {
@@ -214,7 +229,7 @@ fn method3(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> bool {
         }
     }
 }
-fn method2(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> bool {
+fn safe_path_loop_2(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> bool {
     let mut v3: bool = v1 < v2;
     if v3 {
         let mut v4: i32 = usize::try_from(v1).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
@@ -257,13 +272,13 @@ fn method2(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> bool {
                 if v23 {
                     let mut v24: i32 = v1 + 1i32;
                     let mut v25: i32 = v1 + 1i32;
-                    method3(v0.clone(), v24, v2, v25)
+                    safe_path_loop_3(v0.clone(), v24, v2, v25)
                 } else {
                     false
                 }
             } else {
                 let mut v28: i32 = v1 + 1i32;
-                method3(v0.clone(), v28, v2, v1)
+                safe_path_loop_3(v0.clone(), v28, v2, v1)
             }
         }
     } else {
@@ -300,29 +315,29 @@ fn method2(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> bool {
     }
 }
 fn spiral_main() -> i32 {
-    let mut v0: Rc<str> = Rc::<str>::from("inl p () = PatchExact (\"a.txt\", \"old\", \"new\")\n");
+    let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("inl p () = PatchExact (\"a.txt\", \"old\", \"new\")\n"); } LIT.with(|lit| lit.clone()) };
     let mut v1: i32 = i32::try_from(v0.len()).unwrap_or(i32::MAX);
     let mut v2: i32 = 11i32 + 12i32;
-    let mut v3: i32 = method0(v0.clone(), v2, v1);
+    let mut v3: i32 = skip_spaces_0(v0.clone(), v2, v1);
     let mut v4: bool = v3 < v1;
     let mut v12: US0 = if v4 {
         let mut v5: i32 = usize::try_from(v3).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
         let mut v6: bool = v5 == 34i32;
         if v6 {
             let mut v7: i32 = v3 + 1i32;
-            method1(v0.clone(), v7, v1)
+            scan_quoted_1(v0.clone(), v7, v1)
         } else {
-            US0::US0_1
+            US0::US0_QuotedError
         }
     } else {
-        US0::US0_1
+        US0::US0_QuotedError
     };
     let mut v95: US1 = match &v12 {
-        US0::US0_1 => { // QuotedError
-            US1::US1_1
+        US0::US0_QuotedError => {
+            US1::US1_InvalidPatch
         }
-        US0::US0_0(v13) => { // QuotedOk
-            let mut v13: i32 = v13.clone();
+        US0::US0_QuotedOk(v13) => {
+            let mut v13: i32 = *v13;
             let mut v14: i32 = v3 + 1i32;
             let mut v15: i32 = v13 - 1i32;
             let mut v16: i32 = v15 - v14;
@@ -337,137 +352,131 @@ fn spiral_main() -> i32 {
                     if v20 {
                         false
                     } else {
-                        method2(v0.clone(), v14, v15)
+                        safe_path_loop_2(v0.clone(), v14, v15)
                     }
                 }
             } else {
                 false
             };
             if v24 {
-                let mut v25: i32 = method0(v0.clone(), v13, v1);
+                let mut v25: i32 = skip_spaces_0(v0.clone(), v13, v1);
                 let mut v26: bool = v25 < v1;
                 let mut v35: US2 = if v26 {
                     let mut v27: i32 = usize::try_from(v25).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
                     let mut v28: bool = v27 == 44i32;
                     if v28 {
                         let mut v29: i32 = v25 + 1i32;
-                        let mut v30: i32 = method0(v0.clone(), v29, v1);
-                        US2::US2_0(v30)
+                        let mut v30: i32 = skip_spaces_0(v0.clone(), v29, v1);
+                        US2::US2_SeparatorOk(v30)
                     } else {
-                        US2::US2_1
+                        US2::US2_SeparatorError
                     }
                 } else {
-                    US2::US2_1
+                    US2::US2_SeparatorError
                 };
                 match &v35 {
-                    US2::US2_1 => { // SeparatorError
-                        US1::US1_1
+                    US2::US2_SeparatorError => {
+                        US1::US1_InvalidPatch
                     }
-                    US2::US2_0(v36) => { // SeparatorOk
-                        let mut v36: i32 = v36.clone();
+                    US2::US2_SeparatorOk(v36) => {
+                        let mut v36: i32 = *v36;
                         let mut v37: bool = v36 < v1;
                         let mut v45: US0 = if v37 {
                             let mut v38: i32 = usize::try_from(v36).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
                             let mut v39: bool = v38 == 34i32;
                             if v39 {
                                 let mut v40: i32 = v36 + 1i32;
-                                method1(v0.clone(), v40, v1)
+                                scan_quoted_1(v0.clone(), v40, v1)
                             } else {
-                                US0::US0_1
+                                US0::US0_QuotedError
                             }
                         } else {
-                            US0::US0_1
+                            US0::US0_QuotedError
                         };
                         match &v45 {
-                            US0::US0_1 => { // QuotedError
-                                US1::US1_1
+                            US0::US0_QuotedError => {
+                                US1::US1_InvalidPatch
                             }
-                            US0::US0_0(v46) => { // QuotedOk
-                                let mut v46: i32 = v46.clone();
-                                let mut v47: i32 = method0(v0.clone(), v46, v1);
+                            US0::US0_QuotedOk(v46) => {
+                                let mut v46: i32 = *v46;
+                                let mut v47: i32 = skip_spaces_0(v0.clone(), v46, v1);
                                 let mut v48: bool = v47 < v1;
                                 let mut v57: US2 = if v48 {
                                     let mut v49: i32 = usize::try_from(v47).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
                                     let mut v50: bool = v49 == 44i32;
                                     if v50 {
                                         let mut v51: i32 = v47 + 1i32;
-                                        let mut v52: i32 = method0(v0.clone(), v51, v1);
-                                        US2::US2_0(v52)
+                                        let mut v52: i32 = skip_spaces_0(v0.clone(), v51, v1);
+                                        US2::US2_SeparatorOk(v52)
                                     } else {
-                                        US2::US2_1
+                                        US2::US2_SeparatorError
                                     }
                                 } else {
-                                    US2::US2_1
+                                    US2::US2_SeparatorError
                                 };
                                 match &v57 {
-                                    US2::US2_1 => { // SeparatorError
-                                        US1::US1_1
+                                    US2::US2_SeparatorError => {
+                                        US1::US1_InvalidPatch
                                     }
-                                    US2::US2_0(v58) => { // SeparatorOk
-                                        let mut v58: i32 = v58.clone();
+                                    US2::US2_SeparatorOk(v58) => {
+                                        let mut v58: i32 = *v58;
                                         let mut v59: bool = v58 < v1;
                                         let mut v67: US0 = if v59 {
                                             let mut v60: i32 = usize::try_from(v58).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
                                             let mut v61: bool = v60 == 34i32;
                                             if v61 {
                                                 let mut v62: i32 = v58 + 1i32;
-                                                method1(v0.clone(), v62, v1)
+                                                scan_quoted_1(v0.clone(), v62, v1)
                                             } else {
-                                                US0::US0_1
+                                                US0::US0_QuotedError
                                             }
                                         } else {
-                                            US0::US0_1
+                                            US0::US0_QuotedError
                                         };
                                         match &v67 {
-                                            US0::US0_1 => { // QuotedError
-                                                US1::US1_1
+                                            US0::US0_QuotedError => {
+                                                US1::US1_InvalidPatch
                                             }
-                                            US0::US0_0(v68) => { // QuotedOk
-                                                let mut v68: i32 = v68.clone();
-                                                let mut v69: i32 = method0(v0.clone(), v68, v1);
+                                            US0::US0_QuotedOk(v68) => {
+                                                let mut v68: i32 = *v68;
+                                                let mut v69: i32 = skip_spaces_0(v0.clone(), v68, v1);
                                                 let mut v70: bool = v69 < v1;
                                                 if v70 {
                                                     let mut v71: i32 = usize::try_from(v69).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
                                                     let mut v72: bool = v71 == 41i32;
                                                     if v72 {
                                                         let mut v73: i32 = v69 + 1i32;
-                                                        US1::US1_0(v73)
+                                                        US1::US1_ParsedPatch(v73)
                                                     } else {
-                                                        US1::US1_1
+                                                        US1::US1_InvalidPatch
                                                     }
                                                 } else {
-                                                    US1::US1_1
+                                                    US1::US1_InvalidPatch
                                                 }
                                             }
-                                            _ => unreachable!(),
                                         }
                                     }
-                                    _ => unreachable!(),
                                 }
                             }
-                            _ => unreachable!(),
                         }
                     }
-                    _ => unreachable!(),
                 }
             } else {
-                US1::US1_1
+                US1::US1_InvalidPatch
             }
         }
-        _ => unreachable!(),
     };
     match &v95 {
-        US1::US1_1 => { // InvalidPatch
+        US1::US1_InvalidPatch => {
             -1i32
         }
-        US1::US1_0(v96) => { // ParsedPatch
-            let mut v96: i32 = v96.clone();
+        US1::US1_ParsedPatch(v96) => {
+            let mut v96: i32 = *v96;
             v96
         }
-        _ => unreachable!(),
     }
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

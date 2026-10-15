@@ -3,20 +3,25 @@ use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
 enum US0 {
-    US0_0,
-    US0_1,
-    US0_2,
+    US0_LeaseRunning,
+    US0_LeaseWrapping,
+    US0_LeaseExpired,
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0 => 0,
-            US0::US0_1 => 1,
-            US0::US0_2 => 2,
+            US0::US0_LeaseRunning => 0,
+            US0::US0_LeaseWrapping => 1,
+            US0::US0_LeaseExpired => 2,
         }
     }
 }
-fn method0() -> i32 {
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_LeaseRunning
+    }
+}
+fn lease_effect_entry_0() -> i32 {
     let mut v0: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(1i32 as usize).unwrap_or_default());
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(":"); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2i32 as usize).unwrap_or_default());
@@ -69,10 +74,10 @@ fn method0() -> i32 {
 }
 fn closure0() -> Rc<dyn Fn() -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
-        method0()
+        lease_effect_entry_0()
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method1() -> Rc<str> {
+fn lease_policy_entry_1() -> Rc<str> {
     let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("EOIE_LEASE_POLICY"); } LIT.with(|lit| lit.clone()) };
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::env::var(&*v0).unwrap_or_default());
     let mut v2: bool = v1.is_empty() == false;
@@ -132,39 +137,39 @@ fn method1() -> Rc<str> {
 }
 fn closure1() -> Rc<dyn Fn() -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> Rc<str>> = Rc::new(move || -> Rc<str> {
-        method1()
+        lease_policy_entry_1()
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: bool, mut v6: bool) -> Rc<str> {
+fn lease_status_entry_2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: bool, mut v6: bool) -> Rc<str> {
     let mut v7: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
     let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie agile lease status root="); } LIT.with(|lit| lit.clone()) };
     let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" phase="); } LIT.with(|lit| lit.clone()) };
     let mut v14: US0 = if v6 {
-        US0::US0_2
+        US0::US0_LeaseExpired
     } else {
         if v5 {
-            US0::US0_1
+            US0::US0_LeaseWrapping
         } else {
-            US0::US0_0
+            US0::US0_LeaseRunning
         }
     };
     let mut v20: Rc<str> = match &v14 {
-        US0::US0_2 => {
+        US0::US0_LeaseExpired => {
             let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("expired"); } LIT.with(|lit| lit.clone()) };
             v17.clone()
         }
-        US0::US0_0 => {
+        US0::US0_LeaseRunning => {
             let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("running"); } LIT.with(|lit| lit.clone()) };
             v15.clone()
         }
-        US0::US0_1 => {
+        US0::US0_LeaseWrapping => {
             let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("wrapping"); } LIT.with(|lit| lit.clone()) };
             v16.clone()
         }
     };
     let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" policy="); } LIT.with(|lit| lit.clone()) };
     let mut v22: Rc<str> = std::rc::Rc::<str>::from([&*v8, &*v0, &*v9, &*v20, &*v21].concat());
-    let mut v23: Rc<str> = method1();
+    let mut v23: Rc<str> = lease_policy_entry_1();
     let mut v24: bool = v23.is_empty() == false;
     let mut v26: Rc<str> = if v24 {
         v23.clone()
@@ -618,7 +623,7 @@ fn method2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, mut v4: u64, 
 }
 fn closure2() -> Rc<dyn Fn(Rc<str>, u64, u64, u64, u64, bool, bool) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, u64, u64, u64, u64, bool, bool) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: bool, mut v6: bool| -> Rc<str> {
-        method2(v0.clone(), v1, v2, v3, v4, v5, v6)
+        lease_status_entry_2(v0.clone(), v1, v2, v3, v4, v5, v6)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_lease_effect_code() -> i32 {

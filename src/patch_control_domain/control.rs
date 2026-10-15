@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::env;
@@ -82,7 +82,7 @@ pub fn patch_plan_error(code: i32) -> i32 {
 }
 
 
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_payload_identity_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -105,7 +105,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_payload_slot_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -123,7 +123,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_payload_outcome_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -143,23 +143,20 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        restoration_payload_identity_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        restoration_payload_slot_binding_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        restoration_payload_outcome_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method3(mut v0: i32) -> Rc<str> {
+fn patch_plan_failure_binding_3(mut v0: i32) -> Rc<str> {
     let mut v1: bool = v0 == 0i32;
     if v1 {
         let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("typed patch plan contains no PatchExact values"); } LIT.with(|lit| lit.clone()) };
@@ -189,9 +186,8 @@ fn method3(mut v0: i32) -> Rc<str> {
 }
 fn closure3() -> Rc<dyn Fn(i32) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32) -> Rc<str>> = Rc::new(move |mut v0: i32| -> Rc<str> {
-        method3(v0)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        patch_plan_failure_binding_3(v0)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_patch_restoration_payload_identity(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

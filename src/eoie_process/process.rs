@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 include!(concat!(env!("CARGO_MANIFEST_DIR"), "/native_compiler.rs"));
@@ -199,7 +199,7 @@ pub fn shutdown_spiral_sessions(
     }
     Ok(status)
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn process_timeout_valid_export_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 == 0i32;
@@ -212,7 +212,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn process_compiler_budget_valid_export_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -225,7 +225,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn process_session_match_export_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 3i32;
     if v2 {
         0i32
@@ -239,19 +239,19 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        process_timeout_valid_export_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        process_compiler_budget_valid_export_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        process_session_match_export_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_process_timeout_valid_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

@@ -3,35 +3,45 @@ use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
 enum US0 {
-    US0_0(Rc<str>),
-    US0_1(Rc<str>),
+    US0_RemovalReceipt(Rc<str>),
+    US0_RemovalRejected(Rc<str>),
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0(..) => 0,
-            US0::US0_1(..) => 1,
+            US0::US0_RemovalReceipt(..) => 0,
+            US0::US0_RemovalRejected(..) => 1,
         }
+    }
+}
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_RemovalReceipt({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
     }
 }
 #[derive(Clone)]
 enum US1 {
-    US1_0,
-    US1_1,
-    US1_2,
-    US1_3,
+    US1_RemovedFile,
+    US1_RemovedSymlink,
+    US1_MissingEntry,
+    US1_DirectoryEntry,
 }
 impl US1 {
     fn tag(&self) -> i32 {
         match self {
-            US1::US1_0 => 0,
-            US1::US1_1 => 1,
-            US1::US1_2 => 2,
-            US1::US1_3 => 3,
+            US1::US1_RemovedFile => 0,
+            US1::US1_RemovedSymlink => 1,
+            US1::US1_MissingEntry => 2,
+            US1::US1_DirectoryEntry => 3,
         }
     }
 }
-fn method1() -> US0 {
+impl Default for US1 {
+    fn default() -> Self {
+        US1::US1_RemovedFile
+    }
+}
+fn file_removal_outcome_1() -> US0 {
     let mut v0: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
     let mut v1: i32 = std::env::args().skip(2).count() as i32;
     let mut v2: bool = v1 == 3;
@@ -43,35 +53,35 @@ fn method1() -> US0 {
         let mut v7: bool = v5 == v6 ;
         if v7 {
             let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-remove target escapes the root"); } LIT.with(|lit| lit.clone()) };
-            US0::US0_1(v8.clone())
+            US0::US0_RemovalRejected(v8.clone())
         } else {
             let mut v10: i32 = std::fs::symlink_metadata(&*v5).map(|meta| if meta.file_type().is_symlink() { 1 } else if meta.is_dir() { 3 } else { 0 }).unwrap_or(2);
             let mut v11: bool = 0i32 == v10;
             let mut v20: US1 = if v11 {
-                US1::US1_0
+                US1::US1_RemovedFile
             } else {
                 let mut v13: bool = 1i32 == v10;
                 if v13 {
-                    US1::US1_1
+                    US1::US1_RemovedSymlink
                 } else {
                     let mut v15: bool = 3i32 == v10;
                     if v15 {
-                        US1::US1_3
+                        US1::US1_DirectoryEntry
                     } else {
-                        US1::US1_2
+                        US1::US1_MissingEntry
                     }
                 }
             };
             match &v20 {
-                US1::US1_3 => {
+                US1::US1_DirectoryEntry => {
                     let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-remove target is a directory (use fs-remove-tree): "); } LIT.with(|lit| lit.clone()) };
                     let mut v25: Rc<str> = std::rc::Rc::<str>::from([&*v24, &*v5, &*v6, &*v6, &*v6].concat());
-                    US0::US0_1(v25.clone())
+                    US0::US0_RemovalRejected(v25.clone())
                 }
-                US1::US1_2 => {
+                US1::US1_MissingEntry => {
                     let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-remove target is missing: "); } LIT.with(|lit| lit.clone()) };
                     let mut v22: Rc<str> = std::rc::Rc::<str>::from([&*v21, &*v5, &*v6, &*v6, &*v6].concat());
-                    US0::US0_1(v22.clone())
+                    US0::US0_RemovalRejected(v22.clone())
                 }
                 _ => {
                     let mut v27: u64 = std::fs::symlink_metadata(&*v5).map(|meta| meta.len()).unwrap_or(0);
@@ -81,11 +91,11 @@ fn method1() -> US0 {
                         let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy fs-remove ok path="); } LIT.with(|lit| lit.clone()) };
                         let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" kind="); } LIT.with(|lit| lit.clone()) };
                         let mut v35: Rc<str> = match &v20 {
-                            US1::US1_0 => {
+                            US1::US1_RemovedFile => {
                                 let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("file"); } LIT.with(|lit| lit.clone()) };
                                 v32.clone()
                             }
-                            US1::US1_1 => {
+                            US1::US1_RemovedSymlink => {
                                 let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("symlink"); } LIT.with(|lit| lit.clone()) };
                                 v33.clone()
                             }
@@ -98,28 +108,28 @@ fn method1() -> US0 {
                         let mut v40: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v0);
                         let mut v41: Rc<str> = std::rc::Rc::<str>::from((v40).to_string());
                         let mut v42: Rc<str> = std::rc::Rc::<str>::from([&*v37, &*v38, &*v39, &*v41, &*v6].concat());
-                        US0::US0_0(v42.clone())
+                        US0::US0_RemovalReceipt(v42.clone())
                     } else {
                         let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-remove failed: "); } LIT.with(|lit| lit.clone()) };
                         let mut v45: Rc<str> = std::rc::Rc::<str>::from([&*v44, &*v28, &*v6, &*v6, &*v6].concat());
-                        US0::US0_1(v45.clone())
+                        US0::US0_RemovalRejected(v45.clone())
                     }
                 }
             }
         }
     } else {
         let mut v51: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-remove expects <root> <relative>"); } LIT.with(|lit| lit.clone()) };
-        US0::US0_1(v51.clone())
+        US0::US0_RemovalRejected(v51.clone())
     }
 }
-fn method0() -> (i32, Rc<str>) {
-    let mut v0: US0 = method1();
+fn file_removal_report_0() -> (i32, Rc<str>) {
+    let mut v0: US0 = file_removal_outcome_1();
     match &v0 {
-        US0::US0_0(v1) => {
+        US0::US0_RemovalReceipt(v1) => {
             let mut v1: Rc<str> = v1.clone();
             (0i32, v1.clone())
         }
-        US0::US0_1(v2) => {
+        US0::US0_RemovalRejected(v2) => {
             let mut v2: Rc<str> = v2.clone();
             (2i32, v2.clone())
         }
@@ -127,7 +137,7 @@ fn method0() -> (i32, Rc<str>) {
 }
 fn closure0() -> Rc<dyn Fn() -> (i32, Rc<str>)> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> (i32, Rc<str>)> = Rc::new(move || -> (i32, Rc<str>) {
-        method0()
+        file_removal_report_0()
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_file_removal_outcome() -> (i32, Rc<str>) {

@@ -305,7 +305,7 @@ pub fn run_bounded_capture_with_input(
     run_bounded_streaming(command, timeout_ms, input, |_, _| Ok(()))
 }
 
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn streaming_policy_export_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     if v2 {
         v1
@@ -335,7 +335,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
+        streaming_policy_export_0(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_process_streaming_policy_binding(v0: i32, v1: i32) -> i32 {

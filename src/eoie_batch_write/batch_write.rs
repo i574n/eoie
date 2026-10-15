@@ -164,7 +164,7 @@ pub fn filesystem_batch_write_run(args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn batch_write_shape_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -182,7 +182,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn batch_write_freshness_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -200,7 +200,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn batch_write_stage_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -218,7 +218,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn batch_write_verify_binding_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -236,7 +236,7 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn batch_write_rollback_binding_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -256,27 +256,27 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
+        batch_write_shape_binding_0(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
+        batch_write_freshness_binding_1(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
+        batch_write_stage_binding_2(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
+        batch_write_verify_binding_3(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
+        batch_write_rollback_binding_4(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_patch_driver_batch_write_shape_binding(v0: i32, v1: i32) -> i32 {

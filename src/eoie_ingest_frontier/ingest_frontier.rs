@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[rustfmt::skip]
@@ -159,7 +159,7 @@ pub fn frontier_map_run(args: &[String]) -> Result<(), String> {
 }
 pub use ingest_runtime::{frontier_map_run, ingest_extracted_run, ingest_map_run, ingest_targets_derive_run, ingest_targets_run, ingest_trim_run};
 
-fn method1(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
+fn complete_binding_1(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
     let mut v5: bool = v0 < 1i32;
     if v5 {
         0i32
@@ -187,7 +187,7 @@ fn method1(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i32) -> i
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn manifest_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -205,7 +205,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method3(mut v0: i32) -> i32 {
+fn trim_binding_3(mut v0: i32) -> i32 {
     let mut v1: bool = v0 < 0i32;
     if v1 {
         0i32
@@ -218,8 +218,8 @@ fn method3(mut v0: i32) -> i32 {
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32, mut v2: i32) -> i32 {
-    let mut v3: i32 = method3(v2);
+fn extracted_binding_4(mut v0: i32, mut v1: i32, mut v2: i32) -> i32 {
+    let mut v3: i32 = trim_binding_3(v2);
     let mut v4: bool = v0 < 1i32;
     if v4 {
         0i32
@@ -237,7 +237,7 @@ fn method4(mut v0: i32, mut v1: i32, mut v2: i32) -> i32 {
         }
     }
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn targets_binding_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -260,7 +260,7 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
+fn frontier_binding_6(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -278,7 +278,7 @@ fn method6(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn ingest_authority_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -289,27 +289,27 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         } else {
             let mut v4: i32 = 1i32;
             let mut v5: i32 = 2i32;
-            let mut v6: i32 = method2(v4, v5);
+            let mut v6: i32 = manifest_binding_2(v4, v5);
             let mut v7: i32 = 0i32;
-            let mut v8: i32 = method3(v7);
+            let mut v8: i32 = trim_binding_3(v7);
             let mut v9: i32 = 1i32;
             let mut v10: i32 = 1i32;
             let mut v11: i32 = 0i32;
-            let mut v12: i32 = method4(v9, v10, v11);
+            let mut v12: i32 = extracted_binding_4(v9, v10, v11);
             let mut v13: i32 = 1i32;
             let mut v14: i32 = 2i32;
-            let mut v15: i32 = method5(v13, v14);
+            let mut v15: i32 = targets_binding_5(v13, v14);
             let mut v16: i32 = 3i32;
             let mut v17: i32 = 3i32;
-            let mut v18: i32 = method6(v16, v17);
-            method1(v6, v8, v12, v15, v18)
+            let mut v18: i32 = frontier_binding_6(v16, v17);
+            complete_binding_1(v6, v8, v12, v15, v18)
         }
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        ingest_authority_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_ingest_authority_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[cfg(test)] mod native_binary_tests {
@@ -64,7 +64,7 @@ pub fn verify_formal_authority(root:&Path)->Result<(),String>{verify_cold_proof(
 #[path = "rebuild_receipt_tests.rs"]
 mod rebuild_receipt_tests;
 
-fn method0(mut v0: Rc<str>) -> i32 {
+fn family_renewal_0(mut v0: Rc<str>) -> i32 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("state/legacy_catalog.spi"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
@@ -131,11 +131,10 @@ fn method0(mut v0: Rc<str>) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(Rc<str>) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> i32> = Rc::new(move |mut v0: Rc<str>| -> i32 {
-        method0(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        family_renewal_0(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method1(mut v0: Rc<str>) -> i32 {
+fn differential_renewal_1(mut v0: Rc<str>) -> i32 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie.exe"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
@@ -164,11 +163,10 @@ fn method1(mut v0: Rc<str>) -> i32 {
 }
 fn closure1() -> Rc<dyn Fn(Rc<str>) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> i32> = Rc::new(move |mut v0: Rc<str>| -> i32 {
-        method1(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        differential_renewal_1(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method2(mut v0: Rc<str>) -> i32 {
+fn selection_2(mut v0: Rc<str>) -> i32 {
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(cold_public_binary(std::path::Path::new(&*v0)).unwrap_or(""));
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v1 == v2 ;
@@ -197,11 +195,10 @@ fn method2(mut v0: Rc<str>) -> i32 {
 }
 fn closure2() -> Rc<dyn Fn(Rc<str>) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> i32> = Rc::new(move |mut v0: Rc<str>| -> i32 {
-        method2(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        selection_2(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method3(mut v0: Rc<str>) -> i32 {
+fn binary_gate_3(mut v0: Rc<str>) -> i32 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie.exe"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
@@ -336,18 +333,17 @@ fn method3(mut v0: Rc<str>) -> i32 {
 }
 fn closure3() -> Rc<dyn Fn(Rc<str>) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> i32> = Rc::new(move |mut v0: Rc<str>| -> i32 {
-        method3(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        binary_gate_3(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method5(mut v0: Rc<str>, mut v1: u64) -> Rc<str> {
+fn loop_5(mut v0: Rc<str>, mut v1: u64) -> Rc<str> {
     let mut v2: bool = v1 == 10u64;
     if v2 {
         let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         v3.clone()
     } else {
         let mut v4: u64 = eoie_source_topology::source_topology_counts(std::path::Path::new(&*v0)).unwrap()[v1 as usize] as u64;
-        let mut v5: u64 = v4 + 4294967296u64;
+        let mut v5: u64 = v4.wrapping_add(4294967296u64);
         let mut v6: bool = v1 == 9u64;
         let mut v9: Rc<str> = if v6 {
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
@@ -358,14 +354,14 @@ fn method5(mut v0: Rc<str>, mut v1: u64) -> Rc<str> {
         };
         let mut v10: Rc<str> = std::rc::Rc::<str>::from(v5.to_string());
         let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("u32"); } LIT.with(|lit| lit.clone()) };
-        let mut v12: u64 = v1 + 1u64;
-        let mut v13: Rc<str> = method5(v0.clone(), v12);
+        let mut v12: u64 = v1.wrapping_add(1u64);
+        let mut v13: Rc<str> = loop_5(v0.clone(), v12);
         let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         let mut v15: Rc<str> = std::rc::Rc::<str>::from([&*v10, &*v11, &*v9, &*v13, &*v14].concat());
         v15.clone()
     }
 }
-fn method6(mut v0: Rc<str>, mut v1: u64) -> Rc<str> {
+fn loop_6(mut v0: Rc<str>, mut v1: u64) -> Rc<str> {
     let mut v2: bool = v1 == 10u64;
     if v2 {
         let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
@@ -381,14 +377,14 @@ fn method6(mut v0: Rc<str>, mut v1: u64) -> Rc<str> {
         };
         let mut v8: Rc<str> = std::rc::Rc::<str>::from(2147483647u64.to_string());
         let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("u32"); } LIT.with(|lit| lit.clone()) };
-        let mut v10: u64 = v1 + 1u64;
-        let mut v11: Rc<str> = method6(v0.clone(), v10);
+        let mut v10: u64 = v1.wrapping_add(1u64);
+        let mut v11: Rc<str> = loop_6(v0.clone(), v10);
         let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         let mut v13: Rc<str> = std::rc::Rc::<str>::from([&*v8, &*v9, &*v7, &*v11, &*v12].concat());
         v13.clone()
     }
 }
-fn method4(mut v0: Rc<str>) -> i32 {
+fn census_bounds_4(mut v0: Rc<str>) -> i32 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie.exe"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
@@ -446,7 +442,7 @@ fn method4(mut v0: Rc<str>) -> i32 {
     let mut v49: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v1, &*v7, &*v3, &*v3].concat());
     let mut v50: Rc<str> = std::rc::Rc::<str>::from(eoie_proxy_search::inspection_file_sha256(std::path::Path::new(&*v49)).unwrap());
     let mut v51: u64 = 0u64;
-    let mut v52: Rc<str> = method5(v0.clone(), v51);
+    let mut v52: Rc<str> = loop_5(v0.clone(), v51);
     let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("inl current () = AuthorityCensus ("); } LIT.with(|lit| lit.clone()) };
     let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(")\n"); } LIT.with(|lit| lit.clone()) };
     let mut v55: Rc<str> = std::rc::Rc::<str>::from([&*v53, &*v52, &*v54, &*v3, &*v3].concat());
@@ -467,7 +463,7 @@ fn method4(mut v0: Rc<str>) -> i32 {
     let mut v68: bool = v66.contains(&*v67);
     if v68 { () } else { std::panic::panic_any("Spiral test assertion failed") };
     let mut v69: u64 = 0u64;
-    let mut v70: Rc<str> = method6(v0.clone(), v69);
+    let mut v70: Rc<str> = loop_6(v0.clone(), v69);
     let mut v71: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("AuthorityCensus ("); } LIT.with(|lit| lit.clone()) };
     let mut v72: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(")"); } LIT.with(|lit| lit.clone()) };
     let mut v73: Rc<str> = std::rc::Rc::<str>::from([&*v71, &*v70, &*v72, &*v3, &*v3].concat());
@@ -477,11 +473,10 @@ fn method4(mut v0: Rc<str>) -> i32 {
 }
 fn closure4() -> Rc<dyn Fn(Rc<str>) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> i32> = Rc::new(move |mut v0: Rc<str>| -> i32 {
-        method4(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        census_bounds_4(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method7(mut v0: Rc<str>) -> i32 {
+fn renewal_7(mut v0: Rc<str>) -> i32 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie.exe"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
@@ -576,11 +571,10 @@ fn method7(mut v0: Rc<str>) -> i32 {
 }
 fn closure5() -> Rc<dyn Fn(Rc<str>) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> i32> = Rc::new(move |mut v0: Rc<str>| -> i32 {
-        method7(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        renewal_7(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
+fn cold_proof_equal_binding_8(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == v1;
     if v2 {
         1i32
@@ -588,7 +582,7 @@ fn method8(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
+fn cold_rebuild_expected_shards_binding_9(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         -1i32
@@ -599,16 +593,16 @@ fn method9(mut v0: i32, mut v1: i32) -> i32 {
         } else {
             let mut v4: bool = v1 == 2i32;
             if v4 {
-                let mut v5: i32 = v0 - 1i32;
-                let mut v6: i32 = v5 / 2i32;
-                let mut v7: i32 = v6 + 1i32;
+                let mut v5: i32 = v0.wrapping_sub(1i32);
+                let mut v6: i32 = v5.wrapping_div(2i32);
+                let mut v7: i32 = v6.wrapping_add(1i32);
                 v7
             } else {
                 let mut v8: bool = v1 == 4i32;
                 if v8 {
-                    let mut v9: i32 = v0 - 1i32;
-                    let mut v10: i32 = v9 / 4i32;
-                    let mut v11: i32 = v10 + 1i32;
+                    let mut v9: i32 = v0.wrapping_sub(1i32);
+                    let mut v10: i32 = v9.wrapping_div(4i32);
+                    let mut v11: i32 = v10.wrapping_add(1i32);
                     v11
                 } else {
                     -1i32
@@ -617,7 +611,7 @@ fn method9(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method11(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
+fn loop_11(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
     loop {
         let mut v3: bool = v2 == v1;
         if v3 {
@@ -654,7 +648,7 @@ fn method11(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
                 }
             };
             if v15 {
-                let mut v16: u64 = v2 + 1u64;
+                let mut v16: u64 = v2.wrapping_add(1u64);
                 (v0, v1, v2) = (v0.clone(), v1, v16);
                 continue;
             } else {
@@ -663,7 +657,7 @@ fn method11(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
         }
     }
 }
-fn method10(mut v0: Rc<str>) -> bool {
+fn check_10(mut v0: Rc<str>) -> bool {
     let mut v1: u64 = (v0.clone().len() as u64);
     let mut v2: bool = v1 < 64u64;
     let mut v4: bool = if v2 {
@@ -674,24 +668,22 @@ fn method10(mut v0: Rc<str>) -> bool {
     };
     if v4 {
         let mut v5: u64 = 0u64;
-        method11(v0.clone(), v1, v5)
+        loop_11(v0.clone(), v1, v5)
     } else {
         false
     }
 }
 fn closure6() -> Rc<dyn Fn(Rc<str>) -> bool> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> bool> = Rc::new(move |mut v0: Rc<str>| -> bool {
-        method10(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        check_10(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method8(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        cold_proof_equal_binding_8(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method12(mut v0: i32) -> i32 {
+fn cold_proof_binary_binding_12(mut v0: i32) -> i32 {
     let mut v1: bool = v0 == 1i32;
     if v1 {
         1i32
@@ -706,15 +698,13 @@ fn method12(mut v0: i32) -> i32 {
 }
 fn closure8() -> Rc<dyn Fn(i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32) -> i32> = Rc::new(move |mut v0: i32| -> i32 {
-        method12(v0)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        cold_proof_binary_binding_12(v0)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method9(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        cold_rebuild_expected_shards_binding_9(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_test_family_renewal(v0: &str) -> i32 {
     closure0()(Rc::<str>::from(v0))

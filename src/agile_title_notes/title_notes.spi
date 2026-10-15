@@ -11,10 +11,10 @@ open workspace_primitives.files
 inl argument_owned index : string = rust_std_env.model.argument_owned index
 inl argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
 
-inl tail_separator () : string = "; "
-
 inl tail_rows (~title : string) (~id : string) (seq : i32) (~fallback : string) : i32 * string =
     $'agile_title_tails::eoie_agile_title_tail_rows(&*!title, &*!id, !seq, &*!fallback)' : i32 * string
+
+inl kept_end (~title : string) : i32 = $'agile_title_tails::eoie_agile_title_kept_end(&*!title)' : i32
 
 inl from_title_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile notes from-title " id " rejected: " reason "")
 
@@ -33,8 +33,8 @@ let title_moved (~state : string) (~id : string) (~original : string) (started :
     inl found = item_offset schema_ready TaskItem id
     inl start, stop = title_bounds schema_ready found
     inl title = unquoted (byte_slice schema_ready start stop)
-    inl first = byte_find title (tail_separator ())
-    if i32_negative first then from_title_failure "the title has no \"; \" tail to move" id
+    inl first = kept_end title
+    if i32_negative first then from_title_failure "the title has no \"; \" tail starting with a date or time to move" id
     else
         inl kept = rust_std_string.model.trim (byte_slice title 0i32 first)
         inl moved, rows = tail_rows title id (i32_next (note_count schema_ready id)) (utc_stamp started)

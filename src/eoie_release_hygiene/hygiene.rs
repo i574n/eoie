@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 #![allow(dead_code)]
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -162,22 +162,27 @@ pub fn validate_runtime_filenames(root: &std::path::Path) -> Result<(), String> 
 
 #[derive(Clone)]
 enum US0 {
-    US0_0,
-    US0_1,
-    US0_2,
-    US0_3,
+    US0_HygieneKeep,
+    US0_HygieneCompilerSidecar,
+    US0_HygieneRootTransientFile,
+    US0_HygieneRootTransientDirectory,
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0 => 0,
-            US0::US0_1 => 1,
-            US0::US0_2 => 2,
-            US0::US0_3 => 3,
+            US0::US0_HygieneKeep => 0,
+            US0::US0_HygieneCompilerSidecar => 1,
+            US0::US0_HygieneRootTransientFile => 2,
+            US0::US0_HygieneRootTransientDirectory => 3,
         }
     }
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_HygieneKeep
+    }
+}
+fn incident_recovery_leaf_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -200,7 +205,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn incident_recovery_fault_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -223,7 +228,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn incident_recovery_scope_mask_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 15i32;
     if v2 {
         0i32
@@ -246,7 +251,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn incident_recovery_snapshot_mask_binding_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 15i32;
     if v2 {
         0i32
@@ -269,7 +274,7 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn incident_recovery_restore_mask_binding_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 7i32;
     if v2 {
         0i32
@@ -312,7 +317,7 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn incident_recovery_rollback_mask_binding_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 6i32;
     if v2 {
         0i32
@@ -335,7 +340,7 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
+fn incident_recovery_completion_mask_binding_6(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 7i32;
     if v2 {
         0i32
@@ -358,7 +363,7 @@ fn method6(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
+fn hygiene_primary_binding_7(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = 0i32 < v0;
     if v2 {
         1i32
@@ -372,11 +377,11 @@ fn method7(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method7(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        hygiene_primary_binding_7(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
+fn hygiene_secondary_binding_8(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = 0i32 < v0;
     if v2 {
         1i32
@@ -390,11 +395,11 @@ fn method8(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method8(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        hygiene_secondary_binding_8(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
+fn hygiene_root_file_binding_9(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = 0i32 < v0;
     if v2 {
         1i32
@@ -408,11 +413,11 @@ fn method9(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method9(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        hygiene_root_file_binding_9(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method10(mut v0: i32, mut v1: i32) -> i32 {
+fn hygiene_root_aux_binding_10(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = 0i32 < v0;
     if v2 {
         1i32
@@ -426,11 +431,11 @@ fn method10(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method10(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        hygiene_root_aux_binding_10(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
+fn hygiene_root_directory_binding_11(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = 0i32 < v0;
     if v2 {
         1i32
@@ -444,79 +449,79 @@ fn method11(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method11(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        hygiene_root_directory_binding_11(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method12(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = Rc::<str>::from(".spiral-entry");
+fn hygiene_name_classification_12(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".spiral-entry"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0.ends_with(&*v1);
     let mut v44: US0 = if v2 {
-        US0::US0_1
+        US0::US0_HygieneCompilerSidecar
     } else {
-        let mut v4: Rc<str> = Rc::<str>::from(".eoie-typecheck-");
+        let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".eoie-typecheck-"); } LIT.with(|lit| lit.clone()) };
         let mut v5: bool = v0.contains(&*v4);
         let mut v8: bool = if v5 {
-            let mut v6: Rc<str> = Rc::<str>::from(".rs");
+            let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".rs"); } LIT.with(|lit| lit.clone()) };
             let mut v7: bool = v0.ends_with(&*v6);
             v7
         } else {
             false
         };
         if v8 {
-            US0::US0_1
+            US0::US0_HygieneCompilerSidecar
         } else {
             let mut v10: bool = v0.contains(&*v4);
             let mut v13: bool = if v10 {
-                let mut v11: Rc<str> = Rc::<str>::from(".rs.eoie-");
+                let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".rs.eoie-"); } LIT.with(|lit| lit.clone()) };
                 let mut v12: bool = v0.contains(&*v11);
                 v12
             } else {
                 false
             };
             let mut v16: bool = if v13 {
-                let mut v14: Rc<str> = Rc::<str>::from(".tmp");
+                let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".tmp"); } LIT.with(|lit| lit.clone()) };
                 let mut v15: bool = v0.ends_with(&*v14);
                 v15
             } else {
                 false
             };
             if v16 {
-                US0::US0_1
+                US0::US0_HygieneCompilerSidecar
             } else {
-                let mut v18: Rc<str> = Rc::<str>::from(".receipt");
+                let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".receipt"); } LIT.with(|lit| lit.clone()) };
                 let mut v19: bool = v0.ends_with(&*v18);
                 if v19 {
-                    US0::US0_2
+                    US0::US0_HygieneRootTransientFile
                 } else {
-                    let mut v21: Rc<str> = Rc::<str>::from(".release-eoie-candidate");
+                    let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".release-eoie-candidate"); } LIT.with(|lit| lit.clone()) };
                     let mut v22: bool = v0.starts_with(&*v21);
                     if v22 {
-                        US0::US0_2
+                        US0::US0_HygieneRootTransientFile
                     } else {
-                        let mut v24: Rc<str> = Rc::<str>::from("probe");
+                        let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("probe"); } LIT.with(|lit| lit.clone()) };
                         let mut v25: bool = v0.starts_with(&*v24);
                         let mut v28: bool = if v25 {
-                            let mut v26: Rc<str> = Rc::<str>::from(".rs");
+                            let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".rs"); } LIT.with(|lit| lit.clone()) };
                             let mut v27: bool = v0.ends_with(&*v26);
                             v27
                         } else {
                             false
                         };
                         if v28 {
-                            US0::US0_2
+                            US0::US0_HygieneRootTransientFile
                         } else {
-                            let mut v30: Rc<str> = Rc::<str>::from(".cold-rebuild");
+                            let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cold-rebuild"); } LIT.with(|lit| lit.clone()) };
                             let mut v31: bool = v0.starts_with(&*v30);
                             if v31 {
-                                US0::US0_3
+                                US0::US0_HygieneRootTransientDirectory
                             } else {
-                                let mut v33: Rc<str> = Rc::<str>::from(".cargo");
+                                let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cargo"); } LIT.with(|lit| lit.clone()) };
                                 let mut v34: bool = v0 == v33 ;
                                 if v34 {
-                                    US0::US0_3
+                                    US0::US0_HygieneRootTransientDirectory
                                 } else {
-                                    US0::US0_0
+                                    US0::US0_HygieneKeep
                                 }
                             }
                         }
@@ -526,43 +531,42 @@ fn method12(mut v0: Rc<str>) -> u64 {
         }
     };
     match &v44 {
-        US0::US0_1 => { // HygieneCompilerSidecar
+        US0::US0_HygieneCompilerSidecar => {
             1u64
         }
-        US0::US0_0 => { // HygieneKeep
+        US0::US0_HygieneKeep => {
             0u64
         }
-        US0::US0_3 => { // HygieneRootTransientDirectory
+        US0::US0_HygieneRootTransientDirectory => {
             3u64
         }
-        US0::US0_2 => { // HygieneRootTransientFile
+        US0::US0_HygieneRootTransientFile => {
             2u64
         }
-        _ => unreachable!(),
     }
 }
 fn closure5() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method12(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        hygiene_name_classification_12(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method13(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = Rc::<str>::from("target");
+fn hygiene_directory_ignored_13(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("target"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
         1u64
     } else {
-        let mut v3: Rc<str> = Rc::<str>::from("vendor");
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("vendor"); } LIT.with(|lit| lit.clone()) };
         let mut v4: bool = v0 == v3 ;
         if v4 {
             1u64
         } else {
-            let mut v5: Rc<str> = Rc::<str>::from(".git");
+            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".git"); } LIT.with(|lit| lit.clone()) };
             let mut v6: bool = v0 == v5 ;
             if v6 {
                 1u64
             } else {
-                let mut v7: Rc<str> = Rc::<str>::from(".cache");
+                let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cache"); } LIT.with(|lit| lit.clone()) };
                 let mut v8: bool = v0 == v7 ;
                 if v8 {
                     1u64
@@ -574,44 +578,44 @@ fn method13(mut v0: Rc<str>) -> u64 {
     }
 }
 fn closure6() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method13(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        hygiene_directory_ignored_13(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        incident_recovery_scope_mask_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        incident_recovery_leaf_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        incident_recovery_snapshot_mask_binding_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure10() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        incident_recovery_restore_mask_binding_4(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure11() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        incident_recovery_fault_binding_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure12() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        incident_recovery_rollback_mask_binding_5(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure13() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method6(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        incident_recovery_completion_mask_binding_6(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_hygiene_primary_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

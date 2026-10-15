@@ -375,7 +375,7 @@ pub fn filesystem_actions_run(args: &[String]) -> Result<(), String> {
 }
 
 #[cfg(test)] #[path = "regression_tests.rs"] mod regression_tests;
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn fs_action_shape_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -393,7 +393,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn fs_action_freshness_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -411,7 +411,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn fs_action_apply_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -429,7 +429,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn fs_action_verify_binding_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -447,7 +447,7 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn fs_action_rollback_binding_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -467,30 +467,30 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
+        fs_action_shape_binding_0(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
+        fs_action_freshness_binding_1(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
+        fs_action_apply_binding_2(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
+        fs_action_verify_binding_3(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
+        fs_action_rollback_binding_4(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn fs_action_mode_valid_binding_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 != 0i32;
     if v2 {
         0i32
@@ -510,7 +510,7 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
+        fs_action_mode_valid_binding_5(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_fs_actions_shape_binding(v0: i32, v1: i32) -> i32 {

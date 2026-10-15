@@ -1,21 +1,21 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 fn spiral_main() -> i32 {
     let mut v0: Rc<str> = std::env::temp_dir().join("eoie patch batch ü ".to_owned() + &std::process::id().to_string() + "-" + &std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos().to_string()).display().to_string().into();
     let mut v1: bool = std::fs::create_dir(&*v0).is_ok();
     if v1 {
-        let mut v2: Rc<str> = Rc::<str>::from("target-a.txt");
+        let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("target-a.txt"); } LIT.with(|lit| lit.clone()) };
         let mut v3: Rc<str> = std::path::Path::new(&*v0).join(&*v2).display().to_string().into();
-        let mut v4: Rc<str> = Rc::<str>::from("stage-a.txt");
+        let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stage-a.txt"); } LIT.with(|lit| lit.clone()) };
         let mut v5: Rc<str> = std::path::Path::new(&*v0).join(&*v4).display().to_string().into();
-        let mut v6: Rc<str> = Rc::<str>::from("backup-a.txt");
+        let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("backup-a.txt"); } LIT.with(|lit| lit.clone()) };
         let mut v7: Rc<str> = std::path::Path::new(&*v0).join(&*v6).display().to_string().into();
-        let mut v8: Rc<str> = Rc::<str>::from("target-b.txt");
+        let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("target-b.txt"); } LIT.with(|lit| lit.clone()) };
         let mut v9: Rc<str> = std::path::Path::new(&*v0).join(&*v8).display().to_string().into();
-        let mut v10: Rc<str> = Rc::<str>::from("stage-b.txt");
+        let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stage-b.txt"); } LIT.with(|lit| lit.clone()) };
         let mut v11: Rc<str> = std::path::Path::new(&*v0).join(&*v10).display().to_string().into();
-        let mut v12: Rc<str> = Rc::<str>::from("backup-b.txt");
+        let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("backup-b.txt"); } LIT.with(|lit| lit.clone()) };
         let mut v13: Rc<str> = std::path::Path::new(&*v0).join(&*v12).display().to_string().into();
         let mut v14: bool = std::fs::remove_file(&*v3).is_ok() || !std::path::Path::new(&*v3).exists();
         let mut v16: bool = if v14 {
@@ -49,10 +49,10 @@ fn spiral_main() -> i32 {
             false
         };
         let mut v68: bool = if v24 {
-            let mut v25: Rc<str> = Rc::<str>::from("original-a");
+            let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("original-a"); } LIT.with(|lit| lit.clone()) };
             let mut v26: bool = std::fs::write(&*v3, &*v25).is_ok();
             let mut v29: bool = if v26 {
-                let mut v27: Rc<str> = Rc::<str>::from("original-b");
+                let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("original-b"); } LIT.with(|lit| lit.clone()) };
                 let mut v28: bool = std::fs::write(&*v9, &*v27).is_ok();
                 v28
             } else {
@@ -65,21 +65,21 @@ fn spiral_main() -> i32 {
                 false
             };
             let mut v34: bool = if v31 {
-                let mut v32: Rc<str> = Rc::<str>::from("original-b");
+                let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("original-b"); } LIT.with(|lit| lit.clone()) };
                 let mut v33: bool = std::fs::write(&*v13, &*v32).is_ok();
                 v33
             } else {
                 false
             };
             let mut v37: bool = if v34 {
-                let mut v35: Rc<str> = Rc::<str>::from("changed-a");
+                let mut v35: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("changed-a"); } LIT.with(|lit| lit.clone()) };
                 let mut v36: bool = std::fs::write(&*v5, &*v35).is_ok();
                 v36
             } else {
                 false
             };
             let mut v40: bool = if v37 {
-                let mut v38: Rc<str> = Rc::<str>::from("changed-b");
+                let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("changed-b"); } LIT.with(|lit| lit.clone()) };
                 let mut v39: bool = std::fs::write(&*v11, &*v38).is_ok();
                 v39
             } else {
@@ -92,14 +92,14 @@ fn spiral_main() -> i32 {
                 false
             };
             let mut v45: bool = if v42 {
-                let mut v43: Rc<str> = Rc::<str>::from("changed-a");
+                let mut v43: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("changed-a"); } LIT.with(|lit| lit.clone()) };
                 let mut v44: bool = std::fs::read_to_string(&*v3).is_ok_and(|value| value == *v43);
                 v44
             } else {
                 false
             };
             let mut v48: bool = if v45 {
-                let mut v46: Rc<str> = Rc::<str>::from("original-b");
+                let mut v46: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("original-b"); } LIT.with(|lit| lit.clone()) };
                 let mut v47: bool = std::fs::read_to_string(&*v9).is_ok_and(|value| value == *v46);
                 v47
             } else {
@@ -122,7 +122,7 @@ fn spiral_main() -> i32 {
                 let mut v58: bool = if v53 {
                     let mut v54: bool = std::fs::read_to_string(&*v3).is_ok_and(|value| value == *v25);
                     if v54 {
-                        let mut v55: Rc<str> = Rc::<str>::from("original-b");
+                        let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("original-b"); } LIT.with(|lit| lit.clone()) };
                         let mut v56: bool = std::fs::read_to_string(&*v9).is_ok_and(|value| value == *v55);
                         v56
                     } else {
@@ -160,9 +160,9 @@ fn spiral_main() -> i32 {
         } else {
             false
         };
-        let mut v69: Rc<str> = Rc::<str>::from("missing.txt");
+        let mut v69: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("missing.txt"); } LIT.with(|lit| lit.clone()) };
         let mut v70: Rc<str> = std::path::Path::new(&*v0).join(&*v69).display().to_string().into();
-        let mut v71: Rc<str> = Rc::<str>::from("missing-promoted.txt");
+        let mut v71: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("missing-promoted.txt"); } LIT.with(|lit| lit.clone()) };
         let mut v72: Rc<str> = std::path::Path::new(&*v0).join(&*v71).display().to_string().into();
         let mut v73: bool = std::fs::rename(&*v72, &*v70).is_ok();
         let mut v74: bool = v73 == false;
@@ -242,7 +242,7 @@ fn spiral_main() -> i32 {
         10i32
     }
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

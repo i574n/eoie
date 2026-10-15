@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 #[cfg(test)] #[path = "publication_tests.rs"] mod publication_tests;
@@ -117,7 +117,7 @@ pub fn owner_growth_all_owner_check(root: &std::path::Path) -> Result<(), String
     Ok(())
 }
 
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn owner_growth_compensation_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -130,13 +130,13 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn owner_growth_runtime_compensation_binding_0(mut v0: i32, mut v1: i32) -> i32 {
+    owner_growth_compensation_binding_1(v0, v1)
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        owner_growth_runtime_compensation_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_bundle_owner_growth_compensation_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

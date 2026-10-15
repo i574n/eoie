@@ -1,24 +1,23 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
     let bytes = value.as_bytes();
     let length = bytes.len() as i64;
     if from < 0 || from > length || to < from - 1 || to >= length { std::process::abort(); }
-    if to < from { return Rc::<str>::from(""); }
-    // A slice that starts or ends inside a code point fails like the C and Delphi backends (abort / Halt(3)).
+    if to < from { return { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }; }
     if (bytes[from as usize] & 0xC0) == 0x80 || (to + 1 < length && (bytes[(to + 1) as usize] & 0xC0) == 0x80) { std::process::exit(3); }
     let slice = &bytes[from as usize..(to + 1) as usize];
     match std::str::from_utf8(slice) { Ok(text) => Rc::<str>::from(text), Err(error) => Rc::<str>::from(std::str::from_utf8(&slice[..error.valid_up_to()]).unwrap_or("")) }
 }
 fn method3() -> Rc<str> {
-    let mut v0: Rc<str> = Rc::<str>::from("");
+    let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     v0.clone()
 }
-fn method2() -> Rc<str> {
+fn codec_empty_2() -> Rc<str> {
     method3()
 }
-fn method4(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
+fn codec_u64_decimal_valid_loop_4(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -108,25 +107,25 @@ fn method4(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
         }
     }
 }
-fn method1(mut v0: Rc<str>) -> Rc<str> {
+fn codec_u64_decimal_normalize_1(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: bool = v1 == 0i32 ;
     if v2 {
-        method2()
+        codec_empty_2()
     } else {
         let mut v4: i32 = 0i32;
         let mut v5: u64 = 0u64;
-        let mut v6: bool = method4(v0.clone(), v4, v1, v5);
+        let mut v6: bool = codec_u64_decimal_valid_loop_4(v0.clone(), v4, v1, v5);
         if v6 {
             v0.clone()
         } else {
-            method2()
+            codec_empty_2()
         }
     }
 }
-fn method0(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method1(v0.clone());
-    let mut v2: Rc<str> = Rc::<str>::from("");
+fn state_receipt_u64_decimal_valid_0(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = codec_u64_decimal_normalize_1(v0.clone());
+    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v1 == v2 ;
     if v3 {
         0u64
@@ -134,7 +133,7 @@ fn method0(mut v0: Rc<str>) -> u64 {
         1u64
     }
 }
-fn method7(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
+fn codec_u64_decimal_value_loop_7(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -200,8 +199,8 @@ fn method7(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
         }
     }
 }
-fn method6(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method1(v0.clone());
+fn codec_u64_decimal_value_6(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = codec_u64_decimal_normalize_1(v0.clone());
     let mut v2: i32 = (v1.clone().len() as i32);
     let mut v3: bool = v2 == 0i32 ;
     if v3 {
@@ -209,20 +208,20 @@ fn method6(mut v0: Rc<str>) -> u64 {
     } else {
         let mut v4: i32 = 0i32;
         let mut v5: u64 = 0u64;
-        method7(v1.clone(), v4, v2, v5)
+        codec_u64_decimal_value_loop_7(v1.clone(), v4, v2, v5)
     }
 }
-fn method5(mut v0: Rc<str>) -> u64 {
-    method6(v0.clone())
+fn state_receipt_u64_decimal_value_5(mut v0: Rc<str>) -> u64 {
+    codec_u64_decimal_value_6(v0.clone())
 }
-fn method8(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method1(v0.clone());
-    let mut v2: Rc<str> = Rc::<str>::from("");
+fn state_receipt_u32_decimal_valid_8(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = codec_u64_decimal_normalize_1(v0.clone());
+    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v1 == v2 ;
     if v3 {
         0u64
     } else {
-        let mut v4: u64 = method6(v1.clone());
+        let mut v4: u64 = codec_u64_decimal_value_6(v1.clone());
         let mut v5: bool = v4 <= 4294967295u64;
         if v5 {
             1u64
@@ -231,7 +230,7 @@ fn method8(mut v0: Rc<str>) -> u64 {
         }
     }
 }
-fn method11(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
+fn starts_with_loop_11(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
     loop {
         let mut v5: bool = v3 == v4 ;
         if v5 {
@@ -251,7 +250,7 @@ fn method11(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: 
         }
     }
 }
-fn method10(mut v0: Rc<str>) -> Rc<str> {
+fn state_receipt_u32_spi_literal_decimal_10(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: bool = v1 >= 3i32;
     let mut v11: bool = if v2 {
@@ -261,10 +260,10 @@ fn method10(mut v0: Rc<str>) -> Rc<str> {
         if v5 {
             false
         } else {
-            let mut v6: Rc<str> = Rc::<str>::from("u32");
+            let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("u32"); } LIT.with(|lit| lit.clone()) };
             let mut v7: i32 = 0i32;
             let mut v8: i32 = 3i32;
-            method11(v0.clone(), v6.clone(), v3, v7, v8)
+            starts_with_loop_11(v0.clone(), v6.clone(), v3, v7, v8)
         }
     } else {
         false
@@ -273,7 +272,7 @@ fn method10(mut v0: Rc<str>) -> Rc<str> {
         let mut v12: i32 = v1 - 3i32 ;
         let mut v13: bool = 0i32 == v12 ;
         if v13 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v15: i32 = v12 - 1i32 ;
             let mut v16: Rc<str> = string_slice(&v0.clone(), 0i32 as i64, v15 as i64);
@@ -283,15 +282,15 @@ fn method10(mut v0: Rc<str>) -> Rc<str> {
         v0.clone()
     }
 }
-fn method9(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method10(v0.clone());
-    method8(v1.clone())
+fn state_receipt_u32_spi_literal_valid_9(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = state_receipt_u32_spi_literal_decimal_10(v0.clone());
+    state_receipt_u32_decimal_valid_8(v1.clone())
 }
-fn method12(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method10(v0.clone());
-    method6(v1.clone())
+fn state_receipt_u32_spi_literal_value_12(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = state_receipt_u32_spi_literal_decimal_10(v0.clone());
+    codec_u64_decimal_value_6(v1.clone())
 }
-fn method14(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
+fn state_receipt_dash_count_loop_14(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -311,17 +310,17 @@ fn method14(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
         }
     }
 }
-fn method13(mut v0: Rc<str>) -> u64 {
+fn state_receipt_dash_shape_13(mut v0: Rc<str>) -> u64 {
     let mut v1: i32 = 0i32;
     let mut v2: i32 = (v0.clone().len() as i32);
     let mut v3: u64 = 0u64;
-    let mut v4: u64 = method14(v0.clone(), v1, v2, v3);
+    let mut v4: u64 = state_receipt_dash_count_loop_14(v0.clone(), v1, v2, v3);
     let mut v5: u64 = v4 + 1u64 ;
     let mut v6: u64 = v5 * 10u64 ;
     let mut v7: u64 = v6 + v4 ;
     v7
 }
-fn method17(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
+fn find_text_loop_17(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
     loop {
         let mut v5: i32 = v2 + v4 ;
         let mut v6: bool = v3 < v5;
@@ -336,7 +335,7 @@ fn method17(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: 
                 false
             } else {
                 let mut v11: i32 = 0i32;
-                method11(v0.clone(), v1.clone(), v2, v11, v8)
+                starts_with_loop_11(v0.clone(), v1.clone(), v2, v11, v8)
             };
             if v13 {
                 return v2;
@@ -348,11 +347,11 @@ fn method17(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: 
         }
     }
 }
-fn method18(mut v0: Rc<str>) -> u8 {
+fn codec_runtime_char_18(mut v0: Rc<str>) -> u8 {
     let mut v1: u8 = v0.clone().as_bytes()[0i32 as usize];
     v1
 }
-fn method19(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
+fn find_char_loop_19(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -370,7 +369,7 @@ fn method19(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
         }
     }
 }
-fn method20(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8, mut v4: i32) -> i32 {
+fn state_receipt_find_last_char_loop_20(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8, mut v4: i32) -> i32 {
     loop {
         let mut v5: bool = v1 == v2 ;
         if v5 {
@@ -389,29 +388,29 @@ fn method20(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8, mut v4: i32) 
         }
     }
 }
-fn method16(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
+fn state_receipt_constructor_payload_16(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
     let mut v2: i32 = (v0.clone().len() as i32);
     let mut v3: i32 = 0i32;
     let mut v4: i32 = (v1.clone().len() as i32);
-    let mut v5: i32 = method17(v0.clone(), v1.clone(), v3, v2, v4);
+    let mut v5: i32 = find_text_loop_17(v0.clone(), v1.clone(), v3, v2, v4);
     let mut v6: bool = v5 == v2 ;
     if v6 {
-        method2()
+        codec_empty_2()
     } else {
         let mut v8: i32 = v5 + v4 ;
-        let mut v9: Rc<str> = Rc::<str>::from("\n");
-        let mut v10: u8 = method18(v9.clone());
-        let mut v11: i32 = method19(v0.clone(), v8, v2, v10);
+        let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
+        let mut v10: u8 = codec_runtime_char_18(v9.clone());
+        let mut v11: i32 = find_char_loop_19(v0.clone(), v8, v2, v10);
         let mut v12: u8 = b')';
         let mut v13: i32 = -1i32;
-        let mut v14: i32 = method20(v0.clone(), v8, v11, v12, v13);
+        let mut v14: i32 = state_receipt_find_last_char_loop_20(v0.clone(), v8, v11, v12, v13);
         let mut v15: bool = v14 < v8;
         if v15 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v17: bool = v8 == v14 ;
             if v17 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v19: i32 = v14 - 1i32 ;
                 let mut v20: Rc<str> = string_slice(&v0.clone(), v8 as i64, v19 as i64);
@@ -420,23 +419,23 @@ fn method16(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
         }
     }
 }
-fn method15(mut v0: Rc<str>) -> Rc<str> {
-    let mut v1: Rc<str> = Rc::<str>::from("MigrationDenominator (");
-    method16(v0.clone(), v1.clone())
+fn state_receipt_migration_denominator_payload_15(mut v0: Rc<str>) -> Rc<str> {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("MigrationDenominator ("); } LIT.with(|lit| lit.clone()) };
+    state_receipt_constructor_payload_16(v0.clone(), v1.clone())
 }
-fn method25(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> (Rc<str>, i32, i32) {
+fn state_receipt_constructor_payload_from_25(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> (Rc<str>, i32, i32) {
     let mut v3: i32 = (v0.clone().len() as i32);
     let mut v4: i32 = (v1.clone().len() as i32);
-    let mut v5: i32 = method17(v0.clone(), v1.clone(), v2, v3, v4);
+    let mut v5: i32 = find_text_loop_17(v0.clone(), v1.clone(), v2, v3, v4);
     let mut v6: bool = v5 == v3 ;
     if v6 {
-        let mut v7: Rc<str> = method2();
+        let mut v7: Rc<str> = codec_empty_2();
         (v7.clone(), v3, 0i32)
     } else {
         let mut v8: i32 = v5 + v4 ;
-        let mut v9: Rc<str> = Rc::<str>::from("\n");
-        let mut v10: u8 = method18(v9.clone());
-        let mut v11: i32 = method19(v0.clone(), v8, v3, v10);
+        let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
+        let mut v10: u8 = codec_runtime_char_18(v9.clone());
+        let mut v11: i32 = find_char_loop_19(v0.clone(), v8, v3, v10);
         let mut v12: bool = v11 < v3;
         let mut v14: i32 = if v12 {
             let mut v13: i32 = v11 + 1i32 ;
@@ -446,15 +445,15 @@ fn method25(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> (Rc<str>, i32, i32
         };
         let mut v15: u8 = b')';
         let mut v16: i32 = -1i32;
-        let mut v17: i32 = method20(v0.clone(), v8, v11, v15, v16);
+        let mut v17: i32 = state_receipt_find_last_char_loop_20(v0.clone(), v8, v11, v15, v16);
         let mut v18: bool = v17 < v8;
         if v18 {
-            let mut v19: Rc<str> = method2();
+            let mut v19: Rc<str> = codec_empty_2();
             (v19.clone(), v14, 2i32)
         } else {
             let mut v20: bool = v8 == v17 ;
             let mut v24: Rc<str> = if v20 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v22: i32 = v17 - 1i32 ;
                 let mut v23: Rc<str> = string_slice(&v0.clone(), v8 as i64, v22 as i64);
@@ -464,7 +463,7 @@ fn method25(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> (Rc<str>, i32, i32
         }
     }
 }
-fn method28(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
+fn skip_spaces_loop_28(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
     loop {
         let mut v3: bool = v1 == v2 ;
         if v3 {
@@ -477,8 +476,8 @@ fn method28(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
                 (v0, v1, v2) = (v0.clone(), v6, v2);
                 continue;
             } else {
-                let mut v8: Rc<str> = Rc::<str>::from("\t");
-                let mut v9: u8 = method18(v8.clone());
+                let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
+                let mut v9: u8 = codec_runtime_char_18(v8.clone());
                 let mut v10: bool = v4 == v9 ;
                 if v10 {
                     let mut v11: i32 = v1 + 1i32 ;
@@ -491,7 +490,7 @@ fn method28(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
         }
     }
 }
-fn method29(mut v0: Rc<str>, mut v1: i32) -> i32 {
+fn state_receipt_trim_right_loop_29(mut v0: Rc<str>, mut v1: i32) -> i32 {
     loop {
         let mut v2: bool = v1 == 0i32 ;
         if v2 {
@@ -504,8 +503,8 @@ fn method29(mut v0: Rc<str>, mut v1: i32) -> i32 {
                 (v0, v1) = (v0.clone(), v3);
                 continue;
             } else {
-                let mut v7: Rc<str> = Rc::<str>::from("\t");
-                let mut v8: u8 = method18(v7.clone());
+                let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
+                let mut v8: u8 = codec_runtime_char_18(v7.clone());
                 let mut v9: bool = v4 == v8 ;
                 if v9 {
                     (v0, v1) = (v0.clone(), v3);
@@ -517,18 +516,18 @@ fn method29(mut v0: Rc<str>, mut v1: i32) -> i32 {
         }
     }
 }
-fn method27(mut v0: Rc<str>) -> Rc<str> {
+fn state_receipt_trim_27(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = 0i32;
     let mut v2: i32 = (v0.clone().len() as i32);
-    let mut v3: i32 = method28(v0.clone(), v1, v2);
-    let mut v4: i32 = method29(v0.clone(), v2);
+    let mut v3: i32 = skip_spaces_loop_28(v0.clone(), v1, v2);
+    let mut v4: i32 = state_receipt_trim_right_loop_29(v0.clone(), v2);
     let mut v5: bool = v4 < v3;
     if v5 {
-        method2()
+        codec_empty_2()
     } else {
         let mut v7: bool = v3 == v4 ;
         if v7 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v9: i32 = v4 - 1i32 ;
             let mut v10: Rc<str> = string_slice(&v0.clone(), v3 as i64, v9 as i64);
@@ -536,8 +535,8 @@ fn method27(mut v0: Rc<str>) -> Rc<str> {
         }
     }
 }
-fn method26(mut v0: Rc<str>) -> (u64, bool) {
-    let mut v1: Rc<str> = method27(v0.clone());
+fn state_receipt_u32_literal_value_checked_26(mut v0: Rc<str>) -> (u64, bool) {
+    let mut v1: Rc<str> = state_receipt_trim_27(v0.clone());
     let mut v2: i32 = (v1.clone().len() as i32);
     let mut v3: bool = v2 < 4i32;
     if v3 {
@@ -549,27 +548,27 @@ fn method26(mut v0: Rc<str>) -> (u64, bool) {
         let mut v11: bool = if v6 {
             false
         } else {
-            let mut v7: Rc<str> = Rc::<str>::from("u32");
+            let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("u32"); } LIT.with(|lit| lit.clone()) };
             let mut v8: i32 = 0i32;
             let mut v9: i32 = 3i32;
-            method11(v1.clone(), v7.clone(), v4, v8, v9)
+            starts_with_loop_11(v1.clone(), v7.clone(), v4, v8, v9)
         };
         if v11 {
             let mut v12: bool = 0i32 == v4 ;
             let mut v16: Rc<str> = if v12 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v14: i32 = v4 - 1i32 ;
                 let mut v15: Rc<str> = string_slice(&v1.clone(), 0i32 as i64, v14 as i64);
                 v15.clone()
             };
-            let mut v17: Rc<str> = method1(v16.clone());
-            let mut v18: Rc<str> = Rc::<str>::from("");
+            let mut v17: Rc<str> = codec_u64_decimal_normalize_1(v16.clone());
+            let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             let mut v19: bool = v17 == v18 ;
             if v19 {
                 (0u64, false)
             } else {
-                let mut v20: u64 = method6(v17.clone());
+                let mut v20: u64 = codec_u64_decimal_value_6(v17.clone());
                 let mut v21: bool = v20 <= 4294967295u64;
                 if v21 {
                     (v20, true)
@@ -582,37 +581,37 @@ fn method26(mut v0: Rc<str>) -> (u64, bool) {
         }
     }
 }
-fn method24(mut v0: Rc<str>, mut v1: i32, mut v2: u64, mut v3: bool, mut v4: Rc<str>) -> (bool, Rc<str>) {
+fn state_receipt_series_records_loop_24(mut v0: Rc<str>, mut v1: i32, mut v2: u64, mut v3: bool, mut v4: Rc<str>) -> (bool, Rc<str>) {
     loop {
-        let mut v5: Rc<str> = Rc::<str>::from("SeriesRecord (");
-        let (mut v6, mut v7, mut v8): (Rc<str>, i32, i32) = method25(v0.clone(), v5.clone(), v1);
+        let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("SeriesRecord ("); } LIT.with(|lit| lit.clone()) };
+        let (mut v6, mut v7, mut v8): (Rc<str>, i32, i32) = state_receipt_constructor_payload_from_25(v0.clone(), v5.clone(), v1);
         let mut v9: bool = v8 == 0i32 ;
         if v9 {
             return (true, v4.clone());
         } else {
             let mut v10: bool = v8 == 2i32 ;
             if v10 {
-                let mut v11: Rc<str> = method2();
+                let mut v11: Rc<str> = codec_empty_2();
                 return (false, v11.clone());
             } else {
                 let mut v12: i32 = (v6.clone().len() as i32);
                 let mut v13: i32 = 0i32;
                 let mut v14: u8 = b',';
-                let mut v15: i32 = method19(v6.clone(), v13, v12, v14);
+                let mut v15: i32 = find_char_loop_19(v6.clone(), v13, v12, v14);
                 let mut v16: bool = v15 == v12 ;
                 if v16 {
-                    let mut v17: Rc<str> = method2();
+                    let mut v17: Rc<str> = codec_empty_2();
                     return (false, v17.clone());
                 } else {
                     let mut v18: bool = 0i32 == v15 ;
                     let mut v22: Rc<str> = if v18 {
-                        method2()
+                        codec_empty_2()
                     } else {
                         let mut v20: i32 = v15 - 1i32 ;
                         let mut v21: Rc<str> = string_slice(&v6.clone(), 0i32 as i64, v20 as i64);
                         v21.clone()
                     };
-                    let (mut v23, mut v24): (u64, bool) = method26(v22.clone());
+                    let (mut v23, mut v24): (u64, bool) = state_receipt_u32_literal_value_checked_26(v22.clone());
                     if v24 {
                         let mut v26: bool = if v3 {
                             let mut v25: bool = v23 <= v2;
@@ -621,7 +620,7 @@ fn method24(mut v0: Rc<str>, mut v1: i32, mut v2: u64, mut v3: bool, mut v4: Rc<
                             false
                         };
                         if v26 {
-                            let mut v27: Rc<str> = method2();
+                            let mut v27: Rc<str> = codec_empty_2();
                             return (false, v27.clone());
                         } else {
                             let mut v28: bool = true;
@@ -629,7 +628,7 @@ fn method24(mut v0: Rc<str>, mut v1: i32, mut v2: u64, mut v3: bool, mut v4: Rc<
                             continue;
                         }
                     } else {
-                        let mut v33: Rc<str> = method2();
+                        let mut v33: Rc<str> = codec_empty_2();
                         return (false, v33.clone());
                     }
                 }
@@ -637,54 +636,54 @@ fn method24(mut v0: Rc<str>, mut v1: i32, mut v2: u64, mut v3: bool, mut v4: Rc<
         }
     }
 }
-fn method23(mut v0: Rc<str>) -> Rc<str> {
+fn state_receipt_last_series_record_payload_23(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = 0i32;
     let mut v2: u64 = 0u64;
     let mut v3: bool = false;
-    let mut v4: Rc<str> = method2();
-    let (mut v5, mut v6): (bool, Rc<str>) = method24(v0.clone(), v1, v2, v3, v4.clone());
+    let mut v4: Rc<str> = codec_empty_2();
+    let (mut v5, mut v6): (bool, Rc<str>) = state_receipt_series_records_loop_24(v0.clone(), v1, v2, v3, v4.clone());
     if v5 {
         v6.clone()
     } else {
-        method2()
+        codec_empty_2()
     }
 }
-fn method22(mut v0: Rc<str>) -> bool {
+fn state_receipt_series_records_valid_22(mut v0: Rc<str>) -> bool {
     let mut v1: i32 = (v0.clone().len() as i32);
-    let mut v2: Rc<str> = Rc::<str>::from("SeriesRecord (");
+    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("SeriesRecord ("); } LIT.with(|lit| lit.clone()) };
     let mut v3: i32 = 0i32;
     let mut v4: i32 = 14i32;
-    let mut v5: i32 = method17(v0.clone(), v2.clone(), v3, v1, v4);
+    let mut v5: i32 = find_text_loop_17(v0.clone(), v2.clone(), v3, v1, v4);
     let mut v6: bool = v5 == v1 ;
     if v6 {
         true
     } else {
-        let mut v7: Rc<str> = method23(v0.clone());
-        let mut v8: Rc<str> = Rc::<str>::from("");
+        let mut v7: Rc<str> = state_receipt_last_series_record_payload_23(v0.clone());
+        let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         let mut v9: bool = v7 == v8 ;
         let mut v10: bool = v9 == false;
         v10
     }
 }
-fn method21(mut v0: Rc<str>) -> u64 {
-    let mut v1: bool = method22(v0.clone());
+fn state_receipt_series_records_valid_u64_21(mut v0: Rc<str>) -> u64 {
+    let mut v1: bool = state_receipt_series_records_valid_22(v0.clone());
     if v1 {
         1u64
     } else {
         0u64
     }
 }
-fn method30(mut v0: Rc<str>) -> Rc<str> {
-    method23(v0.clone())
+fn state_receipt_last_series_record_payload_export_30(mut v0: Rc<str>) -> Rc<str> {
+    state_receipt_last_series_record_payload_23(v0.clone())
 }
-fn method31(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = Rc::<str>::from("CoverageCheckpointDurable (");
-    let mut v2: Rc<str> = method16(v0.clone(), v1.clone());
-    let mut v3: Rc<str> = Rc::<str>::from("");
+fn state_receipt_coverage_checkpoint_kind_31(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("CoverageCheckpointDurable ("); } LIT.with(|lit| lit.clone()) };
+    let mut v2: Rc<str> = state_receipt_constructor_payload_16(v0.clone(), v1.clone());
+    let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v4: bool = v2 == v3 ;
     if v4 {
-        let mut v5: Rc<str> = Rc::<str>::from("CoverageCheckpointMissing (");
-        let mut v6: Rc<str> = method16(v0.clone(), v5.clone());
+        let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("CoverageCheckpointMissing ("); } LIT.with(|lit| lit.clone()) };
+        let mut v6: Rc<str> = state_receipt_constructor_payload_16(v0.clone(), v5.clone());
         let mut v7: bool = v6 == v3 ;
         if v7 {
             0u64
@@ -695,33 +694,33 @@ fn method31(mut v0: Rc<str>) -> u64 {
         2u64
     }
 }
-fn method32(mut v0: Rc<str>) -> Rc<str> {
-    let mut v1: Rc<str> = Rc::<str>::from("CoverageCheckpointDurable (");
-    let mut v2: Rc<str> = method16(v0.clone(), v1.clone());
+fn state_receipt_coverage_checkpoint_sha_32(mut v0: Rc<str>) -> Rc<str> {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("CoverageCheckpointDurable ("); } LIT.with(|lit| lit.clone()) };
+    let mut v2: Rc<str> = state_receipt_constructor_payload_16(v0.clone(), v1.clone());
     let mut v3: i32 = (v2.clone().len() as i32);
     let mut v4: bool = v3 == 0i32 ;
     if v4 {
-        method2()
+        codec_empty_2()
     } else {
-        let mut v6: Rc<str> = Rc::<str>::from("\"");
-        let mut v7: u8 = method18(v6.clone());
+        let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\""); } LIT.with(|lit| lit.clone()) };
+        let mut v7: u8 = codec_runtime_char_18(v6.clone());
         let mut v8: i32 = 0i32;
-        let mut v9: i32 = method19(v2.clone(), v8, v3, v7);
+        let mut v9: i32 = find_char_loop_19(v2.clone(), v8, v3, v7);
         let mut v10: bool = v9 == v3 ;
         if v10 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v12: i32 = v9 + 1i32 ;
-            let mut v13: u8 = method18(v6.clone());
-            let mut v14: i32 = method19(v2.clone(), v12, v3, v13);
+            let mut v13: u8 = codec_runtime_char_18(v6.clone());
+            let mut v14: i32 = find_char_loop_19(v2.clone(), v12, v3, v13);
             let mut v15: bool = v14 == v3 ;
             if v15 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v17: i32 = v9 + 1i32 ;
                 let mut v18: bool = v17 == v14 ;
                 if v18 {
-                    method2()
+                    codec_empty_2()
                 } else {
                     let mut v20: i32 = v14 - 1i32 ;
                     let mut v21: Rc<str> = string_slice(&v2.clone(), v17 as i64, v20 as i64);
@@ -732,59 +731,59 @@ fn method32(mut v0: Rc<str>) -> Rc<str> {
     }
 }
 fn closure0() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method0(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        state_receipt_u64_decimal_valid_0(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method5(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        state_receipt_u64_decimal_value_5(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method8(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        state_receipt_u32_decimal_valid_8(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method9(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        state_receipt_u32_spi_literal_valid_9(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method12(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        state_receipt_u32_spi_literal_value_12(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method13(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        state_receipt_dash_shape_13(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method15(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        state_receipt_migration_denominator_payload_15(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method21(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        state_receipt_series_records_valid_u64_21(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method30(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        state_receipt_last_series_record_payload_export_30(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method31(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        state_receipt_coverage_checkpoint_kind_31(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure10() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
-    Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method32(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        state_receipt_coverage_checkpoint_sha_32(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_state_receipt_u64_decimal_valid(v0: &str) -> u64 {
     closure0()(Rc::<str>::from(v0))

@@ -1,8 +1,8 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)] #![recursion_limit = "256"]
 #![allow(clippy::needless_late_init)]
 use std::cell::RefCell;
 use std::rc::Rc;
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn bundle_rehydration_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -25,22 +25,22 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn bundle_rehydrate_preflight_binding_0(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_rehydration_binding_1(v0, v1)
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn bundle_rehydrate_extract_binding_2(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_rehydration_binding_1(v0, v1)
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn bundle_rehydrate_validate_binding_3(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_rehydration_binding_1(v0, v1)
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn bundle_complete_binding_5(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_rehydration_binding_1(v0, v1)
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
-    method5(v0, v1)
+fn bundle_rehydrate_receipt_binding_4(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_complete_binding_5(v0, v1)
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
+fn archive_extract_preflight_binding_6(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -68,7 +68,7 @@ fn method6(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
+fn archive_extract_process_binding_7(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -91,7 +91,7 @@ fn method7(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
+fn bundle_root_binding_11(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -114,19 +114,19 @@ fn method11(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method10(mut v0: i32, mut v1: i32) -> i32 {
-    method11(v0, v1)
+fn bundle_entry_binding_10(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_root_binding_11(v0, v1)
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
-    method10(v0, v1)
+fn bundle_extract_binding_9(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_entry_binding_10(v0, v1)
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
-    method9(v0, v1)
+fn archive_extract_complete_binding_8(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_extract_binding_9(v0, v1)
 }
-fn method12(mut v0: i32, mut v1: i32) -> i32 {
-    method5(v0, v1)
+fn archive_extract_receipt_binding_12(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_complete_binding_5(v0, v1)
 }
-fn method14(mut v0: i32, mut v1: i32) -> i32 {
+fn preflight_binding_14(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -149,33 +149,33 @@ fn method14(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method13(mut v0: i32, mut v1: i32) -> i32 {
-    method14(v0, v1)
+fn bundle_output_preflight_binding_13(mut v0: i32, mut v1: i32) -> i32 {
+    preflight_binding_14(v0, v1)
 }
-fn method16(mut v0: i32, mut v1: i32) -> i32 {
-    method14(v0, v1)
+fn complete_binding_16(mut v0: i32, mut v1: i32) -> i32 {
+    preflight_binding_14(v0, v1)
 }
-fn method15(mut v0: i32, mut v1: i32) -> i32 {
-    method16(v0, v1)
+fn bundle_output_complete_binding_15(mut v0: i32, mut v1: i32) -> i32 {
+    complete_binding_16(v0, v1)
 }
-fn method18(mut v0: i32, mut v1: i32) -> i32 {
-    method14(v0, v1)
+fn preflight_binding_18(mut v0: i32, mut v1: i32) -> i32 {
+    preflight_binding_14(v0, v1)
 }
-fn method17(mut v0: i32, mut v1: i32) -> i32 {
-    method18(v0, v1)
+fn bundle_verify_preflight_binding_17(mut v0: i32, mut v1: i32) -> i32 {
+    preflight_binding_18(v0, v1)
 }
-fn method20(mut v0: i32, mut v1: i32) -> i32 {
-    method16(v0, v1)
+fn complete_binding_20(mut v0: i32, mut v1: i32) -> i32 {
+    complete_binding_16(v0, v1)
 }
-fn method19(mut v0: i32, mut v1: i32) -> i32 {
-    method20(v0, v1)
+fn bundle_verify_complete_binding_19(mut v0: i32, mut v1: i32) -> i32 {
+    complete_binding_20(v0, v1)
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method11(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_root_binding_11(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method21(mut v0: i32, mut v1: i32) -> i32 {
+fn coverage_checkpoint_binding_21(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -209,16 +209,16 @@ fn method21(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method21(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        coverage_checkpoint_binding_21(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method10(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_entry_binding_10(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method22(mut v0: i32, mut v1: i32) -> i32 {
+fn bundle_size_binding_22(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -237,16 +237,16 @@ fn method22(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method22(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_size_binding_22(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method9(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_extract_binding_9(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method23(mut v0: i32, mut v1: i32) -> i32 {
+fn bundle_payload_count_binding_23(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -259,86 +259,86 @@ fn method23(mut v0: i32, mut v1: i32) -> i32 {
             if v4 {
                 0i32
             } else {
-                let mut v5: i32 = v0 - v1;
+                let mut v5: i32 = v0.wrapping_sub(v1);
                 v5
             }
         }
     }
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method23(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_payload_count_binding_23(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_rehydration_binding_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_complete_binding_5(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_rehydrate_preflight_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_rehydrate_extract_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure10() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_rehydrate_validate_binding_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure11() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_rehydrate_receipt_binding_4(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure12() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method6(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        archive_extract_preflight_binding_6(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure13() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method7(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        archive_extract_process_binding_7(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure14() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method8(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        archive_extract_complete_binding_8(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure15() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method12(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        archive_extract_receipt_binding_12(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure16() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method13(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_output_preflight_binding_13(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure17() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method15(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_output_complete_binding_15(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure18() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method17(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_verify_preflight_binding_17(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure19() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method19(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        bundle_verify_complete_binding_19(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_bundle_root_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

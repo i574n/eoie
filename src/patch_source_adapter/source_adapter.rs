@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 use canonical_plan_ir_domain::parse_plan_ir_manifest as patch_parse_plan_ir_manifest;
@@ -118,7 +118,7 @@ pub fn prepare_patch_source(root: &str, plan: &str) -> Result<String, String> {
     println!("eoie patch resume phase=identified resumed=false compiler={} receipt={}", compiler_status, receipt.display());
     Ok(source)
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn bool_pair_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -141,10 +141,10 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn source_resume_pair_binding_0(mut v0: i32, mut v1: i32) -> i32 {
+    bool_pair_binding_1(v0, v1)
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn resume_decision_binding_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -167,29 +167,29 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
-    method3(v0, v1)
+fn source_resume_decision_binding_2(mut v0: i32, mut v1: i32) -> i32 {
+    resume_decision_binding_3(v0, v1)
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn completion_binding_5(mut v0: i32, mut v1: i32) -> i32 {
+    bool_pair_binding_1(v0, v1)
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
-    method5(v0, v1)
+fn source_resume_completion_binding_4(mut v0: i32, mut v1: i32) -> i32 {
+    completion_binding_5(v0, v1)
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        source_resume_pair_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        source_resume_decision_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        source_resume_completion_binding_4(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_patch_source_adapter_source_resume_pair_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

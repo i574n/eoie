@@ -3,32 +3,37 @@ use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
 enum US0 {
-    US0_0,
-    US0_1(i32),
+    US0_ChildSucceeded,
+    US0_ChildFailed(i32),
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0 => 0,
-            US0::US0_1(..) => 1,
+            US0::US0_ChildSucceeded => 0,
+            US0::US0_ChildFailed(..) => 1,
         }
+    }
+}
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_ChildSucceeded
     }
 }
 fn command_output_receipt_text_0(mut v0: i32, mut v1: u64, mut v2: u64, mut v3: u64) -> Rc<str> {
     let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy command-output "); } LIT.with(|lit| lit.clone()) };
     let mut v5: bool = v0 == 0i32;
     let mut v8: US0 = if v5 {
-        US0::US0_0
+        US0::US0_ChildSucceeded
     } else {
-        US0::US0_1(v0)
+        US0::US0_ChildFailed(v0)
     };
     let mut v13: Rc<str> = match &v8 {
-        US0::US0_1(v10) => {
+        US0::US0_ChildFailed(v10) => {
             let mut v10: i32 = *v10;
             let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("child-failed"); } LIT.with(|lit| lit.clone()) };
             v11.clone()
         }
-        US0::US0_0 => {
+        US0::US0_ChildSucceeded => {
             let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("ok"); } LIT.with(|lit| lit.clone()) };
             v9.clone()
         }

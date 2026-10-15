@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 #![allow(clippy::needless_late_init)]
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -22,7 +22,7 @@ fn external_payload_hydrate(a:&[String])->Result<(),String>{if a.len()!=6{return
 fn external_payload_dehydrate(a:&[String])->Result<(),String>{if a.len()!=6{return Err("external-payload dehydrate expects root payload-relative cache-relative receipt-relative".to_owned())}let(_,p,c,rp)=external_payload_paths(a)?;let r=external_payload_parse(&rp)?;external_payload_identity(&r,&p,&c)?;if !p.exists(){if external_payload_matches(&c,&r)?{println!("eoie proxy external-payload dehydrate ok status=already-external payload={} cache={}",p.display(),c.display());return Ok(())}return Err("external payload is absent and cache is not verified".to_owned())}if !external_payload_matches(&p,&r)?{return Err("inline external payload hash mismatch; refusing dehydration".to_owned())}let mut created=false;if c.exists(){if !external_payload_matches(&c,&r)?{return Err("existing external payload cache hash mismatch".to_owned())}}else{let parent=c.parent().ok_or_else(||"cache has no parent".to_owned())?;let stage=parent.join(format!(".eoie-external-cache-stage-{}",std::process::id()));external_payload_copy_verified(&p,&stage,&r)?;fs::rename(&stage,&c).map_err(|e|format!("promote external cache: {e}"))?;created=true}if std::env::var("EOIE_EXTERNAL_PAYLOAD_FAULT").ok().as_deref()==Some("after-cache-promotion"){if created{let _=fs::remove_file(&c);}return Err("injected external payload failure after cache promotion".to_owned())}fs::remove_file(&p).map_err(|e|format!("remove inline external payload: {e}"))?;if std::env::var("EOIE_EXTERNAL_PAYLOAD_FAULT").ok().as_deref()==Some("after-payload-removal"){let _=fs::copy(&c,&p);if !external_payload_matches(&p,&r)?{return Err("external payload rollback after removal failed".to_owned())}return Err("injected external payload failure after payload removal".to_owned())}let cache_ok=external_payload_matches(&c,&r)?;if eoie_external_payload_public_mask_binding(0,1+2*i32::from(cache_ok)+4*i32::from(!p.exists()))!=1{return Err("typed external payload dehydrate completion rejected".to_owned())}println!("eoie proxy external-payload dehydrate ok status={} payload={} cache={} sha256={}",if created{"externalized"}else{"reused-cache"},p.display(),c.display(),r.sha256);Ok(())}
 pub fn external_payload_run(a:&[String])->Result<(),String>{match a.get(1).map(String::as_str){Some("register")=>external_payload_register(a),Some("hydrate")=>external_payload_hydrate(a),Some("dehydrate")=>external_payload_dehydrate(a),_=>Err("external-payload expects register, hydrate or dehydrate".to_owned())}}
 
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn retention_window_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         -1i32
@@ -39,14 +39,14 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
                 if v5 {
                     0i32
                 } else {
-                    let mut v6: i32 = v0 - v1;
+                    let mut v6: i32 = v0.wrapping_sub(v1);
                     v6
                 }
             }
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn retention_current_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -69,7 +69,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn retention_dry_run_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -92,10 +92,10 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn retention_apply_binding_3(mut v0: i32, mut v1: i32) -> i32 {
+    retention_current_binding_1(v0, v1)
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn retention_complete_binding_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -118,7 +118,7 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn external_payload_public_mask_binding_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -157,34 +157,34 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        retention_window_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        retention_current_binding_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        retention_dry_run_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        retention_apply_binding_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        retention_complete_binding_4(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        external_payload_public_mask_binding_5(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_retention_window_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

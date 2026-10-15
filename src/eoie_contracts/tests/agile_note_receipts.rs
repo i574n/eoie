@@ -84,22 +84,22 @@ fn agile_note_appends_dated_notes_shown_under_the_title_and_in_json() {
 fn notes_from_title_moves_each_tail_into_a_dated_note() {
     let backlog = Backlog::new("from-title");
     backlog.ok("note", &["ID-A", "kept note"]);
-    let title = "base work; 2026-10-13 22:10 found the gap; 23:05 fixed it; plain tail";
+    let title = "base work (a; b); 2026-10-13 22:10 found the gap; 23:05 fixed it; plain tail; 2026-10-14 next day";
     backlog.ok("edit", &["ID-A", "title", title]);
     let output = backlog.from_title("ID-A");
     assert!(output.status.success(), "{output:?}");
     assert_eq!(receipt_shape(&String::from_utf8(output.stdout).unwrap(), "eoie agile notes "),
-        format!("eoie agile notes ok id=ID-A moved=3 title_bytes_before={} title_bytes_after=9 bytes_before=N bytes_after=N elapsed_ms=N", title.len()));
+        format!("eoie agile notes ok id=ID-A moved=3 title_bytes_before={} title_bytes_after=16 bytes_before=N bytes_after=N elapsed_ms=N", title.len()));
     let show = backlog.ok("show", &["ID-A"]);
     let lines: Vec<&str> = show.lines().collect();
-    let at = lines.iter().position(|line| *line == "base work").unwrap();
+    let at = lines.iter().position(|line| *line == "base work (a; b)").unwrap();
     assert_eq!(lines[at + 1], "notes (4)");
     assert!(lines[at + 2].ends_with("  user  kept note"));
     assert_eq!(lines[at + 3], "2026-10-13 22:10  migrated  found the gap");
-    assert_eq!(lines[at + 4], "2026-10-13 23:05  migrated  fixed it");
-    assert_eq!(lines[at + 5], "2026-10-13 23:05  migrated  plain tail");
+    assert_eq!(lines[at + 4], "2026-10-13 23:05  migrated  fixed it; plain tail");
+    assert_eq!(lines[at + 5], "2026-10-14  migrated  next day");
     let before = backlog.state();
-    backlog.rejected(backlog.from_title("ID-A"), "the title has no \"; \" tail to move", &before);
+    backlog.rejected(backlog.from_title("ID-A"), "the title has no \"; \" tail starting with a date or time to move", &before);
     backlog.rejected(backlog.from_title("NO-SUCH"), "no task with this id", &before);
 }
 

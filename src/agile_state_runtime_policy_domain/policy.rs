@@ -1,7 +1,7 @@
 #![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)] #![recursion_limit = "256"]
 use std::cell::RefCell;
 use std::rc::Rc;
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_state_mutation_target_decision_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -16,10 +16,10 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
+        agile_state_mutation_target_decision_binding_0(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_lease_budget_decision_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -34,10 +34,10 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
+        agile_lease_budget_decision_binding_1(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_lease_readback_decision_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -52,10 +52,10 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
+        agile_lease_readback_decision_binding_2(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method3(mut v0: Rc<str>) -> u64 {
+fn agile_prompt_title_code_3(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
@@ -66,20 +66,20 @@ fn method3(mut v0: Rc<str>) -> u64 {
 }
 fn closure3() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method3(v0.clone())
+        agile_prompt_title_code_3(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method4(mut v0: Rc<str>) -> u64 {
+fn agile_status_name_code_4(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Planned|Active|Blocked|Paused|Done"); } LIT.with(|lit| lit.clone()) };
     let mut v2: u64 = v1.split("|").position(|item| item == &*v0).map(|index| index as u64).unwrap_or(u64::MAX);
     v2
 }
 fn closure4() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method4(v0.clone())
+        agile_status_name_code_4(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method5(mut v0: Rc<str>) -> u64 {
+fn agile_task_line_candidate_code_5(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(v0.trim());
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("inl "); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v1.starts_with(&*v2);
@@ -97,10 +97,10 @@ fn method5(mut v0: Rc<str>) -> u64 {
 }
 fn closure5() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method5(v0.clone())
+        agile_task_line_candidate_code_5(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method7(mut v0: Rc<str>) -> u64 {
+fn receipt_row_kind_code_7(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("snapshot"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
@@ -115,15 +115,15 @@ fn method7(mut v0: Rc<str>) -> u64 {
         }
     }
 }
-fn method6(mut v0: Rc<str>) -> u64 {
-    method7(v0.clone())
+fn agile_receipt_row_kind_code_6(mut v0: Rc<str>) -> u64 {
+    receipt_row_kind_code_7(v0.clone())
 }
 fn closure6() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method6(v0.clone())
+        agile_receipt_row_kind_code_6(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method9(mut v0: Rc<str>) -> Rc<str> {
+fn receipt_row_kind_text_9(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
@@ -141,15 +141,15 @@ fn method9(mut v0: Rc<str>) -> Rc<str> {
         }
     }
 }
-fn method8(mut v0: Rc<str>) -> Rc<str> {
-    method9(v0.clone())
+fn agile_receipt_row_kind_text_8(mut v0: Rc<str>) -> Rc<str> {
+    receipt_row_kind_text_9(v0.clone())
 }
 fn closure7() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method8(v0.clone())
+        agile_receipt_row_kind_text_8(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method12(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
+fn starts_with_loop_12(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
     loop {
         let mut v5: bool = v3 == v4 ;
         if v5 {
@@ -169,7 +169,7 @@ fn method12(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: 
         }
     }
 }
-fn method11(mut v0: Rc<str>) -> u64 {
+fn receipt_attestation_kind_code_11(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("runtime"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
@@ -184,7 +184,7 @@ fn method11(mut v0: Rc<str>) -> u64 {
             let mut v6: i32 = 0i32;
             let mut v7: i32 = 0i32;
             let mut v8: i32 = 6i32;
-            method12(v0.clone(), v5.clone(), v6, v7, v8)
+            starts_with_loop_12(v0.clone(), v5.clone(), v6, v7, v8)
         };
         if v10 {
             2u64
@@ -193,15 +193,15 @@ fn method11(mut v0: Rc<str>) -> u64 {
         }
     }
 }
-fn method10(mut v0: Rc<str>) -> u64 {
-    method11(v0.clone())
+fn agile_receipt_attestation_kind_code_10(mut v0: Rc<str>) -> u64 {
+    receipt_attestation_kind_code_11(v0.clone())
 }
 fn closure8() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method10(v0.clone())
+        agile_receipt_attestation_kind_code_10(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method14(mut v0: Rc<str>) -> Rc<str> {
+fn receipt_attestation_text_14(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
@@ -212,15 +212,15 @@ fn method14(mut v0: Rc<str>) -> Rc<str> {
         v4.clone()
     }
 }
-fn method13(mut v0: Rc<str>) -> Rc<str> {
-    method14(v0.clone())
+fn agile_receipt_attestation_text_13(mut v0: Rc<str>) -> Rc<str> {
+    receipt_attestation_text_14(v0.clone())
 }
 fn closure9() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method13(v0.clone())
+        agile_receipt_attestation_text_13(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method15(mut v0: Rc<str>) -> u64 {
+fn agile_prompt_lease_status_code_15(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("LeaseActive"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
@@ -231,10 +231,10 @@ fn method15(mut v0: Rc<str>) -> u64 {
 }
 fn closure10() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method15(v0.clone())
+        agile_prompt_lease_status_code_15(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method16(mut v0: Rc<str>) -> Rc<str> {
+fn agile_prompt_lease_marker_text_16(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
@@ -247,10 +247,10 @@ fn method16(mut v0: Rc<str>) -> Rc<str> {
 }
 fn closure11() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method16(v0.clone())
+        agile_prompt_lease_marker_text_16(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method17(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_prompt_lease_shape_binding_17(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 7i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -265,10 +265,10 @@ fn method17(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure12() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method17(v0, v1)
+        agile_prompt_lease_shape_binding_17(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method18(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_lease_clock_phase_binding_18(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 == 1i32;
     if v2 {
         2i32
@@ -283,10 +283,10 @@ fn method18(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure13() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method18(v0, v1)
+        agile_lease_clock_phase_binding_18(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method19(mut v0: Rc<str>) -> u64 {
+fn agile_lease_policy_from_text_19(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(v0.trim());
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("renewing"); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v1 == v2 ;
@@ -298,10 +298,10 @@ fn method19(mut v0: Rc<str>) -> u64 {
 }
 fn closure14() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method19(v0.clone())
+        agile_lease_policy_from_text_19(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method20(mut v0: i32, mut v1: i32) -> i32 {
+fn agile_lease_effective_phase_binding_20(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     if v2 {
         0i32
@@ -311,10 +311,10 @@ fn method20(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure15() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method20(v0, v1)
+        agile_lease_effective_phase_binding_20(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method21(mut v0: Rc<str>) -> Rc<str> {
+fn agile_status_text_21(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("0"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0 == v1 ;
     if v2 {
@@ -355,10 +355,10 @@ fn method21(mut v0: Rc<str>) -> Rc<str> {
 }
 fn closure16() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method21(v0.clone())
+        agile_status_text_21(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method22(mut v0: Rc<str>) -> Rc<str> {
+fn agile_spi_escape_text_22(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\\"); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\\\\"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = std::rc::Rc::<str>::from(v0.replace(&*v1, &v2));
@@ -375,10 +375,10 @@ fn method22(mut v0: Rc<str>) -> Rc<str> {
 }
 fn closure17() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method22(v0.clone())
+        agile_spi_escape_text_22(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method23(mut v0: Rc<str>) -> u64 {
+fn agile_state_package_line_code_23(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(v0.trim());
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("modules:"); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v1 == v2 ;
@@ -416,10 +416,10 @@ fn method23(mut v0: Rc<str>) -> u64 {
 }
 fn closure18() -> Rc<dyn Fn(Rc<str>) -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method23(v0.clone())
+        agile_state_package_line_code_23(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method24(mut v0: Rc<str>) -> Rc<str> {
+fn agile_state_package_module_name_24(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(v0.trim());
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("*"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = std::rc::Rc::<str>::from(v1.trim_end_matches(&*v2));
@@ -452,7 +452,7 @@ fn method24(mut v0: Rc<str>) -> Rc<str> {
 }
 fn closure19() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method24(v0.clone())
+        agile_state_package_module_name_24(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_agile_state_mutation_target_decision_binding(v0: i32, v1: i32) -> i32 {

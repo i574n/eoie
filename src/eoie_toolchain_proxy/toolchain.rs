@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 #![allow(clippy::items_after_test_module, clippy::possible_missing_else)]
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -57,13 +57,12 @@ fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
     let bytes = value.as_bytes();
     let length = bytes.len() as i64;
     if from < 0 || from > length || to < from - 1 || to >= length { std::process::abort(); }
-    if to < from { return Rc::<str>::from(""); }
-    // A slice that starts or ends inside a code point fails like the C and Delphi backends (abort / Halt(3)).
+    if to < from { return { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }; }
     if (bytes[from as usize] & 0xC0) == 0x80 || (to + 1 < length && (bytes[(to + 1) as usize] & 0xC0) == 0x80) { std::process::exit(3); }
     let slice = &bytes[from as usize..(to + 1) as usize];
     match std::str::from_utf8(slice) { Ok(text) => Rc::<str>::from(text), Err(error) => Rc::<str>::from(std::str::from_utf8(&slice[..error.valid_up_to()]).unwrap_or("")) }
 }
-fn method1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
+fn starts_with_loop_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
     loop {
         let mut v5: bool = v3 == v4 ;
         if v5 {
@@ -84,13 +83,13 @@ fn method1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i
     }
 }
 fn method3() -> Rc<str> {
-    let mut v0: Rc<str> = Rc::<str>::from("");
+    let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     v0.clone()
 }
-fn method2() -> Rc<str> {
+fn codec_empty_2() -> Rc<str> {
     method3()
 }
-fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
+fn codec_u64_decimal_valid_loop_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -180,53 +179,53 @@ fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> bool {
         }
     }
 }
-fn method4(mut v0: Rc<str>) -> Rc<str> {
+fn codec_u64_decimal_normalize_4(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: bool = v1 == 0i32 ;
     if v2 {
-        method2()
+        codec_empty_2()
     } else {
         let mut v4: i32 = 0i32;
         let mut v5: u64 = 0u64;
-        let mut v6: bool = method5(v0.clone(), v4, v1, v5);
+        let mut v6: bool = codec_u64_decimal_valid_loop_5(v0.clone(), v4, v1, v5);
         if v6 {
             v0.clone()
         } else {
-            method2()
+            codec_empty_2()
         }
     }
 }
-fn method0(mut v0: Rc<str>) -> u64 {
+fn toolchain_u64_decimal_valid_0(mut v0: Rc<str>) -> u64 {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: bool = v1 < 1i32;
     let mut v8: bool = if v2 {
         false
     } else {
-        let mut v3: Rc<str> = Rc::<str>::from("+");
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("+"); } LIT.with(|lit| lit.clone()) };
         let mut v4: i32 = 0i32;
         let mut v5: i32 = 0i32;
         let mut v6: i32 = 1i32;
-        method1(v0.clone(), v3.clone(), v4, v5, v6)
+        starts_with_loop_1(v0.clone(), v3.clone(), v4, v5, v6)
     };
     let mut v19: Rc<str> = if v8 {
         let mut v9: bool = v1 == 1i32 ;
         if v9 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v11: bool = 1i32 == v1 ;
             let mut v15: Rc<str> = if v11 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v13: i32 = v1 - 1i32 ;
                 let mut v14: Rc<str> = string_slice(&v0.clone(), 1i32 as i64, v13 as i64);
                 v14.clone()
             };
-            method4(v15.clone())
+            codec_u64_decimal_normalize_4(v15.clone())
         }
     } else {
-        method4(v0.clone())
+        codec_u64_decimal_normalize_4(v0.clone())
     };
-    let mut v20: Rc<str> = Rc::<str>::from("");
+    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v21: bool = v19 == v20 ;
     if v21 {
         0u64
@@ -234,7 +233,7 @@ fn method0(mut v0: Rc<str>) -> u64 {
         1u64
     }
 }
-fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
+fn codec_u64_decimal_value_loop_8(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -300,8 +299,8 @@ fn method8(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u64) -> u64 {
         }
     }
 }
-fn method7(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = method4(v0.clone());
+fn codec_u64_decimal_value_7(mut v0: Rc<str>) -> u64 {
+    let mut v1: Rc<str> = codec_u64_decimal_normalize_4(v0.clone());
     let mut v2: i32 = (v1.clone().len() as i32);
     let mut v3: bool = v2 == 0i32 ;
     if v3 {
@@ -309,77 +308,77 @@ fn method7(mut v0: Rc<str>) -> u64 {
     } else {
         let mut v4: i32 = 0i32;
         let mut v5: u64 = 0u64;
-        method8(v1.clone(), v4, v2, v5)
+        codec_u64_decimal_value_loop_8(v1.clone(), v4, v2, v5)
     }
 }
-fn method6(mut v0: Rc<str>) -> u64 {
+fn toolchain_u64_decimal_value_6(mut v0: Rc<str>) -> u64 {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: bool = v1 < 1i32;
     let mut v8: bool = if v2 {
         false
     } else {
-        let mut v3: Rc<str> = Rc::<str>::from("+");
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("+"); } LIT.with(|lit| lit.clone()) };
         let mut v4: i32 = 0i32;
         let mut v5: i32 = 0i32;
         let mut v6: i32 = 1i32;
-        method1(v0.clone(), v3.clone(), v4, v5, v6)
+        starts_with_loop_1(v0.clone(), v3.clone(), v4, v5, v6)
     };
     let mut v19: Rc<str> = if v8 {
         let mut v9: bool = v1 == 1i32 ;
         if v9 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v11: bool = 1i32 == v1 ;
             let mut v15: Rc<str> = if v11 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v13: i32 = v1 - 1i32 ;
                 let mut v14: Rc<str> = string_slice(&v0.clone(), 1i32 as i64, v13 as i64);
                 v14.clone()
             };
-            method4(v15.clone())
+            codec_u64_decimal_normalize_4(v15.clone())
         }
     } else {
-        method4(v0.clone())
+        codec_u64_decimal_normalize_4(v0.clone())
     };
-    method7(v19.clone())
+    codec_u64_decimal_value_7(v19.clone())
 }
-fn method9(mut v0: Rc<str>) -> u64 {
+fn toolchain_u32_decimal_valid_9(mut v0: Rc<str>) -> u64 {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: bool = v1 < 1i32;
     let mut v8: bool = if v2 {
         false
     } else {
-        let mut v3: Rc<str> = Rc::<str>::from("+");
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("+"); } LIT.with(|lit| lit.clone()) };
         let mut v4: i32 = 0i32;
         let mut v5: i32 = 0i32;
         let mut v6: i32 = 1i32;
-        method1(v0.clone(), v3.clone(), v4, v5, v6)
+        starts_with_loop_1(v0.clone(), v3.clone(), v4, v5, v6)
     };
     let mut v19: Rc<str> = if v8 {
         let mut v9: bool = v1 == 1i32 ;
         if v9 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v11: bool = 1i32 == v1 ;
             let mut v15: Rc<str> = if v11 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v13: i32 = v1 - 1i32 ;
                 let mut v14: Rc<str> = string_slice(&v0.clone(), 1i32 as i64, v13 as i64);
                 v14.clone()
             };
-            method4(v15.clone())
+            codec_u64_decimal_normalize_4(v15.clone())
         }
     } else {
-        method4(v0.clone())
+        codec_u64_decimal_normalize_4(v0.clone())
     };
-    let mut v20: Rc<str> = Rc::<str>::from("");
+    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v21: bool = v19 == v20 ;
     if v21 {
         0u64
     } else {
-        let mut v22: u64 = method7(v19.clone());
+        let mut v22: u64 = codec_u64_decimal_value_7(v19.clone());
         let mut v23: bool = v22 <= 4294967295u64;
         if v23 {
             1u64
@@ -388,36 +387,36 @@ fn method9(mut v0: Rc<str>) -> u64 {
         }
     }
 }
-fn method10(mut v0: Rc<str>) -> u64 {
+fn toolchain_i32_decimal_code_10(mut v0: Rc<str>) -> u64 {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: bool = v1 < 1i32;
     let mut v8: bool = if v2 {
         false
     } else {
-        let mut v3: Rc<str> = Rc::<str>::from("-");
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
         let mut v4: i32 = 0i32;
         let mut v5: i32 = 0i32;
         let mut v6: i32 = 1i32;
-        method1(v0.clone(), v3.clone(), v4, v5, v6)
+        starts_with_loop_1(v0.clone(), v3.clone(), v4, v5, v6)
     };
     let mut v14: bool = if v2 {
         false
     } else {
-        let mut v9: Rc<str> = Rc::<str>::from("+");
+        let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("+"); } LIT.with(|lit| lit.clone()) };
         let mut v10: i32 = 0i32;
         let mut v11: i32 = 0i32;
         let mut v12: i32 = 1i32;
-        method1(v0.clone(), v9.clone(), v10, v11, v12)
+        starts_with_loop_1(v0.clone(), v9.clone(), v10, v11, v12)
     };
     let mut v15: bool = v8 || v14;
     let mut v24: Rc<str> = if v15 {
         let mut v16: bool = v1 == 1i32 ;
         if v16 {
-            method2()
+            codec_empty_2()
         } else {
             let mut v18: bool = 1i32 == v1 ;
             if v18 {
-                method2()
+                codec_empty_2()
             } else {
                 let mut v20: i32 = v1 - 1i32 ;
                 let mut v21: Rc<str> = string_slice(&v0.clone(), 1i32 as i64, v20 as i64);
@@ -427,13 +426,13 @@ fn method10(mut v0: Rc<str>) -> u64 {
     } else {
         v0.clone()
     };
-    let mut v25: Rc<str> = method4(v24.clone());
-    let mut v26: Rc<str> = Rc::<str>::from("");
+    let mut v25: Rc<str> = codec_u64_decimal_normalize_4(v24.clone());
+    let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v27: bool = v25 == v26 ;
     if v27 {
         0u64
     } else {
-        let mut v28: u64 = method7(v25.clone());
+        let mut v28: u64 = codec_u64_decimal_value_7(v25.clone());
         if v8 {
             let mut v29: bool = v28 <= 2147483648u64;
             if v29 {
@@ -453,7 +452,7 @@ fn method10(mut v0: Rc<str>) -> u64 {
         }
     }
 }
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
+fn toolchain_cwd_binding_11(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 < 0i32;
     let mut v4: bool = if v2 {
         true
@@ -490,29 +489,29 @@ fn method11(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method11(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        toolchain_cwd_binding_11(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method0(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        toolchain_u64_decimal_valid_0(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method6(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        toolchain_u64_decimal_value_6(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method9(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        toolchain_u32_decimal_valid_9(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(Rc<str>) -> u64> {
-    Rc::new(move |mut v0: Rc<str>| -> u64 {
-        method10(v0.clone())
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        toolchain_i32_decimal_code_10(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_toolchain_cwd(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

@@ -3,111 +3,141 @@ use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
 enum US0 {
-    US0_0(Rc<str>),
-    US0_1(Rc<str>),
+    US0_ReplacementReceipt(Rc<str>),
+    US0_ReplacementRejected(Rc<str>),
 }
 impl US0 {
     fn tag(&self) -> i32 {
         match self {
-            US0::US0_0(..) => 0,
-            US0::US0_1(..) => 1,
+            US0::US0_ReplacementReceipt(..) => 0,
+            US0::US0_ReplacementRejected(..) => 1,
         }
+    }
+}
+impl Default for US0 {
+    fn default() -> Self {
+        US0::US0_ReplacementReceipt({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
     }
 }
 #[derive(Clone)]
 enum US2 {
-    US2_0,
-    US2_1,
+    US2_CheckReplacement,
+    US2_ApplyReplacement,
 }
 impl US2 {
     fn tag(&self) -> i32 {
         match self {
-            US2::US2_0 => 0,
-            US2::US2_1 => 1,
+            US2::US2_CheckReplacement => 0,
+            US2::US2_ApplyReplacement => 1,
         }
+    }
+}
+impl Default for US2 {
+    fn default() -> Self {
+        US2::US2_CheckReplacement
     }
 }
 #[derive(Clone)]
 enum US1 {
-    US1_0(US2),
-    US1_1,
+    US1_Valid(US2),
+    US1_Invalid,
 }
 impl US1 {
     fn tag(&self) -> i32 {
         match self {
-            US1::US1_0(..) => 0,
-            US1::US1_1 => 1,
+            US1::US1_Valid(..) => 0,
+            US1::US1_Invalid => 1,
         }
+    }
+}
+impl Default for US1 {
+    fn default() -> Self {
+        US1::US1_Valid(<US2>::default())
     }
 }
 #[derive(Clone)]
 enum US4 {
-    US4_0,
-    US4_1(u64),
-    US4_2,
+    US4_ExactlyOneMatch,
+    US4_ExactlyMatches(u64),
+    US4_EveryMatch,
 }
 impl US4 {
     fn tag(&self) -> i32 {
         match self {
-            US4::US4_0 => 0,
-            US4::US4_1(..) => 1,
-            US4::US4_2 => 2,
+            US4::US4_ExactlyOneMatch => 0,
+            US4::US4_ExactlyMatches(..) => 1,
+            US4::US4_EveryMatch => 2,
         }
+    }
+}
+impl Default for US4 {
+    fn default() -> Self {
+        US4::US4_ExactlyOneMatch
     }
 }
 #[derive(Clone)]
 enum US3 {
-    US3_0(US4),
-    US3_1,
+    US3_Valid(US4),
+    US3_Invalid,
 }
 impl US3 {
     fn tag(&self) -> i32 {
         match self {
-            US3::US3_0(..) => 0,
-            US3::US3_1 => 1,
+            US3::US3_Valid(..) => 0,
+            US3::US3_Invalid => 1,
         }
+    }
+}
+impl Default for US3 {
+    fn default() -> Self {
+        US3::US3_Valid(<US4>::default())
     }
 }
 #[derive(Clone)]
 enum US5 {
-    US5_0,
-    US5_1,
-    US5_2,
-    US5_3,
+    US5_Replaced,
+    US5_TemporaryWriteFailed,
+    US5_RenameFailed,
+    US5_ReadbackMismatch,
 }
 impl US5 {
     fn tag(&self) -> i32 {
         match self {
-            US5::US5_0 => 0,
-            US5::US5_1 => 1,
-            US5::US5_2 => 2,
-            US5::US5_3 => 3,
+            US5::US5_Replaced => 0,
+            US5::US5_TemporaryWriteFailed => 1,
+            US5::US5_RenameFailed => 2,
+            US5::US5_ReadbackMismatch => 3,
         }
     }
 }
-fn method1() -> US0 {
+impl Default for US5 {
+    fn default() -> Self {
+        US5::US5_Replaced
+    }
+}
+fn text_replace_outcome_1() -> US0 {
     let mut v0: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 1i32 as usize).unwrap_or_default());
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("check"); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v1 == v2 ;
     let mut v12: US1 = if v3 {
-        let mut v4: US2 = US2::US2_0;
-        US1::US1_0(v4.clone())
+        let mut v4: US2 = US2::US2_CheckReplacement;
+        US1::US1_Valid(v4.clone())
     } else {
         let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("apply"); } LIT.with(|lit| lit.clone()) };
         let mut v7: bool = v1 == v6 ;
         if v7 {
-            let mut v8: US2 = US2::US2_1;
-            US1::US1_0(v8.clone())
+            let mut v8: US2 = US2::US2_ApplyReplacement;
+            US1::US1_Valid(v8.clone())
         } else {
-            US1::US1_1
+            US1::US1_Invalid
         }
     };
     let mut v13: i32 = std::env::args().skip(2).count() as i32;
     let mut v14: bool = 6i32 == v13;
     let mut v41: US3 = if v14 {
-        let mut v15: US4 = US4::US4_0;
-        US3::US3_0(v15.clone())
+        let mut v15: US4 = US4::US4_ExactlyOneMatch;
+        US3::US3_Valid(v15.clone())
     } else {
         let mut v17: bool = 7i32 == v13;
         if v17 {
@@ -115,10 +145,10 @@ fn method1() -> US0 {
             let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--all"); } LIT.with(|lit| lit.clone()) };
             let mut v20: bool = v18 == v19 ;
             if v20 {
-                let mut v21: US4 = US4::US4_2;
-                US3::US3_0(v21.clone())
+                let mut v21: US4 = US4::US4_EveryMatch;
+                US3::US3_Valid(v21.clone())
             } else {
-                US3::US3_1
+                US3::US3_Invalid
             }
         } else {
             let mut v25: bool = 8i32 == v13;
@@ -131,36 +161,36 @@ fn method1() -> US0 {
                 if v30 {
                     let mut v31: bool = 0 < v27;
                     if v31 {
-                        let mut v32: US4 = US4::US4_1(v27);
-                        US3::US3_0(v32.clone())
+                        let mut v32: US4 = US4::US4_ExactlyMatches(v27);
+                        US3::US3_Valid(v32.clone())
                     } else {
-                        US3::US3_1
+                        US3::US3_Invalid
                     }
                 } else {
-                    US3::US3_1
+                    US3::US3_Invalid
                 }
             } else {
-                US3::US3_1
+                US3::US3_Invalid
             }
         }
     };
     match &v12 {
-        US1::US1_1 => {
+        US1::US1_Invalid => {
             let mut v42: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace mode must be check or apply"); } LIT.with(|lit| lit.clone()) };
-            US0::US0_1(v42.clone())
+            US0::US0_ReplacementRejected(v42.clone())
         }
         _ => {
             match &v41 {
-                US3::US3_1 => {
+                US3::US3_Invalid => {
                     let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace expects <check|apply> <root> <relative> <old> <new> [--expect N | --all]"); } LIT.with(|lit| lit.clone()) };
-                    US0::US0_1(v44.clone())
+                    US0::US0_ReplacementRejected(v44.clone())
                 }
                 _ => {
                     match &v12 {
-                        US1::US1_0(v46) => {
+                        US1::US1_Valid(v46) => {
                             let mut v46: US2 = v46.clone();
                             match &v41 {
-                                US3::US3_0(v47) => {
+                                US3::US3_Valid(v47) => {
                                     let mut v47: US4 = v47.clone();
                                     let mut v48: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 4i32 as usize).unwrap_or_default());
                                     let mut v49: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 5i32 as usize).unwrap_or_default());
@@ -171,40 +201,40 @@ fn method1() -> US0 {
                                     let mut v54: bool = v52 == v53 ;
                                     if v54 {
                                         let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace target escapes the root"); } LIT.with(|lit| lit.clone()) };
-                                        US0::US0_1(v55.clone())
+                                        US0::US0_ReplacementRejected(v55.clone())
                                     } else {
                                         let mut v57: bool = v48 == v53 ;
                                         if v57 {
                                             let mut v58: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace old text is empty"); } LIT.with(|lit| lit.clone()) };
-                                            US0::US0_1(v58.clone())
+                                            US0::US0_ReplacementRejected(v58.clone())
                                         } else {
                                             let mut v60: bool = v48 == v49 ;
                                             if v60 {
                                                 let mut v61: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace old and new text are identical"); } LIT.with(|lit| lit.clone()) };
-                                                US0::US0_1(v61.clone())
+                                                US0::US0_ReplacementRejected(v61.clone())
                                             } else {
                                                 let mut v63: bool = std::path::Path::new(&*v52).is_file();
                                                 if v63 {
                                                     let mut v64: Rc<str> = std::rc::Rc::<str>::from(std::fs::read_to_string(&*v52).unwrap_or_default());
                                                     let mut v65: u64 = v64.match_indices(&*v48).count() as u64;
                                                     let mut v72: bool = match &v47 {
-                                                        US4::US4_2 => {
+                                                        US4::US4_EveryMatch => {
                                                             let mut v69: bool = 0 < v65;
                                                             v69
                                                         }
-                                                        US4::US4_1(v67) => {
+                                                        US4::US4_ExactlyMatches(v67) => {
                                                             let mut v67: u64 = *v67;
                                                             let mut v68: bool = v65 == v67;
                                                             v68
                                                         }
-                                                        US4::US4_0 => {
+                                                        US4::US4_ExactlyOneMatch => {
                                                             let mut v66: bool = v65 == 1u64;
                                                             v66
                                                         }
                                                     };
                                                     if v72 {
                                                         let mut v75: Rc<str> = match &v47 {
-                                                            US4::US4_2 => {
+                                                            US4::US4_EveryMatch => {
                                                                 let mut v73: Rc<str> = std::rc::Rc::<str>::from(v64.replace(&*v48, &*v49));
                                                                 v73.clone()
                                                             }
@@ -214,7 +244,7 @@ fn method1() -> US0 {
                                                             }
                                                         };
                                                         match &v46 {
-                                                            US2::US2_1 => {
+                                                            US2::US2_ApplyReplacement => {
                                                                 let mut v103: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".pending"); } LIT.with(|lit| lit.clone()) };
                                                                 let mut v104: Rc<str> = std::rc::Rc::<str>::from([&*v52, &*v103, &*v53, &*v53, &*v53].concat());
                                                                 let mut v105: bool = std::fs::write(&*v104, &*v75).is_ok();
@@ -223,18 +253,18 @@ fn method1() -> US0 {
                                                                     if v106 {
                                                                         let mut v107: bool = std::fs::read_to_string(&*v52).is_ok_and(|value| value == *v75);
                                                                         if v107 {
-                                                                            US5::US5_0
+                                                                            US5::US5_Replaced
                                                                         } else {
-                                                                            US5::US5_3
+                                                                            US5::US5_ReadbackMismatch
                                                                         }
                                                                     } else {
-                                                                        US5::US5_2
+                                                                        US5::US5_RenameFailed
                                                                     }
                                                                 } else {
-                                                                    US5::US5_1
+                                                                    US5::US5_TemporaryWriteFailed
                                                                 };
                                                                 match &v114 {
-                                                                    US5::US5_0 => {
+                                                                    US5::US5_Replaced => {
                                                                         let mut v115: u64 = v64.len() as u64;
                                                                         let mut v116: u64 = v75.len() as u64;
                                                                         let mut v117: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode="); } LIT.with(|lit| lit.clone()) };
@@ -245,16 +275,16 @@ fn method1() -> US0 {
                                                                         let mut v122: Rc<str> = std::rc::Rc::<str>::from((v65).to_string());
                                                                         let mut v123: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expected="); } LIT.with(|lit| lit.clone()) };
                                                                         let mut v130: Rc<str> = match &v47 {
-                                                                            US4::US4_2 => {
+                                                                            US4::US4_EveryMatch => {
                                                                                 let mut v127: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("all"); } LIT.with(|lit| lit.clone()) };
                                                                                 v127.clone()
                                                                             }
-                                                                            US4::US4_1(v125) => {
+                                                                            US4::US4_ExactlyMatches(v125) => {
                                                                                 let mut v125: u64 = *v125;
                                                                                 let mut v126: Rc<str> = std::rc::Rc::<str>::from((v125).to_string());
                                                                                 v126.clone()
                                                                             }
-                                                                            US4::US4_0 => {
+                                                                            US4::US4_ExactlyOneMatch => {
                                                                                 let mut v124: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
                                                                                 v124.clone()
                                                                             }
@@ -270,29 +300,29 @@ fn method1() -> US0 {
                                                                         let mut v139: Rc<str> = std::rc::Rc::<str>::from((v132).to_string());
                                                                         let mut v140: Rc<str> = std::rc::Rc::<str>::from([&*v137, &*v138, &*v139, &*v53, &*v53].concat());
                                                                         let mut v141: Rc<str> = std::rc::Rc::<str>::from([&*v121, &*v131, &*v140, &*v53, &*v53].concat());
-                                                                        US0::US0_0(v141.clone())
+                                                                        US0::US0_ReplacementReceipt(v141.clone())
                                                                     }
                                                                     _ => {
                                                                         let mut v148: Rc<str> = match &v114 {
-                                                                            US5::US5_3 => {
+                                                                            US5::US5_ReadbackMismatch => {
                                                                                 let mut v145: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("readback did not match the written file"); } LIT.with(|lit| lit.clone()) };
                                                                                 v145.clone()
                                                                             }
-                                                                            US5::US5_2 => {
+                                                                            US5::US5_RenameFailed => {
                                                                                 let mut v144: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("could not move the replacement file into place"); } LIT.with(|lit| lit.clone()) };
                                                                                 v144.clone()
                                                                             }
-                                                                            US5::US5_1 => {
+                                                                            US5::US5_TemporaryWriteFailed => {
                                                                                 let mut v143: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("could not write the replacement file"); } LIT.with(|lit| lit.clone()) };
                                                                                 v143.clone()
                                                                             }
                                                                             _ => unreachable!(),
                                                                         };
-                                                                        US0::US0_1(v148.clone())
+                                                                        US0::US0_ReplacementRejected(v148.clone())
                                                                     }
                                                                 }
                                                             }
-                                                            US2::US2_0 => {
+                                                            US2::US2_CheckReplacement => {
                                                                 let mut v76: u64 = v64.len() as u64;
                                                                 let mut v77: u64 = v75.len() as u64;
                                                                 let mut v78: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode="); } LIT.with(|lit| lit.clone()) };
@@ -302,16 +332,16 @@ fn method1() -> US0 {
                                                                 let mut v82: Rc<str> = std::rc::Rc::<str>::from((v65).to_string());
                                                                 let mut v83: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expected="); } LIT.with(|lit| lit.clone()) };
                                                                 let mut v90: Rc<str> = match &v47 {
-                                                                    US4::US4_2 => {
+                                                                    US4::US4_EveryMatch => {
                                                                         let mut v87: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("all"); } LIT.with(|lit| lit.clone()) };
                                                                         v87.clone()
                                                                     }
-                                                                    US4::US4_1(v85) => {
+                                                                    US4::US4_ExactlyMatches(v85) => {
                                                                         let mut v85: u64 = *v85;
                                                                         let mut v86: Rc<str> = std::rc::Rc::<str>::from((v85).to_string());
                                                                         v86.clone()
                                                                     }
-                                                                    US4::US4_0 => {
+                                                                    US4::US4_ExactlyOneMatch => {
                                                                         let mut v84: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
                                                                         v84.clone()
                                                                     }
@@ -327,22 +357,22 @@ fn method1() -> US0 {
                                                                 let mut v99: Rc<str> = std::rc::Rc::<str>::from((v92).to_string());
                                                                 let mut v100: Rc<str> = std::rc::Rc::<str>::from([&*v97, &*v98, &*v99, &*v53, &*v53].concat());
                                                                 let mut v101: Rc<str> = std::rc::Rc::<str>::from([&*v81, &*v91, &*v100, &*v53, &*v53].concat());
-                                                                US0::US0_0(v101.clone())
+                                                                US0::US0_ReplacementReceipt(v101.clone())
                                                             }
                                                         }
                                                     } else {
                                                         let mut v153: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace expected "); } LIT.with(|lit| lit.clone()) };
                                                         let mut v160: Rc<str> = match &v47 {
-                                                            US4::US4_2 => {
+                                                            US4::US4_EveryMatch => {
                                                                 let mut v157: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("all"); } LIT.with(|lit| lit.clone()) };
                                                                 v157.clone()
                                                             }
-                                                            US4::US4_1(v155) => {
+                                                            US4::US4_ExactlyMatches(v155) => {
                                                                 let mut v155: u64 = *v155;
                                                                 let mut v156: Rc<str> = std::rc::Rc::<str>::from((v155).to_string());
                                                                 v156.clone()
                                                             }
-                                                            US4::US4_0 => {
+                                                            US4::US4_ExactlyOneMatch => {
                                                                 let mut v154: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
                                                                 v154.clone()
                                                             }
@@ -352,11 +382,11 @@ fn method1() -> US0 {
                                                         let mut v163: Rc<str> = std::rc::Rc::<str>::from([&*v153, &*v160, &*v161, &*v162, &*v53].concat());
                                                         let mut v164: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" (use --expect N or --all for repeated text)"); } LIT.with(|lit| lit.clone()) };
                                                         let mut v165: Rc<str> = std::rc::Rc::<str>::from([&*v163, &*v164, &*v53, &*v53, &*v53].concat());
-                                                        US0::US0_1(v165.clone())
+                                                        US0::US0_ReplacementRejected(v165.clone())
                                                     }
                                                 } else {
                                                     let mut v168: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace target is not a regular file"); } LIT.with(|lit| lit.clone()) };
-                                                    US0::US0_1(v168.clone())
+                                                    US0::US0_ReplacementRejected(v168.clone())
                                                 }
                                             }
                                         }
@@ -372,14 +402,14 @@ fn method1() -> US0 {
         }
     }
 }
-fn method0() -> (i32, Rc<str>) {
-    let mut v0: US0 = method1();
+fn text_replace_report_0() -> (i32, Rc<str>) {
+    let mut v0: US0 = text_replace_outcome_1();
     match &v0 {
-        US0::US0_0(v1) => {
+        US0::US0_ReplacementReceipt(v1) => {
             let mut v1: Rc<str> = v1.clone();
             (0i32, v1.clone())
         }
-        US0::US0_1(v2) => {
+        US0::US0_ReplacementRejected(v2) => {
             let mut v2: Rc<str> = v2.clone();
             (2i32, v2.clone())
         }
@@ -387,7 +417,7 @@ fn method0() -> (i32, Rc<str>) {
 }
 fn closure0() -> Rc<dyn Fn() -> (i32, Rc<str>)> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> (i32, Rc<str>)> = Rc::new(move || -> (i32, Rc<str>) {
-        method0()
+        text_replace_report_0()
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_text_replace_outcome() -> (i32, Rc<str>) {

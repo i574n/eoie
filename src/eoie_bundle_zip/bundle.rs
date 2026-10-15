@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 fn workspace_members_from_manifest(source: &str) -> Result<BTreeSet<String>, String> {
@@ -416,12 +416,11 @@ fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
     let length = bytes.len() as i64;
     if from < 0 || from > length || to < from - 1 || to >= length { std::process::abort(); }
     if to < from { return { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }; }
-    // A slice that starts or ends inside a code point fails like the C and Delphi backends (abort / Halt(3)).
     if (bytes[from as usize] & 0xC0) == 0x80 || (to + 1 < length && (bytes[(to + 1) as usize] & 0xC0) == 0x80) { std::process::exit(3); }
     let slice = &bytes[from as usize..(to + 1) as usize];
     match std::str::from_utf8(slice) { Ok(text) => Rc::<str>::from(text), Err(error) => Rc::<str>::from(std::str::from_utf8(&slice[..error.valid_up_to()]).unwrap_or("")) }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn bool_pair_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -444,25 +443,25 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
-    method2(v0, v1)
+fn preflight_binding_1(mut v0: i32, mut v1: i32) -> i32 {
+    bool_pair_binding_2(v0, v1)
 }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn flat_preflight_binding_0(mut v0: i32, mut v1: i32) -> i32 {
+    preflight_binding_1(v0, v1)
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
-    method2(v0, v1)
+fn manifest_binding_4(mut v0: i32, mut v1: i32) -> i32 {
+    bool_pair_binding_2(v0, v1)
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
-    method4(v0, v1)
+fn flat_manifest_binding_3(mut v0: i32, mut v1: i32) -> i32 {
+    manifest_binding_4(v0, v1)
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
-    method2(v0, v1)
+fn size_binding_6(mut v0: i32, mut v1: i32) -> i32 {
+    bool_pair_binding_2(v0, v1)
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
-    method6(v0, v1)
+fn flat_size_binding_5(mut v0: i32, mut v1: i32) -> i32 {
+    size_binding_6(v0, v1)
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
+fn compression_binding_8(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -485,16 +484,16 @@ fn method8(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
-    method8(v0, v1)
+fn flat_compression_binding_7(mut v0: i32, mut v1: i32) -> i32 {
+    compression_binding_8(v0, v1)
 }
-fn method10(mut v0: i32, mut v1: i32) -> i32 {
-    method2(v0, v1)
+fn complete_binding_10(mut v0: i32, mut v1: i32) -> i32 {
+    bool_pair_binding_2(v0, v1)
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
-    method10(v0, v1)
+fn flat_complete_binding_9(mut v0: i32, mut v1: i32) -> i32 {
+    complete_binding_10(v0, v1)
 }
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
+fn bundle_profile_resolve_binding_11(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -517,7 +516,7 @@ fn method11(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method13(mut v0: i32, mut v1: i32) -> i32 {
+fn bundle_manifest_mapping_binding_13(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     let mut v4: bool = if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -531,10 +530,10 @@ fn method13(mut v0: i32, mut v1: i32) -> i32 {
         0i32
     }
 }
-fn method12(mut v0: i32, mut v1: i32) -> i32 {
-    method13(v0, v1)
+fn bundle_manifest_authority_binding_12(mut v0: i32, mut v1: i32) -> i32 {
+    bundle_manifest_mapping_binding_13(v0, v1)
 }
-fn method14(mut v0: i32, mut v1: i32) -> i32 {
+fn bundle_archive_root_shape_binding_14(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 3i32;
     let mut v4: bool = if v2 {
         let mut v3: bool = v1 == 3i32;
@@ -552,10 +551,10 @@ fn method17() -> Rc<str> {
     let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     v0.clone()
 }
-fn method16() -> Rc<str> {
+fn codec_empty_16() -> Rc<str> {
     method17()
 }
-fn method19(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
+fn find_char_loop_19(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
     loop {
         let mut v4: bool = v1 == v2 ;
         if v4 {
@@ -573,7 +572,7 @@ fn method19(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: u8) -> i32 {
         }
     }
 }
-fn method21(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
+fn starts_with_loop_21(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> bool {
     loop {
         let mut v5: bool = v3 == v4 ;
         if v5 {
@@ -593,7 +592,7 @@ fn method21(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: 
         }
     }
 }
-fn method20(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
+fn find_text_loop_20(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32) -> i32 {
     loop {
         let mut v5: i32 = v2 + v4 ;
         let mut v6: bool = v3 < v5;
@@ -608,7 +607,7 @@ fn method20(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: 
                 false
             } else {
                 let mut v11: i32 = 0i32;
-                method21(v0.clone(), v1.clone(), v2, v11, v8)
+                starts_with_loop_21(v0.clone(), v1.clone(), v2, v11, v8)
             };
             if v13 {
                 return v2;
@@ -620,7 +619,7 @@ fn method20(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: 
         }
     }
 }
-fn method18(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: Rc<str>) -> Rc<str> {
+fn bundle_workspace_members_loop_18(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: Rc<str>) -> Rc<str> {
     loop {
         let mut v5: bool = v1 == v2 ;
         if v5 {
@@ -628,21 +627,21 @@ fn method18(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: 
         } else {
             let mut v6: i32 = (v0.clone().len() as i32);
             let mut v7: u8 = b'"';
-            let mut v8: i32 = method19(v0.clone(), v1, v6, v7);
+            let mut v8: i32 = find_char_loop_19(v0.clone(), v1, v6, v7);
             let mut v9: bool = v8 == v2 ;
             if v9 {
                 return v4.clone();
             } else {
                 let mut v10: i32 = v8 + 1i32 ;
                 let mut v11: u8 = b'"';
-                let mut v12: i32 = method19(v0.clone(), v10, v6, v11);
+                let mut v12: i32 = find_char_loop_19(v0.clone(), v10, v6, v11);
                 let mut v13: bool = v12 == v2 ;
                 if v13 {
-                    return method16();
+                    return codec_empty_16();
                 } else {
                     let mut v15: bool = v10 == v12 ;
                     let mut v19: Rc<str> = if v15 {
-                        method16()
+                        codec_empty_16()
                     } else {
                         let mut v17: i32 = v12 - 1i32 ;
                         let mut v18: Rc<str> = string_slice(&v0.clone(), v10 as i64, v17 as i64);
@@ -651,17 +650,17 @@ fn method18(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: 
                     let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                     let mut v21: bool = v19 == v20 ;
                     if v21 {
-                        return method16();
+                        return codec_empty_16();
                     } else {
                         let mut v23: Rc<str> = Rc::<str>::from(format!("{}{}", v19.clone(), { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) }));
                         let mut v24: Rc<str> = Rc::<str>::from(format!("{}{}", { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) }, v23.clone()));
                         let mut v25: i32 = (v3.clone().len() as i32);
                         let mut v26: i32 = 0i32;
                         let mut v27: i32 = (v24.clone().len() as i32);
-                        let mut v28: i32 = method20(v3.clone(), v24.clone(), v26, v25, v27);
+                        let mut v28: i32 = find_text_loop_20(v3.clone(), v24.clone(), v26, v25, v27);
                         let mut v29: bool = v28 < v25;
                         if v29 {
-                            return method16();
+                            return codec_empty_16();
                         } else {
                             let mut v31: i32 = v12 + 1i32 ;
                             let mut v32: Rc<str> = Rc::<str>::from(format!("{}{}", v3.clone(), v23.clone()));
@@ -675,32 +674,32 @@ fn method18(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>, mut v4: 
         }
     }
 }
-fn method15(mut v0: Rc<str>) -> Rc<str> {
+fn bundle_workspace_members_parse_15(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = (v0.clone().len() as i32);
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("members"); } LIT.with(|lit| lit.clone()) };
     let mut v3: i32 = 0i32;
     let mut v4: i32 = 7i32;
-    let mut v5: i32 = method20(v0.clone(), v2.clone(), v3, v1, v4);
+    let mut v5: i32 = find_text_loop_20(v0.clone(), v2.clone(), v3, v1, v4);
     let mut v6: bool = v5 == v1 ;
     if v6 {
-        method16()
+        codec_empty_16()
     } else {
         let mut v8: u8 = b'[';
-        let mut v9: i32 = method19(v0.clone(), v5, v1, v8);
+        let mut v9: i32 = find_char_loop_19(v0.clone(), v5, v1, v8);
         let mut v10: bool = v9 == v1 ;
         if v10 {
-            method16()
+            codec_empty_16()
         } else {
             let mut v12: i32 = v9 + 1i32 ;
             let mut v13: u8 = b']';
-            let mut v14: i32 = method19(v0.clone(), v12, v1, v13);
+            let mut v14: i32 = find_char_loop_19(v0.clone(), v12, v1, v13);
             let mut v15: bool = v14 == v1 ;
             if v15 {
-                method16()
+                codec_empty_16()
             } else {
                 let mut v17: bool = v12 == v14 ;
                 let mut v21: Rc<str> = if v17 {
-                    method16()
+                    codec_empty_16()
                 } else {
                     let mut v19: i32 = v14 - 1i32 ;
                     let mut v20: Rc<str> = string_slice(&v0.clone(), v12 as i64, v19 as i64);
@@ -710,64 +709,55 @@ fn method15(mut v0: Rc<str>) -> Rc<str> {
                 let mut v23: i32 = (v21.clone().len() as i32);
                 let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                 let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                method18(v21.clone(), v22, v23, v24.clone(), v25.clone())
+                bundle_workspace_members_loop_18(v21.clone(), v22, v23, v24.clone(), v25.clone())
             }
         }
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        flat_preflight_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        flat_manifest_binding_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        flat_size_binding_5(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method7(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        flat_compression_binding_7(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method9(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        flat_complete_binding_9(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method11(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        bundle_profile_resolve_binding_11(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method12(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        bundle_manifest_authority_binding_12(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method14(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        bundle_archive_root_shape_binding_14(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method15(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        bundle_workspace_members_parse_15(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_flat_bundle_preflight_binding(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

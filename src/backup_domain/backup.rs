@@ -1,7 +1,7 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn backup_slot_for_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         v1
@@ -9,16 +9,16 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         v0
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn backup_next_count_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
-        let mut v3: i32 = v1 + 1i32;
+        let mut v3: i32 = v1.wrapping_add(1i32);
         v3
     } else {
         v1
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn backup_should_capture_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 < 0i32;
     if v2 {
         0i32
@@ -31,7 +31,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn backup_binding_slot_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -44,7 +44,7 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn capture_authorized_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -62,7 +62,7 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn capture_binding_slot_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -80,7 +80,7 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
+fn promotion_slot_authorized_6(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -103,20 +103,20 @@ fn method6(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
+fn rollback_next_8(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 < v0;
     if v2 {
-        let mut v3: i32 = v0 - v1;
-        let mut v4: i32 = v3 - 1i32;
+        let mut v3: i32 = v0.wrapping_sub(v1);
+        let mut v4: i32 = v3.wrapping_sub(1i32);
         v4
     } else {
         -1i32
     }
 }
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
-    method8(v0, v1)
+fn restoration_select_7(mut v0: i32, mut v1: i32) -> i32 {
+    rollback_next_8(v0, v1)
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_bind_9(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -139,7 +139,7 @@ fn method9(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method10(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_complete_10(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -162,7 +162,7 @@ fn method10(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method11(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_attempt_count_11(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -171,18 +171,18 @@ fn method11(mut v0: i32, mut v1: i32) -> i32 {
         if v3 {
             -1i32
         } else {
-            let mut v4: i32 = 2147483647i32 - v0;
+            let mut v4: i32 = 2147483647i32.wrapping_sub(v0);
             let mut v5: bool = v4 < v1;
             if v5 {
                 -1i32
             } else {
-                let mut v6: i32 = v0 + v1;
+                let mut v6: i32 = v0.wrapping_add(v1);
                 v6
             }
         }
     }
 }
-fn method12(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_attempt_authorized_12(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -200,7 +200,7 @@ fn method12(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method13(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_counter_next_13(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -215,7 +215,7 @@ fn method13(mut v0: i32, mut v1: i32) -> i32 {
             } else {
                 let mut v5: bool = v0 < 2147483647i32;
                 if v5 {
-                    let mut v6: i32 = v0 + 1i32;
+                    let mut v6: i32 = v0.wrapping_add(1i32);
                     v6
                 } else {
                     -1i32
@@ -224,7 +224,7 @@ fn method13(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method14(mut v0: i32, mut v1: i32) -> i32 {
+fn restoration_accumulator_outcome_14(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 < 0i32;
     if v2 {
         -1i32
@@ -253,74 +253,74 @@ fn method14(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        backup_slot_for_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        backup_next_count_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        backup_should_capture_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        backup_binding_slot_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        capture_authorized_4(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        capture_binding_slot_5(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method6(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        promotion_slot_authorized_6(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method7(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restoration_select_7(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method9(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restoration_bind_9(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method10(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restoration_complete_10(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure10() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method11(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restoration_attempt_count_11(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure11() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method12(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restoration_attempt_authorized_12(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure12() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method13(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restoration_counter_next_13(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure13() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method14(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        restoration_accumulator_outcome_14(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_patch_backup_slot(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
 fn spiral_main() -> i32 {
@@ -47,23 +47,23 @@ fn spiral_main() -> i32 {
     let mut v42: i32 = 0i32;
     let mut v43: i32 = 0i32;
     let mut v44: i32 = eoie_release_hygiene::eoie_hygiene_root_directory_binding(v42, v43);
-    let mut v45: Rc<str> = Rc::<str>::from(".spiral-entry");
+    let mut v45: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".spiral-entry"); } LIT.with(|lit| lit.clone()) };
     let mut v46: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v45);
-    let mut v47: Rc<str> = Rc::<str>::from(".eoie-typecheck-9.rs");
+    let mut v47: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".eoie-typecheck-9.rs"); } LIT.with(|lit| lit.clone()) };
     let mut v48: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v47);
-    let mut v49: Rc<str> = Rc::<str>::from(".eoie-typecheck-9.rs.eoie-1.tmp");
+    let mut v49: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".eoie-typecheck-9.rs.eoie-1.tmp"); } LIT.with(|lit| lit.clone()) };
     let mut v50: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v49);
-    let mut v51: Rc<str> = Rc::<str>::from("x.receipt");
+    let mut v51: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("x.receipt"); } LIT.with(|lit| lit.clone()) };
     let mut v52: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v51);
-    let mut v53: Rc<str> = Rc::<str>::from(".release-eoie-candidate-1");
+    let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".release-eoie-candidate-1"); } LIT.with(|lit| lit.clone()) };
     let mut v54: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v53);
-    let mut v55: Rc<str> = Rc::<str>::from("probe42.rs");
+    let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("probe42.rs"); } LIT.with(|lit| lit.clone()) };
     let mut v56: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v55);
-    let mut v57: Rc<str> = Rc::<str>::from(".cold-rebuild-a");
+    let mut v57: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cold-rebuild-a"); } LIT.with(|lit| lit.clone()) };
     let mut v58: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v57);
-    let mut v59: Rc<str> = Rc::<str>::from(".cargo");
+    let mut v59: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cargo"); } LIT.with(|lit| lit.clone()) };
     let mut v60: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v59);
-    let mut v61: Rc<str> = Rc::<str>::from("keep.txt");
+    let mut v61: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("keep.txt"); } LIT.with(|lit| lit.clone()) };
     let mut v62: u64 = eoie_release_hygiene::eoie_hygiene_name_classification(&v61);
     let mut v63: bool = v2 < 1i32;
     if v63 {
@@ -187,7 +187,7 @@ fn spiral_main() -> i32 {
         }
     }
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

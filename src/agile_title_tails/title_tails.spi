@@ -57,6 +57,36 @@ let bare_clock (text : string) : bool =
         else false
     else false
 
+let dated_day (text : string) : bool =
+    if i32_le 10i32 (byte_len text) then
+        if digits_in text 0i32 4i32 then
+            if byte_is text 4i32 (ascii_dash ()) then
+                if digits_in text 5i32 7i32 then
+                    if byte_is text 7i32 (ascii_dash ()) then
+                        if digits_in text 8i32 10i32 then word_ends_at text 10i32 else false
+                    else false
+                else false
+            else false
+        else false
+    else false
+
+inl starts_with_stamp (text : string) : bool =
+    if dated_clock text then true
+    elif dated_day text then true
+    else bare_clock text
+
+inl stamp_window () : i32 = 17i32
+
+let rec stamped_separator_from (~title : string) (~offset : i32) : i32 =
+    inl found = byte_find_from title (tail_separator ()) offset
+    if i32_negative found then found
+    else
+        inl start = $"!found + 2" : i32
+        inl window_end = $"!start + !(stamp_window ())" : i32
+        inl stop = if i32_le (byte_len title) window_end then byte_len title else window_end
+        if starts_with_stamp (byte_slice title start stop) then found
+        else stamped_separator_from title start
+
 type stamped_piece =
     {
         at : string
@@ -68,6 +98,7 @@ inl rest_from (text : string) (offset : i32) : string = rust_std_string.model.tr
 
 let stamped (~piece : string) (~day : string) (~previous : string) (~fallback : string) : stamped_piece =
     if dated_clock piece then { at = byte_slice piece 0i32 16i32; day = byte_slice piece 0i32 10i32; body = rest_from piece 16i32 }
+    elif dated_day piece then { at = byte_slice piece 0i32 10i32; day = byte_slice piece 0i32 10i32; body = rest_from piece 10i32 }
     elif bare_clock piece then
         inl clock = byte_slice piece 0i32 5i32
         inl at = if rust_std_string.model.equals day "" then clock else rust_std_string.model.concat5 day " " clock "" ""
@@ -85,7 +116,7 @@ type moved_notes =
 let rec moved_from (~title : string) (~offset : i32) (~length : i32) (~id : string) (~seq : i32) (~day : string) (~previous : string) (~fallback : string) (~moved : moved_notes) : moved_notes =
     if i32_le length offset then moved
     else
-        inl found = byte_find_from title (tail_separator ()) offset
+        inl found = stamped_separator_from title offset
         inl stop = if i32_negative found then length else found
         inl next = if i32_negative found then length else $"!found + 2" : i32
         inl piece = rust_std_string.model.trim (byte_slice title offset stop)
@@ -98,7 +129,7 @@ let rec moved_from (~title : string) (~offset : i32) (~length : i32) (~id : stri
             moved_from title next length id (i32_next seq) stamp.day stamp.at fallback { rows = rust_std_string.model.concat5 moved.rows joint row "" ""; moved = i32_next moved.moved }
 
 let tail_rows (~title : string) (~id : string) (~seq : i32) (~fallback : string) : i32 * string =
-    inl first = byte_find title (tail_separator ())
+    inl first = stamped_separator_from title 0i32
     if i32_negative first then 0i32, ""
     else
         inl moved = moved_from title ($"!first + 2" : i32) (byte_len title) id seq "" "" fallback { rows = ""; moved = 0i32 }
@@ -106,5 +137,7 @@ let tail_rows (~title : string) (~id : string) (~seq : i32) (~fallback : string)
 
 inl main () : i32 =
     !!!!Export("eoie_agile_title_tail_rows", ((fun (title, id, seq, fallback) => tail_rows title id seq fallback) : string * string * i32 * string -> i32 * string))
+    !!!!Export("eoie_agile_title_kept_end", ((fun title => stamped_separator_from title 0i32) : string -> i32))
     inl _ = tail_rows "a; 03:10 b" "X" 1i32 "now"
+    inl _ = tail_rows "a (b; c); 2026-10-12 d; e" "X" 1i32 "now"
     0i32

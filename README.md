@@ -394,8 +394,9 @@ second run changes nothing.
 `agile note <root> <id> <text> [--as <author>]` appends a dated note (`Note` items with id,
 sequence, UTC instant, author and text, kept after the task's lines; the `task_note` union is added
 on first use), and `agile show` prints the notes under the title (`--json`: a `notes` array).
-`agile notes from-title <root> <id>` keeps the title up to its first `"; "` and moves every tail
-into a note, dated from a leading `yyyy-MM-dd HH:mm` or `HH:mm` stamp (author `migrated`).
+`agile notes from-title <root> <id>` splits the title only at a `"; "` followed by a stamp
+(`yyyy-MM-dd HH:mm`, `yyyy-MM-dd` or `HH:mm`): it keeps the title up to the first such split and moves
+each stamped tail, undated clauses included, into one note dated from its stamp (author `migrated`).
 `agile rename <root> <old-id> <new-id>` renames the task, its planning and notes, and every `deps`
 entry that names it, in one write; titles that mention the old id are counted, not changed. Each of
 these writes only if `state/agile.spi` still holds what the call read.

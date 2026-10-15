@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 #![allow(clippy::collapsible_if)]
 #![allow(clippy::needless_return, clippy::needless_late_init)]
 use bundle_retention_domain::{eoie_retention_apply_binding, eoie_retention_complete_binding, eoie_retention_current_binding, eoie_retention_dry_run_binding, eoie_retention_window_binding};
@@ -35,7 +35,7 @@ use std::rc::Rc;
 fn spiral_main() -> i32 {
     0i32
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

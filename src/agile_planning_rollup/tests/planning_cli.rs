@@ -66,7 +66,7 @@ fn planning_edit_validates_and_renders_typed_fields() {
     assert!(state.contains("inl planning_of_id_a () = Planning (\"ID-A\", Minutes 360u32, Load Heavy, Assigned Pair)"), "{state}");
     assert!(state.find("-> agile_item").unwrap() < state.find("union task_load").unwrap());
     assert!(fixture.ok("show", &["ID-A"]).contains("planning: estimate=360m load=heavy assignee=pair"));
-    assert!(fixture.ok("show", &["ID-A", "--json"]).contains("\"estimate_minutes\":360,\"load\":\"heavy\",\"assignee\":\"pair\",\"elapsed_ms\""));
+    assert!(fixture.ok("show", &["ID-A", "--json"]).contains("\"estimate_minutes\":360,\"load\":\"heavy\",\"assignee\":\"pair\",\"notes\":[],\"elapsed_ms\""));
     assert!(fixture.ok("edit", &["ID-A", "load", "none"]).contains("load=-"));
     assert!(fixture.state().contains("Planning (\"ID-A\", Minutes 360u32, LoadUnset, Assigned Pair)"));
 }

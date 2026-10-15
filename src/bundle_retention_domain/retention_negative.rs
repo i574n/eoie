@@ -1,8 +1,8 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 #![allow(clippy::needless_return, clippy::needless_late_init)]
 use std::cell::RefCell;
 use std::rc::Rc;
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn retention_window_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         -1i32
@@ -19,14 +19,14 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
                 if v5 {
                     0i32
                 } else {
-                    let mut v6: i32 = v0 - v1;
+                    let mut v6: i32 = v0.wrapping_sub(v1);
                     v6
                 }
             }
         }
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn retention_current_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -49,7 +49,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn retention_dry_run_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         0i32
@@ -72,10 +72,10 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
-    method1(v0, v1)
+fn retention_apply_binding_3(mut v0: i32, mut v1: i32) -> i32 {
+    retention_current_binding_1(v0, v1)
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn retention_complete_binding_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {
         0i32
@@ -101,19 +101,19 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
 fn spiral_main() -> i32 {
     let mut v0: i32 = 5i32;
     let mut v1: i32 = 2i32;
-    let mut v2: i32 = method0(v0, v1);
+    let mut v2: i32 = retention_window_binding_0(v0, v1);
     let mut v3: i32 = 0i32;
     let mut v4: i32 = 1i32;
-    let mut v5: i32 = method1(v3, v4);
+    let mut v5: i32 = retention_current_binding_1(v3, v4);
     let mut v6: i32 = 2i32;
     let mut v7: i32 = 1i32;
-    let mut v8: i32 = method2(v6, v7);
+    let mut v8: i32 = retention_dry_run_binding_2(v6, v7);
     let mut v9: i32 = 0i32;
     let mut v10: i32 = 1i32;
-    let mut v11: i32 = method3(v9, v10);
+    let mut v11: i32 = retention_apply_binding_3(v9, v10);
     let mut v12: i32 = 3i32;
     let mut v13: i32 = 2i32;
-    let mut v14: i32 = method4(v12, v13);
+    let mut v14: i32 = retention_complete_binding_4(v12, v13);
     let mut v15: bool = v2 < 0i32;
     if v15 {
         let mut v16: bool = 0i32 < v5;
@@ -141,7 +141,7 @@ fn spiral_main() -> i32 {
         1i32
     }
 }
-fn main() {
+fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(main.join().unwrap());
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
 }

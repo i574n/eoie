@@ -194,7 +194,7 @@ pub fn cold_rebuild_matrix_run(args: &[String]) -> Result<(), String> {
     cold_matrix_write(Path::new(&args[1]), &args[2], &args[3], &args[4], &args[5], &args[6], timeout_ms)
 }
 
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn cold_format_lane_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 == 0i32;
     if v2 {
         let mut v3: bool = v0 < 0i32;
@@ -229,7 +229,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
+        cold_format_lane_binding_0(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_cold_format_lane(v0: i32, v1: i32) -> i32 {

@@ -1,7 +1,7 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn authority_state_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 == 0i32;
     if v2 {
         let mut v3: bool = v0 == 0i32;
@@ -14,7 +14,7 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         -1i32
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
+fn authority_live_mask_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 == 0i32;
     if v2 {
         let mut v3: bool = v0 < 0i32;
@@ -25,7 +25,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
             if v4 {
                 -1i32
             } else {
-                let mut v5: i32 = 31i32 - v0;
+                let mut v5: i32 = 31i32.wrapping_sub(v0);
                 v5
             }
         }
@@ -33,7 +33,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         -1i32
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn authority_declared_mask_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     if v2 {
         let mut v3: bool = v1 == 0i32;
@@ -46,7 +46,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         -1i32
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn authority_blocker_bit_binding_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 == 0i32;
     if v2 {
         let mut v3: bool = v0 == 0i32;
@@ -79,7 +79,7 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         -1i32
     }
 }
-fn method4(mut v0: Rc<str>) -> (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) {
+fn authority_blocker_labels_4(mut v0: Rc<str>) -> (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("v1"); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("semantic-closeout"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = v1.split("|").zip(v2.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
@@ -95,33 +95,28 @@ fn method4(mut v0: Rc<str>) -> (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) {
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        authority_state_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        authority_declared_mask_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        authority_live_mask_binding_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        authority_blocker_bit_binding_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(Rc<str>) -> (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>)> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>)> = Rc::new(move |mut v0: Rc<str>| -> (Rc<str>, Rc<str>, Rc<str>, Rc<str>, Rc<str>) {
-        method4(v0.clone())
-    }); }
-    CLOSURE.with(|closure| closure.clone())
+        authority_blocker_labels_4(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_authority_state(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

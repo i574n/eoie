@@ -1,16 +1,16 @@
 #![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-fn method0() -> u64 {
+fn agile_clock_ms_0() -> u64 {
     let mut v0: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
     v0
 }
 fn closure0() -> Rc<dyn Fn() -> u64> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> u64> = Rc::new(move || -> u64 {
-        method0()
+        agile_clock_ms_0()
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>, mut v3: u64, mut v4: u64, mut v5: u64) -> Rc<str> {
+fn agile_set_receipt_text_1(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>, mut v3: u64, mut v4: u64, mut v5: u64) -> Rc<str> {
     let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie agile set ok id="); } LIT.with(|lit| lit.clone()) };
     let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" progress="); } LIT.with(|lit| lit.clone()) };
     let mut v8: Rc<str> = std::rc::Rc::<str>::from((v1).to_string());
@@ -33,7 +33,7 @@ fn method1(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>, mut v3: u64, mut v4: u
 }
 fn closure1() -> Rc<dyn Fn(Rc<str>, i32, Rc<str>, u64, u64, u64) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, i32, Rc<str>, u64, u64, u64) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>, mut v3: u64, mut v4: u64, mut v5: u64| -> Rc<str> {
-        method1(v0.clone(), v1, v2.clone(), v3, v4, v5)
+        agile_set_receipt_text_1(v0.clone(), v1, v2.clone(), v3, v4, v5)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_agile_clock_ms() -> u64 {

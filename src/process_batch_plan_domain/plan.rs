@@ -1,4 +1,4 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 #![allow(clippy::bool_comparison)]
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -47,7 +47,7 @@ pub fn command_capture_matrix_run(args:&[String])->Result<(),String>{ batch_exec
 pub fn batch_plan_run(args:&[String])->Result<(),String>{ batch_execute_matrix(args,true) }
 pub fn command_capture_matrix_gate_run(args:&[String])->Result<(),String>{ if args.len()!=3 { return Err("command-capture-matrix-gate expects root report-relative".to_owned()); } let root=Path::new(batch_arg(args,1,"root")?); let report=root.join(batch_safe_relative(batch_arg(args,2,"report-relative")?)?); let text=fs::read_to_string(&report).map_err(|e|format!("read {}: {e}",report.display()))?; let blockers=text.lines().skip(1).filter(|line| line.split('\t').nth(3)==Some("blocked")).count(); if blockers==0 { println!("eoie proxy command-capture-matrix-gate ok report={} blockers=0",report.display()); Ok(()) } else { Err(format!("matrix gate blocked rows={blockers}")) } }
 pub fn batch_plan_resume_run(args:&[String])->Result<(),String>{ if args.len()!=4 { return Err("batch-plan-resume expects root report-relative resume-relative".to_owned()); } let root=Path::new(batch_arg(args,1,"root")?); let report=root.join(batch_safe_relative(batch_arg(args,2,"report-relative")?)?); let resume=root.join(batch_safe_relative(batch_arg(args,3,"resume-relative")?)?); let text=fs::read_to_string(&report).map_err(|e|format!("read {}: {e}",report.display()))?; let mut out=String::from("id\tresume_action\tstatus\n"); let mut hard=0usize; for line in text.lines().skip(1) { if line.trim().is_empty(){continue;} let cells=line.split('\t').collect::<Vec<_>>(); if cells.len()<8 {continue;} let accepted=if cells[3]=="pass"{1}else{0}; let policy=if cells[5]=="continue"{1}else{0}; let action=eoie_batch_matrix_resume_action(accepted,policy); let status=if action==2 {hard+=1;"blocked"} else {"pass"}; out.push_str(&format!("{}\t{}\t{}\n",cells[0],action,status)); } batch_atomic_write(&resume,out.as_bytes())?; println!("eoie proxy batch-plan-resume ok resume={} hard_rerun={}",resume.display(),hard); Ok(()) }
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn batch_plan_accept_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     let mut v5: bool = if v2 {
         false
@@ -129,8 +129,8 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
         -1i32
     }
 }
-fn method1(mut v0: i32, mut v1: i32) -> i32 {
-    let mut v2: i32 = method0(v0, v1);
+fn batch_plan_advance_binding_1(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: i32 = batch_plan_accept_binding_0(v0, v1);
     let mut v3: bool = v2 == 1i32;
     if v3 {
         let mut v4: bool = v0 == 0i32;
@@ -158,7 +158,7 @@ fn method1(mut v0: i32, mut v1: i32) -> i32 {
         -1i32
     }
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn matrix_row_policy_binding_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     let mut v4: bool = if v2 {
         true
@@ -183,7 +183,7 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
         -1i32
     }
 }
-fn method3(mut v0: i32, mut v1: i32) -> i32 {
+fn matrix_dependency_binding_3(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     if v2 {
         1i32
@@ -201,7 +201,7 @@ fn method3(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method4(mut v0: i32, mut v1: i32) -> i32 {
+fn matrix_observed_accept_binding_4(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     if v2 {
         let mut v3: bool = v1 == 0i32;
@@ -224,7 +224,7 @@ fn method4(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method5(mut v0: i32, mut v1: i32) -> i32 {
+fn matrix_resume_action_binding_5(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v1 == 0i32;
     if v2 {
         let mut v3: bool = v0 == 1i32;
@@ -247,7 +247,7 @@ fn method5(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method6(mut v0: i32, mut v1: i32) -> i32 {
+fn matrix_workspace_policy_binding_6(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;
     if v2 {
         -1i32
@@ -275,7 +275,7 @@ fn method6(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method7(mut v0: i32, mut v1: i32) -> i32 {
+fn matrix_auto_chain_budget_binding_7(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 30000i32;
     if v2 {
         0i32
@@ -303,7 +303,7 @@ fn method7(mut v0: i32, mut v1: i32) -> i32 {
         }
     }
 }
-fn method8(mut v0: i32, mut v1: i32) -> i32 {
+fn matrix_auto_checkpoint_binding_8(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 0i32;
     if v2 {
         let mut v3: bool = v1 < 0i32;
@@ -343,51 +343,51 @@ fn method8(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        batch_plan_accept_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method1(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        batch_plan_advance_binding_1(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        matrix_row_policy_binding_2(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method3(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        matrix_dependency_binding_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method4(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        matrix_observed_accept_binding_4(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method5(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        matrix_resume_action_binding_5(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure6() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method6(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        matrix_workspace_policy_binding_6(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure7() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method7(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        matrix_auto_chain_budget_binding_7(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method8(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        matrix_auto_checkpoint_binding_8(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method9(mut v0: i32, mut v1: i32) -> i32 {
+fn matrix_complete_binding_9(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 3i32;
     if v2 {
         let mut v3: bool = v1 == 1i32;
@@ -401,9 +401,9 @@ fn method9(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure9() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method9(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        matrix_complete_binding_9(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_batch_plan_accept(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

@@ -1,7 +1,7 @@
-#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_patterns, unreachable_code, while_true)]
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-fn method0(mut v0: i32, mut v1: i32) -> i32 {
+fn toolchain_argument_token_high_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 4i32;
     if v2 {
         -1i32
@@ -85,9 +85,9 @@ fn method0(mut v0: i32, mut v1: i32) -> i32 {
     }
 }
 fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
-    Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method0(v0, v1)
-    })
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        toolchain_argument_token_high_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_toolchain_argument_token_high(v0: i32, v1: i32) -> i32 {
     closure0()(v0, v1)

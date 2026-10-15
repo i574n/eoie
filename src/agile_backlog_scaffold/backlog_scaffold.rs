@@ -1,7 +1,7 @@
 #![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-fn method0() -> i32 {
+fn agile_init_entry_0() -> i32 {
     let mut v0: i32 = 1i32;
     let mut v1: Rc<str> = usize::try_from(v0).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
     let mut v2: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
@@ -95,7 +95,7 @@ fn method0() -> i32 {
 }
 fn closure0() -> Rc<dyn Fn() -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
-        method0()
+        agile_init_entry_0()
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_agile_init_run() -> i32 {

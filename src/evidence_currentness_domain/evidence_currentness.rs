@@ -390,7 +390,7 @@ pub fn toolchain_status(root: &Path) -> Result<Option<ToolchainCurrentnessSummar
     Ok(Some(ToolchainCurrentnessSummary { declared: specs.len(), observed, verified }))
 }
 
-fn method1(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
+fn loop_1(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
     loop {
         let mut v3: bool = v2 == v1;
         if v3 {
@@ -436,7 +436,7 @@ fn method1(mut v0: Rc<str>, mut v1: u64, mut v2: u64) -> bool {
         }
     }
 }
-fn method0(mut v0: Rc<str>) -> bool {
+fn check_0(mut v0: Rc<str>) -> bool {
     let mut v1: u64 = (v0.clone().len() as u64);
     let mut v2: bool = v1 < 64u64;
     let mut v4: bool = if v2 {
@@ -447,17 +447,17 @@ fn method0(mut v0: Rc<str>) -> bool {
     };
     if v4 {
         let mut v5: u64 = 0u64;
-        method1(v0.clone(), v1, v5)
+        loop_1(v0.clone(), v1, v5)
     } else {
         false
     }
 }
 fn closure0() -> Rc<dyn Fn(Rc<str>) -> bool> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> bool> = Rc::new(move |mut v0: Rc<str>| -> bool {
-        method0(v0.clone())
+        check_0(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method2(mut v0: i32, mut v1: i32) -> i32 {
+fn evidence_row_stage_2(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 == 1i32;
     let mut v3: bool = v1 == 1i32;
     let (mut v4, mut v5): (bool, i32) = if v2 {
@@ -465,23 +465,23 @@ fn method2(mut v0: i32, mut v1: i32) -> i32 {
     } else {
         (false, 0i32)
     };
-    let (mut v8, mut v9): (bool, i32) = if v4 {
+    let mut v9: i32 = if v4 {
         if v3 {
-            (true, 2i32)
+            2i32
         } else {
-            (false, v5)
+            v5
         }
     } else {
-        (false, v5)
+        v5
     };
     v9
 }
 fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
-        method2(v0, v1)
+        evidence_row_stage_2(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method3(mut v0: Rc<str>) -> Rc<str> {
+fn rust_tool_environment_binding_3(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rustfmt"); } LIT.with(|lit| lit.clone()) };
     let mut v4: Rc<str> = if v1 {
         let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("RUSTFMT"); } LIT.with(|lit| lit.clone()) };
@@ -514,10 +514,10 @@ fn method3(mut v0: Rc<str>) -> Rc<str> {
 }
 fn closure2() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
-        method3(v0.clone())
+        rust_tool_environment_binding_3(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn method4(mut v0: i32, mut v1: i32) -> Rc<str> {
+fn evidence_public_binary_binding_4(mut v0: i32, mut v1: i32) -> Rc<str> {
     let mut v2: bool = v0 == 1i32;
     let mut v4: bool = if v2 {
         let mut v3: bool = v1 == 0i32;
@@ -547,7 +547,7 @@ fn method4(mut v0: i32, mut v1: i32) -> Rc<str> {
 }
 fn closure3() -> Rc<dyn Fn(i32, i32) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> Rc<str>> = Rc::new(move |mut v0: i32, mut v1: i32| -> Rc<str> {
-        method4(v0, v1)
+        evidence_public_binary_binding_4(v0, v1)
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn evidence_sha256_text(v0: &str) -> bool {
