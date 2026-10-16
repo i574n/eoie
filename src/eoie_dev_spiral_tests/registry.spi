@@ -3,7 +3,9 @@ union rec spiral_test_notebooks =
     | SpiralTestNotebook : string * string * spiral_test_notebooks
 
 inl registered () : spiral_test_notebooks =
-    SpiralTestNotebook ("agile-planning-rollup", "src/agile_planning_rollup/planning_cli.spi", NoMoreNotebooks)
+    SpiralTestNotebook ("agile-planning-rollup", "src/agile_planning_rollup/planning_cli.spi",
+        SpiralTestNotebook ("agile-todo-scan", "src/agile_todo_model/model.spi",
+            SpiralTestNotebook ("agile-todo-scan", "src/agile_todo_model/todo_cli.spi", NoMoreNotebooks)))
 
 inl selects (names : string) (separator : string) (package : string) : bool =
     if rust_std_string.model.equals names "" then true

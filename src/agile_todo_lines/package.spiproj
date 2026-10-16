@@ -1,0 +1,6 @@
+packages:
+    workspace_primitives
+    rust_std_string
+    agile_todo_model
+modules:
+    todo_lines

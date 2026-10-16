@@ -1,0 +1,440 @@
+///- --package .
+test agile_todo_model static =
+    open workspace_primitives.numbers
+
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+
+union comment_syntax =
+    | CFamily
+    | HashFamily
+    | DashFamily
+    | HaskellFamily
+    | LeanFamily
+    | LispFamily
+    | ErlangFamily
+    | MarkupFamily
+    | MlFamily
+    | PascalFamily
+    | BatchFamily
+
+union syntax_lookup =
+    | KnownSyntax : comment_syntax
+    | UnknownSyntax
+
+union path_verdict =
+    | ScanPath : comment_syntax
+    | SkipNestedRepository
+    | SkipVendorDirectory
+    | SkipUnknownSyntax
+    | SkipGeneratedOutput
+    | SkipLinkedEntry
+
+union content_verdict =
+    | ScanContent
+    | SkipBinary
+    | SkipLarge
+    | SkipUnreadable
+
+union todo_match =
+    | NoTodo
+    | TodoComment : string
+
+type scan_tally =
+    {
+        files : i32
+        scanned : i32
+        todos : i32
+        nested : i32
+        vendor : i32
+        syntax : i32
+        generated : i32
+        binary : i32
+        large : i32
+        links : i32
+        unreadable : i32
+    }
+
+inl todo_marker () : string = rust_std_string.model.concat5 "TO" "DO" "" "" ""
+inl largest_scanned_bytes () : u64 = 1048576u64
+
+inl c_family_extensions () : string = "spi|spir|fs|fsx|fsi|rs|c|h|cc|cpp|cxx|hpp|hh|cs|js|mjs|cjs|ts|tsx|jsx|go|java|kt|kts|swift|zig|gleam|scala|dart|wgsl|glsl|hlsl|proto|jsonc|css|scss|less|php|sv|v"
+inl hash_family_extensions () : string = "ps1|psm1|psd1|py|pyi|sh|bash|zsh|fish|rb|toml|yml|yaml|ex|exs|r|pl|pm|cmake|nix|conf|cfg|mk|tf|jl|nu|ini|gitignore|gitattributes|editorconfig|dockerignore"
+inl hash_family_names () : string = "makefile|dockerfile|justfile|gemfile|rakefile|vagrantfile"
+inl dash_family_extensions () : string = "lua|sql|ada|adb|ads|vhd|vhdl"
+inl haskell_family_extensions () : string = "hs|lhs|elm|purs|agda|idr"
+inl lisp_family_extensions () : string = "clj|cljs|cljc|edn|lisp|lsp|el|scm|ss|rkt|asm|nasm"
+inl erlang_family_extensions () : string = "erl|hrl|tex|sty|bib"
+inl markup_family_extensions () : string = "md|markdown|livemd|html|htm|xhtml|xml|svg|xaml|vue|svelte|csproj|fsproj|props|targets|plist"
+inl ml_family_extensions () : string = "ml|mli|sml"
+inl pascal_family_extensions () : string = "pas|pp|dpr|dpk|lpr|inc"
+inl batch_family_extensions () : string = "bat|cmd"
+inl vendor_directory_names () : string = "node_modules|vendor|third_party|target|dist|_build|.zig-cache|zig-out|.lake|__pycache__|.venv|venv|.gradle|.next|bin|obj|deps|.git|.cache|elm-stuff|bower_components|.dart_tool|.mypy_cache|.pytest_cache|.tox"
+
+inl comment_leaders = function
+    | CFamily => "//|/*"
+    | HashFamily => "#"
+    | DashFamily => "--"
+    | HaskellFamily => "--|{-"
+    | LeanFamily => "--|/-"
+    | LispFamily => ";"
+    | ErlangFamily => "%"
+    | MarkupFamily => "<!--"
+    | MlFamily => "(*"
+    | PascalFamily => "//|(*|{"
+    | BatchFamily => "::|REM|rem"
+
+inl line_start_leaders = function
+    | CFamily => "*"
+    | PascalFamily => "{"
+    | _ => ""
+
+inl single_quote_strings = function
+    | HashFamily | DashFamily | ErlangFamily => true
+    | _ => false
+
+inl negated (value : bool) : bool = if value then false else true
+inl i32_add a b : i32 = $"!a + !b"
+inl i32_sub a b : i32 = $"!a - !b"
+inl i32_remainder a b : i32 = $"!a % !b"
+inl both (a : bool) (b : bool) : bool = if a then b else false
+inl ascii_slash () : i32 = 47i32
+inl ascii_dot () : i32 = 46i32
+inl ascii_newline () : i32 = 10i32
+inl ascii_return () : i32 = 13i32
+inl ascii_space () : i32 = 32i32
+inl ascii_tab () : i32 = 9i32
+inl ascii_double_quote () : i32 = 34i32
+inl ascii_single_quote () : i32 = 39i32
+
+let rec last_offset_of (~text : string) (~code : i32) (~offset : i32) (~found : i32) : i32 =
+    if i32_le (byte_len text) offset then found
+    elif i32_eq (byte_at text offset) code then last_offset_of text code (i32_next offset) offset
+    else last_offset_of text code (i32_next offset) found
+
+let rec count_of_byte (~text : string) (~code : i32) (~offset : i32) (~stop : i32) (~count : i32) : i32 =
+    if i32_le stop offset then count
+    elif i32_eq (byte_at text offset) code then count_of_byte text code (i32_next offset) stop (i32_next count)
+    else count_of_byte text code (i32_next offset) stop count
+
+let rec first_visible_offset (~text : string) (~offset : i32) : i32 =
+    if i32_le (byte_len text) offset then offset
+    elif i32_eq (byte_at text offset) (ascii_space ()) then first_visible_offset text (i32_next offset)
+    elif i32_eq (byte_at text offset) (ascii_tab ()) then first_visible_offset text (i32_next offset)
+    else offset
+
+let rec visible_end (~text : string) (~stop : i32) : i32 =
+    if i32_le stop 0i32 then 0i32
+    elif i32_eq (byte_at text (i32_prev stop)) (ascii_space ()) then visible_end text (i32_prev stop)
+    elif i32_eq (byte_at text (i32_prev stop)) (ascii_tab ()) then visible_end text (i32_prev stop)
+    elif i32_eq (byte_at text (i32_prev stop)) (ascii_return ()) then visible_end text (i32_prev stop)
+    else stop
+
+let rec leader_run_start (~text : string) (~start : i32) (~code : i32) : i32 =
+    if i32_le start 0i32 then 0i32
+    elif i32_eq (byte_at text (i32_prev start)) code then leader_run_start text (i32_prev start) code
+    else start
+
+inl file_name (~relative : string) : string =
+    inl slash = last_offset_of relative (ascii_slash ()) 0i32 (-1i32)
+    byte_slice relative (i32_next slash) (byte_len relative)
+
+inl extension_of (~name : string) : string =
+    inl dot = last_offset_of name (ascii_dot ()) 0i32 (-1i32)
+    if i32_negative dot then "" else byte_slice name (i32_next dot) (byte_len name)
+
+let syntax_of_path (~relative : string) : syntax_lookup =
+    inl name = ascii_lowercase (file_name relative)
+    inl extension = extension_of name
+    inl member (~members : string) : bool = both (negated (rust_std_string.model.equals extension "")) (rust_std_string.model.pipe_member members extension)
+    if member (c_family_extensions ()) then KnownSyntax CFamily
+    elif member (hash_family_extensions ()) then KnownSyntax HashFamily
+    elif rust_std_string.model.pipe_member (hash_family_names ()) name then KnownSyntax HashFamily
+    elif member (dash_family_extensions ()) then KnownSyntax DashFamily
+    elif member (haskell_family_extensions ()) then KnownSyntax HaskellFamily
+    elif rust_std_string.model.equals extension "lean" then KnownSyntax LeanFamily
+    elif member (lisp_family_extensions ()) then KnownSyntax LispFamily
+    elif member (erlang_family_extensions ()) then KnownSyntax ErlangFamily
+    elif member (markup_family_extensions ()) then KnownSyntax MarkupFamily
+    elif member (ml_family_extensions ()) then KnownSyntax MlFamily
+    elif member (pascal_family_extensions ()) then KnownSyntax PascalFamily
+    elif member (batch_family_extensions ()) then KnownSyntax BatchFamily
+    else UnknownSyntax
+
+let rec vendor_segment_from (~relative : string) (~offset : i32) : bool =
+    inl slash = byte_find_from relative "/" offset
+    if i32_negative slash then false
+    elif rust_std_string.model.pipe_member (vendor_directory_names ()) (byte_slice relative offset slash) then true
+    else vendor_segment_from relative (i32_next slash)
+
+inl vendor_directory (~name : string) : bool = rust_std_string.model.pipe_member (vendor_directory_names ()) name
+
+inl spiral_source (~relative : string) : bool =
+    rust_std_string.model.pipe_member "spi|spir" (extension_of (ascii_lowercase (file_name relative)))
+
+let path_verdict (~relative : string) (spiral_sibling : bool) : path_verdict =
+    if rust_std_string.model.ends_with relative "/" then SkipNestedRepository
+    elif vendor_segment_from relative 0i32 then SkipVendorDirectory
+    else
+        match syntax_of_path relative with
+        | UnknownSyntax => SkipUnknownSyntax
+        | KnownSyntax syntax =>
+            if both spiral_sibling (negated (spiral_source relative)) then SkipGeneratedOutput
+            else ScanPath syntax
+
+inl syntax_code (syntax : comment_syntax) : i32 =
+    match syntax with
+    | CFamily => 1i32
+    | HashFamily => 2i32
+    | DashFamily => 3i32
+    | HaskellFamily => 4i32
+    | LeanFamily => 5i32
+    | LispFamily => 6i32
+    | ErlangFamily => 7i32
+    | MarkupFamily => 8i32
+    | MlFamily => 9i32
+    | PascalFamily => 10i32
+    | BatchFamily => 11i32
+
+let syntax_of_code (code : i32) : comment_syntax =
+    match code with
+    | 2i32 => HashFamily
+    | 3i32 => DashFamily
+    | 4i32 => HaskellFamily
+    | 5i32 => LeanFamily
+    | 6i32 => LispFamily
+    | 7i32 => ErlangFamily
+    | 8i32 => MarkupFamily
+    | 9i32 => MlFamily
+    | 10i32 => PascalFamily
+    | 11i32 => BatchFamily
+    | _ => CFamily
+
+inl scanned_code_base () : i32 = 100i32
+
+inl path_verdict_code (verdict : path_verdict) : i32 =
+    match verdict with
+    | ScanPath syntax => i32_add (scanned_code_base ()) (syntax_code syntax)
+    | SkipNestedRepository => 1i32
+    | SkipVendorDirectory => 2i32
+    | SkipUnknownSyntax => 3i32
+    | SkipGeneratedOutput => 4i32
+    | SkipLinkedEntry => 5i32
+
+let path_verdict_of_code (code : i32) : path_verdict =
+    if i32_le (scanned_code_base ()) code then ScanPath (syntax_of_code (i32_sub code (scanned_code_base ())))
+    else
+        match code with
+        | 1i32 => SkipNestedRepository
+        | 2i32 => SkipVendorDirectory
+        | 4i32 => SkipGeneratedOutput
+        | 5i32 => SkipLinkedEntry
+        | _ => SkipUnknownSyntax
+inl size_verdict (size : u64) : content_verdict =
+    if $"!size > !(largest_scanned_bytes ())" : bool then SkipLarge else ScanContent
+
+inl bytes_verdict (has_nul : bool) : content_verdict = if has_nul then SkipBinary else ScanContent
+
+inl identifier_byte (code : i32) : bool =
+    if both (i32_le 65i32 code) (i32_le code 90i32) then true
+    elif both (i32_le 97i32 code) (i32_le code 122i32) then true
+    elif both (i32_le 48i32 code) (i32_le code 57i32) then true
+    else i32_eq code 95i32
+
+inl outside_strings (syntax : comment_syntax) (~line : string) (~stop : i32) : bool =
+    inl doubles = count_of_byte line (ascii_double_quote ()) 0i32 stop 0i32
+    inl even_doubles = i32_eq (i32_remainder doubles 2i32) 0i32
+    if single_quote_strings syntax then both even_doubles (i32_eq (i32_remainder (count_of_byte line (ascii_single_quote ()) 0i32 stop 0i32) 2i32) 0i32)
+    else even_doubles
+
+let rec leader_before (~leaders : string) (~before : string) (~offset : i32) : string =
+    inl bar = byte_find_from leaders "|" offset
+    inl stop = if i32_negative bar then byte_len leaders else bar
+    inl leader = byte_slice leaders offset stop
+    if rust_std_string.model.ends_with before leader then leader
+    elif i32_negative bar then ""
+    else leader_before leaders before (i32_next bar)
+
+inl directive_line (~line : string) : bool =
+    if rust_std_string.model.starts_with line "///>" then true else rust_std_string.model.starts_with line "///-"
+
+inl comment_text (~raw : string) : string =
+    inl trimmed = rust_std_string.model.trim raw
+    inl closed =
+        if rust_std_string.model.ends_with trimmed "-->" then byte_slice trimmed 0i32 (i32_sub (byte_len trimmed) 3i32)
+        elif rust_std_string.model.ends_with trimmed "*/" then byte_slice trimmed 0i32 (i32_sub (byte_len trimmed) 2i32)
+        elif rust_std_string.model.ends_with trimmed "*)" then byte_slice trimmed 0i32 (i32_sub (byte_len trimmed) 2i32)
+        elif rust_std_string.model.ends_with trimmed "-}" then byte_slice trimmed 0i32 (i32_sub (byte_len trimmed) 2i32)
+        else trimmed
+    rust_std_string.model.trim closed
+
+let todo_in_line (syntax : comment_syntax) (~line : string) : todo_match =
+    inl marker = byte_find line (todo_marker ())
+    if i32_negative marker then NoTodo
+    elif directive_line line then NoTodo
+    elif identifier_byte (byte_at line (i32_add marker 4i32)) then NoTodo
+    else
+        inl before = byte_slice line 0i32 (visible_end line marker)
+        inl leader = leader_before (comment_leaders syntax) before 0i32
+        inl line_leader = line_start_leaders syntax
+        inl leader_start = i32_sub (byte_len before) (byte_len leader)
+        inl first_visible = first_visible_offset line 0i32
+        if rust_std_string.model.equals leader "" then
+            if both (negated (rust_std_string.model.equals line_leader "")) (both (rust_std_string.model.ends_with before line_leader) (i32_eq (i32_sub (byte_len before) (byte_len line_leader)) first_visible)) then
+                TodoComment (comment_text (byte_slice line first_visible (byte_len line)))
+            else NoTodo
+        else
+            inl start = leader_run_start line leader_start (byte_at leader 0i32)
+            if outside_strings syntax line start then TodoComment (comment_text (byte_slice line start (byte_len line)))
+            else NoTodo
+
+inl empty_tally () : scan_tally = { files = 0i32; scanned = 0i32; todos = 0i32; nested = 0i32; vendor = 0i32; syntax = 0i32; generated = 0i32; binary = 0i32; large = 0i32; links = 0i32; unreadable = 0i32 }
+
+let counted_path (tally : scan_tally) (verdict : path_verdict) : scan_tally =
+    inl listed = { tally with files = i32_next tally.files }
+    match verdict with
+    | ScanPath _ => listed
+    | SkipNestedRepository => { listed with nested = i32_next listed.nested }
+    | SkipVendorDirectory => { listed with vendor = i32_next listed.vendor }
+    | SkipUnknownSyntax => { listed with syntax = i32_next listed.syntax }
+    | SkipGeneratedOutput => { listed with generated = i32_next listed.generated }
+    | SkipLinkedEntry => { listed with links = i32_next listed.links }
+
+let counted_content (tally : scan_tally) (verdict : content_verdict) : scan_tally =
+    match verdict with
+    | ScanContent => { tally with scanned = i32_next tally.scanned }
+    | SkipBinary => { tally with binary = i32_next tally.binary }
+    | SkipLarge => { tally with large = i32_next tally.large }
+    | SkipUnreadable => { tally with unreadable = i32_next tally.unreadable }
+
+let counted_todos (tally : scan_tally) (found : i32) : scan_tally = { tally with todos = i32_add tally.todos found }
+
+inl json_escaped (~text : string) : string =
+    inl backslashes = rust_std_string.model.replace text "\\" "\\\\"
+    inl quotes = rust_std_string.model.replace backslashes "\"" "\\\""
+    rust_std_string.model.replace quotes "\t" "\\t"
+
+inl finding_line (~path : string) (line : i32) (~text : string) : string =
+    rust_std_string.model.concat5 path ":" (i32_text line) "  " text
+
+inl finding_json (~path : string) (line : i32) (~text : string) : string =
+    inl head = rust_std_string.model.concat5 "{\"path\":\"" (json_escaped path) "\",\"line\":" (i32_text line) ",\"text\":\""
+    rust_std_string.model.concat5 head (json_escaped text) "\"}" "" ""
+
+let rec findings_from (syntax : comment_syntax) (~text : string) (~path : string) (json : bool) (~offset : i32) (~number : i32) (~rendered : string) (~count : i32) : string * i32 =
+    if i32_le (byte_len text) offset then rendered, count
+    else
+        inl newline = byte_find_from text "\n" offset
+        inl stop = if i32_negative newline then byte_len text else newline
+        inl line = byte_slice text offset stop
+        inl next = i32_next stop
+        match todo_in_line syntax line with
+        | NoTodo => findings_from syntax text path json next (i32_next number) rendered count
+        | TodoComment comment =>
+            inl entry = if json then finding_json path number comment else finding_line path number comment
+            inl joined = if rust_std_string.model.equals rendered "" then entry elif json then rust_std_string.model.concat5 rendered ",\n" entry "" "" else rust_std_string.model.concat5 rendered "\n" entry "" ""
+            findings_from syntax text path json next (i32_next number) joined (i32_next count)
+
+inl findings (syntax : comment_syntax) (~text : string) (~path : string) (json : bool) : string * i32 =
+    findings_from syntax text path json 0i32 1i32 "" 0i32
+
+inl tally_skips (tally : scan_tally) : string =
+    inl a = rust_std_string.model.concat5 "nested:" (i32_text tally.nested) ",vendor:" (i32_text tally.vendor) ",generated:"
+    inl b = rust_std_string.model.concat5 (i32_text tally.generated) ",syntax:" (i32_text tally.syntax) ",binary:" (i32_text tally.binary)
+    rust_std_string.model.concat5 a b ",large:" (i32_text tally.large) (rust_std_string.model.concat5 ",links:" (i32_text tally.links) ",unreadable:" (i32_text tally.unreadable) "")
+
+inl tally_receipt (roots : i32) (tally : scan_tally) (elapsed : u64) : string =
+    inl head = rust_std_string.model.concat5 "eoie agile todos ok roots=" (i32_text roots) " files=" (i32_text tally.files) " scanned="
+    inl middle = rust_std_string.model.concat5 (i32_text tally.scanned) " todos=" (i32_text tally.todos) " skipped=" (tally_skips tally)
+    rust_std_string.model.concat5 head middle " elapsed_ms=" (u64_text elapsed) ""
+
+inl tally_json_tail (roots : i32) (tally : scan_tally) (elapsed : u64) : string =
+    inl head = rust_std_string.model.concat5 "],\"roots\":" (i32_text roots) ",\"files\":" (i32_text tally.files) ",\"scanned\":"
+    inl middle = rust_std_string.model.concat5 (i32_text tally.scanned) ",\"todos\":" (i32_text tally.todos) ",\"skipped\":{\"nested\":" (i32_text tally.nested)
+    inl skips = rust_std_string.model.concat5 ",\"vendor\":" (i32_text tally.vendor) ",\"generated\":" (i32_text tally.generated) ",\"syntax\":"
+    inl rest = rust_std_string.model.concat5 (i32_text tally.syntax) ",\"binary\":" (i32_text tally.binary) ",\"large\":" (rust_std_string.model.concat5 (i32_text tally.large) ",\"links\":" (i32_text tally.links) ",\"unreadable\":" (i32_text tally.unreadable))
+    rust_std_string.model.concat5 (rust_std_string.model.concat5 head middle skips rest "") "},\"elapsed_ms\":" (u64_text elapsed) "}" ""
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl comment_found (found : todo_match) : string =
+    match found with
+    | NoTodo => "<none>"
+    | TodoComment text => text
+
+inl syntax_label (syntax : comment_syntax) : string =
+    match syntax with
+    | CFamily => "c"
+    | HashFamily => "hash"
+    | _ => "other"
+
+inl path_label (verdict : path_verdict) : string =
+    match verdict with
+    | ScanPath syntax => rust_std_string.model.concat5 "scan " (syntax_label syntax) "" "" ""
+    | SkipNestedRepository => "nested"
+    | SkipVendorDirectory => "vendor"
+    | SkipUnknownSyntax => "syntax"
+    | SkipGeneratedOutput => "generated"
+    | SkipLinkedEntry => "link"
+
+inl content_label (verdict : content_verdict) : string =
+    match verdict with
+    | ScanContent => "scan"
+    | SkipBinary => "binary"
+    | SkipLarge => "large"
+    | SkipUnreadable => "unreadable"
+
+inl labelled (~actual : string) (~expected : string) : () =
+    expect (rust_std_string.model.equals actual expected) (rust_std_string.model.concat5 "expected " expected ", got " actual "")
+inl marked (~prefix : string) (~suffix : string) : string = rust_std_string.model.concat5 prefix (todo_marker ()) suffix "" ""
+
+///> rust
+test leaders_are_chosen_per_language =
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "    // " ": split the crate"))) (marked "// " ": split the crate")) "c-family line comment"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "inl a = 1 /// " " rename"))) (marked "/// " " rename")) "trailing doc comment keeps its whole leader"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line HashFamily (marked "$x = 1 # " ": wire it"))) (marked "# " ": wire it")) "powershell trailing comment"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line DashFamily (marked "-- " " port"))) (marked "-- " " port")) "lua comment"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line MarkupFamily (marked "<!-- " ": link -->"))) (marked "<!-- " ": link")) "markup comment loses its closer"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked " * " " block"))) (marked "* " " block")) "block comment continuation at line start"
+
+///> rust
+test strings_markdown_and_directives_are_not_comments =
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "inl s = \"// " ": no\""))) "<none>") "a leader inside a string"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line MarkupFamily (marked "**Alphabet** is a tool (" ")."))) "<none>") "markdown prose"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "a * " " b"))) "<none>") "multiplication is not a block continuation"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "///> rust " ""))) "<none>") "spiral target directive"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "// " "LIST: words"))) "<none>") "marker inside a longer word"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line HashFamily (marked "Write-Output '# " "'"))) "<none>") "a leader inside a single-quoted string"
+
+///> rust
+test paths_skip_vendor_generated_and_unknown_files =
+    labelled (path_label (path_verdict "deps/The-Spiral-Language/" false)) "nested"
+    labelled (path_label (path_verdict "apps/web/node_modules/x/index.js" false)) "vendor"
+    labelled (path_label (path_verdict "samples/hello/main.c" true)) "generated"
+    labelled (path_label (path_verdict "samples/hello/main.spi" true)) "scan c"
+    labelled (path_label (path_verdict "src/rust_std_fs/portable.rs" false)) "scan c"
+    labelled (path_label (path_verdict "assets/logo.png" false)) "syntax"
+    labelled (path_label (path_verdict "scripts/Makefile" false)) "scan hash"
+    labelled (content_label (size_verdict 2000000u64)) "large"
+    labelled (content_label (bytes_verdict true)) "binary"
+
+///> rust
+test findings_render_with_line_numbers_and_json =
+    inl text = rust_std_string.model.concat5 "inl a = 1\n" (marked "// " " split") "\r\nlet b = 2\n" (marked "    // " ": \"quoted\"") "\n"
+    inl lines, count = findings CFamily text "repo/a.spi" false
+    expect (i32_eq count 2i32) "two findings"
+    expect (rust_std_string.model.equals lines (rust_std_string.model.concat5 (marked "repo/a.spi:2  // " " split") "\n" (marked "repo/a.spi:4  // " ": \"quoted\"") "" "")) lines
+    inl json, json_count = findings CFamily text "repo/a.spi" true
+    expect (i32_eq json_count 2i32) "two json findings"
+    expect (rust_std_string.model.contains json (marked "{\"path\":\"repo/a.spi\",\"line\":4,\"text\":\"// " ": \\\"quoted\\\"\"}")) json
+    inl tally = counted_todos (counted_content (counted_path (counted_path (empty_tally ()) (ScanPath CFamily)) SkipGeneratedOutput) ScanContent) 2i32
+    expect (rust_std_string.model.equals (tally_skips tally) "nested:0,vendor:0,generated:1,syntax:0,binary:0,large:0,links:0,unreadable:0") (tally_skips tally)
+    expect (rust_std_string.model.starts_with (tally_receipt 1i32 tally 5u64) "eoie agile todos ok roots=1 files=2 scanned=1 todos=2 skipped=") (tally_receipt 1i32 tally 5u64)
+
+///> rust
+test verdicts_survive_the_crate_boundary_as_codes =
+    labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "lib/a.ps1" false)))) "scan hash"
+    labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "samples/a/main.c" true)))) "generated"
+    labelled (path_label (path_verdict_of_code (path_verdict_code SkipLinkedEntry))) "link"
+    labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "deps/x/" false)))) "nested"
+    expect (i32_eq (syntax_code (syntax_of_code 11i32)) 11i32) "batch syntax code"

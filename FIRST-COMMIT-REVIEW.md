@@ -17,8 +17,8 @@ of the live backlog: only the intended columns, fields and usage text differ).
 `agile_planning_values` (value to state token), `agile_planning_rewrite` (row store), `agile_planning_fields`
 and `agile_planning_filters` (list and show), `agile_planning_tally` and `agile_planning_rollup` (`agile plan`),
 `agile_planning_revision` (`agile edit … estimate|load|assignee`) and `agile_planning_migration`
-(`agile migrate-tags`). CLI scenarios live in `agile_planning_rollup/tests/planning_cli.rs`; they run the CLI
-from the temporary directory so a committed, expired lease cannot block them.
+(`agile migrate-tags`). CLI scenarios live in `agile_planning_rollup/planning_cli.spi` as Spiral test blocks; they run
+the CLI from the temporary directory so a committed, expired lease cannot block them.
 
 **Headroom.** The listing crate is at 956 lines and the migration crate at 988, so the next regeneration
 drift has to be absorbed by splitting, not by growth.

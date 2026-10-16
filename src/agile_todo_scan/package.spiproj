@@ -1,0 +1,7 @@
+packages:
+    workspace_primitives
+    rust_std_env
+    rust_std_string
+    agile_todo_model
+modules:
+    todo_scan

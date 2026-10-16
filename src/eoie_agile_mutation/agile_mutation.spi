@@ -38,9 +38,9 @@ inl all2 a b = if a then b else false
 inl all3 a b c = if a then if b then c else false else false
 inl all4 a b c d = if a then if b then if c then d else false else false else false
 
-inl agile_full_usage_error () : i32 = $"agile_mutation_error(\"agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags preview|apply <root>, note <root> <id> <text> [--as <author>], notes from-title <root> <id>, rename <root> <old-id> <new-id>\")"
-inl agile_subcommands () : string = "init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags|note|notes|rename"
-inl agile_operand_shapes () : string = "<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\npreview|apply <root>\n<root> <id> <text> [--as <author>]\nfrom-title <root> <id>\n<root> <old-id> <new-id>"
+inl agile_full_usage_error () : i32 = $"agile_mutation_error(\"agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags preview|apply <root>, note <root> <id> <text> [--as <author>], notes from-title <root> <id>, rename <root> <old-id> <new-id>, todos <root> [<path>...] [--json]\")"
+inl agile_subcommands () : string = "init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags|note|notes|rename|todos"
+inl agile_operand_shapes () : string = "<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\npreview|apply <root>\n<root> <id> <text> [--as <author>]\nfrom-title <root> <id>\n<root> <old-id> <new-id>\n<root> [<path>...] [--json]"
 inl received_operands () : string = $'std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string())' : string
 inl agile_shape_error (~subcommand : string) (~shape : string) : i32 =
     inl head = rust_std_string.model.concat5 "agile " subcommand " expects " shape ", received "
@@ -139,10 +139,11 @@ let agile_counted_entry () : i32 =
 
 let agile_entry () : i32 =
     if i32_le 2i32 (agile_argument_count ()) then
-        match rust_std_string.model.pipe_index "list|plan|migrate-tags" (argument_owned 0i32) with
+        match rust_std_string.model.pipe_index "list|plan|migrate-tags|todos" (argument_owned 0i32) with
         | 0u64 => $"agile_task_listing::eoie_agile_list_run()"
         | 1u64 => $"agile_planning_rollup::eoie_agile_planning_rollup_run()"
         | 2u64 => $"agile_planning_migration::eoie_agile_migrate_tags_run()"
+        | 3u64 => $"agile_todo_scan::eoie_agile_todos_run()"
         | _ => agile_counted_entry ()
     else agile_counted_entry ()
 

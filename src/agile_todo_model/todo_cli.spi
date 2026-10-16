@@ -1,0 +1,95 @@
+/// # todo_cli
+
+nominal fixture_root = string
+
+type cli_run =
+    {
+        succeeded : bool
+        stdout : string
+        stderr : string
+    }
+
+inl cat (~left : string) (~right : string) : string = $'std::rc::Rc::<str>::from(format\!("{}{}", &*!left, &*!right))' : string
+inl contains (~text : string) (~part : string) : bool = $'!text.contains(&*!part)' : bool
+inl marker () : string = cat "TO" "DO"
+inl marked (~prefix : string) (~suffix : string) : string = cat (cat prefix (marker ())) suffix
+
+inl fixture_root_create (~label : string) : fixture_root =
+    fixture_root ($'{ let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(); let root = std::env::temp_dir().join(format\!("eoie todos {} {} {}", &*!label, std::process::id(), stamp)); std::fs::create_dir_all(&root).unwrap(); std::rc::Rc::<str>::from(root.to_string_lossy().replace(char::from(92u8), "/").as_str()) }' : string)
+
+inl fixture_path (fixture_root root) (~relative : string) : string = cat (cat root "/") relative
+
+inl fixture_write (root : fixture_root) (~relative : string) (~text : string) : () =
+    inl path = fixture_path root relative
+    $'{ let path = std::path::Path::new(&*!path); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path, !text.as_bytes()).unwrap(); }' : ()
+
+inl fixture_binary (root : fixture_root) (~relative : string) : () =
+    inl path = fixture_path root relative
+    $'std::fs::write(&*!path, [0u8, 1u8, 2u8]).unwrap()' : ()
+
+inl fixture_git_init (fixture_root root) : () =
+    $'{ let status = std::process::Command::new("git").arg("-C").arg(&*!root).args(["init", "-q"]).status().unwrap(); assert\!(status.success()); }' : ()
+
+inl fixture_root_remove (fixture_root root) : () = $'{ let _ = std::fs::remove_dir_all(&*!root); }' : ()
+
+inl todos (fixture_root root) (~extra : string) : cli_run =
+    inl succeeded, stdout, stderr =
+        $'{ let binary = std::env::var("EOIE_BIN_UNDER_TEST").unwrap_or_else(|_| "eoie".to_owned()); let mut command = std::process::Command::new(binary); command.current_dir(std::env::temp_dir()).args(["agile", "todos", &*!root, &*!root]); if \!(!extra).is_empty() { command.arg(&*!extra); } let output = command.output().unwrap(); (output.status.success(), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stdout).as_ref()), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stderr).as_ref())) }' : bool * string * string
+    { succeeded = succeeded; stdout = stdout; stderr = stderr }
+
+inl expect (condition : bool) (detail : string) : () = if condition then () else failwith detail
+
+inl shows (run : cli_run) (part : string) : () =
+    expect run.succeeded (cat "rejected: " run.stderr)
+    expect (contains run.stdout part) (cat (cat (cat "missing " part) " in: ") run.stdout)
+
+inl hides (run : cli_run) (part : string) : () =
+    expect (not (contains run.stdout part)) (cat (cat (cat "unexpected " part) " in: ") run.stdout)
+
+inl mixed_tree (label : string) : fixture_root =
+    inl root = fixture_root_create label
+    fixture_write root "a.spi" (marked "inl a = 1\n// " " split\n")
+    fixture_write root "main.spi" "inl main () = 0i32\n"
+    fixture_write root "main.c" (marked "// " " generated\n")
+    fixture_write root "node_modules/x/index.js" (marked "// " " vendored\n")
+    fixture_write root "tools/b.ps1" (marked "$x = 1 # " ": wire it\n")
+    fixture_write root "notes.md" (marked (marked "Prose (" ").\n<!-- ") ": link -->\n")
+    fixture_write root "quoted.rs" (marked "let s = \"// " "\";\n")
+    fixture_binary root "logo.bin"
+    root
+
+///> rust
+test todos_walks_a_plain_directory_and_skips_by_reason =
+    inl root = mixed_tree "walk"
+    inl run = todos root ""
+    shows run (marked "/a.spi:2  // " " split")
+    shows run (marked "/tools/b.ps1:1  # " ": wire it")
+    shows run (marked "/notes.md:2  <!-- " ": link")
+    hides run (marked "// " " generated")
+    hides run (marked "// " " vendored")
+    hides run "quoted.rs"
+    shows run "todos=3"
+    shows run "vendor:1"
+    shows run "generated:1"
+    fixture_root_remove root
+
+///> rust
+test todos_lists_a_git_work_tree_without_ignored_output =
+    inl root = mixed_tree "git"
+    fixture_git_init root
+    fixture_write root ".gitignore" "build/\n"
+    fixture_write root "build/out.spi" (marked "// " " ignored\n")
+    inl run = todos root ""
+    shows run (marked "/a.spi:2  // " " split")
+    hides run (marked "// " " ignored")
+    shows run "todos=3"
+    fixture_root_remove root
+
+///> rust
+test todos_json_lists_each_comment_once =
+    inl root = mixed_tree "json"
+    inl run = todos root "--json"
+    shows run "{\"todos\":["
+    shows run (marked "\"line\":2,\"text\":\"// " " split\"}")
+    shows run "\"todos\":3,\"skipped\":{"
+    fixture_root_remove root

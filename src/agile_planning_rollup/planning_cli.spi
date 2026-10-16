@@ -70,6 +70,7 @@ inl rejected (run : cli_run) (part : string) : () =
     expect (not run.succeeded) (cat "accepted: " run.stdout)
     expect (contains run.stderr part) (cat (cat (cat "missing " part) " in: ") run.stderr)
 
+///> rust
 test planning_edit_validates_and_renders_typed_fields =
     inl root = fixture "edit" (task_row "ID-A" "TaskKind" "Planned" "" "eoie,agile")
     inl before = state_read root
@@ -93,6 +94,7 @@ test planning_edit_validates_and_renders_typed_fields =
     expect (contains (state_read root) "Planning (\"ID-A\", Minutes 360u32, LoadUnset, Assigned Pair)") (state_read root)
     fixture_root_remove root
 
+///> rust
 test tag_migration_is_previewed_applied_once_and_keeps_rejected_tags =
     inl a = task_row "ID-A" "Epic" "Active" "" "eoie,est:300m,load:heavy,agent:yes"
     inl b = task_row "ID-B" "TaskKind" "Planned" "ID-A" "est:abc,load:light,agent:no,kino"

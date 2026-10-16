@@ -401,5 +401,14 @@ each stamped tail, undated clauses included, into one note dated from its stamp 
 entry that names it, in one write; titles that mention the old id are counted, not changed. Each of
 these writes only if `state/agile.spi` still holds what the call read.
 
+`agile todos <root> [<path>...] [--json]` lists the TODO comments in any language under each path
+(the backlog root when none is given) as `path:line  comment`, and reads nothing else. A git work tree
+is listed by `git ls-files -co --exclude-standard`, so ignored build output and nested repositories
+stay out; any other directory is walked without following links. The comment syntax comes from the
+extension (`//`, `#`, `--`, `;`, `%`, `<!--`, `(*`, `{-`, `REM`), a marker inside a string or a word does
+not count, and Spiral `///>`/`///-` directives are skipped. Files next to a `.spi` of the same stem are
+generated output and are skipped, as are vendor directories, binary files and files over 1 MiB; the
+receipt counts every skip by reason.
+
 See [README.windows.md](README.windows.md) for Windows filesystem and process details.
 See [FIRST-COMMIT-REVIEW.md](FIRST-COMMIT-REVIEW.md) for validation and remaining release scope.

@@ -1,0 +1,10 @@
+open workspace_primitives.numbers
+open agile_todo_model.model
+
+let todo_path_verdict (~relative : string) (spiral_sibling : bool) : i32 =
+    path_verdict_code (path_verdict relative spiral_sibling)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_todo_path_verdict", ((fun (relative, spiral_sibling) => todo_path_verdict relative spiral_sibling) : string * bool -> i32))
+    inl _ = todo_path_verdict "" false
+    0i32

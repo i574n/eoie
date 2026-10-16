@@ -1,0 +1,54 @@
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open agile_todo_model.model
+
+inl git_timeout_ms () : u64 = 60000u64
+inl nul_text () : string = $'std::rc::Rc::<str>::from(char::from(0u8).to_string())' : string
+
+inl git_output (~directory : string) (~arguments : string) : bool * string =
+    inl timeout = git_timeout_ms ()
+    $'{ let mut command = std::process::Command::new("git"); command.arg("-C").arg(&*!directory).args(!arguments.split(char::from(9u8))); match eoie_process::run_bounded_capture_with_input(&mut command, !timeout, None) { Ok(capture) => (capture.termination == eoie_process::ProcessTermination::Exited(0), std::rc::Rc::<str>::from(String::from_utf8_lossy(&capture.stdout).as_ref())), Err(error) => (false, std::rc::Rc::<str>::from(error)) } }' : bool * string
+
+inl walked_directory_code () : i32 = 2i32
+
+inl entry_code (~path : string) : i32 =
+    $'std::fs::symlink_metadata(&*!path).map(|metadata| if metadata.file_type().is_symlink() { 3 } else if metadata.is_dir() { 2 } else if metadata.is_file() { 1 } else { 0 }).unwrap_or(0)' : i32
+
+inl listed_names (~path : string) : string =
+    $'std::rc::Rc::<str>::from(eoie_rust_std_fs::rooted_list_names(std::path::Path::new(&*!path)).unwrap_or_default().join(&char::from(10u8).to_string()).as_str())' : string
+
+inl joined_path (~base : string) (~relative : string) : string =
+    if rust_std_string.model.equals base "" then relative
+    else rust_std_string.model.concat5 base "/" relative "" ""
+
+inl appended (~listing : string) (~relative : string) : string = rust_std_string.model.concat5 listing relative (nul_text ()) "" ""
+
+let rec walked_names (~directory : string) (~relative : string) (~names : string) (~offset : i32) (~listing : string) : string =
+    if i32_le (byte_len names) offset then listing
+    else
+        inl newline = byte_find_from names "\n" offset
+        inl stop = if i32_negative newline then byte_len names else newline
+        inl name = byte_slice names offset stop
+        inl next = i32_next stop
+        inl absolute = joined_path directory name
+        inl child = joined_path relative name
+        inl visited =
+            if rust_std_string.model.equals name "" then listing
+            elif both (i32_eq (entry_code absolute) (walked_directory_code ())) (vendor_directory name) then appended listing (joined_path child ".")
+            elif i32_eq (entry_code absolute) (walked_directory_code ()) then walked_directory absolute child listing
+            else appended listing child
+        walked_names directory relative names next visited
+and let walked_directory (~directory : string) (~relative : string) (~listing : string) : string =
+    walked_names directory relative (listed_names directory) 0i32 listing
+
+let todo_sources (~path : string) : bool * string =
+    if i32_eq (entry_code path) (walked_directory_code ()) then
+        inl inside, _ = git_output path "rev-parse\t--is-inside-work-tree"
+        if inside then git_output path "ls-files\t-co\t--exclude-standard\t-z"
+        else true, walked_directory path "" ""
+    else false, ""
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_todo_sources", ((fun path => todo_sources path) : string -> bool * string))
+    inl _ = todo_sources ""
+    0i32

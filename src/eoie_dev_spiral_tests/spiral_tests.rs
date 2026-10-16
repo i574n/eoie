@@ -66,9 +66,14 @@ fn closure0() -> Rc<dyn Fn(Rc<str>, Rc<str>, Rc<str>, Rc<str>, bool, u64) -> i32
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, Rc<str>, Rc<str>, Rc<str>, bool, u64) -> i32> = Rc::new(move |mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: bool, mut v5: u64| -> i32 {
         let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile-planning-rollup"); } LIT.with(|lit| lit.clone()) };
         let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/agile_planning_rollup/planning_cli.spi"); } LIT.with(|lit| lit.clone()) };
-        let mut v8: Rc<UH0> = { thread_local!{ static CASE: Rc<UH0> = Rc::new(UH0::UH0_NoMoreNotebooks); } CASE.with(|case| case.clone()) };
-        let mut v9: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v6.clone(), v7.clone(), v8.clone()));
-        run_all_0(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4, v5, v9.clone())
+        let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile-todo-scan"); } LIT.with(|lit| lit.clone()) };
+        let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/agile_todo_model/model.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/agile_todo_model/todo_cli.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v11: Rc<UH0> = { thread_local!{ static CASE: Rc<UH0> = Rc::new(UH0::UH0_NoMoreNotebooks); } CASE.with(|case| case.clone()) };
+        let mut v12: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v8.clone(), v10.clone(), v11.clone()));
+        let mut v13: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v8.clone(), v9.clone(), v12.clone()));
+        let mut v14: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v6.clone(), v7.clone(), v13.clone()));
+        run_all_0(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4, v5, v14.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_dev_spiral_tests_run(v0: &str, v1: &str, v2: &str, v3: &str, v4: bool, v5: u64) -> i32 {

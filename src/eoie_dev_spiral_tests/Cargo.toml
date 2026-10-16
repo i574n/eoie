@@ -1,3 +1,6 @@
+[package.metadata.eoie]
+test-requires-cli = true
+
 [package.metadata.spiral]
 entry = "main.spi"
 output = "spiral_tests.rs"
