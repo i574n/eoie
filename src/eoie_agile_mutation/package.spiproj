@@ -2,6 +2,8 @@ packages:
     rust_std_env
     rust_std_string
     agile_mutation_policy
+    agile_subcommand_domain
+    union_reflection
 modules:
     agile_terminal
     agile_mutation

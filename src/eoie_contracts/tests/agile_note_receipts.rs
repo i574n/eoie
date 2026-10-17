@@ -19,6 +19,7 @@ impl Backlog {
     fn command(&self, verb: &str) -> Command {
         let mut command = Command::new(&self.binary);
         command.current_dir(env::temp_dir()).env_remove("EOIE_LEASE_ROOT").env_remove("EOIE_CONTROL_READ_ONLY").env_remove("EOIE_AGILE_TEST_PAUSE_MS")
+            .env_remove("AI_AGENT").env_remove("CLAUDECODE")
             .env("EOIE_LEASE_POLICY", "renewing").env("EOIE_CONFIG_HOME", &self.root).args(["agile", verb]);
         command
     }

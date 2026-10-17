@@ -3,23 +3,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
 enum US0 {
-    US0_EstimateField,
-    US0_LoadField,
-    US0_AssigneeField,
-}
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_EstimateField => 0,
-            US0::US0_LoadField => 1,
-            US0::US0_AssigneeField => 2,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_EstimateField
-    }
+    US0_FieldEstimate,
+    US0_FieldLoad,
+    US0_FieldAssignee,
 }
 #[derive(Clone)]
 enum US1 {
@@ -27,55 +13,15 @@ enum US1 {
     US1_ScanQuoted,
     US1_ScanEscaped,
 }
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_ScanPlain => 0,
-            US1::US1_ScanQuoted => 1,
-            US1::US1_ScanEscaped => 2,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_ScanPlain
-    }
-}
 #[derive(Clone)]
 enum US2 {
     US2_Valid(Rc<str>),
     US2_Invalid,
 }
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_Valid(..) => 0,
-            US2::US2_Invalid => 1,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_Valid({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US3 {
     US3_Valid(US0),
     US3_Invalid,
-}
-impl US3 {
-    fn tag(&self) -> i32 {
-        match self {
-            US3::US3_Valid(..) => 0,
-            US3::US3_Invalid => 1,
-        }
-    }
-}
-impl Default for US3 {
-    fn default() -> Self {
-        US3::US3_Valid(<US0>::default())
-    }
 }
 fn planning_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_planning ="); } LIT.with(|lit| lit.clone()) };
@@ -86,40 +32,48 @@ fn planning_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
         let mut v5: i32 = v0.find(&*v4).map(|offset| offset as i32).unwrap_or(-1);
         let mut v6: bool = v5 < 0;
         if v6 {
-            let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_load =\n    | Light :: task_load | Medium :: task_load | Heavy :: task_load\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_assignee =\n    | Agent :: task_assignee | Pair :: task_assignee | User :: task_assignee\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union planned_estimate =\n    | Unestimated :: planned_estimate | Minutes :: u32 -> planned_estimate\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union planned_load =\n    | LoadUnset :: planned_load | Load :: task_load -> planned_load\n\nunion planned_assignee =\n    | Unassigned :: planned_assignee | Assigned :: task_assignee -> planned_assignee\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_planning =\n    | Planning :: string * planned_estimate * planned_load * planned_assignee -> task_planning"); } LIT.with(|lit| lit.clone()) };
-            let mut v12: Rc<str> = std::rc::Rc::<str>::from([&*v7, &*v8, &*v9, &*v10, &*v11].concat());
-            let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            let mut v15: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v13, &*v0, &*v14, &*v14].concat());
-            v15.clone()
+            let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_load =\n    | "); } LIT.with(|lit| lit.clone()) };
+            let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Light :: task_load | Medium :: task_load | Heavy :: task_load"); } LIT.with(|lit| lit.clone()) };
+            let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n\n"); } LIT.with(|lit| lit.clone()) };
+            let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            let mut v11: Rc<str> = std::rc::Rc::<str>::from([&*v7, &*v8, &*v9, &*v10, &*v10].concat());
+            let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_assignee =\n    | "); } LIT.with(|lit| lit.clone()) };
+            let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Agent :: task_assignee | Pair :: task_assignee | User :: task_assignee"); } LIT.with(|lit| lit.clone()) };
+            let mut v14: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v13, &*v9, &*v10, &*v10].concat());
+            let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union planned_estimate =\n    | Unestimated :: planned_estimate | Minutes :: u32 -> planned_estimate\n\n"); } LIT.with(|lit| lit.clone()) };
+            let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union planned_load =\n    | LoadUnset :: planned_load | Load :: task_load -> planned_load\n\nunion planned_assignee =\n    | Unassigned :: planned_assignee | Assigned :: task_assignee -> planned_assignee\n\n"); } LIT.with(|lit| lit.clone()) };
+            let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_planning =\n    | Planning :: string * planned_estimate * planned_load * planned_assignee -> task_planning"); } LIT.with(|lit| lit.clone()) };
+            let mut v18: Rc<str> = std::rc::Rc::<str>::from([&*v11, &*v14, &*v15, &*v16, &*v17].concat());
+            let mut v19: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v9, &*v0, &*v10, &*v10].concat());
+            v19.clone()
         } else {
-            let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v17: i32 = v0.get(v5 as usize..).and_then(|rest| rest.find(&*v16)).map(|found| (found + v5 as usize) as i32).unwrap_or(-1);
-            let mut v18: bool = v17 < 0;
-            let mut v20: i32 = if v18 {
-                let mut v19: i32 = v0.len() as i32;
-                v19
+            let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
+            let mut v21: i32 = v0.get(v5 as usize..).and_then(|rest| rest.find(&*v20)).map(|found| (found + v5 as usize) as i32).unwrap_or(-1);
+            let mut v22: bool = v21 < 0;
+            let mut v24: i32 = if v22 {
+                let mut v23: i32 = v0.len() as i32;
+                v23
             } else {
-                v17
+                v21
             };
-            let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_load =\n    | Light :: task_load | Medium :: task_load | Heavy :: task_load\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v23: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_assignee =\n    | Agent :: task_assignee | Pair :: task_assignee | User :: task_assignee\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union planned_estimate =\n    | Unestimated :: planned_estimate | Minutes :: u32 -> planned_estimate\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union planned_load =\n    | LoadUnset :: planned_load | Load :: task_load -> planned_load\n\nunion planned_assignee =\n    | Unassigned :: planned_assignee | Assigned :: task_assignee -> planned_assignee\n\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_planning =\n    | Planning :: string * planned_estimate * planned_load * planned_assignee -> task_planning"); } LIT.with(|lit| lit.clone()) };
-            let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v22, &*v23, &*v24, &*v25, &*v26].concat());
+            let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n\n"); } LIT.with(|lit| lit.clone()) };
+            let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_load =\n    | "); } LIT.with(|lit| lit.clone()) };
+            let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Light :: task_load | Medium :: task_load | Heavy :: task_load"); } LIT.with(|lit| lit.clone()) };
             let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            let mut v29: Rc<str> = std::rc::Rc::<str>::from([&*v21, &*v27, &*v28, &*v28, &*v28].concat());
-            let mut v30: Rc<str> = std::rc::Rc::<str>::from(v0.get(0i32 as usize..v20 as usize).unwrap_or(""));
-            let mut v31: i32 = v0.len() as i32;
-            let mut v32: Rc<str> = std::rc::Rc::<str>::from(v0.get(v20 as usize..v31 as usize).unwrap_or(""));
-            let mut v33: Rc<str> = std::rc::Rc::<str>::from([&*v30, &*v29, &*v32, &*v28, &*v28].concat());
-            v33.clone()
+            let mut v29: Rc<str> = std::rc::Rc::<str>::from([&*v26, &*v27, &*v25, &*v28, &*v28].concat());
+            let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_assignee =\n    | "); } LIT.with(|lit| lit.clone()) };
+            let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Agent :: task_assignee | Pair :: task_assignee | User :: task_assignee"); } LIT.with(|lit| lit.clone()) };
+            let mut v32: Rc<str> = std::rc::Rc::<str>::from([&*v30, &*v31, &*v25, &*v28, &*v28].concat());
+            let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union planned_estimate =\n    | Unestimated :: planned_estimate | Minutes :: u32 -> planned_estimate\n\n"); } LIT.with(|lit| lit.clone()) };
+            let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union planned_load =\n    | LoadUnset :: planned_load | Load :: task_load -> planned_load\n\nunion planned_assignee =\n    | Unassigned :: planned_assignee | Assigned :: task_assignee -> planned_assignee\n\n"); } LIT.with(|lit| lit.clone()) };
+            let mut v35: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_planning =\n    | Planning :: string * planned_estimate * planned_load * planned_assignee -> task_planning"); } LIT.with(|lit| lit.clone()) };
+            let mut v36: Rc<str> = std::rc::Rc::<str>::from([&*v29, &*v32, &*v33, &*v34, &*v35].concat());
+            let mut v37: Rc<str> = std::rc::Rc::<str>::from([&*v25, &*v36, &*v28, &*v28, &*v28].concat());
+            let mut v38: Rc<str> = std::rc::Rc::<str>::from(v0.get(0i32 as usize..v24 as usize).unwrap_or(""));
+            let mut v39: i32 = v0.len() as i32;
+            let mut v40: Rc<str> = std::rc::Rc::<str>::from(v0.get(v24 as usize..v39 as usize).unwrap_or(""));
+            let mut v41: Rc<str> = std::rc::Rc::<str>::from([&*v38, &*v37, &*v40, &*v28, &*v28].concat());
+            v41.clone()
         }
     } else {
         v0.clone()
@@ -356,17 +310,17 @@ fn field_token_rewrite_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US0, mut v3: 
     let mut v4: Rc<str> = planning_schema_ensured_2(v0.clone());
     let (mut v5, mut v6, mut v7): (Rc<str>, Rc<str>, Rc<str>) = planning_tokens_of_3(v0.clone(), v1.clone());
     let (mut v14, mut v15, mut v16): (Rc<str>, Rc<str>, Rc<str>) = match &v2 {
-        US0::US0_EstimateField => {
+        US0::US0_FieldEstimate => {
             (v3.clone(), v6.clone(), v7.clone())
         }
         _ => {
             let (mut v11, mut v12, mut v13): (Rc<str>, Rc<str>, Rc<str>) = match &v2 {
-                US0::US0_LoadField => {
+                US0::US0_FieldLoad => {
                     (v5.clone(), v3.clone(), v7.clone())
                 }
                 _ => {
                     let (mut v8, mut v9, mut v10): (Rc<str>, Rc<str>, Rc<str>) = match &v2 {
-                        US0::US0_AssigneeField => {
+                        US0::US0_FieldAssignee => {
                             (v5.clone(), v6.clone(), v3.clone())
                         }
                         _ => unreachable!(),
@@ -390,35 +344,41 @@ fn field_token_rewrite_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US0, mut v3: 
     }
 }
 fn planning_rewrite_0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>) -> (i32, Rc<str>) {
-    let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("estimate|load|assignee"); } LIT.with(|lit| lit.clone()) };
-    let mut v5: u64 = v4.split("|").position(|item| item == &*v2).map(|index| index as u64).unwrap_or(u64::MAX);
-    let mut v6: bool = 0u64 == v5;
-    let mut v18: US3 = if v6 {
-        let mut v7: US0 = US0::US0_EstimateField;
+    let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Estimate"); } LIT.with(|lit| lit.clone()) };
+    let mut v5: Rc<str> = std::rc::Rc::<str>::from(v4.to_ascii_lowercase());
+    let mut v6: bool = v2 == v5 ;
+    let mut v10: US3 = if v6 {
+        let mut v7: US0 = US0::US0_FieldEstimate;
         US3::US3_Valid(v7.clone())
     } else {
-        let mut v9: bool = 1u64 == v5;
-        if v9 {
-            let mut v10: US0 = US0::US0_LoadField;
-            US3::US3_Valid(v10.clone())
-        } else {
-            let mut v12: bool = 2u64 == v5;
-            if v12 {
-                let mut v13: US0 = US0::US0_AssigneeField;
-                US3::US3_Valid(v13.clone())
-            } else {
-                US3::US3_Invalid
-            }
-        }
+        US3::US3_Invalid
     };
-    match &v18 {
+    let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Load"); } LIT.with(|lit| lit.clone()) };
+    let mut v12: Rc<str> = std::rc::Rc::<str>::from(v11.to_ascii_lowercase());
+    let mut v13: bool = v2 == v12 ;
+    let mut v16: US3 = if v13 {
+        let mut v14: US0 = US0::US0_FieldLoad;
+        US3::US3_Valid(v14.clone())
+    } else {
+        v10.clone()
+    };
+    let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Assignee"); } LIT.with(|lit| lit.clone()) };
+    let mut v18: Rc<str> = std::rc::Rc::<str>::from(v17.to_ascii_lowercase());
+    let mut v19: bool = v2 == v18 ;
+    let mut v22: US3 = if v19 {
+        let mut v20: US0 = US0::US0_FieldAssignee;
+        US3::US3_Valid(v20.clone())
+    } else {
+        v16.clone()
+    };
+    match &v22 {
         US3::US3_Invalid => {
-            let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("field must be estimate, load or assignee"); } LIT.with(|lit| lit.clone()) };
-            (1i32, v22.clone())
+            let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("field must be estimate, load or assignee"); } LIT.with(|lit| lit.clone()) };
+            (1i32, v26.clone())
         }
-        US3::US3_Valid(v19) => {
-            let mut v19: US0 = v19.clone();
-            field_token_rewrite_1(v0.clone(), v1.clone(), v19.clone(), v3.clone())
+        US3::US3_Valid(v23) => {
+            let mut v23: US0 = v23.clone();
+            field_token_rewrite_1(v0.clone(), v1.clone(), v23.clone(), v3.clone())
         }
     }
 }

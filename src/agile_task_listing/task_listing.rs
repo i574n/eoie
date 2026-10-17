@@ -6,36 +6,10 @@ enum US0 {
     US0_AllStatuses,
     US0_OnlyStatus(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_AllStatuses => 0,
-            US0::US0_OnlyStatus(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_AllStatuses
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_TableFormat,
     US1_JsonFormat,
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_TableFormat => 0,
-            US1::US1_JsonFormat => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_TableFormat
-    }
 }
 #[derive(Clone)]
 enum US2 {
@@ -43,73 +17,20 @@ enum US2 {
     US2_ScanQuoted,
     US2_ScanEscaped,
 }
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_ScanPlain => 0,
-            US2::US2_ScanQuoted => 1,
-            US2::US2_ScanEscaped => 2,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_ScanPlain
-    }
-}
 #[derive(Clone)]
 enum US3 {
     US3_FileReadable(Rc<str>),
     US3_FileMissing(Rc<str>),
-}
-impl US3 {
-    fn tag(&self) -> i32 {
-        match self {
-            US3::US3_FileReadable(..) => 0,
-            US3::US3_FileMissing(..) => 1,
-        }
-    }
-}
-impl Default for US3 {
-    fn default() -> Self {
-        US3::US3_FileReadable({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
 }
 #[derive(Clone)]
 enum US4 {
     US4_ListParsed(US0, Rc<str>, Rc<str>, US1),
     US4_ListRejected(Rc<str>),
 }
-impl US4 {
-    fn tag(&self) -> i32 {
-        match self {
-            US4::US4_ListParsed(..) => 0,
-            US4::US4_ListRejected(..) => 1,
-        }
-    }
-}
-impl Default for US4 {
-    fn default() -> Self {
-        US4::US4_ListParsed(<US0>::default(), { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }, { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }, <US1>::default())
-    }
-}
 #[derive(Clone)]
 enum US5 {
     US5_Valid(US0),
     US5_Invalid,
-}
-impl US5 {
-    fn tag(&self) -> i32 {
-        match self {
-            US5::US5_Valid(..) => 0,
-            US5::US5_Invalid => 1,
-        }
-    }
-}
-impl Default for US5 {
-    fn default() -> Self {
-        US5::US5_Valid(<US0>::default())
-    }
 }
 fn field_end_7(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US2) -> i32 {
     loop {

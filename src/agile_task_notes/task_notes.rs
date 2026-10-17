@@ -6,38 +6,11 @@ enum US0 {
     US0_FileReadable(Rc<str>),
     US0_FileMissing(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_FileReadable(..) => 0,
-            US0::US0_FileMissing(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_FileReadable({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_StateWritten,
     US1_StateChangedSinceRead,
     US1_StateWriteFailed(Rc<str>),
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_StateWritten => 0,
-            US1::US1_StateChangedSinceRead => 1,
-            US1::US1_StateWriteFailed(..) => 2,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_StateWritten
-    }
 }
 #[derive(Clone)]
 enum US2 {
@@ -46,42 +19,12 @@ enum US2 {
     US2_RenameFailed,
     US2_ReadbackMismatch,
 }
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_Replaced => 0,
-            US2::US2_TemporaryWriteFailed => 1,
-            US2::US2_RenameFailed => 2,
-            US2::US2_ReadbackMismatch => 3,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_Replaced
-    }
-}
 #[derive(Clone)]
 enum US3 {
     US3_AuthorDefault,
     US3_AuthorNamed(Rc<str>),
     US3_AuthorUnnamedAgent,
     US3_AuthorMalformed,
-}
-impl US3 {
-    fn tag(&self) -> i32 {
-        match self {
-            US3::US3_AuthorDefault => 0,
-            US3::US3_AuthorNamed(..) => 1,
-            US3::US3_AuthorUnnamedAgent => 2,
-            US3::US3_AuthorMalformed => 3,
-        }
-    }
-}
-impl Default for US3 {
-    fn default() -> Self {
-        US3::US3_AuthorDefault
-    }
 }
 fn declared_from_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
     loop {

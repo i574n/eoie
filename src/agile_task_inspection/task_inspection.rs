@@ -6,36 +6,10 @@ enum US0 {
     US0_ShowText,
     US0_ShowJson,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_ShowText => 0,
-            US0::US0_ShowJson => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_ShowText
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_FileReadable(Rc<str>),
     US1_FileMissing(Rc<str>),
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_FileReadable(..) => 0,
-            US1::US1_FileMissing(..) => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_FileReadable({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
 }
 #[derive(Clone)]
 enum US2 {
@@ -43,37 +17,10 @@ enum US2 {
     US2_ScanQuoted,
     US2_ScanEscaped,
 }
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_ScanPlain => 0,
-            US2::US2_ScanQuoted => 1,
-            US2::US2_ScanEscaped => 2,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_ScanPlain
-    }
-}
 #[derive(Clone)]
 enum US3 {
     US3_Valid(US0),
     US3_Invalid,
-}
-impl US3 {
-    fn tag(&self) -> i32 {
-        match self {
-            US3::US3_Valid(..) => 0,
-            US3::US3_Invalid => 1,
-        }
-    }
-}
-impl Default for US3 {
-    fn default() -> Self {
-        US3::US3_Valid(<US0>::default())
-    }
 }
 fn task_summary_3(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: Rc<str>, mut v8: Rc<str>) -> Rc<str> {
     let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  "); } LIT.with(|lit| lit.clone()) };

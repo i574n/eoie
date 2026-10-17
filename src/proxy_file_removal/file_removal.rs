@@ -6,40 +6,12 @@ enum US0 {
     US0_RemovalReceipt(Rc<str>),
     US0_RemovalRejected(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_RemovalReceipt(..) => 0,
-            US0::US0_RemovalRejected(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_RemovalReceipt({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_RemovedFile,
     US1_RemovedSymlink,
     US1_MissingEntry,
     US1_DirectoryEntry,
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_RemovedFile => 0,
-            US1::US1_RemovedSymlink => 1,
-            US1::US1_MissingEntry => 2,
-            US1::US1_DirectoryEntry => 3,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_RemovedFile
-    }
 }
 fn file_removal_outcome_1() -> US0 {
     let mut v0: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);

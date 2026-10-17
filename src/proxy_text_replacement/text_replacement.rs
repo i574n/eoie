@@ -6,54 +6,15 @@ enum US0 {
     US0_ReplacementReceipt(Rc<str>),
     US0_ReplacementRejected(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_ReplacementReceipt(..) => 0,
-            US0::US0_ReplacementRejected(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_ReplacementReceipt({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US2 {
     US2_CheckReplacement,
     US2_ApplyReplacement,
 }
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_CheckReplacement => 0,
-            US2::US2_ApplyReplacement => 1,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_CheckReplacement
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_Valid(US2),
     US1_Invalid,
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_Valid(..) => 0,
-            US1::US1_Invalid => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_Valid(<US2>::default())
-    }
 }
 #[derive(Clone)]
 enum US4 {
@@ -61,37 +22,10 @@ enum US4 {
     US4_ExactlyMatches(u64),
     US4_EveryMatch,
 }
-impl US4 {
-    fn tag(&self) -> i32 {
-        match self {
-            US4::US4_ExactlyOneMatch => 0,
-            US4::US4_ExactlyMatches(..) => 1,
-            US4::US4_EveryMatch => 2,
-        }
-    }
-}
-impl Default for US4 {
-    fn default() -> Self {
-        US4::US4_ExactlyOneMatch
-    }
-}
 #[derive(Clone)]
 enum US3 {
     US3_Valid(US4),
     US3_Invalid,
-}
-impl US3 {
-    fn tag(&self) -> i32 {
-        match self {
-            US3::US3_Valid(..) => 0,
-            US3::US3_Invalid => 1,
-        }
-    }
-}
-impl Default for US3 {
-    fn default() -> Self {
-        US3::US3_Valid(<US4>::default())
-    }
 }
 #[derive(Clone)]
 enum US5 {
@@ -99,21 +33,6 @@ enum US5 {
     US5_TemporaryWriteFailed,
     US5_RenameFailed,
     US5_ReadbackMismatch,
-}
-impl US5 {
-    fn tag(&self) -> i32 {
-        match self {
-            US5::US5_Replaced => 0,
-            US5::US5_TemporaryWriteFailed => 1,
-            US5::US5_RenameFailed => 2,
-            US5::US5_ReadbackMismatch => 3,
-        }
-    }
-}
-impl Default for US5 {
-    fn default() -> Self {
-        US5::US5_Replaced
-    }
 }
 fn text_replace_outcome_1() -> US0 {
     let mut v0: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);

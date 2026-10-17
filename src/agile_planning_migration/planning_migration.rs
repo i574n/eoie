@@ -6,19 +6,6 @@ enum US0 {
     US0_MigrationDryRun,
     US0_MigrationApply,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_MigrationDryRun => 0,
-            US0::US0_MigrationApply => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_MigrationDryRun
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_Replaced,
@@ -26,38 +13,10 @@ enum US1 {
     US1_RenameFailed,
     US1_ReadbackMismatch,
 }
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_Replaced => 0,
-            US1::US1_TemporaryWriteFailed => 1,
-            US1::US1_RenameFailed => 2,
-            US1::US1_ReadbackMismatch => 3,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_Replaced
-    }
-}
 #[derive(Clone)]
 enum US2 {
     US2_FileReadable(Rc<str>),
     US2_FileMissing(Rc<str>),
-}
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_FileReadable(..) => 0,
-            US2::US2_FileMissing(..) => 1,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_FileReadable({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
 }
 #[derive(Clone)]
 enum US3 {
@@ -65,73 +24,20 @@ enum US3 {
     US3_ScanQuoted,
     US3_ScanEscaped,
 }
-impl US3 {
-    fn tag(&self) -> i32 {
-        match self {
-            US3::US3_ScanPlain => 0,
-            US3::US3_ScanQuoted => 1,
-            US3::US3_ScanEscaped => 2,
-        }
-    }
-}
-impl Default for US3 {
-    fn default() -> Self {
-        US3::US3_ScanPlain
-    }
-}
 #[derive(Clone)]
 enum US4 {
     US4_PlainTag,
     US4_PlanningTag(Rc<str>, Rc<str>),
-}
-impl US4 {
-    fn tag(&self) -> i32 {
-        match self {
-            US4::US4_PlainTag => 0,
-            US4::US4_PlanningTag(..) => 1,
-        }
-    }
-}
-impl Default for US4 {
-    fn default() -> Self {
-        US4::US4_PlainTag
-    }
 }
 #[derive(Clone)]
 enum US5 {
     US5_StepText(Rc<str>),
     US5_StepRejected(Rc<str>),
 }
-impl US5 {
-    fn tag(&self) -> i32 {
-        match self {
-            US5::US5_StepText(..) => 0,
-            US5::US5_StepRejected(..) => 1,
-        }
-    }
-}
-impl Default for US5 {
-    fn default() -> Self {
-        US5::US5_StepText({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US6 {
     US6_Valid(US0),
     US6_Invalid,
-}
-impl US6 {
-    fn tag(&self) -> i32 {
-        match self {
-            US6::US6_Valid(..) => 0,
-            US6::US6_Invalid => 1,
-        }
-    }
-}
-impl Default for US6 {
-    fn default() -> Self {
-        US6::US6_Valid(<US0>::default())
-    }
 }
 fn migration_receipt_3(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32, mut v4: i32, mut v5: Rc<str>, mut v6: u64) -> i32 {
     let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie agile migrate-tags "); } LIT.with(|lit| lit.clone()) };

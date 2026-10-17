@@ -7,20 +7,6 @@ enum US0 {
     US0_ScanQuoted,
     US0_ScanEscaped,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_ScanPlain => 0,
-            US0::US0_ScanQuoted => 1,
-            US0::US0_ScanEscaped => 2,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_ScanPlain
-    }
-}
 fn field_end_6(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US0) -> i32 {
     loop {
         let mut v4: bool = v2 <= v1;

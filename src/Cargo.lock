@@ -158,6 +158,7 @@ version = "0.0.0"
 name = "agile-todo-scan"
 version = "0.0.0"
 dependencies = [
+ "agile-task-census",
  "agile-todo-lines",
  "agile-todo-paths",
  "agile-todo-sources",

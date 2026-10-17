@@ -6,19 +6,6 @@ enum UH0 {
     UH0_NoMoreNotebooks,
     UH0_SpiralTestNotebook(Rc<str>, Rc<str>, Rc<UH0>),
 }
-impl UH0 {
-    fn tag(&self) -> i32 {
-        match self {
-            UH0::UH0_NoMoreNotebooks => 0,
-            UH0::UH0_SpiralTestNotebook(..) => 1,
-        }
-    }
-}
-impl Default for UH0 {
-    fn default() -> Self {
-        UH0::UH0_NoMoreNotebooks
-    }
-}
 fn run_all_0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>, mut v4: bool, mut v5: u64, mut v6: Rc<UH0>) -> i32 {
     loop {
         match &*v6 {
@@ -45,7 +32,7 @@ fn run_all_0(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>,
 ",&*v8).as_bytes()).unwrap(); 0i32 };
                         v16
                     } else {
-                        let mut v17: i32 = { let root=std::path::Path::new(&*v0); let target=std::path::Path::new(&*v1); let kino=std::env::var_os("EOIE_SPIRAL_KINO").map(std::path::PathBuf::from).or_else(|| std::env::var_os("EOIE_SPIRAL_BUNDLE").map(|bundle| std::path::PathBuf::from(bundle).join("..").join("..").join("kino"))).unwrap_or_else(|| root.join("..").join("spiral").join("apps").join("kino")); let source=root.join(&*v8); let output=target.join("spiral-tests").join(source.file_name().unwrap()).with_extension("spi.ipynb"); let _=std::fs::create_dir_all(target.join("spiral-tests")); let eoie=target.join("debug").join(format!("eoie{}",std::env::consts::EXE_SUFFIX)); let mut command=std::process::Command::new("pwsh"); command.current_dir(root).arg("-NoProfile").arg("-File").arg(kino.join("spi").join("run_notebook.ps1")).arg("--path").arg(&source).arg("--output-path").arg(&output).arg("--no-html").env("EOIE_BIN_UNDER_TEST",&eoie).env("SPIRAL_KINO_WARM","0").env("SPIRAL_KINO_MEMO","0").env("SPIRAL_KINO_COMPILER","process"); match eoie_process::run_bounded(&mut command,v5) { Ok(status) => status.code().unwrap_or(1), Err(error) => { let _=std::io::Write::write_all(&mut std::io::stderr(),error.as_bytes()); 2 } } };
+                        let mut v17: i32 = { let root=std::path::Path::new(&*v0); let target=std::path::Path::new(&*v1); let kino=std::env::var_os("EOIE_SPIRAL_CELLS").map(std::path::PathBuf::from).or_else(|| std::env::var_os("EOIE_SPIRAL_BUNDLE").map(|bundle| std::path::PathBuf::from(bundle).join("..").join("..").join("cells"))).unwrap_or_else(|| root.join("..").join("spiral").join("apps").join("cells")); let source=root.join(&*v8); let output=target.join("spiral-tests").join(source.file_name().unwrap()).with_extension("spi.ipynb"); let _=std::fs::create_dir_all(target.join("spiral-tests")); let eoie=target.join("debug").join(format!("eoie{}",std::env::consts::EXE_SUFFIX)); let mut command=std::process::Command::new("pwsh"); command.current_dir(root).arg("-NoProfile").arg("-File").arg(kino.join("spi").join("run_notebook.ps1")).arg("--path").arg(&source).arg("--output-path").arg(&output).arg("--no-html").env("EOIE_BIN_UNDER_TEST",&eoie).env("SPIRAL_CELLS_WARM","0").env("SPIRAL_CELLS_MEMO","0").env("SPIRAL_CELLS_COMPILER","process"); match eoie_process::run_bounded(&mut command,v5) { Ok(status) => status.code().unwrap_or(1), Err(error) => { let _=std::io::Write::write_all(&mut std::io::stderr(),error.as_bytes()); 2 } } };
                         v17
                     }
                 } else {

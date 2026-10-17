@@ -315,42 +315,46 @@ fn closure15() -> Rc<dyn Fn(i32, i32) -> i32> {
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn agile_status_text_21(mut v0: Rc<str>) -> Rc<str> {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("0"); } LIT.with(|lit| lit.clone()) };
+    let mut v1: Rc<str> = std::rc::Rc::<str>::from((0i32).to_string());
     let mut v2: bool = v0 == v1 ;
-    if v2 {
+    let mut v5: Rc<str> = if v2 {
         let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Planned"); } LIT.with(|lit| lit.clone()) };
         v3.clone()
     } else {
-        let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
-        let mut v5: bool = v0 == v4 ;
-        if v5 {
-            let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Active"); } LIT.with(|lit| lit.clone()) };
-            v6.clone()
-        } else {
-            let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("2"); } LIT.with(|lit| lit.clone()) };
-            let mut v8: bool = v0 == v7 ;
-            if v8 {
-                let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Blocked"); } LIT.with(|lit| lit.clone()) };
-                v9.clone()
-            } else {
-                let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("3"); } LIT.with(|lit| lit.clone()) };
-                let mut v11: bool = v0 == v10 ;
-                if v11 {
-                    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Paused"); } LIT.with(|lit| lit.clone()) };
-                    v12.clone()
-                } else {
-                    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("4"); } LIT.with(|lit| lit.clone()) };
-                    let mut v14: bool = v0 == v13 ;
-                    if v14 {
-                        let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Done"); } LIT.with(|lit| lit.clone()) };
-                        v15.clone()
-                    } else {
-                        let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        v16.clone()
-                    }
-                }
-            }
-        }
+        let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        v4.clone()
+    };
+    let mut v6: Rc<str> = std::rc::Rc::<str>::from((1i32).to_string());
+    let mut v7: bool = v0 == v6 ;
+    let mut v9: Rc<str> = if v7 {
+        let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Active"); } LIT.with(|lit| lit.clone()) };
+        v8.clone()
+    } else {
+        v5.clone()
+    };
+    let mut v10: Rc<str> = std::rc::Rc::<str>::from((2i32).to_string());
+    let mut v11: bool = v0 == v10 ;
+    let mut v13: Rc<str> = if v11 {
+        let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Blocked"); } LIT.with(|lit| lit.clone()) };
+        v12.clone()
+    } else {
+        v9.clone()
+    };
+    let mut v14: Rc<str> = std::rc::Rc::<str>::from((3i32).to_string());
+    let mut v15: bool = v0 == v14 ;
+    let mut v17: Rc<str> = if v15 {
+        let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Paused"); } LIT.with(|lit| lit.clone()) };
+        v16.clone()
+    } else {
+        v13.clone()
+    };
+    let mut v18: Rc<str> = std::rc::Rc::<str>::from((4i32).to_string());
+    let mut v19: bool = v0 == v18 ;
+    if v19 {
+        let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Done"); } LIT.with(|lit| lit.clone()) };
+        v20.clone()
+    } else {
+        v17.clone()
     }
 }
 fn closure16() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {

@@ -1,0 +1,23 @@
+inl union_cases_fold forall union_type state. (step : state -> union_type -> state) (initial : state) : state =
+    real
+        !!!!UnionToRecord(`union_type, forall union_record. =>
+            !!!!RecordTypeFold(
+                (fun acc case_key => forall payload. => step acc (!!!!NominalCreate((case_key, ()), `union_type))),
+                initial,
+                `union_record
+            )
+        )
+
+inl union_cases_joined forall union_type. (render : union_type -> string) (separator : string) : string =
+    inl _, joined =
+        union_cases_fold
+            (fun (between, joined) (member : union_type) => separator, !!!!StaticStringConcat(joined, !!!!StaticStringConcat(between, render member)))
+            ("", "")
+    joined
+
+inl union_case_suffix forall union_type. (prefix : string) (value : union_type) : string =
+    real
+        !!!!Unbox(value, fun (case_key, _) =>
+            inl name = !!!!SymbolToString(case_key)
+            !!!!StringSlice(name, !!!!StringLength(`i32, prefix), !!!!Sub(!!!!StringLength(`i32, name), 1i32))
+        )

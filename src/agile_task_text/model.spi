@@ -7,35 +7,13 @@ open workspace_primitives.files
 open agile_mutation_policy.model
 open rust_std_fs.model
 
-inl parse_task_kind (~text : string) : validation_result agile_task_kind =
-    match rust_std_string.model.pipe_index "Epic|Feature|Story|TaskKind" text with
-    | 0u64 => Valid AgileEpic
-    | 1u64 => Valid AgileFeature
-    | 2u64 => Valid AgileStory
-    | 3u64 => Valid AgileTaskKind
-    | _ => Invalid
-inl parse_priority (~text : string) : validation_result agile_priority =
-    match rust_std_string.model.pipe_index "P0|P1|P2|P3|P4|P5" text with
-    | 0u64 => Valid AgileP0
-    | 1u64 => Valid AgileP1
-    | 2u64 => Valid AgileP2
-    | 3u64 => Valid AgileP3
-    | 4u64 => Valid AgileP4
-    | 5u64 => Valid AgileP5
-    | _ => Invalid
-inl parse_difficulty (~text : string) : validation_result agile_difficulty =
-    match rust_std_string.model.pipe_index "D0|D1|D2|D3|D4|D5|D6|D7|D8" text with
-    | 0u64 => Valid AgileD0
-    | 1u64 => Valid AgileD1
-    | 2u64 => Valid AgileD2
-    | 3u64 => Valid AgileD3
-    | 4u64 => Valid AgileD4
-    | 5u64 => Valid AgileD5
-    | 6u64 => Valid AgileD6
-    | 7u64 => Valid AgileD7
-    | 8u64 => Valid AgileD8
-    | _ => Invalid
-
+inl parse_agile_case forall t. (~text : string) : validation_result t =
+    union_reflection.cases.union_cases_fold
+        (fun parsed (case_value : t) => if rust_std_string.model.equals text (agile_case_text case_value) then Valid case_value else parsed)
+        Invalid
+inl parse_task_kind text : validation_result agile_task_kind = parse_agile_case text
+inl parse_priority text : validation_result agile_priority = parse_agile_case text
+inl parse_difficulty text : validation_result agile_difficulty = parse_agile_case text
 union scan_state =
     | ScanPlain
     | ScanQuoted

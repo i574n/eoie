@@ -8,56 +8,15 @@ enum US0 {
     US0_RenameFailed,
     US0_ReadbackMismatch,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_Replaced => 0,
-            US0::US0_TemporaryWriteFailed => 1,
-            US0::US0_RenameFailed => 2,
-            US0::US0_ReadbackMismatch => 3,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_Replaced
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_StepText(Rc<str>),
     US1_StepRejected(Rc<str>),
 }
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_StepText(..) => 0,
-            US1::US1_StepRejected(..) => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_StepText({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US2 {
     US2_FileReadable(Rc<str>),
     US2_FileMissing(Rc<str>),
-}
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_FileReadable(..) => 0,
-            US2::US2_FileMissing(..) => 1,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_FileReadable({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
 }
 fn planning_edit_failure_2(mut v0: Rc<str>, mut v1: Rc<str>) -> i32 {
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile edit "); } LIT.with(|lit| lit.clone()) };

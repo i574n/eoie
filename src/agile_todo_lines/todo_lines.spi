@@ -6,5 +6,7 @@ let todo_findings (syntax : i32) (~text : string) (~path : string) (json : bool)
 
 inl main () : i32 =
     !!!!Export("eoie_agile_todo_findings", ((fun (syntax, text, path, json) => todo_findings syntax text path json) : i32 * string * string * bool -> string * i32))
+    !!!!Export("eoie_agile_todo_id", ((fun comment => todo_id comment) : string -> string))
     inl _ = todo_findings 1i32 "" "" false
+    inl _ = todo_id ""
     0i32

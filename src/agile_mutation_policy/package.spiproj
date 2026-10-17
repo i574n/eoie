@@ -1,5 +1,6 @@
 packages:
     state_receipt_codec_model-
+    union_reflection
 
 modules:
     model

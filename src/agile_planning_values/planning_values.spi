@@ -4,15 +4,15 @@ open agile_planning_model.model
 
 let planned_value_token (field : planning_field) (~value : string) : validation_result string =
     match field with
-    | EstimateField =>
+    | FieldEstimate =>
         match parse_planned_estimate value with
         | Valid estimate => Valid (estimate_state_token estimate)
         | Invalid => Invalid
-    | LoadField =>
+    | FieldLoad =>
         match parse_planned_load value with
         | Valid load => Valid (load_state_token load)
         | Invalid => Invalid
-    | AssigneeField =>
+    | FieldAssignee =>
         match parse_planned_assignee value with
         | Valid assignee => Valid (assignee_state_token assignee)
         | Invalid => Invalid

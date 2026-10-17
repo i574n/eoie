@@ -22,6 +22,6 @@ Set-Location $ScriptDir
 
 { pwsh ../../spiral/scripts/init-app-build.ps1 -fast 1 } | Invoke-Block
 
-{ mix local.hex --force } | Invoke-Block -Location ../../spiral/apps/kino
-{ mix local.rebar --force } | Invoke-Block -Location ../../spiral/apps/kino
-{ mix deps.get } | Invoke-Block -Location ../../spiral/apps/kino
+{ mix local.hex --force } | Invoke-Block -Location ../../spiral/apps/cells
+{ mix local.rebar --force } | Invoke-Block -Location ../../spiral/apps/cells
+{ mix deps.get } | Invoke-Block -Location ../../spiral/apps/cells

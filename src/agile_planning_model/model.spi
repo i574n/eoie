@@ -33,38 +33,41 @@ type task_planning =
     }
 
 union planning_field =
-    | EstimateField
-    | LoadField
-    | AssigneeField
+    | FieldEstimate
+    | FieldLoad
+    | FieldAssignee
 
 inl unplanned () : task_planning = { estimate = Unestimated; load = LoadUnset; assignee = Unassigned }
 
-inl planning_field_names () : string = "estimate|load|assignee"
+inl parse_case_named forall t. (name : t -> string) (~text : string) : validation_result t =
+    union_reflection.cases.union_cases_fold
+        (fun parsed (case_value : t) => if rust_std_string.model.equals text (name case_value) then Valid case_value else parsed)
+        Invalid
 
-inl parse_planning_field (~text : string) : validation_result planning_field =
-    match rust_std_string.model.pipe_index (planning_field_names ()) text with
-    | 0u64 => Valid EstimateField
-    | 1u64 => Valid LoadField
-    | 2u64 => Valid AssigneeField
-    | _ => Invalid
+inl task_load_case (load : task_load) : string = union_reflection.cases.union_case_suffix "Load" load
+inl task_assignee_case (assignee : task_assignee) : string = union_reflection.cases.union_case_suffix "Assignee" assignee
+inl task_load_name (load : task_load) : string = ascii_lowercase (task_load_case load)
+inl task_assignee_name (assignee : task_assignee) : string = ascii_lowercase (task_assignee_case assignee)
 
+inl planning_field_name (field : planning_field) : string = ascii_lowercase (union_reflection.cases.union_case_suffix "Field" field)
+inl parse_planning_field (~text : string) : validation_result planning_field = parse_case_named planning_field_name text
 inl cleared_value (~text : string) : bool = rust_std_string.model.pipe_member "none|-" text
 
 let parse_planned_load (~text : string) : validation_result planned_load =
-    match rust_std_string.model.pipe_index "none|-|light|medium|heavy" (ascii_lowercase text) with
-    | 0u64 | 1u64 => Valid LoadUnset
-    | 2u64 => Valid (PlannedLoad LoadLight)
-    | 3u64 => Valid (PlannedLoad LoadMedium)
-    | 4u64 => Valid (PlannedLoad LoadHeavy)
-    | _ => Invalid
+    inl lowered = ascii_lowercase text
+    if cleared_value lowered then Valid LoadUnset
+    else
+        match parse_case_named task_load_name lowered with
+        | Valid load => Valid (PlannedLoad load)
+        | Invalid => Invalid
 
 let parse_planned_assignee (~text : string) : validation_result planned_assignee =
-    match rust_std_string.model.pipe_index "none|-|agent|pair|user" (ascii_lowercase text) with
-    | 0u64 | 1u64 => Valid Unassigned
-    | 2u64 => Valid (PlannedAssignee AssigneeAgent)
-    | 3u64 => Valid (PlannedAssignee AssigneePair)
-    | 4u64 => Valid (PlannedAssignee AssigneeUser)
-    | _ => Invalid
+    inl lowered = ascii_lowercase text
+    if cleared_value lowered then Valid Unassigned
+    else
+        match parse_case_named task_assignee_name lowered with
+        | Valid assignee => Valid (PlannedAssignee assignee)
+        | Invalid => Invalid
 
 inl planned_or_unset (parsed : validation_result planned_load) : planned_load =
     match parsed with
@@ -124,29 +127,9 @@ let parse_planned_estimate (~text : string) : validation_result planned_estimate
         | Invalid => Invalid
 
 inl planning_field_rule = function
-    | EstimateField => "estimate must be whole minutes (360, 360m) or hours (6h), at most 999999 minutes, or none"
-    | LoadField => "load must be light, medium, heavy or none"
-    | AssigneeField => "assignee must be agent, pair, user or none"
-
-inl task_load_name = function
-    | LoadLight => "light"
-    | LoadMedium => "medium"
-    | LoadHeavy => "heavy"
-
-inl task_assignee_name = function
-    | AssigneeAgent => "agent"
-    | AssigneePair => "pair"
-    | AssigneeUser => "user"
-
-inl task_load_case = function
-    | LoadLight => "Light"
-    | LoadMedium => "Medium"
-    | LoadHeavy => "Heavy"
-
-inl task_assignee_case = function
-    | AssigneeAgent => "Agent"
-    | AssigneePair => "Pair"
-    | AssigneeUser => "User"
+    | FieldEstimate => "estimate must be whole minutes (360, 360m) or hours (6h), at most 999999 minutes, or none"
+    | FieldLoad => "load must be light, medium, heavy or none"
+    | FieldAssignee => "assignee must be agent, pair, user or none"
 
 inl task_load_code = function
     | LoadLight => 1i32
@@ -235,9 +218,12 @@ inl assignee_of_token (~token : string) : planned_assignee =
     if rust_std_string.model.starts_with token "Assigned " then assigned_or_unset (parse_planned_assignee (byte_slice token 9i32 (byte_len token)))
     else Unassigned
 
+inl schema_cases forall t. (case_text : t -> string) (type_name : string) : string =
+    union_reflection.cases.union_cases_joined (fun (case_value : t) => !!!!StaticStringConcat(case_text case_value, !!!!StaticStringConcat(" :: ", type_name))) " | "
+
 inl planning_schema () : string =
-    inl loads = "union task_load =\n    | Light :: task_load | Medium :: task_load | Heavy :: task_load\n\n"
-    inl assignees = "union task_assignee =\n    | Agent :: task_assignee | Pair :: task_assignee | User :: task_assignee\n\n"
+    inl loads = rust_std_string.model.concat5 "union task_load =\n    | " (schema_cases task_load_case "task_load") "\n\n" "" ""
+    inl assignees = rust_std_string.model.concat5 "union task_assignee =\n    | " (schema_cases task_assignee_case "task_assignee") "\n\n" "" ""
     inl estimates = "union planned_estimate =\n    | Unestimated :: planned_estimate | Minutes :: u32 -> planned_estimate\n\n"
     inl options = "union planned_load =\n    | LoadUnset :: planned_load | Load :: task_load -> planned_load\n\nunion planned_assignee =\n    | Unassigned :: planned_assignee | Assigned :: task_assignee -> planned_assignee\n\n"
     rust_std_string.model.concat5 loads assignees estimates options "union task_planning =\n    | Planning :: string * planned_estimate * planned_load * planned_assignee -> task_planning"
@@ -261,9 +247,9 @@ inl unset_tokens () : planning_tokens = { estimate_token = "Unestimated"; load_t
 
 inl tokens_with (field : planning_field) (~token : string) (tokens : planning_tokens) : planning_tokens =
     match field with
-    | EstimateField => { tokens with estimate_token = token }
-    | LoadField => { tokens with load_token = token }
-    | AssigneeField => { tokens with assignee_token = token }
+    | FieldEstimate => { tokens with estimate_token = token }
+    | FieldLoad => { tokens with load_token = token }
+    | FieldAssignee => { tokens with assignee_token = token }
 
 let planning_row (~id : string) (tokens : planning_tokens) : string =
     inl head = rust_std_string.model.concat5 "inl " (planning_binding id) " () = Planning (" (spi_quoted id) ", "

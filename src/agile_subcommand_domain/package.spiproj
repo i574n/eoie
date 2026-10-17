@@ -1,4 +1,5 @@
 packages:
     rust_std_string
+    union_reflection
 modules:
     subcommand

@@ -6,74 +6,21 @@ enum US0 {
     US0_RollupText,
     US0_RollupJson,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_RollupText => 0,
-            US0::US0_RollupJson => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_RollupText
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_ScanPlain,
     US1_ScanQuoted,
     US1_ScanEscaped,
 }
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_ScanPlain => 0,
-            US1::US1_ScanQuoted => 1,
-            US1::US1_ScanEscaped => 2,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_ScanPlain
-    }
-}
 #[derive(Clone)]
 enum US2 {
     US2_FileReadable(Rc<str>),
     US2_FileMissing(Rc<str>),
 }
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_FileReadable(..) => 0,
-            US2::US2_FileMissing(..) => 1,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_FileReadable({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US3 {
     US3_Valid(US0),
     US3_Invalid,
-}
-impl US3 {
-    fn tag(&self) -> i32 {
-        match self {
-            US3::US3_Valid(..) => 0,
-            US3::US3_Invalid => 1,
-        }
-    }
-}
-impl Default for US3 {
-    fn default() -> Self {
-        US3::US3_Valid(<US0>::default())
-    }
 }
 fn tally_of_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> (i32, i32, i32, i32, i32) {
     let (mut v3, mut v4, mut v5, mut v6, mut v7): (i32, i32, i32, i32, i32) = agile_planning_tally::eoie_agile_planning_tally(&*v0, &*v1, &*v2);

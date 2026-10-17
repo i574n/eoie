@@ -31,8 +31,8 @@ inl validate_task_id () : validation_result string =
 inl task_binding (~id : string) : string = ascii_lowercase (rust_std_string.model.replace id "-" "_")
 inl task_line (~id : string) kind priority difficulty (~title : string) (~tags : string) : string =
     inl head = rust_std_string.model.concat5 "inl " (task_binding id) " () = Task (" (spi_quoted id) ", "
-    inl middle = rust_std_string.model.concat5 (spi_quoted title) ", " (agile_task_kind_text kind) ", " (agile_priority_text priority)
-    inl tail = rust_std_string.model.concat5 ", " (agile_difficulty_text difficulty) ", 0u32, Planned, \"\", " (spi_quoted tags) ", \"current\", \"current\")"
+    inl middle = rust_std_string.model.concat5 (spi_quoted title) ", " (agile_case_text kind) ", " (agile_case_text priority)
+    inl tail = rust_std_string.model.concat5 ", " (agile_case_text difficulty) ", 0u32, Planned, \"\", " (spi_quoted tags) ", \"current\", \"current\")"
     rust_std_string.model.concat5 head middle tail "" ""
 
 inl agile_add_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile add " id " rejected: " reason "")

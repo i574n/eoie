@@ -2,76 +2,36 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 #[derive(Clone)]
-enum US0 {
-    US0_AgileBegin,
-    US0_AgileLease,
-    US0_AgileStatus,
-    US0_AgileHandoff,
-    US0_AgileList,
-    US0_AgileCheck,
-    US0_AgileRecord,
-    US0_AgileSet,
-    US0_AgileAdd,
-    US0_AgileEdit,
-    US0_AgileInit,
-    US0_AgileShow,
-    US0_AgilePlan,
-    US0_AgileMigrateTags,
-    US0_AgileNote,
-    US0_AgileNotes,
-    US0_AgileRename,
-    US0_AgileTodos,
-    US0_AgileUnknown,
-}
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_AgileBegin => 0,
-            US0::US0_AgileLease => 1,
-            US0::US0_AgileStatus => 2,
-            US0::US0_AgileHandoff => 3,
-            US0::US0_AgileList => 4,
-            US0::US0_AgileCheck => 5,
-            US0::US0_AgileRecord => 6,
-            US0::US0_AgileSet => 7,
-            US0::US0_AgileAdd => 8,
-            US0::US0_AgileEdit => 9,
-            US0::US0_AgileInit => 10,
-            US0::US0_AgileShow => 11,
-            US0::US0_AgilePlan => 12,
-            US0::US0_AgileMigrateTags => 13,
-            US0::US0_AgileNote => 14,
-            US0::US0_AgileNotes => 15,
-            US0::US0_AgileRename => 16,
-            US0::US0_AgileTodos => 17,
-            US0::US0_AgileUnknown => 18,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_AgileBegin
-    }
+enum US1 {
+    US1_AgileInit,
+    US1_AgileBegin,
+    US1_AgileLease,
+    US1_AgileStatus,
+    US1_AgileHandoff,
+    US1_AgileList,
+    US1_AgileCheck,
+    US1_AgileRecord,
+    US1_AgileSet,
+    US1_AgileAdd,
+    US1_AgileEdit,
+    US1_AgileShow,
+    US1_AgilePlan,
+    US1_AgileMigrateTags,
+    US1_AgileNote,
+    US1_AgileNotes,
+    US1_AgileRename,
+    US1_AgileTodos,
 }
 #[derive(Clone)]
-enum US1 {
-    US1_NoHelpRequested,
-    US1_VerbHelp(Rc<str>),
-    US1_CapabilityHelp(Rc<str>),
+enum US0 {
+    US0_AgileKnown(US1),
+    US0_AgileUnknownName,
 }
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_NoHelpRequested => 0,
-            US1::US1_VerbHelp(..) => 1,
-            US1::US1_CapabilityHelp(..) => 2,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_NoHelpRequested
-    }
+#[derive(Clone)]
+enum US2 {
+    US2_NoHelpRequested,
+    US2_VerbHelp(Rc<str>),
+    US2_CapabilityHelp(Rc<str>),
 }
 fn command_code_0(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-h|--help"); } LIT.with(|lit| lit.clone()) };
@@ -140,7 +100,7 @@ fn command_descriptor_by_index_3(mut v0: Rc<str>) -> (Rc<str>, Rc<str>, Rc<str>,
     } else {
         let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("inspect\nmutate\nmutate\nwrap\nmutate\ninspect"); } LIT.with(|lit| lit.clone()) };
         let mut v10: Rc<str> = v1.split("|").zip(v9.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-        let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status [root]\npatch: apply <root> <plan.spi> [--compiler <absolute>] | check <root> <plan.spi> | rehearse <root> <plan.spi> | gated <root> <plan.spi> <gate-program>\nagile: init <root> | begin <root> <title> | lease <root> | status <root> | handoff <root> | list <root> [Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json] | check <root> [--compiler <absolute>] | record <root> | set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done> | add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags> | edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value> | show <root> <id> [--json] | plan <root> [--json] | migrate-tags preview|apply <root> | note <root> <id> <text> [--as <author>] | notes from-title <root> <id> | rename <root> <old-id> <new-id> | todos <root> [<path>...] [--json]\nbundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>\nproxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew\nhelp [verb|--completion|--json|--schema] | proxy <capability>"); } LIT.with(|lit| lit.clone()) };
+        let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status [root]\npatch: apply <root> <plan.spi> [--compiler <absolute>] | check <root> <plan.spi> | rehearse <root> <plan.spi> | gated <root> <plan.spi> <gate-program>\nagile: init <root> | begin <root> <title> | lease <root> | status <root> | handoff <root> | list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json] | check <root> [--compiler <absolute>] | record <root> | set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done> | add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags> | edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value> | show <root> <id> [--json] | plan <root> [--json] | migrate-tags preview|apply <root> | note <root> <id> <text> [--as <author>] | notes from-title <root> <id> | rename <root> <old-id> <new-id> | todos <root> [<path>...] [--json]\nbundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>\nproxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew\nhelp [verb|--completion|--json|--schema] | proxy <capability>"); } LIT.with(|lit| lit.clone()) };
         let mut v12: Rc<str> = v1.split("|").zip(v11.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
         let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("inspect migration evidence toolchain and authority state\nrehearse gate and apply typed patch plans\nmanage typed backlog leases and turn receipts\ncheck create verify rehydrate and retain bundles\nexecute bounded filesystem process archive toolchain and evidence capabilities\nrender the public command catalog"); } LIT.with(|lit| lit.clone()) };
         let mut v14: Rc<str> = v1.split("|").zip(v13.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
@@ -311,110 +271,165 @@ fn help_flag_witness_12() -> i32 {
         0i32
     }
 }
-fn agile_subcommand_known_13(mut v0: Rc<str>) -> i32 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("begin|lease|status|handoff|list|check|record|set|add|edit|init|show|plan|migrate-tags|note|notes|rename|todos"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: u64 = v1.split("|").position(|item| item == &*v0).map(|index| index as u64).unwrap_or(u64::MAX);
-    let mut v3: bool = 0u64 == v2;
-    let mut v57: US0 = if v3 {
-        US0::US0_AgileBegin
+fn agile_subcommand_of_14(mut v0: Rc<str>) -> US0 {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init"); } LIT.with(|lit| lit.clone()) };
+    let mut v2: bool = v0 == v1 ;
+    let mut v6: US0 = if v2 {
+        let mut v3: US1 = US1::US1_AgileInit;
+        US0::US0_AgileKnown(v3.clone())
     } else {
-        let mut v5: bool = 1u64 == v2;
-        if v5 {
-            US0::US0_AgileLease
-        } else {
-            let mut v7: bool = 2u64 == v2;
-            if v7 {
-                US0::US0_AgileStatus
-            } else {
-                let mut v9: bool = 3u64 == v2;
-                if v9 {
-                    US0::US0_AgileHandoff
-                } else {
-                    let mut v11: bool = 4u64 == v2;
-                    if v11 {
-                        US0::US0_AgileList
-                    } else {
-                        let mut v13: bool = 5u64 == v2;
-                        if v13 {
-                            US0::US0_AgileCheck
-                        } else {
-                            let mut v15: bool = 6u64 == v2;
-                            if v15 {
-                                US0::US0_AgileRecord
-                            } else {
-                                let mut v17: bool = 7u64 == v2;
-                                if v17 {
-                                    US0::US0_AgileSet
-                                } else {
-                                    let mut v19: bool = 8u64 == v2;
-                                    if v19 {
-                                        US0::US0_AgileAdd
-                                    } else {
-                                        let mut v21: bool = 9u64 == v2;
-                                        if v21 {
-                                            US0::US0_AgileEdit
-                                        } else {
-                                            let mut v23: bool = 10u64 == v2;
-                                            if v23 {
-                                                US0::US0_AgileInit
-                                            } else {
-                                                let mut v25: bool = 11u64 == v2;
-                                                if v25 {
-                                                    US0::US0_AgileShow
-                                                } else {
-                                                    let mut v27: bool = 12u64 == v2;
-                                                    if v27 {
-                                                        US0::US0_AgilePlan
-                                                    } else {
-                                                        let mut v29: bool = 13u64 == v2;
-                                                        if v29 {
-                                                            US0::US0_AgileMigrateTags
-                                                        } else {
-                                                            let mut v31: bool = 14u64 == v2;
-                                                            if v31 {
-                                                                US0::US0_AgileNote
-                                                            } else {
-                                                                let mut v33: bool = 15u64 == v2;
-                                                                if v33 {
-                                                                    US0::US0_AgileNotes
-                                                                } else {
-                                                                    let mut v35: bool = 16u64 == v2;
-                                                                    if v35 {
-                                                                        US0::US0_AgileRename
-                                                                    } else {
-                                                                        let mut v37: bool = 17u64 == v2;
-                                                                        if v37 {
-                                                                            US0::US0_AgileTodos
-                                                                        } else {
-                                                                            US0::US0_AgileUnknown
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        US0::US0_AgileUnknownName
     };
-    match &v57 {
-        US0::US0_AgileUnknown => {
-            0i32
-        }
-        _ => {
+    let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("begin"); } LIT.with(|lit| lit.clone()) };
+    let mut v8: bool = v0 == v7 ;
+    let mut v11: US0 = if v8 {
+        let mut v9: US1 = US1::US1_AgileBegin;
+        US0::US0_AgileKnown(v9.clone())
+    } else {
+        v6.clone()
+    };
+    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("lease"); } LIT.with(|lit| lit.clone()) };
+    let mut v13: bool = v0 == v12 ;
+    let mut v16: US0 = if v13 {
+        let mut v14: US1 = US1::US1_AgileLease;
+        US0::US0_AgileKnown(v14.clone())
+    } else {
+        v11.clone()
+    };
+    let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status"); } LIT.with(|lit| lit.clone()) };
+    let mut v18: bool = v0 == v17 ;
+    let mut v21: US0 = if v18 {
+        let mut v19: US1 = US1::US1_AgileStatus;
+        US0::US0_AgileKnown(v19.clone())
+    } else {
+        v16.clone()
+    };
+    let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("handoff"); } LIT.with(|lit| lit.clone()) };
+    let mut v23: bool = v0 == v22 ;
+    let mut v26: US0 = if v23 {
+        let mut v24: US1 = US1::US1_AgileHandoff;
+        US0::US0_AgileKnown(v24.clone())
+    } else {
+        v21.clone()
+    };
+    let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("list"); } LIT.with(|lit| lit.clone()) };
+    let mut v28: bool = v0 == v27 ;
+    let mut v31: US0 = if v28 {
+        let mut v29: US1 = US1::US1_AgileList;
+        US0::US0_AgileKnown(v29.clone())
+    } else {
+        v26.clone()
+    };
+    let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("check"); } LIT.with(|lit| lit.clone()) };
+    let mut v33: bool = v0 == v32 ;
+    let mut v36: US0 = if v33 {
+        let mut v34: US1 = US1::US1_AgileCheck;
+        US0::US0_AgileKnown(v34.clone())
+    } else {
+        v31.clone()
+    };
+    let mut v37: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("record"); } LIT.with(|lit| lit.clone()) };
+    let mut v38: bool = v0 == v37 ;
+    let mut v41: US0 = if v38 {
+        let mut v39: US1 = US1::US1_AgileRecord;
+        US0::US0_AgileKnown(v39.clone())
+    } else {
+        v36.clone()
+    };
+    let mut v42: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("set"); } LIT.with(|lit| lit.clone()) };
+    let mut v43: bool = v0 == v42 ;
+    let mut v46: US0 = if v43 {
+        let mut v44: US1 = US1::US1_AgileSet;
+        US0::US0_AgileKnown(v44.clone())
+    } else {
+        v41.clone()
+    };
+    let mut v47: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("add"); } LIT.with(|lit| lit.clone()) };
+    let mut v48: bool = v0 == v47 ;
+    let mut v51: US0 = if v48 {
+        let mut v49: US1 = US1::US1_AgileAdd;
+        US0::US0_AgileKnown(v49.clone())
+    } else {
+        v46.clone()
+    };
+    let mut v52: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("edit"); } LIT.with(|lit| lit.clone()) };
+    let mut v53: bool = v0 == v52 ;
+    let mut v56: US0 = if v53 {
+        let mut v54: US1 = US1::US1_AgileEdit;
+        US0::US0_AgileKnown(v54.clone())
+    } else {
+        v51.clone()
+    };
+    let mut v57: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("show"); } LIT.with(|lit| lit.clone()) };
+    let mut v58: bool = v0 == v57 ;
+    let mut v61: US0 = if v58 {
+        let mut v59: US1 = US1::US1_AgileShow;
+        US0::US0_AgileKnown(v59.clone())
+    } else {
+        v56.clone()
+    };
+    let mut v62: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("plan"); } LIT.with(|lit| lit.clone()) };
+    let mut v63: bool = v0 == v62 ;
+    let mut v66: US0 = if v63 {
+        let mut v64: US1 = US1::US1_AgilePlan;
+        US0::US0_AgileKnown(v64.clone())
+    } else {
+        v61.clone()
+    };
+    let mut v67: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("migrate-tags"); } LIT.with(|lit| lit.clone()) };
+    let mut v68: bool = v0 == v67 ;
+    let mut v71: US0 = if v68 {
+        let mut v69: US1 = US1::US1_AgileMigrateTags;
+        US0::US0_AgileKnown(v69.clone())
+    } else {
+        v66.clone()
+    };
+    let mut v72: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("note"); } LIT.with(|lit| lit.clone()) };
+    let mut v73: bool = v0 == v72 ;
+    let mut v76: US0 = if v73 {
+        let mut v74: US1 = US1::US1_AgileNote;
+        US0::US0_AgileKnown(v74.clone())
+    } else {
+        v71.clone()
+    };
+    let mut v77: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("notes"); } LIT.with(|lit| lit.clone()) };
+    let mut v78: bool = v0 == v77 ;
+    let mut v81: US0 = if v78 {
+        let mut v79: US1 = US1::US1_AgileNotes;
+        US0::US0_AgileKnown(v79.clone())
+    } else {
+        v76.clone()
+    };
+    let mut v82: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rename"); } LIT.with(|lit| lit.clone()) };
+    let mut v83: bool = v0 == v82 ;
+    let mut v86: US0 = if v83 {
+        let mut v84: US1 = US1::US1_AgileRename;
+        US0::US0_AgileKnown(v84.clone())
+    } else {
+        v81.clone()
+    };
+    let mut v87: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("todos"); } LIT.with(|lit| lit.clone()) };
+    let mut v88: bool = v0 == v87 ;
+    if v88 {
+        let mut v89: US1 = US1::US1_AgileTodos;
+        US0::US0_AgileKnown(v89.clone())
+    } else {
+        v86.clone()
+    }
+}
+fn agile_subcommand_known_13(mut v0: Rc<str>) -> i32 {
+    let mut v1: US0 = agile_subcommand_of_14(v0.clone());
+    match &v1 {
+        US0::US0_AgileKnown(v2) => {
+            let mut v2: US1 = v2.clone();
             1i32
+        }
+        US0::US0_AgileUnknownName => {
+            0i32
         }
     }
 }
-fn help_flag_from_15(mut v0: i32, mut v1: i32) -> bool {
+fn help_flag_from_16(mut v0: i32, mut v1: i32) -> bool {
     loop {
         let mut v2: bool = v0 >= v1;
         if v2 {
@@ -433,12 +448,12 @@ fn help_flag_from_15(mut v0: i32, mut v1: i32) -> bool {
         }
     }
 }
-fn help_request_text_14() -> Rc<str> {
+fn help_request_text_15() -> Rc<str> {
     let mut v0: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(1i32 as usize).unwrap_or_default());
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2i32 as usize).unwrap_or_default());
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("help"); } LIT.with(|lit| lit.clone()) };
     let mut v3: bool = v0 == v2 ;
-    let mut v31: US1 = if v3 {
+    let mut v31: US2 = if v3 {
         let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         let mut v5: bool = v1 == v4 ;
         let mut v9: bool = if v5 {
@@ -450,14 +465,14 @@ fn help_request_text_14() -> Rc<str> {
             v8
         };
         if v9 {
-            US1::US1_CapabilityHelp(v1.clone())
+            US2::US2_CapabilityHelp(v1.clone())
         } else {
-            US1::US1_NoHelpRequested
+            US2::US2_NoHelpRequested
         }
     } else {
         let mut v13: i32 = 2i32;
         let mut v14: i32 = std::env::args().count() as i32;
-        let mut v15: bool = help_flag_from_15(v13, v14);
+        let mut v15: bool = help_flag_from_16(v13, v14);
         if v15 {
             let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("proxy"); } LIT.with(|lit| lit.clone()) };
             let mut v17: bool = v0 == v16 ;
@@ -473,19 +488,19 @@ fn help_request_text_14() -> Rc<str> {
                     v22
                 };
                 if v23 {
-                    US1::US1_CapabilityHelp(v1.clone())
+                    US2::US2_CapabilityHelp(v1.clone())
                 } else {
-                    US1::US1_VerbHelp(v0.clone())
+                    US2::US2_VerbHelp(v0.clone())
                 }
             } else {
-                US1::US1_VerbHelp(v0.clone())
+                US2::US2_VerbHelp(v0.clone())
             }
         } else {
-            US1::US1_NoHelpRequested
+            US2::US2_NoHelpRequested
         }
     };
     match &v31 {
-        US1::US1_CapabilityHelp(v50) => {
+        US2::US2_CapabilityHelp(v50) => {
             let mut v50: Rc<str> = v50.clone();
             let mut v51: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("usage: eoie "); } LIT.with(|lit| lit.clone()) };
             let mut v52: Rc<str> = proxy_usage_8(v50.clone());
@@ -493,11 +508,11 @@ fn help_request_text_14() -> Rc<str> {
             let mut v54: Rc<str> = std::rc::Rc::<str>::from([&*v51, &*v52, &*v53, &*v53, &*v53].concat());
             v54.clone()
         }
-        US1::US1_NoHelpRequested => {
+        US2::US2_NoHelpRequested => {
             let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             v32.clone()
         }
-        US1::US1_VerbHelp(v33) => {
+        US2::US2_VerbHelp(v33) => {
             let mut v33: Rc<str> = v33.clone();
             let mut v34: u64 = command_code_0(v33.clone());
             let mut v35: Rc<str> = std::rc::Rc::<str>::from((v34).to_string());
@@ -587,7 +602,7 @@ fn closure13() -> Rc<dyn Fn(Rc<str>) -> i32> {
 }
 fn closure14() -> Rc<dyn Fn() -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> Rc<str>> = Rc::new(move || -> Rc<str> {
-        help_request_text_14()
+        help_request_text_15()
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_command_code(v0: &str) -> u64 {

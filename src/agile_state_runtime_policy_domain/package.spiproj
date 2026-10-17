@@ -1,5 +1,7 @@
 packages:
     rust_std_string
     state_receipt_codec_model-
+    agile_mutation_policy
+    union_reflection
 modules:
     policy

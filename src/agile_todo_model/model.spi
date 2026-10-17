@@ -309,17 +309,73 @@ let counted_content (tally : scan_tally) (verdict : content_verdict) : scan_tall
 
 let counted_todos (tally : scan_tally) (found : i32) : scan_tally = { tally with todos = i32_add tally.todos found }
 
-inl json_escaped (~text : string) : string =
+let json_escaped (~text : string) : string =
     inl backslashes = rust_std_string.model.replace text "\\" "\\\\"
     inl quotes = rust_std_string.model.replace backslashes "\"" "\\\""
-    rust_std_string.model.replace quotes "\t" "\\t"
+    inl tabs = rust_std_string.model.replace quotes "\t" "\\t"
+    rust_std_string.model.replace (rust_std_string.model.replace tabs "\r" "\\r") "\n" "\\n"
 
+inl id_byte (code : i32) : bool =
+    if i32_le 65i32 code then i32_le code 90i32
+    elif i32_le 48i32 code then i32_le code 57i32
+    else i32_eq code 45i32
+
+let rec id_end (~comment : string) (offset : i32) : i32 =
+    if i32_le (byte_len comment) offset then offset
+    elif id_byte (byte_at comment offset) then id_end comment (i32_next offset)
+    else offset
+
+let todo_id (~comment : string) : string =
+    inl marker = byte_find comment (todo_marker ())
+    inl colon = i32_add marker 4i32
+    if i32_negative marker then ""
+    elif i32_eq (byte_at comment colon) 58i32 then
+        inl start = first_visible_offset comment (i32_next colon)
+        inl stop = id_end comment start
+        inl token = byte_slice comment start stop
+        inl closed = if i32_le (byte_len comment) stop then true else i32_eq (byte_at comment stop) 32i32
+        inl capital = if i32_le stop start then false else both (i32_le 65i32 (byte_at comment start)) (i32_le (byte_at comment start) 90i32)
+        if both closed capital then token else ""
+    else ""
 inl finding_line (~path : string) (line : i32) (~text : string) : string =
     rust_std_string.model.concat5 path ":" (i32_text line) "  " text
 
-inl finding_json (~path : string) (line : i32) (~text : string) : string =
-    inl head = rust_std_string.model.concat5 "{\"path\":\"" (json_escaped path) "\",\"line\":" (i32_text line) ",\"text\":\""
-    rust_std_string.model.concat5 head (json_escaped text) "\"}" "" ""
+let finding_json (~path : string) (line : i32) (~text : string) : string =
+    inl id = todo_id text
+    inl id_field = if rust_std_string.model.equals id "" then "" else rust_std_string.model.concat5 "\"id\":\"" (json_escaped id) "\"," "" ""
+    inl head = rust_std_string.model.concat5 "{\"path\":\"" (json_escaped path) "\",\"line\":" (i32_text line) ","
+    rust_std_string.model.concat5 head id_field "\"text\":\"" (json_escaped text) "\"}"
+
+let rec leader_prefix (~leaders : string) (~text : string) (~offset : i32) : bool =
+    inl bar = byte_find_from leaders "|" offset
+    inl stop = if i32_negative bar then byte_len leaders else bar
+    inl leader = byte_slice leaders offset stop
+    if rust_std_string.model.starts_with text leader then true
+    elif i32_negative bar then false
+    else leader_prefix leaders text (i32_next bar)
+
+let comment_starts_line (syntax : comment_syntax) (~line : string) : bool =
+    inl first = first_visible_offset line 0i32
+    leader_prefix (comment_leaders syntax) (byte_slice line first (byte_len line)) 0i32
+
+inl without_trailing_space (~text : string) : string = $'std::rc::Rc::<str>::from(!text.trim_end())' : string
+
+let todo_free (syntax : comment_syntax) (~line : string) : bool =
+    match todo_in_line syntax line with
+    | NoTodo => true
+    | TodoComment _ => false
+
+let rec block_from (syntax : comment_syntax) (~text : string) (~column : i32) (~offset : i32) (~block : string) (~lines : i32) : string * i32 * i32 =
+    if i32_le (byte_len text) offset then block, offset, lines
+    else
+        inl newline = byte_find_from text "\n" offset
+        inl stop = if i32_negative newline then byte_len text else newline
+        inl line = without_trailing_space (byte_slice text offset stop)
+        inl aligned = i32_eq (first_visible_offset line 0i32) column
+        inl body = byte_slice line column (byte_len line)
+        if both (both aligned (comment_starts_line syntax line)) (both (todo_free syntax line) (negated (directive_line body))) then
+            block_from syntax text column (i32_next stop) (rust_std_string.model.concat5 block "\n" body "" "") (i32_next lines)
+        else block, offset, lines
 
 let rec findings_from (syntax : comment_syntax) (~text : string) (~path : string) (json : bool) (~offset : i32) (~number : i32) (~rendered : string) (~count : i32) : string * i32 =
     if i32_le (byte_len text) offset then rendered, count
@@ -331,9 +387,10 @@ let rec findings_from (syntax : comment_syntax) (~text : string) (~path : string
         match todo_in_line syntax line with
         | NoTodo => findings_from syntax text path json next (i32_next number) rendered count
         | TodoComment comment =>
-            inl entry = if json then finding_json path number comment else finding_line path number comment
+            inl block, after, extra = if comment_starts_line syntax line then block_from syntax text (first_visible_offset line 0i32) next comment 0i32 else comment, next, 0i32
+            inl entry = if json then finding_json path number block else finding_line path number block
             inl joined = if rust_std_string.model.equals rendered "" then entry elif json then rust_std_string.model.concat5 rendered ",\n" entry "" "" else rust_std_string.model.concat5 rendered "\n" entry "" ""
-            findings_from syntax text path json next (i32_next number) joined (i32_next count)
+            findings_from syntax text path json after (i32_add (i32_next number) extra) joined (i32_next count)
 
 inl findings (syntax : comment_syntax) (~text : string) (~path : string) (json : bool) : string * i32 =
     findings_from syntax text path json 0i32 1i32 "" 0i32
@@ -430,6 +487,25 @@ test findings_render_with_line_numbers_and_json =
     inl tally = counted_todos (counted_content (counted_path (counted_path (empty_tally ()) (ScanPath CFamily)) SkipGeneratedOutput) ScanContent) 2i32
     expect (rust_std_string.model.equals (tally_skips tally) "nested:0,vendor:0,generated:1,syntax:0,binary:0,large:0,links:0,unreadable:0") (tally_skips tally)
     expect (rust_std_string.model.starts_with (tally_receipt 1i32 tally 5u64) "eoie agile todos ok roots=1 files=2 scanned=1 todos=2 skipped=") (tally_receipt 1i32 tally 5u64)
+
+///> rust
+test todo_blocks_keep_their_spiral_lines_and_ids =
+    inl block = rust_std_string.model.concat5 (marked "// " ": EOIE-MEMORY-LINKS add the verb") "\n//     inl links root = ()\n//     links \"backlog\"" "" "" ""
+    inl text = rust_std_string.model.concat5 "inl a = 1\n" block "\nlet b = 2\n" (marked "inl c = 3 // " " trailing") "\n// not part of it\n"
+    inl lines, count = findings CFamily text "repo/a.spi" false
+    expect (i32_eq count 2i32) "a block and a trailing comment"
+    expect (rust_std_string.model.contains lines (rust_std_string.model.concat5 "repo/a.spi:2  " block "" "" "")) lines
+    expect (rust_std_string.model.contains lines (marked "repo/a.spi:6  // " " trailing")) lines
+    expect (negated (rust_std_string.model.contains lines "not part of it")) lines
+    inl json, json_count = findings CFamily text "repo/a.spi" true
+    expect (i32_eq json_count 2i32) "two json findings"
+    expect (rust_std_string.model.contains json "\"line\":2,\"id\":\"EOIE-MEMORY-LINKS\",\"text\":") json
+    expect (rust_std_string.model.contains json "\\n//     inl links root = ()\\n//     links \\\"backlog\\\"") json
+    expect (rust_std_string.model.equals (todo_id (marked "// " " plain")) "") "no id without a tag"
+    expect (rust_std_string.model.equals (todo_id (marked "// " ": TIBIA tune the arena")) "TIBIA") "a single upper-case word is an id"
+    expect (rust_std_string.model.equals (todo_id (marked "// " ": split the crate")) "") "lower-case text is not an id"
+    expect (rust_std_string.model.equals (todo_id (marked "// " ": EOIE-JOBS wire it")) "EOIE-JOBS") "the tag after the colon"
+    expect (rust_std_string.model.equals (todo_id (marked "# " ": DIB-MODERNIZE")) "DIB-MODERNIZE") "a tag at the end of the line"
 
 ///> rust
 test verdicts_survive_the_crate_boundary_as_codes =

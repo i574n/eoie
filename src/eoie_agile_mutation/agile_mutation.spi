@@ -1,4 +1,5 @@
 open agile_mutation_policy.model
+open agile_subcommand_domain.subcommand
 
 nominal agile_idle = ()
 nominal agile_arguments_ready = ()
@@ -38,17 +39,17 @@ inl all2 a b = if a then b else false
 inl all3 a b c = if a then if b then c else false else false
 inl all4 a b c d = if a then if b then if c then d else false else false else false
 
-inl agile_full_usage_error () : i32 = $"agile_mutation_error(\"agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root>, record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags preview|apply <root>, note <root> <id> <text> [--as <author>], notes from-title <root> <id>, rename <root> <old-id> <new-id>, todos <root> [<path>...] [--json]\")"
-inl agile_subcommands () : string = "init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags|note|notes|rename|todos"
-inl agile_operand_shapes () : string = "<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load <load>] [--assignee <assignee>] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\npreview|apply <root>\n<root> <id> <text> [--as <author>]\nfrom-title <root> <id>\n<root> <old-id> <new-id>\n<root> [<path>...] [--json]"
+inl agile_full_usage_error () : i32 =
+    inl ~message = !!!!StaticStringConcat("agile supports ", agile_subcommand_domain.subcommand.agile_subcommand_usage ", ")
+    $"agile_mutation_error(&!message)"
 inl received_operands () : string = $'std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string())' : string
 inl agile_shape_error (~subcommand : string) (~shape : string) : i32 =
     inl head = rust_std_string.model.concat5 "agile " subcommand " expects " shape ", received "
     inl message = rust_std_string.model.concat5 head (received_operands ()) " operands; see eoie agile --help" "" ""
     $"agile_mutation_error(&!message)"
-inl agile_usage_error () : i32 =
+let agile_usage_error () : i32 =
     inl subcommand = argument_owned 0i32
-    inl shape = rust_std_string.model.pipe_lookup (agile_subcommands ()) (agile_operand_shapes ()) subcommand
+    inl shape = agile_subcommand_domain.subcommand.agile_subcommand_shape subcommand
     if rust_std_string.model.equals shape "" then agile_full_usage_error () else agile_shape_error subcommand shape
 inl agile_title_error () : i32 = $"agile_mutation_error(\"begin title must contain 3..7 visible words\")"
 inl agile_progress_error () : i32 = $"agile_mutation_error(\"progress must be 0..100\")"
@@ -79,13 +80,11 @@ inl validate_progress () : validation_result agile_progress =
         if i32_le value 100i32 then Valid (agile_progress value) else Invalid
     else Invalid
 inl validate_status () : validation_result agile_status =
-    match rust_std_string.model.pipe_index "Planned|Active|Blocked|Paused|Done" (argument_owned 4i32) with
-    | 0u64 => Valid AgilePlanned
-    | 1u64 => Valid AgileActive
-    | 2u64 => Valid AgileBlocked
-    | 3u64 => Valid AgilePaused
-    | 4u64 => Valid AgileDone
-    | _ => Invalid
+    inl text = argument_owned 4i32
+    union_reflection.cases.union_cases_fold
+        (fun parsed (status : agile_status) =>
+            if rust_std_string.model.equals text (union_reflection.cases.union_case_suffix "Agile" status) then Valid status else parsed)
+        Invalid
 
 inl planning_field_named (~name : string) : bool = rust_std_string.model.pipe_member "estimate|load|assignee" name
 inl agile_edit_route () : i32 =
@@ -93,59 +92,49 @@ inl agile_edit_route () : i32 =
     else $"agile_task_revision::eoie_agile_edit_run()"
 inl agile_argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
 
-let agile_counted_entry () : i32 =
-    if args_len_is 2i32 then
-        inl root = argument_owned 1i32
-        match rust_std_string.model.pipe_index "list|check|lease|status|handoff|record|init" (argument_owned 0i32) with
-        | 0u64 => $"agile_task_listing::eoie_agile_list_run()"
-        | 1u64 => agile_check root
-        | 2u64 | 3u64 => agile_lease_status root
-        | 4u64 => agile_handoff root
-        | 5u64 => agile_record root
-        | 6u64 => $"agile_backlog_scaffold::eoie_agile_init_run()"
-        | _ => agile_usage_error ()
-    elif args_len_is 3i32 then
-        if argument_equals 0i32 "show" then $"agile_task_inspection::eoie_agile_show_run()"
-        elif argument_equals 0i32 "begin" then
-            inl root = argument_owned 1i32
-            inl title = argument_owned 2i32
-            inl words : i32 = $"eoie_lease_title_words()"
-            if i32_positive words then agile_begin root title words else agile_title_error ()
-        else agile_usage_error ()
-    elif args_len_is 4i32 then
-        match rust_std_string.model.pipe_index "show|note|notes|rename" (argument_owned 0i32) with
-        | 0u64 => $"agile_task_inspection::eoie_agile_show_run()"
-        | 1u64 => $"agile_task_notes::eoie_agile_note_run()"
-        | 2u64 => $"agile_title_notes::eoie_agile_notes_from_title_run()"
-        | 3u64 => $"agile_task_rename::eoie_agile_rename_run()"
-        | _ => agile_usage_error ()
-    elif args_len_is 6i32 then
-        if argument_equals 0i32 "note" then $"agile_task_notes::eoie_agile_note_run()"
-        else agile_usage_error ()
-    elif args_len_is 8i32 then
-        if argument_equals 0i32 "add" then $"agile_task_creation::eoie_agile_add_run()"
-        else agile_usage_error ()
-    elif args_len_is 5i32 then
-        if argument_equals 0i32 "edit" then agile_edit_route ()
-        elif argument_equals 0i32 "set" then
-            inl root = argument_owned 1i32
-            inl id = argument_owned 2i32
-            match validate_progress (), validate_status () with
-            | Valid progress, Valid status => agile_set root id progress status
-            | Invalid, _ => agile_progress_error ()
-            | _, Invalid => agile_status_error ()
-        else agile_usage_error ()
-    else agile_usage_error ()
+inl agile_root_only (run : string -> i32) : i32 = if args_len_is 2i32 then run (argument_owned 1i32) else agile_usage_error ()
+inl agile_with_root (route : () -> i32) : i32 = if i32_le 2i32 (agile_argument_count ()) then route () else agile_usage_error ()
+inl agile_arity_route (accepted : bool) (route : () -> i32) : i32 = if accepted then route () else agile_usage_error ()
+inl agile_either_arity a b : bool = if args_len_is a then true else args_len_is b
+inl agile_begin_route () : i32 =
+    inl root = argument_owned 1i32
+    inl title = argument_owned 2i32
+    inl words : i32 = $"eoie_lease_title_words()"
+    if i32_positive words then agile_begin root title words else agile_title_error ()
+inl agile_set_route () : i32 =
+    inl root = argument_owned 1i32
+    inl id = argument_owned 2i32
+    match validate_progress (), validate_status () with
+    | Valid progress, Valid status => agile_set root id progress status
+    | Invalid, _ => agile_progress_error ()
+    | _, Invalid => agile_status_error ()
+
+// TODO: EOIE-MEMORY-LINKS add the links verb: one AgileLinks case with its spec row in agile_subcommand_domain, then this arm
+//     | AgileLinks => agile_root_only fun _ => $"agile_memory_links::eoie_agile_links_run()"
+inl agile_route (subcommand : agile_subcommand) : i32 =
+    match subcommand with
+    | AgileInit => agile_root_only fun _ => $"agile_backlog_scaffold::eoie_agile_init_run()"
+    | AgileBegin => agile_arity_route (args_len_is 3i32) agile_begin_route
+    | AgileLease | AgileStatus => agile_root_only agile_lease_status
+    | AgileHandoff => agile_root_only agile_handoff
+    | AgileList => agile_with_root fun () => $"agile_task_listing::eoie_agile_list_run()"
+    | AgileCheck => agile_root_only agile_check
+    | AgileRecord => agile_root_only agile_record
+    | AgileSet => agile_arity_route (args_len_is 5i32) agile_set_route
+    | AgileAdd => agile_arity_route (args_len_is 8i32) fun () => $"agile_task_creation::eoie_agile_add_run()"
+    | AgileEdit => agile_arity_route (args_len_is 5i32) agile_edit_route
+    | AgileShow => agile_arity_route (agile_either_arity 3i32 4i32) fun () => $"agile_task_inspection::eoie_agile_show_run()"
+    | AgilePlan => agile_with_root fun () => $"agile_planning_rollup::eoie_agile_planning_rollup_run()"
+    | AgileMigrateTags => agile_with_root fun () => $"agile_planning_migration::eoie_agile_migrate_tags_run()"
+    | AgileNote => agile_arity_route (agile_either_arity 4i32 6i32) fun () => $"agile_task_notes::eoie_agile_note_run()"
+    | AgileNotes => agile_arity_route (args_len_is 4i32) fun () => $"agile_title_notes::eoie_agile_notes_from_title_run()"
+    | AgileRename => agile_arity_route (args_len_is 4i32) fun () => $"agile_task_rename::eoie_agile_rename_run()"
+    | AgileTodos => agile_with_root fun () => $"agile_todo_scan::eoie_agile_todos_run()"
 
 let agile_entry () : i32 =
-    if i32_le 2i32 (agile_argument_count ()) then
-        match rust_std_string.model.pipe_index "list|plan|migrate-tags|todos" (argument_owned 0i32) with
-        | 0u64 => $"agile_task_listing::eoie_agile_list_run()"
-        | 1u64 => $"agile_planning_rollup::eoie_agile_planning_rollup_run()"
-        | 2u64 => $"agile_planning_migration::eoie_agile_migrate_tags_run()"
-        | 3u64 => $"agile_todo_scan::eoie_agile_todos_run()"
-        | _ => agile_counted_entry ()
-    else agile_counted_entry ()
+    match agile_subcommand_of (argument_owned 0i32) with
+    | AgileKnown subcommand => agile_route subcommand
+    | AgileUnknownName => agile_usage_error ()
 
 inl main () : i32 =
     agile_terminal.emit_runtime ()

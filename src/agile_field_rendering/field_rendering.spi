@@ -81,9 +81,9 @@ inl rendered_field (field : agile_edit_field) (~current : string) (~value : stri
     | AppendTitle =>
         inl open_title = byte_slice current 0i32 (i32_prev (byte_len current))
         Valid (rust_std_string.model.concat5 open_title (title_joint (title_continuation_of open_title value)) (spi_escaped value) "\"" "")
-    | EditKind => validated_text (parse_task_kind value) agile_task_kind_text
-    | EditPriority => validated_text (parse_priority value) agile_priority_text
-    | EditDifficulty => validated_text (parse_difficulty value) agile_difficulty_text
+    | EditKind => validated_text (parse_task_kind value) agile_case_text
+    | EditPriority => validated_text (parse_priority value) agile_case_text
+    | EditDifficulty => validated_text (parse_difficulty value) agile_case_text
 
 inl field_value_rule = function
     | EditKind => "kind must be Epic, Feature, Story or TaskKind"

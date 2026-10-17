@@ -120,30 +120,13 @@ let agile_lease_policy_from_text (~value : string) : u64 =
 let agile_lease_effective_phase_binding (renewing : i32) (phase : i32) : i32 =
     if !!!!EQ(renewing,1i32) then agile_lease_clock_phase_code LeaseClockWork
     else phase
-union agile_status_name =
-    | PlannedStatus
-    | ActiveStatus
-    | BlockedStatus
-    | PausedStatus
-    | DoneStatus
-    | UnknownStatus
-
-inl agile_status_name_text = function
-    | PlannedStatus => "Planned"
-    | ActiveStatus => "Active"
-    | BlockedStatus => "Blocked"
-    | PausedStatus => "Paused"
-    | DoneStatus => "Done"
-    | UnknownStatus => ""
-
 let agile_status_text (~code : string) : string =
-    if rust_std_string.model.equals code "0" then agile_status_name_text PlannedStatus
-    elif rust_std_string.model.equals code "1" then agile_status_name_text ActiveStatus
-    elif rust_std_string.model.equals code "2" then agile_status_name_text BlockedStatus
-    elif rust_std_string.model.equals code "3" then agile_status_name_text PausedStatus
-    elif rust_std_string.model.equals code "4" then agile_status_name_text DoneStatus
-    else agile_status_name_text UnknownStatus
-
+    union_reflection.cases.union_cases_fold
+        (fun text (status : agile_mutation_policy.model.agile_status) =>
+            inl status_code = agile_mutation_policy.model.agile_status_code status
+            inl status_code_text = $'std::rc::Rc::<str>::from((!status_code).to_string())' : string
+            if rust_std_string.model.equals code status_code_text then agile_mutation_policy.model.agile_case_text status else text)
+        ""
 let agile_status_name_code (~value : string) : u64 =
     rust_std_string.model.pipe_index "Planned|Active|Blocked|Paused|Done" value
 
