@@ -122,6 +122,8 @@ $negativeLog = Join-Path $work 'fixed-array-negative.txt'
 $negativeCode = $LASTEXITCODE
 $negativeOutput = if (Test-Path -LiteralPath $negativeLog) { [IO.File]::ReadAllText($negativeLog) } else { '' }
 if ($negativeCode -eq 2) { throw "Negative array index returned the portable last-element fallback.`n$negativeOutput" }
-if ($negativeCode -ne 101) { throw "Negative array index exited $negativeCode; native Vec indexing panics with 101.`n$negativeOutput" }
+$joinPanic = [regex]::Match($arrayCode, 'Err\(_\) => (\d+) \}\);')
+$panicCode = if ($joinPanic.Success) { [int]$joinPanic.Groups[1].Value } else { 101 }
+if ($negativeCode -ne $panicCode) { throw "Negative array index exited $negativeCode; native Vec indexing panics, and the spiral_main join maps a panic to $panicCode.`n$negativeOutput" }
 Write-Host "EOIE attestation contracts passed: $work"
 exit 0

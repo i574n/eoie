@@ -909,3 +909,37 @@ output:2  row s2 DISAGREE
 output:4  SUITE-EXIT 1
 failed  runs 1  exit 1  matches 2  <elapsed>  <clock>
 ```
+
+## 34. Audit lab directories against the backlog (read + walk + agile: new verb, LAB-IN-REPO)
+
+Habit (Claude, 2026-10-17, abbreviated): `Get-ChildItem lab -Directory`, then `eoie agile show <root> <ID>` per
+directory, then `Select-String -Pattern 'C:\\Users'` over the sources, then a hand-written verdict per directory.
+
+```fixture
+lab/convo-in-spiral/schema.spi
+inl main () : i32 = 0i32
+lab/pack-night/apply.ps1
+"applied"
+lab/old-probe/probe.spi
+inl main () : i32 = 1i32
+lab/convo-in-spiral/bench.fsx
+#r @"C:\Users\someone\.nuget\packages\hopac\0.5.1\lib\netstandard2.0\Hopac.dll"
+```
+
+```setup
+agile add backlog CONVO-IN-SPIRAL Epic P2 D6 "Convo in Spiral" spiral; agile set backlog CONVO-IN-SPIRAL 20 Paused
+agile add backlog PACK-NIGHT Story P0 D3 "Night pack" compiler; agile set backlog PACK-NIGHT 100 Done
+```
+
+```command
+eoie do . 'lab audit lab against backlog'
+```
+
+```expected
+lab                   item             status  progress  verdict
+lab/convo-in-spiral   CONVO-IN-SPIRAL  Paused  20        keep
+lab/old-probe         -                -       -         orphan: no backlog item OLD-PROBE
+lab/pack-night        PACK-NIGHT       Done    100       done: promote or delete
+lab/convo-in-spiral/bench.fsx:1  non-portable path C:\Users\someone\.nuget\packages\hopac\0.5.1\lib\netstandard2.0\Hopac.dll
+failed  labs 3  keep 1  orphan 1  done 1  stale 0  non-portable 1  <elapsed>  <clock>
+```
