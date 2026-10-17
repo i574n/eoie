@@ -486,7 +486,7 @@ fn agile_counted_entry_1() -> i32 {
                                             let mut v266: i32 = *v266;
                                             match &v265 {
                                                 US1::US1_Invalid => {
-                                                    let mut v274: i32 = agile_mutation_error("invalid agile status");
+                                                    let mut v274: i32 = agile_mutation_error("invalid agile status (expected Planned, Active, Blocked, Paused or Done)");
                                                     v274
                                                 }
                                                 US1::US1_Valid(v267) => {

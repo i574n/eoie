@@ -52,7 +52,7 @@ inl agile_usage_error () : i32 =
     if rust_std_string.model.equals shape "" then agile_full_usage_error () else agile_shape_error subcommand shape
 inl agile_title_error () : i32 = $"agile_mutation_error(\"begin title must contain 3..7 visible words\")"
 inl agile_progress_error () : i32 = $"agile_mutation_error(\"progress must be 0..100\")"
-inl agile_status_error () : i32 = $"agile_mutation_error(\"invalid agile status\")"
+inl agile_status_error () : i32 = $"agile_mutation_error(\"invalid agile status (expected Planned, Active, Blocked, Paused or Done)\")"
 inl agile_check (~root : string) : i32 = $"mutation_agile_check_owned(!root.as_ref())"
 inl agile_lease_status (~root : string) : i32 = $"mutation_agile_lease_status_owned(!root.as_ref())"
 inl agile_handoff (~root : string) : i32 = $"handoff_render_owned(!root.as_ref())"
