@@ -65,6 +65,7 @@ impl Default for US2 {
 enum US3 {
     US3_AuthorDefault,
     US3_AuthorNamed(Rc<str>),
+    US3_AuthorUnnamedAgent,
     US3_AuthorMalformed,
 }
 impl US3 {
@@ -72,7 +73,8 @@ impl US3 {
         match self {
             US3::US3_AuthorDefault => 0,
             US3::US3_AuthorNamed(..) => 1,
-            US3::US3_AuthorMalformed => 2,
+            US3::US3_AuthorUnnamedAgent => 2,
+            US3::US3_AuthorMalformed => 3,
         }
     }
 }
@@ -578,24 +580,54 @@ fn note_entry_0() -> i32 {
     } else {
         let mut v12: i32 = std::env::args().skip(2).count() as i32;
         let mut v13: bool = v12 == 4i32;
-        let mut v31: US3 = if v13 {
-            US3::US3_AuthorDefault
+        let mut v53: US3 = if v13 {
+            let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("EOIE_AUTHOR"); } LIT.with(|lit| lit.clone()) };
+            let mut v15: Rc<str> = std::env::var(&*v14).map_or_else(|_| std::rc::Rc::<str>::default(), std::rc::Rc::<str>::from);
+            let mut v16: Rc<str> = std::rc::Rc::<str>::from(v15.trim());
+            let mut v17: bool = v16 == v5 ;
+            let mut v18: bool = v17 == false;
+            if v18 {
+                let mut v19: Rc<str> = std::env::var(&*v14).map_or_else(|_| std::rc::Rc::<str>::default(), std::rc::Rc::<str>::from);
+                let mut v20: Rc<str> = std::rc::Rc::<str>::from(v19.trim());
+                US3::US3_AuthorNamed(v20.clone())
+            } else {
+                let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("AI_AGENT"); } LIT.with(|lit| lit.clone()) };
+                let mut v23: Rc<str> = std::env::var(&*v22).map_or_else(|_| std::rc::Rc::<str>::default(), std::rc::Rc::<str>::from);
+                let mut v24: Rc<str> = std::rc::Rc::<str>::from(v23.trim());
+                let mut v25: bool = v24 == v5 ;
+                let mut v26: bool = v25 == false;
+                let mut v32: bool = if v26 {
+                    true
+                } else {
+                    let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("CLAUDECODE"); } LIT.with(|lit| lit.clone()) };
+                    let mut v28: Rc<str> = std::env::var(&*v27).map_or_else(|_| std::rc::Rc::<str>::default(), std::rc::Rc::<str>::from);
+                    let mut v29: Rc<str> = std::rc::Rc::<str>::from(v28.trim());
+                    let mut v30: bool = v29 == v5 ;
+                    let mut v31: bool = v30 == false;
+                    v31
+                };
+                if v32 {
+                    US3::US3_AuthorUnnamedAgent
+                } else {
+                    US3::US3_AuthorDefault
+                }
+            }
         } else {
-            let mut v15: bool = v12 == 6i32;
-            if v15 {
-                let mut v16: i32 = 4i32;
-                let mut v17: Rc<str> = usize::try_from(v16).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--as"); } LIT.with(|lit| lit.clone()) };
-                let mut v19: bool = v17 == v18 ;
-                if v19 {
-                    let mut v20: i32 = 5i32;
-                    let mut v21: Rc<str> = usize::try_from(v20).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                    let mut v22: Rc<str> = std::rc::Rc::<str>::from(v21.trim());
-                    let mut v23: bool = v22 == v5 ;
-                    if v23 {
+            let mut v37: bool = v12 == 6i32;
+            if v37 {
+                let mut v38: i32 = 4i32;
+                let mut v39: Rc<str> = usize::try_from(v38).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                let mut v40: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--as"); } LIT.with(|lit| lit.clone()) };
+                let mut v41: bool = v39 == v40 ;
+                if v41 {
+                    let mut v42: i32 = 5i32;
+                    let mut v43: Rc<str> = usize::try_from(v42).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                    let mut v44: Rc<str> = std::rc::Rc::<str>::from(v43.trim());
+                    let mut v45: bool = v44 == v5 ;
+                    if v45 {
                         US3::US3_AuthorMalformed
                     } else {
-                        US3::US3_AuthorNamed(v22.clone())
+                        US3::US3_AuthorNamed(v44.clone())
                     }
                 } else {
                     US3::US3_AuthorMalformed
@@ -604,27 +636,36 @@ fn note_entry_0() -> i32 {
                 US3::US3_AuthorMalformed
             }
         };
-        match &v31 {
+        match &v53 {
             US3::US3_AuthorDefault => {
-                let mut v32: i32 = 1i32;
-                let mut v33: Rc<str> = usize::try_from(v32).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("user"); } LIT.with(|lit| lit.clone()) };
-                note_added_1(v33.clone(), v1.clone(), v34.clone(), v4.clone())
+                let mut v54: i32 = 1i32;
+                let mut v55: Rc<str> = usize::try_from(v54).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                let mut v56: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("user"); } LIT.with(|lit| lit.clone()) };
+                note_added_1(v55.clone(), v1.clone(), v56.clone(), v4.clone())
             }
             US3::US3_AuthorMalformed => {
-                let mut v40: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("usage: agile note <root> <id> <text> [--as <author>]"); } LIT.with(|lit| lit.clone()) };
-                let mut v41: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile note "); } LIT.with(|lit| lit.clone()) };
-                let mut v42: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" rejected: "); } LIT.with(|lit| lit.clone()) };
-                let mut v43: Rc<str> = std::rc::Rc::<str>::from([&*v41, &*v1, &*v42, &*v40, &*v5].concat());
-                let mut v44: i32 = std::io::Write::write_all(&mut std::io::stderr(), ("eoie error: ".to_string() + &*v43 + "
+                let mut v67: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("usage: agile note <root> <id> <text> [--as <author>]"); } LIT.with(|lit| lit.clone()) };
+                let mut v68: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile note "); } LIT.with(|lit| lit.clone()) };
+                let mut v69: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" rejected: "); } LIT.with(|lit| lit.clone()) };
+                let mut v70: Rc<str> = std::rc::Rc::<str>::from([&*v68, &*v1, &*v69, &*v67, &*v5].concat());
+                let mut v71: i32 = std::io::Write::write_all(&mut std::io::stderr(), ("eoie error: ".to_string() + &*v70 + "
 ").as_bytes()).map(|_| 2i32).unwrap_or(2i32);
-                v44
+                v71
             }
-            US3::US3_AuthorNamed(v36) => {
-                let mut v36: Rc<str> = v36.clone();
-                let mut v37: i32 = 1i32;
-                let mut v38: Rc<str> = usize::try_from(v37).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
-                note_added_1(v38.clone(), v1.clone(), v36.clone(), v4.clone())
+            US3::US3_AuthorNamed(v58) => {
+                let mut v58: Rc<str> = v58.clone();
+                let mut v59: i32 = 1i32;
+                let mut v60: Rc<str> = usize::try_from(v59).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from);
+                note_added_1(v60.clone(), v1.clone(), v58.clone(), v4.clone())
+            }
+            US3::US3_AuthorUnnamedAgent => {
+                let mut v62: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("an agent session must name the note's author: agile note <root> <id> <text> --as <author> (or set EOIE_AUTHOR)"); } LIT.with(|lit| lit.clone()) };
+                let mut v63: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile note "); } LIT.with(|lit| lit.clone()) };
+                let mut v64: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" rejected: "); } LIT.with(|lit| lit.clone()) };
+                let mut v65: Rc<str> = std::rc::Rc::<str>::from([&*v63, &*v1, &*v64, &*v62, &*v5].concat());
+                let mut v66: i32 = std::io::Write::write_all(&mut std::io::stderr(), ("eoie error: ".to_string() + &*v65 + "
+").as_bytes()).map(|_| 2i32).unwrap_or(2i32);
+                v66
             }
         }
     }

@@ -1,5 +1,6 @@
 packages:
     rust_std_string
+    agile_subcommand_domain
 modules:
     model
     main

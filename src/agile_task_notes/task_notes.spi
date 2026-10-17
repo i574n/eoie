@@ -16,11 +16,20 @@ inl default_author () : string = "user"
 union note_author_choice =
     | AuthorDefault
     | AuthorNamed : string
+    | AuthorUnnamedAgent
     | AuthorMalformed
+
+inl variable_set (name : string) : bool =
+    if rust_std_string.model.equals (rust_std_string.model.trim (rust_std_env.model.variable_or_empty name)) "" then false else true
+
+inl unnamed_choice () : note_author_choice =
+    if variable_set "EOIE_AUTHOR" then AuthorNamed (rust_std_string.model.trim (rust_std_env.model.variable_or_empty "EOIE_AUTHOR"))
+    elif variable_set "AI_AGENT" || variable_set "CLAUDECODE" then AuthorUnnamedAgent
+    else AuthorDefault
 
 inl author_choice () : note_author_choice =
     inl count = argument_count ()
-    if i32_eq count 4i32 then AuthorDefault
+    if i32_eq count 4i32 then unnamed_choice ()
     elif i32_eq count 6i32 then
         if rust_std_string.model.equals (argument_owned 4i32) "--as" then
             inl named = rust_std_string.model.trim (argument_owned 5i32)
@@ -60,6 +69,7 @@ let note_entry () : i32 =
         match author_choice () with
         | AuthorDefault => note_added (argument_owned 1i32) id (default_author ()) body
         | AuthorNamed author => note_added (argument_owned 1i32) id author body
+        | AuthorUnnamedAgent => note_failure "an agent session must name the note's author: agile note <root> <id> <text> --as <author> (or set EOIE_AUTHOR)" id
         | AuthorMalformed => note_failure "usage: agile note <root> <id> <text> [--as <author>]" id
 
 inl main () : i32 =

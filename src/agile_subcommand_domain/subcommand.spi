@@ -1,0 +1,48 @@
+union agile_subcommand =
+    | AgileBegin
+    | AgileLease
+    | AgileStatus
+    | AgileHandoff
+    | AgileList
+    | AgileCheck
+    | AgileRecord
+    | AgileSet
+    | AgileAdd
+    | AgileEdit
+    | AgileInit
+    | AgileShow
+    | AgilePlan
+    | AgileMigrateTags
+    | AgileNote
+    | AgileNotes
+    | AgileRename
+    | AgileTodos
+    | AgileUnknown
+
+inl agile_subcommand_names () : string = "begin|lease|status|handoff|list|check|record|set|add|edit|init|show|plan|migrate-tags|note|notes|rename|todos"
+
+inl agile_subcommand_from_index = function
+    | 0u64 => AgileBegin
+    | 1u64 => AgileLease
+    | 2u64 => AgileStatus
+    | 3u64 => AgileHandoff
+    | 4u64 => AgileList
+    | 5u64 => AgileCheck
+    | 6u64 => AgileRecord
+    | 7u64 => AgileSet
+    | 8u64 => AgileAdd
+    | 9u64 => AgileEdit
+    | 10u64 => AgileInit
+    | 11u64 => AgileShow
+    | 12u64 => AgilePlan
+    | 13u64 => AgileMigrateTags
+    | 14u64 => AgileNote
+    | 15u64 => AgileNotes
+    | 16u64 => AgileRename
+    | 17u64 => AgileTodos
+    | _ => AgileUnknown
+
+let agile_subcommand_known (~input : string) : i32 =
+    match agile_subcommand_from_index (rust_std_string.model.pipe_index (agile_subcommand_names ()) input) with
+    | AgileUnknown => 0i32
+    | _ => 1i32

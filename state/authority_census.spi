@@ -2,7 +2,7 @@ union authority_census =
     | AuthorityCensus :: u32 * u32 * u32 * u32 * u32 * u32 * u32 * u32 * u32 * u32 -> authority_census
 
 inl current_authority_census () : authority_census =
-    AuthorityCensus (555u32, 191u32, 261u32, 24829u32, 60443u32, 139u32, 315u32, 176u32, 998u32, 982u32)
+    AuthorityCensus (556u32, 191u32, 261u32, 24841u32, 60484u32, 139u32, 316u32, 177u32, 995u32, 982u32)
 
 inl census_authority () : string = "source-topology"
 inl main () : i32 = 0i32

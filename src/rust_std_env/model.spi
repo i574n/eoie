@@ -11,5 +11,8 @@ inl argument_byte (~index : i32) (~offset : i32) : i32 =
 inl argument_equals (~index : i32) (~expected : string) : bool =
     $'usize::try_from(!index).ok().and_then(|index| std::env::args().skip(2).nth(index)).is_some_and(|value| value.as_str() == !expected.as_ref())' : bool
 
+inl variable_or_empty (~name : string) : string =
+    $'std::env::var(&*!name).map_or_else(|_| std::rc::Rc::<str>::default(), std::rc::Rc::<str>::from)' : string
+
 inl argument_owned (~index : i32) : string =
     $'usize::try_from(!index).ok().and_then(|index| std::env::args().skip(2).nth(index)).map_or_else(std::rc::Rc::<str>::default, std::rc::Rc::<str>::from)' : string
