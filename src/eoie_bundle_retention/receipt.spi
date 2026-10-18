@@ -1,0 +1,84 @@
+///- --package .
+test receipt static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union receipt_status =
+    | PlannedReceipt
+    | AppliedReceipt
+
+inl receipt_status_of (status : string) : receipt_status =
+    if equals status "planned" then PlannedReceipt else AppliedReceipt
+
+inl status_constructor = function
+    | PlannedReceipt => "RetentionDryRun"
+    | AppliedReceipt => "RetentionApplied"
+
+inl decimal (~value : u64) : string =
+    $'std::rc::Rc::<str>::from((!value).to_string())' : string
+
+inl receipt_schema () : string =
+    """
+    union retention_receipt_status =
+        | RetentionDryRun
+        | RetentionApplied
+
+    union retention_receipt =
+        | RetentionReceipt :: string * string * i32 * i32 * i32 * retention_receipt_status -> retention_receipt
+
+    inl latest_retention_receipt () : retention_receipt =
+        RetentionReceipt ("
+    """
+
+inl marker_line (fingerprint : string) (current : string) (candidates : u64) (deletes : u64) (remaining : u64) (status : string) : string =
+    concat5
+        (concat5 "// retention-receipt|schema=1|fingerprint=" fingerprint "|current=" current "|candidates=")
+        (decimal candidates)
+        "|deletes="
+        (decimal deletes)
+        (concat5 "|remaining=" (decimal remaining) "|status=" status "\n")
+
+inl receipt_tail (candidates : u64) (deletes : u64) (remaining : u64) (status : receipt_status) : string =
+    concat5
+        (concat5 "\", " (decimal candidates) "i32, " (decimal deletes) "i32, ")
+        (decimal remaining)
+        "i32, "
+        (status_constructor status)
+        ")\n\ninl main () : i32 = 0i32\n"
+
+let receipt_source (~fingerprint : string) (~current : string) (~candidates : u64) (~deletes : u64) (~remaining : u64) (~status : string) : string =
+    concat5
+        (marker_line fingerprint current candidates deletes remaining status)
+        (receipt_schema ())
+        fingerprint
+        "\", \""
+        (concat5 current (receipt_tail candidates deletes remaining (receipt_status_of status)) "" "" "")
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test a_planned_receipt_is_a_dry_run_spiral_module =
+    inl expected =
+        """
+        // retention-receipt|schema=1|fingerprint=ab12|current=cd34|candidates=5|deletes=2|remaining=5|status=planned
+        union retention_receipt_status =
+            | RetentionDryRun
+            | RetentionApplied
+
+        union retention_receipt =
+            | RetentionReceipt :: string * string * i32 * i32 * i32 * retention_receipt_status -> retention_receipt
+
+        inl latest_retention_receipt () : retention_receipt =
+            RetentionReceipt ("ab12", "cd34", 5i32, 2i32, 5i32, RetentionDryRun)
+
+        inl main () : i32 = 0i32
+
+        """
+    expect (equals (receipt_source "ab12" "cd34" 5u64 2u64 5u64 "planned") expected) "planned receipt text"
+
+///> rust
+test an_applied_receipt_names_the_applied_constructor =
+    inl source = receipt_source "ab12" "cd34" 5u64 2u64 3u64 "applied"
+    expect (contains source "|remaining=3|status=applied\n") "marker line"
+    expect (contains source "3i32, RetentionApplied)\n") "constructor"

@@ -346,6 +346,7 @@ fn distinguishes_cargo_crates_from_package_only_spiral() {
 enum US0 {
     US0_CacheDirTagged,
     US0_TargetBesideCargoManifest,
+    US0_MixBuildOutput,
     US0_NoBuildCacheEvidence,
 }
 fn topology_limit_binding_0(mut v0: i32, mut v1: i32) -> i32 {
@@ -420,7 +421,7 @@ fn source_surface_binding_2(mut v0: i32, mut v1: i32) -> i32 {
 fn build_cache_binding_3(mut v0: u64, mut v1: i32, mut v2: i32) -> i32 {
     let mut v3: bool = v1 == 1i32;
     let mut v4: bool = v2 == 1i32;
-    let mut v11: US0 = if v3 {
+    let mut v14: US0 = if v3 {
         US0::US0_CacheDirTagged
     } else {
         let mut v6: bool = v0 == 2u64;
@@ -428,10 +429,15 @@ fn build_cache_binding_3(mut v0: u64, mut v1: i32, mut v2: i32) -> i32 {
         if v7 {
             US0::US0_TargetBesideCargoManifest
         } else {
-            US0::US0_NoBuildCacheEvidence
+            let mut v9: bool = v0 == 5u64;
+            if v9 {
+                US0::US0_MixBuildOutput
+            } else {
+                US0::US0_NoBuildCacheEvidence
+            }
         }
     };
-    match &v11 {
+    match &v14 {
         US0::US0_NoBuildCacheEvidence => {
             0i32
         }
@@ -490,7 +496,13 @@ fn source_directory_kind_5(mut v0: Rc<str>) -> u64 {
                 if v8 {
                     4u64
                 } else {
-                    3u64
+                    let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("_build"); } LIT.with(|lit| lit.clone()) };
+                    let mut v10: bool = v0 == v9 ;
+                    if v10 {
+                        5u64
+                    } else {
+                        3u64
+                    }
                 }
             }
         }

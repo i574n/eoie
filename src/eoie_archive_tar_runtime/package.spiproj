@@ -1,2 +1,5 @@
+packages:
+    rust_std_string
 modules:
+    format
     main
