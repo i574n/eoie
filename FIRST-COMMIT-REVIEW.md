@@ -46,7 +46,7 @@ stops on such unrenewable diagnostics before starting.
 ## Evidence renewal on the dev21 compiler — October 8, morning
 
 **Compiler.** Single-flight deployed at 06:40 (core `528BE76E5B0F`: Bend backend, no comments in emitted helpers), oracle
-re-blessed with identical results (1,960 rows, `DISAGREE` 0).
+re-accepted with identical results (1,960 rows, `DISAGREE` 0).
 
 **Validation (06:40–06:51):** `build.ps1 -Test -CompilerContracts -Offline` 195 tests passed, 0 failed; `renew-cold-rebuild -Apply`;
 `eoie agile check --compiler` exit 0; closeout apply on a staged copy, then `test-strict-preflight.ps1 -RequireReady`:
@@ -60,7 +60,7 @@ the day's deploys, over the 512-entry dependency inventory cap. They were delete
 sibling `net11.0-rollback` directory.
 
 **Compiler.** The single-flight compiler deployed at 19:31 (core `06A68645FEF2`: no comments in generated code, Lua fixes),
-oracle re-blessed with identical results (1,888 rows, `DISAGREE` 0). EOIE's compiler identity covers the whole compiler
+oracle re-accepted with identical results (1,888 rows, `DISAGREE` 0). EOIE's compiler identity covers the whole compiler
 directory (core DLL and runtime dependencies, `DOGFOOD-COMPILER-IDENTITY`), which is why the rollback copies counted.
 
 **Validation, all on this compiler (20:52–21:09):**
@@ -76,7 +76,7 @@ directory (core DLL and runtime dependencies, `DOGFOOD-COMPILER-IDENTITY`), whic
 out at 1,009 lines, over the 1,000-line crate limit. The cause was compiler output size, not EOIE source.
 
 **Change.** The single-flight compiler deployed at 07:33 (core `F99D0A72AE1C`: leaner Rust emission, portable `Printf`,
-operator arguments) regenerates every crate under the limit. Its oracle suite was re-blessed twice with identical results
+operator arguments) regenerates every crate under the limit. Its oracle suite was re-accepted twice with identical results
 (706 rows, `DISAGREE` 0) before deployment.
 
 **Validation, all on this compiler:**
