@@ -35,5 +35,5 @@ inl release_contract () : contract_plan contract_cold contract_closed =
 
 inl emit_main () : i32 =
     emit_contract_cli_driver ()
-    rust_global "include!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/native_tools.rs\"));"
+    rust_global """include!(concat!(env!("CARGO_MANIFEST_DIR"), "/native_tools.rs"));"""
     0i32

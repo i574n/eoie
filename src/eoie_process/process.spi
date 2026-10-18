@@ -58,33 +58,352 @@ inl shutdown_plan () : process_plan process_idle sessions_closed = ProcessThen (
 inl rust_global (x : string) : () = !!!!Global(x)
 
 inl emit_run_bounded () =
-    rust_global "#[rustfmt::skip]\n#[cfg(windows)] pub use eoie_process_streaming::WindowsJob;\npub fn run_bounded(command: &mut std::process::Command, timeout_ms: u64) -> Result<std::process::ExitStatus, String> {\n    let stdout_handle = std::io::stdout(); let stderr_handle = std::io::stderr(); let mut stdout = stdout_handle.lock(); let mut stderr = stderr_handle.lock();\n    let capture = eoie_process_streaming::run_bounded_streaming(command, timeout_ms, None, |kind, bytes| { match kind { eoie_process_streaming::ProcessStreamKind::Stdout => { std::io::Write::write_all(&mut stdout, bytes).map_err(|error| format!(\"stream stdout: {error}\"))?; std::io::Write::flush(&mut stdout).map_err(|error| format!(\"flush stdout: {error}\"))?; }, eoie_process_streaming::ProcessStreamKind::Stderr => { std::io::Write::write_all(&mut stderr, bytes).map_err(|error| format!(\"stream stderr: {error}\"))?; std::io::Write::flush(&mut stderr).map_err(|error| format!(\"flush stderr: {error}\"))?; } } Ok(()) })?;\n    if matches!(capture.termination, eoie_process_streaming::ProcessTermination::TimedOut) { return Err(format!(\"command timed out after {timeout_ms} ms\")); } Ok(capture.status)\n}\n#[cfg(all(test, unix))]\n#[rustfmt::skip]\nmod run_bounded_tree_tests {\n    use super::*;\n    #[test] fn public_timeout_kills_grandchild_tree() { let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(); let root = std::env::temp_dir().join(format!(\"eoie-run-bounded-tree-{}-{nonce}\", std::process::id())); std::fs::create_dir_all(&root).unwrap(); let marker = root.join(\"escaped.txt\"); let mut command = std::process::Command::new(\"/bin/sh\"); command.arg(\"-c\").arg(\"(sleep 0.35; printf escaped > \\\"$1\\\") & wait\").arg(\"eoie-grandchild\").arg(&marker); let error = run_bounded(&mut command, 50).unwrap_err(); assert!(error.contains(\"timed out\")); std::thread::sleep(std::time::Duration::from_millis(500)); assert!(!marker.exists(), \"grandchild escaped process-group termination\"); std::fs::remove_dir_all(&root).unwrap(); }\n}"
+    rust_global """#[rustfmt::skip]
+#[cfg(windows)] pub use eoie_process_streaming::WindowsJob;
+pub fn run_bounded(command: &mut std::process::Command, timeout_ms: u64) -> Result<std::process::ExitStatus, String> {
+    let stdout_handle = std::io::stdout(); let stderr_handle = std::io::stderr(); let mut stdout = stdout_handle.lock(); let mut stderr = stderr_handle.lock();
+    let capture = eoie_process_streaming::run_bounded_streaming(command, timeout_ms, None, |kind, bytes| { match kind { eoie_process_streaming::ProcessStreamKind::Stdout => { std::io::Write::write_all(&mut stdout, bytes).map_err(|error| format!("stream stdout: {error}"))?; std::io::Write::flush(&mut stdout).map_err(|error| format!("flush stdout: {error}"))?; }, eoie_process_streaming::ProcessStreamKind::Stderr => { std::io::Write::write_all(&mut stderr, bytes).map_err(|error| format!("stream stderr: {error}"))?; std::io::Write::flush(&mut stderr).map_err(|error| format!("flush stderr: {error}"))?; } } Ok(()) })?;
+    if matches!(capture.termination, eoie_process_streaming::ProcessTermination::TimedOut) { return Err(format!("command timed out after {timeout_ms} ms")); } Ok(capture.status)
+}
+#[cfg(all(test, unix))]
+#[rustfmt::skip]
+mod run_bounded_tree_tests {
+    use super::*;
+    #[test] fn public_timeout_kills_grandchild_tree() { let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(); let root = std::env::temp_dir().join(format!("eoie-run-bounded-tree-{}-{nonce}", std::process::id())); std::fs::create_dir_all(&root).unwrap(); let marker = root.join("escaped.txt"); let mut command = std::process::Command::new("/bin/sh"); command.arg("-c").arg("(sleep 0.35; printf escaped > \"$1\") & wait").arg("eoie-grandchild").arg(&marker); let error = run_bounded(&mut command, 50).unwrap_err(); assert!(error.contains("timed out")); std::thread::sleep(std::time::Duration::from_millis(500)); assert!(!marker.exists(), "grandchild escaped process-group termination"); std::fs::remove_dir_all(&root).unwrap(); }
+}"""
 
 inl emit_process_capture_types () =
-    rust_global "#[derive(Clone, Debug, Eq, PartialEq)]\npub enum ProcessTermination {\n    Exited(i32),\n    Signaled(i32),\n    TimedOut,\n    Unknown,\n}\n\n#[derive(Debug)]\npub struct ProcessCapture {\n    pub status: std::process::ExitStatus,\n    pub termination: ProcessTermination,\n    pub stdout: Vec<u8>,\n    pub stderr: Vec<u8>,\n}\n\nfn classify_process_termination(status: &std::process::ExitStatus) -> ProcessTermination {\n    if let Some(code) = status.code() {\n        return ProcessTermination::Exited(code);\n    }\n    #[cfg(unix)]\n    {\n        use std::os::unix::process::ExitStatusExt as _;\n        if let Some(signal) = status.signal() {\n            return ProcessTermination::Signaled(signal);\n        }\n    }\n    ProcessTermination::Unknown\n}\n"
+    rust_global """#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProcessTermination {
+    Exited(i32),
+    Signaled(i32),
+    TimedOut,
+    Unknown,
+}
+
+#[derive(Debug)]
+pub struct ProcessCapture {
+    pub status: std::process::ExitStatus,
+    pub termination: ProcessTermination,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}
+
+fn classify_process_termination(status: &std::process::ExitStatus) -> ProcessTermination {
+    if let Some(code) = status.code() {
+        return ProcessTermination::Exited(code);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt as _;
+        if let Some(signal) = status.signal() {
+            return ProcessTermination::Signaled(signal);
+        }
+    }
+    ProcessTermination::Unknown
+}
+"""
 
 inl emit_run_bounded_capture () =
-    rust_global "#[derive(Clone, Debug, Eq, PartialEq)]\npub enum ProcessTermination {\n    Exited(i32),\n    Signaled(i32),\n    TimedOut,\n    Unknown,\n}\n\n#[derive(Debug)]\npub struct ProcessCapture {\n    pub status: std::process::ExitStatus,\n    pub termination: ProcessTermination,\n    pub stdout: Vec<u8>,\n    pub stderr: Vec<u8>,\n}\n\nfn classify_process_termination(status: &std::process::ExitStatus) -> ProcessTermination {\n    if let Some(code) = status.code() {\n        return ProcessTermination::Exited(code);\n    }\n    #[cfg(unix)]\n    {\n        use std::os::unix::process::ExitStatusExt as _;\n        if let Some(signal) = status.signal() {\n            return ProcessTermination::Signaled(signal);\n        }\n    }\n    ProcessTermination::Unknown\n}\n\nfn spawn_process_reader<T>(mut stream: T) -> std::thread::JoinHandle<Result<Vec<u8>, String>>\nwhere\n    T: std::io::Read + Send + 'static,\n{\n    std::thread::spawn(move || {\n        let mut bytes = Vec::new();\n        stream\n            .read_to_end(&mut bytes)\n            .map_err(|error| format!(\"read process stream: {error}\"))?;\n        Ok(bytes)\n    })\n}\n\nfn join_process_reader(\n    reader: std::thread::JoinHandle<Result<Vec<u8>, String>>,\n    stream: &str,\n) -> Result<Vec<u8>, String> {\n    reader\n        .join()\n        .map_err(|_| format!(\"{stream} reader panicked\"))?\n}\n\npub fn run_bounded_capture(\n    command: &mut std::process::Command,\n    timeout_ms: u64,\n) -> Result<ProcessCapture, String> {\n    if timeout_ms == 0 {\n        return Err(\"timeout must be positive\".to_owned());\n    }\n    command\n        .stdout(std::process::Stdio::piped())\n        .stderr(std::process::Stdio::piped());\n    let mut child = command\n        .spawn()\n        .map_err(|error| format!(\"spawn process: {error}\"))?;\n    let stdout = child\n        .stdout\n        .take()\n        .ok_or_else(|| \"process stdout was not piped\".to_owned())?;\n    let stderr = child\n        .stderr\n        .take()\n        .ok_or_else(|| \"process stderr was not piped\".to_owned())?;\n    let stdout_reader = spawn_process_reader(stdout);\n    let stderr_reader = spawn_process_reader(stderr);\n    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);\n    let (status, timed_out) = loop {\n        if let Some(status) = child\n            .try_wait()\n            .map_err(|error| format!(\"wait process: {error}\"))?\n        {\n            break (status, false);\n        }\n        if std::time::Instant::now() >= deadline {\n            child\n                .kill()\n                .map_err(|error| format!(\"kill timed out process: {error}\"))?;\n            let status = child\n                .wait()\n                .map_err(|error| format!(\"reap timed out process: {error}\"))?;\n            break (status, true);\n        }\n        std::thread::sleep(std::time::Duration::from_millis(10));\n    };\n    let stdout = join_process_reader(stdout_reader, \"stdout\")?;\n    let stderr = join_process_reader(stderr_reader, \"stderr\")?;\n    let termination = if timed_out {\n        ProcessTermination::TimedOut\n    } else {\n        classify_process_termination(&status)\n    };\n    Ok(ProcessCapture { status, termination, stdout, stderr })\n}\n"
+    rust_global """#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProcessTermination {
+    Exited(i32),
+    Signaled(i32),
+    TimedOut,
+    Unknown,
+}
+
+#[derive(Debug)]
+pub struct ProcessCapture {
+    pub status: std::process::ExitStatus,
+    pub termination: ProcessTermination,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}
+
+fn classify_process_termination(status: &std::process::ExitStatus) -> ProcessTermination {
+    if let Some(code) = status.code() {
+        return ProcessTermination::Exited(code);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt as _;
+        if let Some(signal) = status.signal() {
+            return ProcessTermination::Signaled(signal);
+        }
+    }
+    ProcessTermination::Unknown
+}
+
+fn spawn_process_reader<T>(mut stream: T) -> std::thread::JoinHandle<Result<Vec<u8>, String>>
+where
+    T: std::io::Read + Send + 'static,
+{
+    std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stream
+            .read_to_end(&mut bytes)
+            .map_err(|error| format!("read process stream: {error}"))?;
+        Ok(bytes)
+    })
+}
+
+fn join_process_reader(
+    reader: std::thread::JoinHandle<Result<Vec<u8>, String>>,
+    stream: &str,
+) -> Result<Vec<u8>, String> {
+    reader
+        .join()
+        .map_err(|_| format!("{stream} reader panicked"))?
+}
+
+pub fn run_bounded_capture(
+    command: &mut std::process::Command,
+    timeout_ms: u64,
+) -> Result<ProcessCapture, String> {
+    if timeout_ms == 0 {
+        return Err("timeout must be positive".to_owned());
+    }
+    command
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let mut child = command
+        .spawn()
+        .map_err(|error| format!("spawn process: {error}"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "process stdout was not piped".to_owned())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "process stderr was not piped".to_owned())?;
+    let stdout_reader = spawn_process_reader(stdout);
+    let stderr_reader = spawn_process_reader(stderr);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
+    let (status, timed_out) = loop {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|error| format!("wait process: {error}"))?
+        {
+            break (status, false);
+        }
+        if std::time::Instant::now() >= deadline {
+            child
+                .kill()
+                .map_err(|error| format!("kill timed out process: {error}"))?;
+            let status = child
+                .wait()
+                .map_err(|error| format!("reap timed out process: {error}"))?;
+            break (status, true);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    };
+    let stdout = join_process_reader(stdout_reader, "stdout")?;
+    let stderr = join_process_reader(stderr_reader, "stderr")?;
+    let termination = if timed_out {
+        ProcessTermination::TimedOut
+    } else {
+        classify_process_termination(&status)
+    };
+    Ok(ProcessCapture { status, termination, stdout, stderr })
+}
+"""
 
 inl emit_compiler_discovery () = ()
 
 inl emit_compile_spiral () =
-    rust_global "pub fn compile_spiral(\n    compiler: &str,\n    input: &std::path::Path,\n    output: &std::path::Path,\n    backend: &str,\n    segmented_timeout_ms: u64,\n    timeout_ms: u64,\n) -> Result<std::process::ExitStatus, String> {\n    if eoie_process_compiler_budget_valid_binding(i32::from(segmented_timeout_ms > 0), i32::from(timeout_ms > 0)) != 1 {\n        return Err(\"compiler timeouts must be positive\".to_owned());\n    }\n    let mut command = spiral_compiler_command(std::path::Path::new(compiler));\n    command\n        .arg(\"--backend\")\n        .arg(backend);\n    if !native_spiral_host(std::path::Path::new(compiler)) { command.arg(\"--timeout-ms\").arg(timeout_ms.to_string()); }\n    command.arg(input).arg(output);\n    let total = segmented_timeout_ms\n        .saturating_add(timeout_ms)\n        .saturating_add(10_000);\n    let _lease = spiral_session_lock(compiler, false, total)?;\n    run_bounded(&mut command, total)"
-    rust_global "}\n\npub fn compile_spiral_plan_ir(compiler: &str, input: &std::path::Path, output: &std::path::Path, timeout_ms: u64) -> Result<std::process::ExitStatus, String> {\n    if eoie_process_compiler_budget_valid_binding(i32::from(timeout_ms > 0), i32::from(timeout_ms > 0)) != 1 { return Err(\"plan IR compiler timeout must be positive\".to_owned()); }\n    let plan_ir_compiler = if std::path::Path::new(compiler).file_name().and_then(|value| value.to_str()) == Some(\"spiral-compile-session\") { let candidate = std::path::Path::new(compiler).with_file_name(\"spiral-compile\"); if candidate.is_file() { candidate } else { std::path::PathBuf::from(compiler) } } else { std::path::PathBuf::from(compiler) };\n    let mut command = spiral_compiler_command(&plan_ir_compiler);\n    command.arg(\"--plan-ir\").arg(\"--timeout-ms\").arg(timeout_ms.to_string()).arg(input).arg(output);\n    let total = timeout_ms.saturating_add(10_000);\n    let plan_ir_compiler_text = plan_ir_compiler.to_string_lossy();\n    let _lease = spiral_session_lock(plan_ir_compiler_text.as_ref(), false, total)?;\n    run_bounded(&mut command, total)\n}"
+    rust_global """pub fn compile_spiral(
+    compiler: &str,
+    input: &std::path::Path,
+    output: &std::path::Path,
+    backend: &str,
+    segmented_timeout_ms: u64,
+    timeout_ms: u64,
+) -> Result<std::process::ExitStatus, String> {
+    if eoie_process_compiler_budget_valid_binding(i32::from(segmented_timeout_ms > 0), i32::from(timeout_ms > 0)) != 1 {
+        return Err("compiler timeouts must be positive".to_owned());
+    }
+    let mut command = spiral_compiler_command(std::path::Path::new(compiler));
+    command
+        .arg("--backend")
+        .arg(backend);
+    if !native_spiral_host(std::path::Path::new(compiler)) { command.arg("--timeout-ms").arg(timeout_ms.to_string()); }
+    command.arg(input).arg(output);
+    let total = segmented_timeout_ms
+        .saturating_add(timeout_ms)
+        .saturating_add(10_000);
+    let _lease = spiral_session_lock(compiler, false, total)?;
+    run_bounded(&mut command, total)"""
+    rust_global """}
+
+pub fn compile_spiral_plan_ir(compiler: &str, input: &std::path::Path, output: &std::path::Path, timeout_ms: u64) -> Result<std::process::ExitStatus, String> {
+    if eoie_process_compiler_budget_valid_binding(i32::from(timeout_ms > 0), i32::from(timeout_ms > 0)) != 1 { return Err("plan IR compiler timeout must be positive".to_owned()); }
+    let plan_ir_compiler = if std::path::Path::new(compiler).file_name().and_then(|value| value.to_str()) == Some("spiral-compile-session") { let candidate = std::path::Path::new(compiler).with_file_name("spiral-compile"); if candidate.is_file() { candidate } else { std::path::PathBuf::from(compiler) } } else { std::path::PathBuf::from(compiler) };
+    let mut command = spiral_compiler_command(&plan_ir_compiler);
+    command.arg("--plan-ir").arg("--timeout-ms").arg(timeout_ms.to_string()).arg(input).arg(output);
+    let total = timeout_ms.saturating_add(10_000);
+    let plan_ir_compiler_text = plan_ir_compiler.to_string_lossy();
+    let _lease = spiral_session_lock(plan_ir_compiler_text.as_ref(), false, total)?;
+    run_bounded(&mut command, total)
+}"""
 
 inl emit_typecheck_spiral_file () =
-    rust_global "pub fn typecheck_spiral_file(compiler: &SpiralCompilerDiscovery, path: &std::path::Path) -> Result<(), String> {\n    let timeout_ms = std::env::var(\"EOIE_SPIRAL_TIMEOUT_MS\").ok().and_then(|value| value.parse::<u64>().ok()).unwrap_or(30000);\n    let check_compiler = if compiler.path.file_name().and_then(|value| value.to_str()) == Some(\"spiral-compile-session\") {\n        let candidate = compiler.path.with_file_name(\"spiral-compile\");\n        if candidate.is_file() { candidate } else { compiler.path.clone() }\n    } else { compiler.path.clone() };\n    let mut command = spiral_compiler_command(&check_compiler);\n    command.arg(\"--check\").arg(path);\n    let status = run_bounded(&mut command, timeout_ms)?;\n    if !status.success() { return Err(format!(\"Spiral typecheck attestation failed for {} via {}\", path.display(), check_compiler.display())); }\n    Ok(())\n}\n"
+    rust_global """pub fn typecheck_spiral_file(compiler: &SpiralCompilerDiscovery, path: &std::path::Path) -> Result<(), String> {
+    let timeout_ms = std::env::var("EOIE_SPIRAL_TIMEOUT_MS").ok().and_then(|value| value.parse::<u64>().ok()).unwrap_or(30000);
+    let check_compiler = if compiler.path.file_name().and_then(|value| value.to_str()) == Some("spiral-compile-session") {
+        let candidate = compiler.path.with_file_name("spiral-compile");
+        if candidate.is_file() { candidate } else { compiler.path.clone() }
+    } else { compiler.path.clone() };
+    let mut command = spiral_compiler_command(&check_compiler);
+    command.arg("--check").arg(path);
+    let status = run_bounded(&mut command, timeout_ms)?;
+    if !status.success() { return Err(format!("Spiral typecheck attestation failed for {} via {}", path.display(), check_compiler.display())); }
+    Ok(())
+}
+"""
 
 inl emit_shutdown_sessions () =
-    rust_global "struct SpiralSessionProcess {\n    pid: i32,\n    socket: std::path::PathBuf,\n}\n\nfn spiral_compiler_scope(compiler: &str) -> Result<std::path::PathBuf, String> {\n    let compiler = std::fs::canonicalize(compiler).unwrap_or_else(|_| std::path::PathBuf::from(compiler));\n    let parent = compiler.parent().ok_or_else(|| format!(\"compiler has no parent: {}\", compiler.display()))?;\n    Ok(parent.parent().unwrap_or(parent).to_path_buf())\n}\n\nfn spiral_session_matches(scope: &std::path::Path, fields: &[&[u8]]) -> bool {\n    if fields.len() < 3 { return false; }\n    let executable = std::path::PathBuf::from(String::from_utf8_lossy(fields[0]).into_owned());\n    let field_count = i32::try_from(fields.len()).unwrap_or(i32::MAX);\n    let server_flag = i32::from(fields[1] == b\"--server\");\n    let runner_flag = i32::from(executable.file_name().and_then(|value| value.to_str()) == Some(\"SpiralHelloRunner\"));\n    let scope_flag = i32::from(executable.starts_with(scope));\n    let packed_flags = server_flag | (runner_flag << 1) | (scope_flag << 2);\n    eoie_process_session_match_binding(field_count, packed_flags) == 1\n}\n\nfn spiral_session_processes(compiler: &str) -> Result<Vec<SpiralSessionProcess>, String> {\n    let scope = spiral_compiler_scope(compiler)?;\n    let mut processes = Vec::new();\n    for entry in std::fs::read_dir(\"/proc\").map_err(|error| format!(\"read /proc: {error}\"))? {\n        let entry = match entry { Ok(entry) => entry, Err(_) => continue };\n        let pid = match entry.file_name().to_string_lossy().parse::<i32>() { Ok(pid) if pid > 1 => pid, _ => continue };\n        if pid == std::process::id() as i32 { continue; }\n        let bytes = match std::fs::read(entry.path().join(\"cmdline\")) { Ok(bytes) => bytes, Err(_) => continue };\n        let fields = bytes.split(|byte| *byte == 0).filter(|field| !field.is_empty()).collect::<Vec<_>>();\n        if spiral_session_matches(&scope, &fields) {\n            processes.push(SpiralSessionProcess { pid, socket: std::path::PathBuf::from(String::from_utf8_lossy(fields[2]).into_owned()) });\n        }\n    }\n    processes.sort_by_key(|process| process.pid);\n    Ok(processes)\n}\n"
-    rust_global "#[cfg(unix)]\nfn spiral_session_lock_path(compiler: &str) -> Result<std::path::PathBuf, String> {"
-    rust_global "    let scope = spiral_compiler_scope(compiler)?;\n    let mut hash = 14695981039346656037u64;\n    for byte in scope.to_string_lossy().bytes() { hash ^= u64::from(byte); hash = hash.wrapping_mul(1099511628211); }\n    Ok(std::env::temp_dir().join(format!(\"eoie-spiral-session-{hash:016x}.lock\")))\n}\n\n#[cfg(unix)]\nfn spiral_session_lock(compiler: &str, exclusive: bool, timeout_ms: u64) -> Result<Option<std::fs::File>, String> {\n    let compiler_name = std::path::Path::new(compiler).file_name().and_then(|value| value.to_str()).unwrap_or_default();\n    if compiler_name != \"spiral-compile-session\" { return Ok(None); }\n    let path = spiral_session_lock_path(compiler)?;\n    let file = std::fs::OpenOptions::new().read(true).write(true).create(true).truncate(false).open(&path).map_err(|error| format!(\"open session lock {}: {error}\", path.display()))?;\n    let operation = if exclusive { 2 } else { 1 };\n    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);\n    loop {\n        let result = unsafe { flock(std::os::fd::AsRawFd::as_raw_fd(&file), operation | 4) };\n        if result == 0 { return Ok(Some(file)); }\n        let error = std::io::Error::last_os_error();\n        if error.raw_os_error() != Some(11) { return Err(format!(\"lock session compiler {}: {error}\", path.display())); }\n        if std::time::Instant::now() >= deadline { return Err(format!(\"session compiler lock timed out after {timeout_ms} ms\")); }\n        std::thread::sleep(std::time::Duration::from_millis(10));\n    }\n}\n\n#[cfg(not(unix))]\nfn spiral_session_lock(_compiler: &str, _exclusive: bool, _timeout_ms: u64) -> Result<Option<std::fs::File>, String> { Ok(None) }\n\n#[cfg(unix)]\nunsafe extern \"C\" {\n    fn kill(pid: i32, signal: i32) -> i32;\n    fn flock(fd: i32, operation: i32) -> i32;\n}\n\n#[cfg(unix)]\nfn signal_spiral_session(pid: i32, signal: i32) -> Result<(), String> {\n    let group = unsafe { kill(-pid, signal) };\n    let direct = unsafe { kill(pid, signal) };\n    if group != 0 && direct != 0 {\n        let error = std::io::Error::last_os_error();\n        if error.raw_os_error() != Some(3) { return Err(format!(\"signal Spiral session {pid}: {error}\")); }\n    }\n    Ok(())\n}\n\n#[cfg(not(unix))]\nfn signal_spiral_session(_pid: i32, _signal: i32) -> Result<(), String> {\n    Err(\"process-tree signaling requires a Unix process model\".to_owned())\n}\n\nfn remove_spiral_session_files(process: &SpiralSessionProcess) {\n    for path in [process.socket.clone(), std::path::PathBuf::from(format!(\"{}.pid\", process.socket.display())), std::path::PathBuf::from(format!(\"{}.start-lock\", process.socket.display())), std::path::PathBuf::from(format!(\"{}.request-lock\", process.socket.display()))] {\n        let _ = if path.is_dir() { std::fs::remove_dir_all(path) } else { std::fs::remove_file(path) };\n    }\n}\n\nfn wait_for_spiral_sessions(compiler: &str, deadline: std::time::Instant) -> Result<Vec<SpiralSessionProcess>, String> {\n    loop {\n        let remaining = spiral_session_processes(compiler)?;\n        if remaining.is_empty() || std::time::Instant::now() >= deadline { return Ok(remaining); }\n        std::thread::sleep(std::time::Duration::from_millis(20));\n    }\n}\n\npub fn shutdown_spiral_sessions(\n    compiler: &str,\n    timeout_ms: u64,\n) -> Result<std::process::ExitStatus, String> {\n    if timeout_ms == 0 { return Err(\"shutdown timeout must be positive\".to_owned()); }\n    let compiler_name = std::path::Path::new(compiler).file_name().and_then(|value| value.to_str()).unwrap_or_default();\n    let mut status_command = std::process::Command::new(compiler);\n    status_command.arg(\"--version\");\n    let status = run_bounded(&mut status_command, timeout_ms.saturating_add(5000))?;\n    if !status.success() || compiler_name != \"spiral-compile-session\" { return Ok(status); }\n    let _lease = spiral_session_lock(compiler, true, timeout_ms)?;\n    let discovered = spiral_session_processes(compiler)?;\n    for process in &discovered { signal_spiral_session(process.pid, 15)?; }\n    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);\n    let mut remaining = wait_for_spiral_sessions(compiler, deadline)?;\n    if !remaining.is_empty() {\n        for process in &remaining { signal_spiral_session(process.pid, 9)?; }\n        remaining = wait_for_spiral_sessions(compiler, std::time::Instant::now() + std::time::Duration::from_millis(1000))?;\n    }\n    for process in &discovered { remove_spiral_session_files(process); }\n    if !remaining.is_empty() {\n        return Err(format!(\"Spiral session shutdown left {} server(s): {:?}\", remaining.len(), remaining.iter().map(|process| process.pid).collect::<Vec<_>>()));\n    }\n    Ok(status)\n}"
+    rust_global """struct SpiralSessionProcess {
+    pid: i32,
+    socket: std::path::PathBuf,
+}
+
+fn spiral_compiler_scope(compiler: &str) -> Result<std::path::PathBuf, String> {
+    let compiler = std::fs::canonicalize(compiler).unwrap_or_else(|_| std::path::PathBuf::from(compiler));
+    let parent = compiler.parent().ok_or_else(|| format!("compiler has no parent: {}", compiler.display()))?;
+    Ok(parent.parent().unwrap_or(parent).to_path_buf())
+}
+
+fn spiral_session_matches(scope: &std::path::Path, fields: &[&[u8]]) -> bool {
+    if fields.len() < 3 { return false; }
+    let executable = std::path::PathBuf::from(String::from_utf8_lossy(fields[0]).into_owned());
+    let field_count = i32::try_from(fields.len()).unwrap_or(i32::MAX);
+    let server_flag = i32::from(fields[1] == b"--server");
+    let runner_flag = i32::from(executable.file_name().and_then(|value| value.to_str()) == Some("SpiralHelloRunner"));
+    let scope_flag = i32::from(executable.starts_with(scope));
+    let packed_flags = server_flag | (runner_flag << 1) | (scope_flag << 2);
+    eoie_process_session_match_binding(field_count, packed_flags) == 1
+}
+
+fn spiral_session_processes(compiler: &str) -> Result<Vec<SpiralSessionProcess>, String> {
+    let scope = spiral_compiler_scope(compiler)?;
+    let mut processes = Vec::new();
+    for entry in std::fs::read_dir("/proc").map_err(|error| format!("read /proc: {error}"))? {
+        let entry = match entry { Ok(entry) => entry, Err(_) => continue };
+        let pid = match entry.file_name().to_string_lossy().parse::<i32>() { Ok(pid) if pid > 1 => pid, _ => continue };
+        if pid == std::process::id() as i32 { continue; }
+        let bytes = match std::fs::read(entry.path().join("cmdline")) { Ok(bytes) => bytes, Err(_) => continue };
+        let fields = bytes.split(|byte| *byte == 0).filter(|field| !field.is_empty()).collect::<Vec<_>>();
+        if spiral_session_matches(&scope, &fields) {
+            processes.push(SpiralSessionProcess { pid, socket: std::path::PathBuf::from(String::from_utf8_lossy(fields[2]).into_owned()) });
+        }
+    }
+    processes.sort_by_key(|process| process.pid);
+    Ok(processes)
+}
+"""
+    rust_global """#[cfg(unix)]
+fn spiral_session_lock_path(compiler: &str) -> Result<std::path::PathBuf, String> {"""
+    rust_global """    let scope = spiral_compiler_scope(compiler)?;
+    let mut hash = 14695981039346656037u64;
+    for byte in scope.to_string_lossy().bytes() { hash ^= u64::from(byte); hash = hash.wrapping_mul(1099511628211); }
+    Ok(std::env::temp_dir().join(format!("eoie-spiral-session-{hash:016x}.lock")))
+}
+
+#[cfg(unix)]
+fn spiral_session_lock(compiler: &str, exclusive: bool, timeout_ms: u64) -> Result<Option<std::fs::File>, String> {
+    let compiler_name = std::path::Path::new(compiler).file_name().and_then(|value| value.to_str()).unwrap_or_default();
+    if compiler_name != "spiral-compile-session" { return Ok(None); }
+    let path = spiral_session_lock_path(compiler)?;
+    let file = std::fs::OpenOptions::new().read(true).write(true).create(true).truncate(false).open(&path).map_err(|error| format!("open session lock {}: {error}", path.display()))?;
+    let operation = if exclusive { 2 } else { 1 };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
+    loop {
+        let result = unsafe { flock(std::os::fd::AsRawFd::as_raw_fd(&file), operation | 4) };
+        if result == 0 { return Ok(Some(file)); }
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() != Some(11) { return Err(format!("lock session compiler {}: {error}", path.display())); }
+        if std::time::Instant::now() >= deadline { return Err(format!("session compiler lock timed out after {timeout_ms} ms")); }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+}
+
+#[cfg(not(unix))]
+fn spiral_session_lock(_compiler: &str, _exclusive: bool, _timeout_ms: u64) -> Result<Option<std::fs::File>, String> { Ok(None) }
+
+#[cfg(unix)]
+unsafe extern "C" {
+    fn kill(pid: i32, signal: i32) -> i32;
+    fn flock(fd: i32, operation: i32) -> i32;
+}
+
+#[cfg(unix)]
+fn signal_spiral_session(pid: i32, signal: i32) -> Result<(), String> {
+    let group = unsafe { kill(-pid, signal) };
+    let direct = unsafe { kill(pid, signal) };
+    if group != 0 && direct != 0 {
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() != Some(3) { return Err(format!("signal Spiral session {pid}: {error}")); }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn signal_spiral_session(_pid: i32, _signal: i32) -> Result<(), String> {
+    Err("process-tree signaling requires a Unix process model".to_owned())
+}
+
+fn remove_spiral_session_files(process: &SpiralSessionProcess) {
+    for path in [process.socket.clone(), std::path::PathBuf::from(format!("{}.pid", process.socket.display())), std::path::PathBuf::from(format!("{}.start-lock", process.socket.display())), std::path::PathBuf::from(format!("{}.request-lock", process.socket.display()))] {
+        let _ = if path.is_dir() { std::fs::remove_dir_all(path) } else { std::fs::remove_file(path) };
+    }
+}
+
+fn wait_for_spiral_sessions(compiler: &str, deadline: std::time::Instant) -> Result<Vec<SpiralSessionProcess>, String> {
+    loop {
+        let remaining = spiral_session_processes(compiler)?;
+        if remaining.is_empty() || std::time::Instant::now() >= deadline { return Ok(remaining); }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+}
+
+pub fn shutdown_spiral_sessions(
+    compiler: &str,
+    timeout_ms: u64,
+) -> Result<std::process::ExitStatus, String> {
+    if timeout_ms == 0 { return Err("shutdown timeout must be positive".to_owned()); }
+    let compiler_name = std::path::Path::new(compiler).file_name().and_then(|value| value.to_str()).unwrap_or_default();
+    let mut status_command = std::process::Command::new(compiler);
+    status_command.arg("--version");
+    let status = run_bounded(&mut status_command, timeout_ms.saturating_add(5000))?;
+    if !status.success() || compiler_name != "spiral-compile-session" { return Ok(status); }
+    let _lease = spiral_session_lock(compiler, true, timeout_ms)?;
+    let discovered = spiral_session_processes(compiler)?;
+    for process in &discovered { signal_spiral_session(process.pid, 15)?; }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
+    let mut remaining = wait_for_spiral_sessions(compiler, deadline)?;
+    if !remaining.is_empty() {
+        for process in &remaining { signal_spiral_session(process.pid, 9)?; }
+        remaining = wait_for_spiral_sessions(compiler, std::time::Instant::now() + std::time::Duration::from_millis(1000))?;
+    }
+    for process in &discovered { remove_spiral_session_files(process); }
+    if !remaining.is_empty() {
+        return Err(format!("Spiral session shutdown left {} server(s): {:?}", remaining.len(), remaining.iter().map(|process| process.pid).collect::<Vec<_>>()));
+    }
+    Ok(status)
+}"""
 
 inl emit_run_bounded_program_in_dir () =
-    rust_global "pub fn run_bounded_program_in_dir(program: &str, cwd: &std::path::Path, timeout_ms: u64) -> Result<std::process::ExitStatus, String> {\n    if program.is_empty() { return Err(\"gate program must not be empty\".to_owned()); }\n    let mut command = std::process::Command::new(program);\n    command.current_dir(cwd);\n    run_bounded(&mut command, timeout_ms)\n}"
+    rust_global """pub fn run_bounded_program_in_dir(program: &str, cwd: &std::path::Path, timeout_ms: u64) -> Result<std::process::ExitStatus, String> {
+    if program.is_empty() { return Err("gate program must not be empty".to_owned()); }
+    let mut command = std::process::Command::new(program);
+    command.current_dir(cwd);
+    run_bounded(&mut command, timeout_ms)
+}"""
 
 inl main () : i32 =
-    rust_global "include!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/native_compiler.rs\"));"
+    rust_global """include!(concat!(env!("CARGO_MANIFEST_DIR"), "/native_compiler.rs"));"""
     emit_run_bounded ()
     emit_run_bounded_program_in_dir ()
     rust_global "pub use eoie_process_streaming::{bounded_process_tree_capability, run_bounded_capture_with_input, run_bounded_streaming, ProcessCapture, ProcessStreamKind, ProcessTermination};"
