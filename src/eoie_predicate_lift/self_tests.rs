@@ -18,19 +18,6 @@ enum US0 {
     US0_Rejected(Rc<str>),
     US0_Candidate(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_Rejected(..) => 0,
-            US0::US0_Candidate(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_Rejected({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 fn source_1(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("inl rust_global (x : string) : () = !!!!Global(x)\ninl emit () : () = rust_global "); } LIT.with(|lit| lit.clone()) };
     let mut v2: Rc<str> = predicate_literal_domain::eoie_predicate_encode(&*v0);
@@ -315,5 +302,5 @@ fn spiral_main() -> i32 {
 }
 fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 1 });
 }
