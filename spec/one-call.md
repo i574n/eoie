@@ -28,18 +28,18 @@ Habit (Claude, abbreviated): read the file, `.Replace` each anchor inside a `for
 missing, `WriteAllText`, then `Get-Content` the file again to look at it.
 
 ```fixture
-lib/harness.spi
+lib/bench_kit.spi
 inl show_i32 (x : i32) : string =
     x |> convert.i64 |> show_i64
 inl bench dt iters = dt / convert.f64 iters * 1000000000.0
 lib/main.spi
 inl main () =
-    harness.run_all []
+    bench_kit.run_all []
 ```
 
 ```command
 eoie do . '
-edit lib/harness.spi
+edit lib/bench_kit.spi
   replace once "x |> convert.i64 |> show_i64" with "show_i64 (convert.i64 x)"
   replace once "convert.f64 iters" with "f64_of_i32 iters"
 edit lib/main.spi
@@ -48,11 +48,11 @@ show lib/main.spi'
 ```
 
 ```expected
-edit lib/harness.spi  2 replacements  lines 2-3  sha256 <hash> -> <hash>
+edit lib/bench_kit.spi  2 replacements  lines 2-3  sha256 <hash> -> <hash>
 edit lib/main.spi     1 replacement   line 1     sha256 <hash> -> <hash>
 lib/main.spi
 1  inl main () : i32 =
-2      harness.run_all []
+2      bench_kit.run_all []
 ok  files 2  replacements 3  <elapsed>  <clock>
 ```
 

@@ -37,8 +37,8 @@ inl prune_plan () : coverage_plan coverage_idle prune_committed =
         ))
     ))
 
-nominal coverage_harness_idle = ()
-nominal coverage_harness_configured = ()
+nominal coverage_run_idle = ()
+nominal coverage_run_configured = ()
 nominal coverage_binary_instrumented = ()
 nominal coverage_contracts_executed = ()
 nominal coverage_profiles_emitted = ()
@@ -48,24 +48,24 @@ union coverage_contract_scope =
     | WorkspaceContracts :: coverage_contract_scope
     | SmokePublic :: coverage_contract_scope
 
-union coverage_harness_op from to =
-    | ConfigureCoverageHarness :: coverage_contract_scope -> coverage_harness_op coverage_harness_idle coverage_harness_configured
-    | BuildInstrumentedBinary :: coverage_harness_op coverage_harness_configured coverage_binary_instrumented
-    | ExecuteInstrumentedContracts :: coverage_harness_op coverage_binary_instrumented coverage_contracts_executed
-    | EmitCoverageProfiles :: coverage_harness_op coverage_contracts_executed coverage_profiles_emitted
+union coverage_run_op from to =
+    | ConfigureCoverageRun :: coverage_contract_scope -> coverage_run_op coverage_run_idle coverage_run_configured
+    | BuildInstrumentedBinary :: coverage_run_op coverage_run_configured coverage_binary_instrumented
+    | ExecuteInstrumentedContracts :: coverage_run_op coverage_binary_instrumented coverage_contracts_executed
+    | EmitCoverageProfiles :: coverage_run_op coverage_contracts_executed coverage_profiles_emitted
 
-union rec coverage_harness_plan from to =
-    | CoverageHarnessStep :: forall from to. coverage_harness_op from to -> coverage_harness_plan from to
-    | CoverageHarnessThen :: forall from to. (exists middle. coverage_harness_plan from middle * coverage_harness_plan middle to) -> coverage_harness_plan from to
+union rec coverage_run_plan from to =
+    | CoverageRunStep :: forall from to. coverage_run_op from to -> coverage_run_plan from to
+    | CoverageRunThen :: forall from to. (exists middle. coverage_run_plan from middle * coverage_run_plan middle to) -> coverage_run_plan from to
 
-inl instrumented_workspace_plan () : coverage_harness_plan coverage_harness_idle coverage_profiles_emitted =
-    CoverageHarnessThen (exists (
-        CoverageHarnessStep (ConfigureCoverageHarness WorkspaceContracts),
-        CoverageHarnessThen (exists (
-            CoverageHarnessStep BuildInstrumentedBinary,
-            CoverageHarnessThen (exists (
-                CoverageHarnessStep ExecuteInstrumentedContracts,
-                CoverageHarnessStep EmitCoverageProfiles
+inl instrumented_workspace_plan () : coverage_run_plan coverage_run_idle coverage_profiles_emitted =
+    CoverageRunThen (exists (
+        CoverageRunStep (ConfigureCoverageRun WorkspaceContracts),
+        CoverageRunThen (exists (
+            CoverageRunStep BuildInstrumentedBinary,
+            CoverageRunThen (exists (
+                CoverageRunStep ExecuteInstrumentedContracts,
+                CoverageRunStep EmitCoverageProfiles
             ))
         ))
     ))

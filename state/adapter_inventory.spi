@@ -4,7 +4,7 @@ union adapter_family =
     | ArchiveAdapter
     | EnvironmentAdapter
     | CoverageAdapter
-    | HarnessAdapter
+    | DriverAdapter
     | ToolchainAdapter
 
 union adapter_stage =

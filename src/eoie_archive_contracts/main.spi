@@ -1,5 +1,5 @@
 inl main () : i32 =
-    emit_archive_contract_harness ()
+    emit_archive_contract_cli_driver ()
     emit_archive_link_contracts ()
     emit_archive_fault_contracts ()
     emit_archive_writer_contract ()

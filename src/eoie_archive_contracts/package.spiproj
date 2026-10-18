@@ -1,5 +1,5 @@
 modules:
-    harness-
+    cli_driver-
     archive_links-
     archive_faults-
     archive_writer-
