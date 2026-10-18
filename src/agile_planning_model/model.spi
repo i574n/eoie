@@ -222,10 +222,31 @@ inl schema_cases forall t. (case_text : t -> string) (type_name : string) : stri
     union_reflection.cases.union_cases_joined (fun (case_value : t) => !!!!StaticStringConcat(case_text case_value, !!!!StaticStringConcat(" :: ", type_name))) " | "
 
 inl planning_schema () : string =
-    inl loads = rust_std_string.model.concat5 "union task_load =\n    | " (schema_cases task_load_case "task_load") "\n\n" "" ""
-    inl assignees = rust_std_string.model.concat5 "union task_assignee =\n    | " (schema_cases task_assignee_case "task_assignee") "\n\n" "" ""
-    inl estimates = "union planned_estimate =\n    | Unestimated :: planned_estimate | Minutes :: u32 -> planned_estimate\n\n"
-    inl options = "union planned_load =\n    | LoadUnset :: planned_load | Load :: task_load -> planned_load\n\nunion planned_assignee =\n    | Unassigned :: planned_assignee | Assigned :: task_assignee -> planned_assignee\n\n"
+    inl loads = rust_std_string.model.concat5 "union task_load =\n    | " (schema_cases task_load_case "task_load") """
+
+
+
+        """ "" ""
+    inl assignees = rust_std_string.model.concat5 "union task_assignee =\n    | " (schema_cases task_assignee_case "task_assignee") """
+
+
+
+        """ "" ""
+    inl estimates = """
+        union planned_estimate =
+            | Unestimated :: planned_estimate | Minutes :: u32 -> planned_estimate
+
+
+        """
+    inl options = """
+        union planned_load =
+            | LoadUnset :: planned_load | Load :: task_load -> planned_load
+
+        union planned_assignee =
+            | Unassigned :: planned_assignee | Assigned :: task_assignee -> planned_assignee
+
+
+        """
     rust_std_string.model.concat5 loads assignees estimates options "union task_planning =\n    | Planning :: string * planned_estimate * planned_load * planned_assignee -> task_planning"
 
 inl planning_schema_marker () : string = "union task_planning ="
@@ -299,8 +320,16 @@ let planning_upserted (text : string) (~id : string) (tokens : planning_tokens) 
 let planning_schema_ensured (text : string) : string =
     if i32_negative (byte_find text (planning_schema_marker ())) then
         inl item = byte_find text (agile_item_marker ())
-        if i32_negative item then rust_std_string.model.concat5 (planning_schema ()) "\n\n" text "" ""
+        if i32_negative item then rust_std_string.model.concat5 (planning_schema ()) """
+
+
+
+            """ text "" ""
         else
             inl stop = line_end_after text item
-            spliced text stop stop (rust_std_string.model.concat5 "\n\n" (planning_schema ()) "" "" "")
+            spliced text stop stop (rust_std_string.model.concat5 """
+
+
+
+                """ (planning_schema ()) "" "" "")
     else text

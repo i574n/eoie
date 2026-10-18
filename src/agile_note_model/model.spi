@@ -76,10 +76,18 @@ let note_schema_ensured (text : string) : string =
     if i32_negative (byte_find text (note_schema_marker ())) then
         inl planning = byte_find text (planning_union_marker ())
         inl anchor = if i32_negative planning then byte_find text (agile_item_marker ()) else planning
-        if i32_negative anchor then rust_std_string.model.concat5 (note_schema ()) "\n\n" text "" ""
+        if i32_negative anchor then rust_std_string.model.concat5 (note_schema ()) """
+
+
+
+            """ text "" ""
         else
             inl stop = line_end_after text anchor
-            spliced text stop stop (rust_std_string.model.concat5 "\n\n" (note_schema ()) "" "" "")
+            spliced text stop stop (rust_std_string.model.concat5 """
+
+
+
+                """ (note_schema ()) "" "" "")
     else text
 
 let notes_appended (text : string) (~id : string) (~rows : string) : string =

@@ -84,7 +84,17 @@ inl fixture_toolchain () : string =
     "inl compiler_entry () = ToolIdentity (SpiralCompilerEntrypoint, EvidenceRef (\"spiral-compile\", \"abcdef\", 67952u64, Required))\n"
 
 inl fixture_cold () : string =
-    "inl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed\ninl current_cold_replay_flags () : u32 = 15u32\ninl binary_gate () = EvidenceRef (\"eoie\", \"deadbeef\")\n"
+    """
+        inl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed
+        inl current_cold_replay_flags () : u32 = 15u32
+        inl binary_gate () = EvidenceRef ("eoie", "deadbeef")
+
+        """
 
 inl fixture_cold_windows () : string =
-    "inl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed\ninl current_cold_replay_flags () : u32 = 15u32\ninl binary_gate () = EvidenceRef (\"eoie.exe\", \"deadbeef\")\n"
+    """
+        inl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed
+        inl current_cold_replay_flags () : u32 = 15u32
+        inl binary_gate () = EvidenceRef ("eoie.exe", "deadbeef")
+
+        """

@@ -1,22 +1,24 @@
 inl rust_global (x : string) : () = !!!!Global(x)
 
-inl emit_runtime () : () = rust_global """use eoie_patch_compat_driver::{patch_apply_context_owned, patch_check_context_owned, patch_plan_error, patch_prepare_source_owned};
+inl emit_runtime () : () = rust_global """
+    use eoie_patch_compat_driver::{patch_apply_context_owned, patch_check_context_owned, patch_plan_error, patch_prepare_source_owned};
 
-#[must_use]
-fn patch_mutation_error(message: &str) -> i32 {
-    eprintln!("eoie error: {message}");
-    2
-}
+    #[must_use]
+    fn patch_mutation_error(message: &str) -> i32 {
+        eprintln!("eoie error: {message}");
+        2
+    }
 
-#[must_use]
-fn patch_check_success(count: i32) -> i32 {
-    println!("eoie patch check ok operations={count} mutation=false");
-    0
-}
+    #[must_use]
+    fn patch_check_success(count: i32) -> i32 {
+        println!("eoie patch check ok operations={count} mutation=false");
+        0
+    }
 
-#[must_use]
-fn patch_preflight_error() -> i32 {
-    eprintln!("eoie error: patch preflight contract rejected the validated plan");
-    2
-}
-"""
+    #[must_use]
+    fn patch_preflight_error() -> i32 {
+        eprintln!("eoie error: patch preflight contract rejected the validated plan");
+        2
+    }
+
+    """

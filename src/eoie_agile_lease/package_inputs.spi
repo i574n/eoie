@@ -1,119 +1,121 @@
 inl rust_global (x : string) : () = !!!!Global(x)
 
-inl emit_runtime () : () = rust_global """pub fn agile_package_input_fingerprint(state_dir: &Path, include_state: bool) -> Option<u64> {
-    fn absolute(path: &Path) -> Option<PathBuf> {
-        let path = if path.is_absolute() { path.to_owned() } else { std::env::current_dir().ok()?.join(path) };
-        let mut result = PathBuf::new();
-        for part in path.components() {
-            match part {
-                std::path::Component::CurDir => {},
-                std::path::Component::ParentDir => { eoie_rust_std_fs::rooted_canonical_directory(&result).ok()?; if !result.pop() { return None; } },
-                _ => result.push(part.as_os_str()),
-            }
-        }
-        Some(result)
-    }
-    fn name(value: &str) -> bool {
-        let mut chars = value.chars();
-        chars.next().is_some_and(|c| c.is_ascii_lowercase() || c == '_')
-            && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '\'')
-    }
-    struct Graph {
-        root: PathBuf,
-        active: std::collections::BTreeSet<PathBuf>,
-        visited: std::collections::BTreeSet<PathBuf>,
-        records: std::collections::BTreeMap<PathBuf, String>,
-        bytes_left: usize,
-    }
-    impl Graph {
-        fn file(&mut self, path: &Path) -> Option<Vec<u8>> {
-            if self.records.len() >= 4096 { return None; }
-            let bytes = eoie_rust_std_fs::read_regular_limited(path, self.bytes_left.min(8 * 1024 * 1024)).ok()?;
-            self.bytes_left = self.bytes_left.checked_sub(bytes.len())?;
-            self.records.insert(path.to_owned(), eoie_proxy_search::inspection_sha256(bytes.clone()));
-            Some(bytes)
-        }
-        fn package(&mut self, directory: PathBuf, include_state: bool, depth: usize) -> Option<()> {
-            if depth > 64 || self.active.contains(&directory) { return None; }
-            if self.visited.contains(&directory) { return Some(()); }
-            if self.visited.len() + self.active.len() >= 256 { return None; }
-            self.active.insert(directory.clone());
-            let source = String::from_utf8(self.file(&directory.join("package.spiproj"))?).ok()?;
-            let mut module_dir = directory.clone();
-            let mut package_dir = directory.parent()?.to_owned();
-            let mut section = "";
-            let mut fields = std::collections::BTreeSet::new();
-            let mut modules = Vec::new();
-            let mut packages = Vec::new();
-            for raw in source.lines() {
-                if raw.trim().is_empty() { continue; }
-                if raw.starts_with(' ') {
-                    let value = raw.strip_prefix("    ")?;
-                    if value.starts_with(char::is_whitespace) || value.trim_end() != value { return None; }
-                    match section {
-                        "modules" => {
-                            let stem = value.strip_suffix('-').unwrap_or(value);
-                            let (stem, extension) = match stem.strip_suffix('*') { Some(stem) => (stem, "spir"), None => (stem, "spi") };
-                            if !name(stem) { return None; }
-                            modules.push(format!("{stem}.{extension}"));
-                        },
-                        "packages" => {
-                            let stem = value.strip_suffix('-').unwrap_or(value);
-                            if !name(stem) { return None; }
-                            packages.push(stem.to_owned());
-                        },
-                        _ => return None,
-                    }
-                } else {
-                    let (key, value) = raw.split_once(':')?;
-                    if !fields.insert(key) { return None; }
-                    let value = value.trim();
-                    match key {
-                        "modules" | "packages" if value.is_empty() => section = key,
-                        "moduleDir" | "packageDir" if !value.is_empty() => {
-                            let path = Path::new(value);
-                            if path.is_absolute() || value.contains(':') || value.contains('\\') { return None; }
-                            let resolved = absolute(&directory.join(path))?;
-                            let mut cursor = directory.clone();
-                            for part in path.components() {
-                                match part {
-                                    std::path::Component::Normal(p) => cursor.push(p),
-                                    std::path::Component::ParentDir => { cursor.pop(); },
-                                    std::path::Component::CurDir => {},
-                                    _ => return None,
-                                }
-                                eoie_rust_std_fs::rooted_canonical_directory(&cursor).ok()?;
-                            }
-                            if key == "moduleDir" { module_dir = resolved; } else { package_dir = resolved; }
-                            section = "";
-                        },
-                        _ => return None,
-                    }
+inl emit_runtime () : () = rust_global """
+    pub fn agile_package_input_fingerprint(state_dir: &Path, include_state: bool) -> Option<u64> {
+        fn absolute(path: &Path) -> Option<PathBuf> {
+            let path = if path.is_absolute() { path.to_owned() } else { std::env::current_dir().ok()?.join(path) };
+            let mut result = PathBuf::new();
+            for part in path.components() {
+                match part {
+                    std::path::Component::CurDir => {},
+                    std::path::Component::ParentDir => { eoie_rust_std_fs::rooted_canonical_directory(&result).ok()?; if !result.pop() { return None; } },
+                    _ => result.push(part.as_os_str()),
                 }
             }
-            if directory == self.root && (module_dir != directory || modules.iter().any(|name| !name.ends_with(".spi"))) { return None; }
-            for module in modules {
-                let path = module_dir.join(module);
-                if directory != self.root || include_state { self.file(&path)?; }
-                else { eoie_rust_std_fs::rooted_open_regular_read(&path).ok()?; }
-            }
-            for package in packages { self.package(package_dir.join(package), include_state, depth + 1)?; }
-            self.active.remove(&directory);
-            self.visited.insert(directory);
-            Some(())
+            Some(result)
         }
+        fn name(value: &str) -> bool {
+            let mut chars = value.chars();
+            chars.next().is_some_and(|c| c.is_ascii_lowercase() || c == '_')
+                && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '\'')
+        }
+        struct Graph {
+            root: PathBuf,
+            active: std::collections::BTreeSet<PathBuf>,
+            visited: std::collections::BTreeSet<PathBuf>,
+            records: std::collections::BTreeMap<PathBuf, String>,
+            bytes_left: usize,
+        }
+        impl Graph {
+            fn file(&mut self, path: &Path) -> Option<Vec<u8>> {
+                if self.records.len() >= 4096 { return None; }
+                let bytes = eoie_rust_std_fs::read_regular_limited(path, self.bytes_left.min(8 * 1024 * 1024)).ok()?;
+                self.bytes_left = self.bytes_left.checked_sub(bytes.len())?;
+                self.records.insert(path.to_owned(), eoie_proxy_search::inspection_sha256(bytes.clone()));
+                Some(bytes)
+            }
+            fn package(&mut self, directory: PathBuf, include_state: bool, depth: usize) -> Option<()> {
+                if depth > 64 || self.active.contains(&directory) { return None; }
+                if self.visited.contains(&directory) { return Some(()); }
+                if self.visited.len() + self.active.len() >= 256 { return None; }
+                self.active.insert(directory.clone());
+                let source = String::from_utf8(self.file(&directory.join("package.spiproj"))?).ok()?;
+                let mut module_dir = directory.clone();
+                let mut package_dir = directory.parent()?.to_owned();
+                let mut section = "";
+                let mut fields = std::collections::BTreeSet::new();
+                let mut modules = Vec::new();
+                let mut packages = Vec::new();
+                for raw in source.lines() {
+                    if raw.trim().is_empty() { continue; }
+                    if raw.starts_with(' ') {
+                        let value = raw.strip_prefix("    ")?;
+                        if value.starts_with(char::is_whitespace) || value.trim_end() != value { return None; }
+                        match section {
+                            "modules" => {
+                                let stem = value.strip_suffix('-').unwrap_or(value);
+                                let (stem, extension) = match stem.strip_suffix('*') { Some(stem) => (stem, "spir"), None => (stem, "spi") };
+                                if !name(stem) { return None; }
+                                modules.push(format!("{stem}.{extension}"));
+                            },
+                            "packages" => {
+                                let stem = value.strip_suffix('-').unwrap_or(value);
+                                if !name(stem) { return None; }
+                                packages.push(stem.to_owned());
+                            },
+                            _ => return None,
+                        }
+                    } else {
+                        let (key, value) = raw.split_once(':')?;
+                        if !fields.insert(key) { return None; }
+                        let value = value.trim();
+                        match key {
+                            "modules" | "packages" if value.is_empty() => section = key,
+                            "moduleDir" | "packageDir" if !value.is_empty() => {
+                                let path = Path::new(value);
+                                if path.is_absolute() || value.contains(':') || value.contains('\\') { return None; }
+                                let resolved = absolute(&directory.join(path))?;
+                                let mut cursor = directory.clone();
+                                for part in path.components() {
+                                    match part {
+                                        std::path::Component::Normal(p) => cursor.push(p),
+                                        std::path::Component::ParentDir => { cursor.pop(); },
+                                        std::path::Component::CurDir => {},
+                                        _ => return None,
+                                    }
+                                    eoie_rust_std_fs::rooted_canonical_directory(&cursor).ok()?;
+                                }
+                                if key == "moduleDir" { module_dir = resolved; } else { package_dir = resolved; }
+                                section = "";
+                            },
+                            _ => return None,
+                        }
+                    }
+                }
+                if directory == self.root && (module_dir != directory || modules.iter().any(|name| !name.ends_with(".spi"))) { return None; }
+                for module in modules {
+                    let path = module_dir.join(module);
+                    if directory != self.root || include_state { self.file(&path)?; }
+                    else { eoie_rust_std_fs::rooted_open_regular_read(&path).ok()?; }
+                }
+                for package in packages { self.package(package_dir.join(package), include_state, depth + 1)?; }
+                self.active.remove(&directory);
+                self.visited.insert(directory);
+                Some(())
+            }
+        }
+        let root = absolute(state_dir)?;
+        eoie_rust_std_fs::rooted_canonical_directory(&root).ok()?;
+        let mut graph = Graph { root: root.clone(), active: Default::default(), visited: Default::default(), records: Default::default(), bytes_left: 64 * 1024 * 1024 };
+        graph.package(root.clone(), include_state, 0)?;
+        let base = root.parent()?;
+        let mut identity = String::from("agile-package-inputs-v1\n");
+        for (path, hash) in graph.records {
+            let path = path.strip_prefix(base).unwrap_or(&path).to_str()?.replace('\\', "/");
+            identity.push_str(&format!("{}:{path}:{hash}\n", path.len()));
+        }
+        let hash = eoie_proxy_search::inspection_sha256(identity.into_bytes());
+        u64::from_str_radix(&hash[..16], 16).ok()
     }
-    let root = absolute(state_dir)?;
-    eoie_rust_std_fs::rooted_canonical_directory(&root).ok()?;
-    let mut graph = Graph { root: root.clone(), active: Default::default(), visited: Default::default(), records: Default::default(), bytes_left: 64 * 1024 * 1024 };
-    graph.package(root.clone(), include_state, 0)?;
-    let base = root.parent()?;
-    let mut identity = String::from("agile-package-inputs-v1\n");
-    for (path, hash) in graph.records {
-        let path = path.strip_prefix(base).unwrap_or(&path).to_str()?.replace('\\', "/");
-        identity.push_str(&format!("{}:{path}:{hash}\n", path.len()));
-    }
-    let hash = eoie_proxy_search::inspection_sha256(identity.into_bytes());
-    u64::from_str_radix(&hash[..16], 16).ok()
-}
-"""
+
+    """

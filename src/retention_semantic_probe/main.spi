@@ -24,7 +24,11 @@ inl main () : i32 =
     inl rejected_receipt = "/mnt/data/eoie-retention-semantic-probe/state/rejected_receipt.spi"
     inl _ = cleanup_tree base
     inl _ : retention_semantic_transition retention_probe_start retention_probe_fixture_ready = PrepareRetentionFixture
-    inl prepared = create_dir state && write_text package "modules:\n    retention_receipt\n" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha1.zip" "one" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha2.zip" "two" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha3.zip" "three" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha4.zip" "four" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha5.zip" "five"
+    inl prepared = create_dir state && write_text package """
+        modules:
+            retention_receipt
+
+        """ && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha1.zip" "one" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha2.zip" "two" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha3.zip" "three" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha4.zip" "four" && write_text "/mnt/data/eoie-retention-semantic-probe/bundle_eoie_alpha5.zip" "five"
     if prepared then
         inl _ : retention_semantic_transition retention_probe_fixture_ready retention_probe_planned = PlanRetentionWindow
         inl plan_code = status_code5 eoie "bundle" "retention-plan" base "bundle_eoie_alpha5.zip" receipt

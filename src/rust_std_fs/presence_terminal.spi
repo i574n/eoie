@@ -1,47 +1,49 @@
 inl rust_global (x : string) : () = !!!!Global(x)
 
 inl emit_presence () : () =
-    rust_global """#[cfg(target_os = "linux")] pub fn rooted_entry_exists(path: &Path) -> Result<bool, String> {
-    use std::ffi::CString;
-    use std::os::fd::{AsRawFd as _, FromRawFd as _};
-    use std::os::raw::{c_char, c_int};
-    use std::os::unix::ffi::OsStrExt as _;
-    const O_PATH: c_int = 0o10000000;
-    const O_CLOEXEC: c_int = 0o2000000;
-    const O_NOFOLLOW: c_int = 0o400000;
-    unsafe extern "C" { fn openat(dirfd: c_int, pathname: *const c_char, flags: c_int, ...) -> c_int; }
-    let parent = path.parent().ok_or_else(|| format!("entry has no parent: {}", path.display()))?;
-    let leaf = path.file_name().ok_or_else(|| format!("entry has no leaf: {}", path.display()))?;
-    let directory = open_nofollow_path(parent, true)?;
-    let encoded = CString::new(leaf.as_bytes()).map_err(|_| "entry leaf contains NUL".to_owned())?;
-    let fd = unsafe { openat(directory.as_raw_fd(), encoded.as_ptr(), O_PATH | O_CLOEXEC | O_NOFOLLOW) };
-    if fd >= 0 { drop(unsafe { std::fs::File::from_raw_fd(fd) }); return Ok(true); }
-    let error = std::io::Error::last_os_error();
-    if error.kind() == std::io::ErrorKind::NotFound { Ok(false) } else { Err(format!("nofollow presence {}: {error}", path.display())) }
-}
-#[cfg(not(any(target_os = "linux", windows)))] pub fn rooted_entry_exists(_path: &Path) -> Result<bool, String> { Err("descriptor-relative presence requires the Linux backend".to_owned()) }
+    rust_global """
+        #[cfg(target_os = "linux")] pub fn rooted_entry_exists(path: &Path) -> Result<bool, String> {
+            use std::ffi::CString;
+            use std::os::fd::{AsRawFd as _, FromRawFd as _};
+            use std::os::raw::{c_char, c_int};
+            use std::os::unix::ffi::OsStrExt as _;
+            const O_PATH: c_int = 0o10000000;
+            const O_CLOEXEC: c_int = 0o2000000;
+            const O_NOFOLLOW: c_int = 0o400000;
+            unsafe extern "C" { fn openat(dirfd: c_int, pathname: *const c_char, flags: c_int, ...) -> c_int; }
+            let parent = path.parent().ok_or_else(|| format!("entry has no parent: {}", path.display()))?;
+            let leaf = path.file_name().ok_or_else(|| format!("entry has no leaf: {}", path.display()))?;
+            let directory = open_nofollow_path(parent, true)?;
+            let encoded = CString::new(leaf.as_bytes()).map_err(|_| "entry leaf contains NUL".to_owned())?;
+            let fd = unsafe { openat(directory.as_raw_fd(), encoded.as_ptr(), O_PATH | O_CLOEXEC | O_NOFOLLOW) };
+            if fd >= 0 { drop(unsafe { std::fs::File::from_raw_fd(fd) }); return Ok(true); }
+            let error = std::io::Error::last_os_error();
+            if error.kind() == std::io::ErrorKind::NotFound { Ok(false) } else { Err(format!("nofollow presence {}: {error}", path.display())) }
+        }
+        #[cfg(not(any(target_os = "linux", windows)))] pub fn rooted_entry_exists(_path: &Path) -> Result<bool, String> { Err("descriptor-relative presence requires the Linux backend".to_owned()) }
 
-#[cfg(all(test, target_os = "linux"))] mod descriptor_presence_tests {
-    use super::*;
-    use std::os::unix::fs::symlink;
-    #[test] fn presence_is_nofollow_and_descriptor_relative() {
-        let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-        let root = std::env::temp_dir().join(format!("eoie-presence-{}-{nonce}", std::process::id()));
-        let real = root.join("real");
-        let file = real.join("file.txt");
-        let ancestor = root.join("ancestor");
-        let leaf = root.join("leaf");
-        std::fs::create_dir_all(&real).unwrap();
-        std::fs::write(&file, b"x").unwrap();
-        symlink(&real, &ancestor).unwrap();
-        symlink(&file, &leaf).unwrap();
-        assert!(rooted_entry_exists(&real).unwrap());
-        assert!(rooted_entry_exists(&file).unwrap());
-        assert!(rooted_entry_exists(&leaf).unwrap());
-        assert!(!rooted_entry_exists(&root.join("missing")).unwrap());
-        assert!(rooted_entry_exists(&ancestor.join("file.txt")).is_err());
-        std::fs::remove_file(&ancestor).unwrap();
-        std::fs::remove_file(&leaf).unwrap();
-        std::fs::remove_dir_all(&root).unwrap();
-    }
-}"""
+        #[cfg(all(test, target_os = "linux"))] mod descriptor_presence_tests {
+            use super::*;
+            use std::os::unix::fs::symlink;
+            #[test] fn presence_is_nofollow_and_descriptor_relative() {
+                let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+                let root = std::env::temp_dir().join(format!("eoie-presence-{}-{nonce}", std::process::id()));
+                let real = root.join("real");
+                let file = real.join("file.txt");
+                let ancestor = root.join("ancestor");
+                let leaf = root.join("leaf");
+                std::fs::create_dir_all(&real).unwrap();
+                std::fs::write(&file, b"x").unwrap();
+                symlink(&real, &ancestor).unwrap();
+                symlink(&file, &leaf).unwrap();
+                assert!(rooted_entry_exists(&real).unwrap());
+                assert!(rooted_entry_exists(&file).unwrap());
+                assert!(rooted_entry_exists(&leaf).unwrap());
+                assert!(!rooted_entry_exists(&root.join("missing")).unwrap());
+                assert!(rooted_entry_exists(&ancestor.join("file.txt")).is_err());
+                std::fs::remove_file(&ancestor).unwrap();
+                std::fs::remove_file(&leaf).unwrap();
+                std::fs::remove_dir_all(&root).unwrap();
+            }
+        }
+        """

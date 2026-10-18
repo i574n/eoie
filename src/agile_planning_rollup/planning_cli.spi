@@ -23,7 +23,15 @@ inl same_text (~left : string) (~right : string) : bool = $'(&*!left).eq(&*!righ
 inl id_symbol (~id : string) : string = $'std::rc::Rc::<str>::from(!id.to_lowercase().replace(char::from(45u8), "_"))' : string
 
 inl task_header () : string =
-    "union task_kind =\n    | Epic :: task_kind\n    | TaskKind :: task_kind\n\nunion agile_item =\n    | Task :: string * string * task_kind * u32 -> agile_item\n"
+    """
+        union task_kind =
+            | Epic :: task_kind
+            | TaskKind :: task_kind
+
+        union agile_item =
+            | Task :: string * string * task_kind * u32 -> agile_item
+
+        """
 
 inl task_row (id : string) (kind : string) (status : string) (deps : string) (tags : string) : string =
     inl head = cat (cat (cat "inl task_" (id_symbol id)) " () = Task (\"") id

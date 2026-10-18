@@ -1,127 +1,129 @@
 inl emit_archive_link_contracts () =
     rust_global """
-#[cfg(unix)]
-#[test]
-fn zip_extract_accepts_confined_and_rejects_escaping_symlinks() {
-    let root = temporary("zip-links");
-    let root_text = root.to_str().expect("root");
-    let source = root.join("source");
-    fs::create_dir_all(source.join("lib")).expect("lib");
-    fs::create_dir_all(source.join("bin")).expect("bin");
-    write(&source.join("lib/runtime.txt"), "runtime");
-    std::os::unix::fs::symlink("../lib/runtime.txt", source.join("bin/runtime.txt")).expect("safe link");
-    let safe_archive = root.join("safe.zip");
-    let safe_status = Command::new("zip").current_dir(&source).arg("-y").arg("-q").arg(&safe_archive).arg("lib/").arg("lib/runtime.txt").arg("bin/runtime.txt").status().expect("safe zip");
-    assert!(safe_status.success());
-    let safe_extracted = root.join("safe-extracted");
-    run_ok(&["proxy", "zip-extract", safe_archive.to_str().expect("safe archive"), safe_extracted.to_str().expect("safe extract")]);
-    assert!(fs::symlink_metadata(safe_extracted.join("bin/runtime.txt")).expect("safe metadata").file_type().is_symlink());
-    assert_eq!(fs::read_to_string(safe_extracted.join("bin/runtime.txt")).expect("safe read"), "runtime");
-    run_ok(&["proxy", "differential-compare", root_text, "source/lib/runtime.txt", "safe-extracted/bin/runtime.txt", "safe-link.receipt"]);
-    let receipt = fs::read_to_string(root.join("safe-link.receipt")).expect("receipt");
-    assert!(receipt.contains("route=normalized-text"));
-    assert!(receipt.contains("bytes=7"));
-    fs::remove_dir_all(&safe_extracted).expect("cleanup safe extract");
-    fs::remove_file(&safe_archive).expect("cleanup safe archive");
-    write(&root.join("outside.txt"), "outside");
-    fs::remove_file(source.join("bin/runtime.txt")).expect("remove safe link");
-    std::os::unix::fs::symlink("../../outside.txt", source.join("bin/runtime.txt")).expect("escaping link");
-    let unsafe_archive = root.join("unsafe.zip");
-    let unsafe_status = Command::new("zip").current_dir(&source).arg("-y").arg("-q").arg(&unsafe_archive).arg("lib/runtime.txt").arg("bin/runtime.txt").status().expect("unsafe zip");
-    assert!(unsafe_status.success());
-    let unsafe_extracted = root.join("unsafe-extracted");
-    assert!(!run(&["proxy", "zip-extract", unsafe_archive.to_str().expect("unsafe archive"), unsafe_extracted.to_str().expect("unsafe extract")]).status.success());
-    assert!(!unsafe_extracted.exists());
-    fs::remove_dir_all(root).expect("cleanup links");
-}
 
-#[cfg(unix)]
-#[test]
-fn tar_extract_accepts_confined_and_rejects_escaping_symlinks() {
-    let root = temporary("tar-links");
-    let source = root.join("source");
-    fs::create_dir_all(source.join("lib")).expect("lib");
-    fs::create_dir_all(source.join("bin")).expect("bin");
-    write(&source.join("lib/runtime.txt"), "runtime");
-    std::os::unix::fs::symlink("../lib/runtime.txt", source.join("bin/runtime.txt")).expect("safe link");
-    let safe_archive = root.join("safe.tar");
-    let safe_status = Command::new("tar").current_dir(&source).arg("-cf").arg(&safe_archive).arg("lib/").arg("bin/runtime.txt").status().expect("safe tar");
-    assert!(safe_status.success());
-    let safe_extracted = root.join("safe-extracted");
-    run_ok(&["proxy", "archive-extract", safe_archive.to_str().expect("safe archive"), safe_extracted.to_str().expect("safe extract")]);
-    assert!(fs::symlink_metadata(safe_extracted.join("bin/runtime.txt")).expect("safe metadata").file_type().is_symlink());
-    assert_eq!(fs::read_to_string(safe_extracted.join("bin/runtime.txt")).expect("safe read"), "runtime");
-    fs::remove_dir_all(&safe_extracted).expect("cleanup safe extract");
-    fs::remove_file(&safe_archive).expect("cleanup safe archive");
-    write(&root.join("outside.txt"), "outside");
-    fs::remove_file(source.join("bin/runtime.txt")).expect("remove safe link");
-    std::os::unix::fs::symlink("../../outside.txt", source.join("bin/runtime.txt")).expect("escaping link");
-    let unsafe_archive = root.join("unsafe.tar");
-    let unsafe_status = Command::new("tar").current_dir(&source).arg("-cf").arg(&unsafe_archive).arg("lib/runtime.txt").arg("bin/runtime.txt").status().expect("unsafe tar");
-    assert!(unsafe_status.success());
-    let unsafe_extracted = root.join("unsafe-extracted");
-    assert!(!run(&["proxy", "archive-extract", unsafe_archive.to_str().expect("unsafe archive"), unsafe_extracted.to_str().expect("unsafe extract")]).status.success());
-    assert!(!unsafe_extracted.exists());
-    fs::remove_dir_all(root).expect("cleanup links");
-}
+        #[cfg(unix)]
+        #[test]
+        fn zip_extract_accepts_confined_and_rejects_escaping_symlinks() {
+            let root = temporary("zip-links");
+            let root_text = root.to_str().expect("root");
+            let source = root.join("source");
+            fs::create_dir_all(source.join("lib")).expect("lib");
+            fs::create_dir_all(source.join("bin")).expect("bin");
+            write(&source.join("lib/runtime.txt"), "runtime");
+            std::os::unix::fs::symlink("../lib/runtime.txt", source.join("bin/runtime.txt")).expect("safe link");
+            let safe_archive = root.join("safe.zip");
+            let safe_status = Command::new("zip").current_dir(&source).arg("-y").arg("-q").arg(&safe_archive).arg("lib/").arg("lib/runtime.txt").arg("bin/runtime.txt").status().expect("safe zip");
+            assert!(safe_status.success());
+            let safe_extracted = root.join("safe-extracted");
+            run_ok(&["proxy", "zip-extract", safe_archive.to_str().expect("safe archive"), safe_extracted.to_str().expect("safe extract")]);
+            assert!(fs::symlink_metadata(safe_extracted.join("bin/runtime.txt")).expect("safe metadata").file_type().is_symlink());
+            assert_eq!(fs::read_to_string(safe_extracted.join("bin/runtime.txt")).expect("safe read"), "runtime");
+            run_ok(&["proxy", "differential-compare", root_text, "source/lib/runtime.txt", "safe-extracted/bin/runtime.txt", "safe-link.receipt"]);
+            let receipt = fs::read_to_string(root.join("safe-link.receipt")).expect("receipt");
+            assert!(receipt.contains("route=normalized-text"));
+            assert!(receipt.contains("bytes=7"));
+            fs::remove_dir_all(&safe_extracted).expect("cleanup safe extract");
+            fs::remove_file(&safe_archive).expect("cleanup safe archive");
+            write(&root.join("outside.txt"), "outside");
+            fs::remove_file(source.join("bin/runtime.txt")).expect("remove safe link");
+            std::os::unix::fs::symlink("../../outside.txt", source.join("bin/runtime.txt")).expect("escaping link");
+            let unsafe_archive = root.join("unsafe.zip");
+            let unsafe_status = Command::new("zip").current_dir(&source).arg("-y").arg("-q").arg(&unsafe_archive).arg("lib/runtime.txt").arg("bin/runtime.txt").status().expect("unsafe zip");
+            assert!(unsafe_status.success());
+            let unsafe_extracted = root.join("unsafe-extracted");
+            assert!(!run(&["proxy", "zip-extract", unsafe_archive.to_str().expect("unsafe archive"), unsafe_extracted.to_str().expect("unsafe extract")]).status.success());
+            assert!(!unsafe_extracted.exists());
+            fs::remove_dir_all(root).expect("cleanup links");
+        }
 
-#[cfg(unix)]
-#[test]
-fn tar_extract_preserves_hardlinks() {
-    use std::os::unix::fs::MetadataExt;
-    let root = temporary("tar-hardlinks");
-    let source = root.join("source");
-    fs::create_dir_all(&source).expect("source");
-    let original = source.join("original.txt");
-    let alias = source.join("alias.txt");
-    write(&original, "hardlink-payload");
-    fs::hard_link(&original, &alias).expect("hardlink");
-    let archive = root.join("hardlink.tar");
-    let status = Command::new("tar").current_dir(&source).arg("-cf").arg(&archive).arg("original.txt").arg("alias.txt").status().expect("tar");
-    assert!(status.success());
-    let extracted = root.join("extracted");
-    run_ok(&["proxy", "archive-extract", archive.to_str().expect("archive"), extracted.to_str().expect("extract")]);
-    let original_metadata = fs::metadata(extracted.join("original.txt")).expect("original metadata");
-    let alias_metadata = fs::metadata(extracted.join("alias.txt")).expect("alias metadata");
-    assert_eq!(original_metadata.ino(), alias_metadata.ino());
-    assert_eq!(fs::read_to_string(extracted.join("alias.txt")).expect("alias read"), "hardlink-payload");
-    fs::remove_dir_all(root).expect("cleanup hardlinks");
-}
+        #[cfg(unix)]
+        #[test]
+        fn tar_extract_accepts_confined_and_rejects_escaping_symlinks() {
+            let root = temporary("tar-links");
+            let source = root.join("source");
+            fs::create_dir_all(source.join("lib")).expect("lib");
+            fs::create_dir_all(source.join("bin")).expect("bin");
+            write(&source.join("lib/runtime.txt"), "runtime");
+            std::os::unix::fs::symlink("../lib/runtime.txt", source.join("bin/runtime.txt")).expect("safe link");
+            let safe_archive = root.join("safe.tar");
+            let safe_status = Command::new("tar").current_dir(&source).arg("-cf").arg(&safe_archive).arg("lib/").arg("bin/runtime.txt").status().expect("safe tar");
+            assert!(safe_status.success());
+            let safe_extracted = root.join("safe-extracted");
+            run_ok(&["proxy", "archive-extract", safe_archive.to_str().expect("safe archive"), safe_extracted.to_str().expect("safe extract")]);
+            assert!(fs::symlink_metadata(safe_extracted.join("bin/runtime.txt")).expect("safe metadata").file_type().is_symlink());
+            assert_eq!(fs::read_to_string(safe_extracted.join("bin/runtime.txt")).expect("safe read"), "runtime");
+            fs::remove_dir_all(&safe_extracted).expect("cleanup safe extract");
+            fs::remove_file(&safe_archive).expect("cleanup safe archive");
+            write(&root.join("outside.txt"), "outside");
+            fs::remove_file(source.join("bin/runtime.txt")).expect("remove safe link");
+            std::os::unix::fs::symlink("../../outside.txt", source.join("bin/runtime.txt")).expect("escaping link");
+            let unsafe_archive = root.join("unsafe.tar");
+            let unsafe_status = Command::new("tar").current_dir(&source).arg("-cf").arg(&unsafe_archive).arg("lib/runtime.txt").arg("bin/runtime.txt").status().expect("unsafe tar");
+            assert!(unsafe_status.success());
+            let unsafe_extracted = root.join("unsafe-extracted");
+            assert!(!run(&["proxy", "archive-extract", unsafe_archive.to_str().expect("unsafe archive"), unsafe_extracted.to_str().expect("unsafe extract")]).status.success());
+            assert!(!unsafe_extracted.exists());
+            fs::remove_dir_all(root).expect("cleanup links");
+        }
 
-#[cfg(unix)]
-#[test]
-fn tar_extract_accepts_path_only_pax_for_long_paths() {
-    let root = temporary("tar-pax-path");
-    let source = root.join("source");
-    let relative = PathBuf::from("a".repeat(90)).join("b".repeat(90)).join("c".repeat(90)).join("value.txt");
-    fs::create_dir_all(source.join(relative.parent().expect("parent"))).expect("long parent");
-    write(&source.join(&relative), "pax-long-path-payload");
-    let archive = root.join("pax-long.tar");
-    let status = Command::new("tar").current_dir(&source).arg("--format=pax").arg("--pax-option=delete=atime,delete=ctime,delete=mtime").arg("-cf").arg(&archive).arg(".").status().expect("pax tar");
-    assert!(status.success());
-    let extracted = root.join("extracted");
-    run_ok(&["proxy", "archive-extract", archive.to_str().expect("archive"), extracted.to_str().expect("extract")]);
-    assert_eq!(fs::read_to_string(extracted.join(&relative)).expect("long read"), "pax-long-path-payload");
-    fs::remove_dir_all(root).expect("cleanup pax");
-}
+        #[cfg(unix)]
+        #[test]
+        fn tar_extract_preserves_hardlinks() {
+            use std::os::unix::fs::MetadataExt;
+            let root = temporary("tar-hardlinks");
+            let source = root.join("source");
+            fs::create_dir_all(&source).expect("source");
+            let original = source.join("original.txt");
+            let alias = source.join("alias.txt");
+            write(&original, "hardlink-payload");
+            fs::hard_link(&original, &alias).expect("hardlink");
+            let archive = root.join("hardlink.tar");
+            let status = Command::new("tar").current_dir(&source).arg("-cf").arg(&archive).arg("original.txt").arg("alias.txt").status().expect("tar");
+            assert!(status.success());
+            let extracted = root.join("extracted");
+            run_ok(&["proxy", "archive-extract", archive.to_str().expect("archive"), extracted.to_str().expect("extract")]);
+            let original_metadata = fs::metadata(extracted.join("original.txt")).expect("original metadata");
+            let alias_metadata = fs::metadata(extracted.join("alias.txt")).expect("alias metadata");
+            assert_eq!(original_metadata.ino(), alias_metadata.ino());
+            assert_eq!(fs::read_to_string(extracted.join("alias.txt")).expect("alias read"), "hardlink-payload");
+            fs::remove_dir_all(root).expect("cleanup hardlinks");
+        }
 
-#[cfg(unix)]
-#[test]
-fn tar_extract_accepts_confined_gnu_long_link_targets() {
-    let root = temporary("tar-long-link");
-    let source = root.join("source");
-    let target_relative = PathBuf::from("lib").join("a".repeat(70)).join("b".repeat(70)).join("runtime.txt");
-    fs::create_dir_all(source.join(target_relative.parent().expect("parent"))).expect("target parent");
-    fs::create_dir_all(source.join("bin")).expect("bin");
-    write(&source.join(&target_relative), "long-link-target-payload");
-    let link_target = PathBuf::from("..").join(&target_relative);
-    std::os::unix::fs::symlink(&link_target, source.join("bin/runtime.txt")).expect("long symlink");
-    let archive = root.join("long-link.tar");
-    let status = Command::new("tar").current_dir(&source).arg("-cf").arg(&archive).arg("lib").arg("bin/runtime.txt").status().expect("tar");
-    assert!(status.success());
-    let extracted = root.join("extracted");
-    run_ok(&["proxy", "archive-extract", archive.to_str().expect("archive"), extracted.to_str().expect("extract")]);
-    assert!(fs::symlink_metadata(extracted.join("bin/runtime.txt")).expect("metadata").file_type().is_symlink());
-    assert_eq!(fs::read_to_string(extracted.join("bin/runtime.txt")).expect("read"), "long-link-target-payload");
-    fs::remove_dir_all(root).expect("cleanup long link");
-}"""
+        #[cfg(unix)]
+        #[test]
+        fn tar_extract_accepts_path_only_pax_for_long_paths() {
+            let root = temporary("tar-pax-path");
+            let source = root.join("source");
+            let relative = PathBuf::from("a".repeat(90)).join("b".repeat(90)).join("c".repeat(90)).join("value.txt");
+            fs::create_dir_all(source.join(relative.parent().expect("parent"))).expect("long parent");
+            write(&source.join(&relative), "pax-long-path-payload");
+            let archive = root.join("pax-long.tar");
+            let status = Command::new("tar").current_dir(&source).arg("--format=pax").arg("--pax-option=delete=atime,delete=ctime,delete=mtime").arg("-cf").arg(&archive).arg(".").status().expect("pax tar");
+            assert!(status.success());
+            let extracted = root.join("extracted");
+            run_ok(&["proxy", "archive-extract", archive.to_str().expect("archive"), extracted.to_str().expect("extract")]);
+            assert_eq!(fs::read_to_string(extracted.join(&relative)).expect("long read"), "pax-long-path-payload");
+            fs::remove_dir_all(root).expect("cleanup pax");
+        }
+
+        #[cfg(unix)]
+        #[test]
+        fn tar_extract_accepts_confined_gnu_long_link_targets() {
+            let root = temporary("tar-long-link");
+            let source = root.join("source");
+            let target_relative = PathBuf::from("lib").join("a".repeat(70)).join("b".repeat(70)).join("runtime.txt");
+            fs::create_dir_all(source.join(target_relative.parent().expect("parent"))).expect("target parent");
+            fs::create_dir_all(source.join("bin")).expect("bin");
+            write(&source.join(&target_relative), "long-link-target-payload");
+            let link_target = PathBuf::from("..").join(&target_relative);
+            std::os::unix::fs::symlink(&link_target, source.join("bin/runtime.txt")).expect("long symlink");
+            let archive = root.join("long-link.tar");
+            let status = Command::new("tar").current_dir(&source).arg("-cf").arg(&archive).arg("lib").arg("bin/runtime.txt").status().expect("tar");
+            assert!(status.success());
+            let extracted = root.join("extracted");
+            run_ok(&["proxy", "archive-extract", archive.to_str().expect("archive"), extracted.to_str().expect("extract")]);
+            assert!(fs::symlink_metadata(extracted.join("bin/runtime.txt")).expect("metadata").file_type().is_symlink());
+            assert_eq!(fs::read_to_string(extracted.join("bin/runtime.txt")).expect("read"), "long-link-target-payload");
+            fs::remove_dir_all(root).expect("cleanup long link");
+        }
+        """

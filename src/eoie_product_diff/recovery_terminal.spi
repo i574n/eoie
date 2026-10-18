@@ -1,122 +1,124 @@
 inl rust_global (x : string) : () = !!!!Global(x)
 
-inl emit_runtime () : () = rust_global """#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SourceRecoveryProvenance { Authored, Generated, CompilerSidecar }
+inl emit_runtime () : () = rust_global """
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum SourceRecoveryProvenance { Authored, Generated, CompilerSidecar }
 
-#[derive(Clone, Debug)]
-struct SourceRecoveryFile { rel: String, name: String, bytes: usize, fingerprint: u64 }
+    #[derive(Clone, Debug)]
+    struct SourceRecoveryFile { rel: String, name: String, bytes: usize, fingerprint: u64 }
 
-#[derive(Default)]
-struct SourceRecoveryIndex { authored: Vec<SourceRecoveryFile>, generated: usize, sidecars: usize }
+    #[derive(Default)]
+    struct SourceRecoveryIndex { authored: Vec<SourceRecoveryFile>, generated: usize, sidecars: usize }
 
-fn source_recovery_hash(bytes: &[u8]) -> u64 {
-    let mut hash = 14695981039346656037u64;
-    for byte in bytes { hash ^= u64::from(*byte); hash = hash.wrapping_mul(1099511628211); }
-    hash
-}
-
-fn source_recovery_skip(path: &std::path::Path) -> bool {
-    matches!(path.file_name().and_then(|value| value.to_str()), Some("vendor" | "target" | ".git" | ".cargo"))
-}
-
-fn source_recovery_track(path: &std::path::Path) -> bool {
-    let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
-    if matches!(name, "Cargo.toml" | "package.spiproj" | "README.md") { return true; }
-    matches!(path.extension().and_then(|value| value.to_str()), Some("spi" | "rs" | "cpp" | "hpp" | "h" | "c" | "md"))
-}
-
-fn source_recovery_sidecar(path: &std::path::Path) -> bool {
-    let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
-    if name == ".spiral-entry" || name.starts_with(".eoie-typecheck-") { return true; }
-    if path.extension().and_then(|value| value.to_str()) == Some("c") {
-        let mut spi = path.to_path_buf();
-        spi.set_extension("spi");
-        if spi.is_file() { return true; }
+    fn source_recovery_hash(bytes: &[u8]) -> u64 {
+        let mut hash = 14695981039346656037u64;
+        for byte in bytes { hash ^= u64::from(*byte); hash = hash.wrapping_mul(1099511628211); }
+        hash
     }
-    false
-}
 
-fn source_recovery_provenance(root: &std::path::Path, path: &std::path::Path) -> Result<SourceRecoveryProvenance, String> {
-    let sidecar = source_recovery_sidecar(path);
-    let generated = if sidecar { false } else { eoie_source_map::source_generated_residual(root, path)? };
-    let code = eoie_source_recovery_provenance_binding(i32::from(sidecar), i32::from(generated));
-    match code {
-        1 => Ok(SourceRecoveryProvenance::Authored),
-        2 => Ok(SourceRecoveryProvenance::Generated),
-        3 => Ok(SourceRecoveryProvenance::CompilerSidecar),
-        _ => Err(format!("invalid source recovery provenance: {}", path.display())),
+    fn source_recovery_skip(path: &std::path::Path) -> bool {
+        matches!(path.file_name().and_then(|value| value.to_str()), Some("vendor" | "target" | ".git" | ".cargo"))
     }
-}
 
-fn source_recovery_walk(root: &std::path::Path, path: &std::path::Path, index: &mut SourceRecoveryIndex) -> Result<(), String> {
-    let metadata = std::fs::symlink_metadata(path).map_err(|error| format!("metadata {}: {error}", path.display()))?;
-    if metadata.file_type().is_symlink() { return Err(format!("source-recovery-diff rejects symlink: {}", path.display())); }
-    if metadata.is_dir() {
-        if path != root && source_recovery_skip(path) { return Ok(()); }
-        let mut entries = std::fs::read_dir(path).map_err(|error| format!("read {}: {error}", path.display()))?
-            .map(|entry| entry.map(|value| value.path()).map_err(|error| error.to_string()))
-            .collect::<Result<Vec<_>, _>>()?;
-        entries.sort();
-        for child in entries { source_recovery_walk(root, &child, index)?; }
-        return Ok(());
+    fn source_recovery_track(path: &std::path::Path) -> bool {
+        let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+        if matches!(name, "Cargo.toml" | "package.spiproj" | "README.md") { return true; }
+        matches!(path.extension().and_then(|value| value.to_str()), Some("spi" | "rs" | "cpp" | "hpp" | "h" | "c" | "md"))
     }
-    if !metadata.is_file() || !source_recovery_track(path) { return Ok(()); }
-    match source_recovery_provenance(root, path)? {
-        SourceRecoveryProvenance::Generated => index.generated += 1,
-        SourceRecoveryProvenance::CompilerSidecar => index.sidecars += 1,
-        SourceRecoveryProvenance::Authored => {
-            let bytes = std::fs::read(path).map_err(|error| format!("read {}: {error}", path.display()))?;
-            if std::str::from_utf8(&bytes).is_err() { return Ok(()); }
-            index.authored.push(SourceRecoveryFile {
-                rel: path.strip_prefix(root).unwrap_or(path).to_string_lossy().replace('\\', "/"),
-                name: path.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_owned(),
-                bytes: bytes.len(),
-                fingerprint: source_recovery_hash(&bytes),
-            });
+
+    fn source_recovery_sidecar(path: &std::path::Path) -> bool {
+        let name = path.file_name().and_then(|value| value.to_str()).unwrap_or_default();
+        if name == ".spiral-entry" || name.starts_with(".eoie-typecheck-") { return true; }
+        if path.extension().and_then(|value| value.to_str()) == Some("c") {
+            let mut spi = path.to_path_buf();
+            spi.set_extension("spi");
+            if spi.is_file() { return true; }
+        }
+        false
+    }
+
+    fn source_recovery_provenance(root: &std::path::Path, path: &std::path::Path) -> Result<SourceRecoveryProvenance, String> {
+        let sidecar = source_recovery_sidecar(path);
+        let generated = if sidecar { false } else { eoie_source_map::source_generated_residual(root, path)? };
+        let code = eoie_source_recovery_provenance_binding(i32::from(sidecar), i32::from(generated));
+        match code {
+            1 => Ok(SourceRecoveryProvenance::Authored),
+            2 => Ok(SourceRecoveryProvenance::Generated),
+            3 => Ok(SourceRecoveryProvenance::CompilerSidecar),
+            _ => Err(format!("invalid source recovery provenance: {}", path.display())),
         }
     }
-    Ok(())
-}
 
-fn source_recovery_collect(root: &std::path::Path) -> Result<SourceRecoveryIndex, String> {
-    if !root.is_dir() { return Err(format!("source-recovery root is not a directory: {}", root.display())); }
-    let mut index = SourceRecoveryIndex::default();
-    source_recovery_walk(root, root, &mut index)?;
-    index.authored.sort_by(|a, b| a.rel.cmp(&b.rel));
-    Ok(index)
-}
-
-pub fn source_recovery_run(args: &[String]) -> Result<(), String> {
-    if args.len() < 3 { return Err("source-recovery-diff expects current-root candidate-root [candidate-root ...]".to_owned()); }
-    let current_root = std::path::Path::new(&args[1]);
-    let current = source_recovery_collect(current_root)?;
-    let exact = current.authored.iter().map(|file| file.fingerprint).collect::<std::collections::BTreeSet<_>>();
-    let basenames = current.authored.iter().map(|file| file.name.clone()).collect::<std::collections::BTreeSet<_>>();
-    println!("eoie proxy source-recovery-diff current={} authored={} generated={} sidecars={} fingerprints={} basenames={}", current_root.display(), current.authored.len(), current.generated, current.sidecars, exact.len(), basenames.len());
-    let mut any_warning = false;
-    for candidate_arg in &args[2..] {
-        let candidate_root = std::path::Path::new(candidate_arg);
-        let candidate = source_recovery_collect(candidate_root)?;
-        let mut exact_count = 0usize;
-        let mut basename_count = 0usize;
-        let mut missing_by_name = 0usize;
-        let mut missing_large = 0usize;
-        let mut warnings = 0usize;
-        for file in &candidate.authored {
-            if exact.contains(&file.fingerprint) { exact_count += 1; }
-            if basenames.contains(&file.name) { basename_count += 1; } else {
-                missing_by_name += 1;
-                if file.bytes >= 4096 {
-                    missing_large += 1;
-                    if warnings < 32 { println!("source-recovery missing path={} bytes={} fingerprint={:016x} status=warn", file.rel, file.bytes, file.fingerprint); warnings += 1; }
-                }
+    fn source_recovery_walk(root: &std::path::Path, path: &std::path::Path, index: &mut SourceRecoveryIndex) -> Result<(), String> {
+        let metadata = std::fs::symlink_metadata(path).map_err(|error| format!("metadata {}: {error}", path.display()))?;
+        if metadata.file_type().is_symlink() { return Err(format!("source-recovery-diff rejects symlink: {}", path.display())); }
+        if metadata.is_dir() {
+            if path != root && source_recovery_skip(path) { return Ok(()); }
+            let mut entries = std::fs::read_dir(path).map_err(|error| format!("read {}: {error}", path.display()))?
+                .map(|entry| entry.map(|value| value.path()).map_err(|error| error.to_string()))
+                .collect::<Result<Vec<_>, _>>()?;
+            entries.sort();
+            for child in entries { source_recovery_walk(root, &child, index)?; }
+            return Ok(());
+        }
+        if !metadata.is_file() || !source_recovery_track(path) { return Ok(()); }
+        match source_recovery_provenance(root, path)? {
+            SourceRecoveryProvenance::Generated => index.generated += 1,
+            SourceRecoveryProvenance::CompilerSidecar => index.sidecars += 1,
+            SourceRecoveryProvenance::Authored => {
+                let bytes = std::fs::read(path).map_err(|error| format!("read {}: {error}", path.display()))?;
+                if std::str::from_utf8(&bytes).is_err() { return Ok(()); }
+                index.authored.push(SourceRecoveryFile {
+                    rel: path.strip_prefix(root).unwrap_or(path).to_string_lossy().replace('\\', "/"),
+                    name: path.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_owned(),
+                    bytes: bytes.len(),
+                    fingerprint: source_recovery_hash(&bytes),
+                });
             }
         }
-        if eoie_source_recovery_warning_binding(missing_large as i32, candidate.authored.len() as i32) != 1 { return Err("invalid source recovery warning counts".to_owned()); }
-        any_warning |= missing_large > 0;
-        println!("source-recovery candidate={} authored={} exact={} basename={} missing_by_name={} missing_large={} filtered_generated={} filtered_sidecars={} status={}", candidate_root.display(), candidate.authored.len(), exact_count, basename_count, missing_by_name, missing_large, candidate.generated, candidate.sidecars, if missing_large == 0 { "pass" } else { "warn" });
+        Ok(())
     }
-    println!("eoie proxy source-recovery-diff ok status={}", if any_warning { "warn" } else { "pass" });
-    Ok(())
-}
-"""
+
+    fn source_recovery_collect(root: &std::path::Path) -> Result<SourceRecoveryIndex, String> {
+        if !root.is_dir() { return Err(format!("source-recovery root is not a directory: {}", root.display())); }
+        let mut index = SourceRecoveryIndex::default();
+        source_recovery_walk(root, root, &mut index)?;
+        index.authored.sort_by(|a, b| a.rel.cmp(&b.rel));
+        Ok(index)
+    }
+
+    pub fn source_recovery_run(args: &[String]) -> Result<(), String> {
+        if args.len() < 3 { return Err("source-recovery-diff expects current-root candidate-root [candidate-root ...]".to_owned()); }
+        let current_root = std::path::Path::new(&args[1]);
+        let current = source_recovery_collect(current_root)?;
+        let exact = current.authored.iter().map(|file| file.fingerprint).collect::<std::collections::BTreeSet<_>>();
+        let basenames = current.authored.iter().map(|file| file.name.clone()).collect::<std::collections::BTreeSet<_>>();
+        println!("eoie proxy source-recovery-diff current={} authored={} generated={} sidecars={} fingerprints={} basenames={}", current_root.display(), current.authored.len(), current.generated, current.sidecars, exact.len(), basenames.len());
+        let mut any_warning = false;
+        for candidate_arg in &args[2..] {
+            let candidate_root = std::path::Path::new(candidate_arg);
+            let candidate = source_recovery_collect(candidate_root)?;
+            let mut exact_count = 0usize;
+            let mut basename_count = 0usize;
+            let mut missing_by_name = 0usize;
+            let mut missing_large = 0usize;
+            let mut warnings = 0usize;
+            for file in &candidate.authored {
+                if exact.contains(&file.fingerprint) { exact_count += 1; }
+                if basenames.contains(&file.name) { basename_count += 1; } else {
+                    missing_by_name += 1;
+                    if file.bytes >= 4096 {
+                        missing_large += 1;
+                        if warnings < 32 { println!("source-recovery missing path={} bytes={} fingerprint={:016x} status=warn", file.rel, file.bytes, file.fingerprint); warnings += 1; }
+                    }
+                }
+            }
+            if eoie_source_recovery_warning_binding(missing_large as i32, candidate.authored.len() as i32) != 1 { return Err("invalid source recovery warning counts".to_owned()); }
+            any_warning |= missing_large > 0;
+            println!("source-recovery candidate={} authored={} exact={} basename={} missing_by_name={} missing_large={} filtered_generated={} filtered_sidecars={} status={}", candidate_root.display(), candidate.authored.len(), exact_count, basename_count, missing_by_name, missing_large, candidate.generated, candidate.sidecars, if missing_large == 0 { "pass" } else { "warn" });
+        }
+        println!("eoie proxy source-recovery-diff ok status={}", if any_warning { "warn" } else { "pass" });
+        Ok(())
+    }
+
+    """

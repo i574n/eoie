@@ -88,7 +88,13 @@ let rec serialize_rows_loop (table : string) (at : i32) (table_len : i32) (modul
         serialize_rows_loop table next table_len next_index (sm.concat out rendered)
 
 inl receipt_header () : string =
-    "union state_check_snapshot = | StateCheckSnapshot :: u64 -> state_check_snapshot\nunion module_attestation = | RuntimeAttestation | BuildAttestation :: u64 -> module_attestation\nunion module_typecheck_receipt = | ModuleTypecheckReceipt :: string * u64 * u64 * module_attestation -> module_typecheck_receipt\n\n"
+    """
+        union state_check_snapshot = | StateCheckSnapshot :: u64 -> state_check_snapshot
+        union module_attestation = | RuntimeAttestation | BuildAttestation :: u64 -> module_attestation
+        union module_typecheck_receipt = | ModuleTypecheckReceipt :: string * u64 * u64 * module_attestation -> module_typecheck_receipt
+
+
+        """
 
 inl receipt_footer () : string =
     "inl main () : i32 = 0i32\n"
@@ -101,7 +107,17 @@ inl serializer_fixture_table () : string =
     "snapshot\t42\nmodule\talpha.spi\t12\t34\truntime\nmodule\tb\\c.spi\t56\t78\tbuild:99\n"
 
 inl serializer_fixture_source () : string =
-    "union state_check_snapshot = | StateCheckSnapshot :: u64 -> state_check_snapshot\nunion module_attestation = | RuntimeAttestation | BuildAttestation :: u64 -> module_attestation\nunion module_typecheck_receipt = | ModuleTypecheckReceipt :: string * u64 * u64 * module_attestation -> module_typecheck_receipt\n\ninl snapshot () : state_check_snapshot = StateCheckSnapshot 42u64\ninl receipt_0000 () : module_typecheck_receipt = ModuleTypecheckReceipt (\"alpha.spi\", 12u64, 34u64, RuntimeAttestation)\ninl receipt_0001 () : module_typecheck_receipt = ModuleTypecheckReceipt (\"b\\\\c.spi\", 56u64, 78u64, BuildAttestation 99u64)\ninl main () : i32 = 0i32\n"
+    """
+        union state_check_snapshot = | StateCheckSnapshot :: u64 -> state_check_snapshot
+        union module_attestation = | RuntimeAttestation | BuildAttestation :: u64 -> module_attestation
+        union module_typecheck_receipt = | ModuleTypecheckReceipt :: string * u64 * u64 * module_attestation -> module_typecheck_receipt
+
+        inl snapshot () : state_check_snapshot = StateCheckSnapshot 42u64
+        inl receipt_0000 () : module_typecheck_receipt = ModuleTypecheckReceipt ("alpha.spi", 12u64, 34u64, RuntimeAttestation)
+        inl receipt_0001 () : module_typecheck_receipt = ModuleTypecheckReceipt ("b\\c.spi", 56u64, 78u64, BuildAttestation 99u64)
+        inl main () : i32 = 0i32
+
+        """
 
 inl serializer_malformed_table () : string =
     "module\tmissing-fields\n"

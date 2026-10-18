@@ -1,67 +1,69 @@
 inl rust_global (x : string) : () = !!!!Global(x)
 
-inl emit_receipt_formatter () : () = rust_global """impl RestorationReceipt {
-    fn failed_paths(&self) -> Vec<PathBuf> {
-        self.failures.iter().map(|failure| failure.path.clone()).collect()
-    }
+inl emit_receipt_formatter () : () = rust_global """
+    impl RestorationReceipt {
+        fn failed_paths(&self) -> Vec<PathBuf> {
+            self.failures.iter().map(|failure| failure.path.clone()).collect()
+        }
 
-    fn public_context(&self) -> String {
-        let failed_paths = self.failed_paths();
-        if self.outcome() == 1 {
-            format!(
-                "rollback=restored restored_paths={} failed_paths=[]",
-                restoration_paths_text(&self.restored_paths)
-            )
-        } else {
-            format!(
-                "rollback=failed restoration_error={} restored_paths={} failed_paths={}",
-                restoration_failures_text(&self.failures),
-                restoration_paths_text(&self.restored_paths),
-                restoration_paths_text(&failed_paths)
-            )
+        fn public_context(&self) -> String {
+            let failed_paths = self.failed_paths();
+            if self.outcome() == 1 {
+                format!(
+                    "rollback=restored restored_paths={} failed_paths=[]",
+                    restoration_paths_text(&self.restored_paths)
+                )
+            } else {
+                format!(
+                    "rollback=failed restoration_error={} restored_paths={} failed_paths={}",
+                    restoration_failures_text(&self.failures),
+                    restoration_paths_text(&self.restored_paths),
+                    restoration_paths_text(&failed_paths)
+                )
+            }
         }
     }
-}
 
-impl RestorationFailure {
-    fn public_context(&self) -> String {
-        if self.receipt.failures.is_empty() {
-            format!(
-                "rollback=failed restoration_error=[<rollback>=>{}] restored_paths={} failed_paths=[]",
-                self.message,
-                restoration_paths_text(&self.receipt.restored_paths)
-            )
-        } else {
-            self.receipt.public_context()
+    impl RestorationFailure {
+        fn public_context(&self) -> String {
+            if self.receipt.failures.is_empty() {
+                format!(
+                    "rollback=failed restoration_error=[<rollback>=>{}] restored_paths={} failed_paths=[]",
+                    self.message,
+                    restoration_paths_text(&self.receipt.restored_paths)
+                )
+            } else {
+                self.receipt.public_context()
+            }
         }
     }
-}
 
-fn restoration_failures_text(failures: &[RestorationPathFailure]) -> String {
-    let body = failures
-        .iter()
-        .map(|failure| format!("{}=>{}", failure.path.display(), failure.message))
-        .collect::<Vec<_>>()
-        .join(",");
-    format!("[{body}]")
-}
-
-fn restoration_paths_text(paths: &[PathBuf]) -> String {
-    let body = paths
-        .iter()
-        .map(|path| path.display().to_string())
-        .collect::<Vec<_>>()
-        .join(",");
-    format!("[{body}]")
-}
-
-fn patch_error_with_rollback(
-    original: String,
-    rollback: Result<RestorationReceipt, RestorationFailure>,
-) -> String {
-    match rollback {
-        Ok(receipt) => format!("{original}; {}", receipt.public_context()),
-        Err(failure) => format!("{original}; {}", failure.public_context()),
+    fn restoration_failures_text(failures: &[RestorationPathFailure]) -> String {
+        let body = failures
+            .iter()
+            .map(|failure| format!("{}=>{}", failure.path.display(), failure.message))
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("[{body}]")
     }
-}
-"""
+
+    fn restoration_paths_text(paths: &[PathBuf]) -> String {
+        let body = paths
+            .iter()
+            .map(|path| path.display().to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        format!("[{body}]")
+    }
+
+    fn patch_error_with_rollback(
+        original: String,
+        rollback: Result<RestorationReceipt, RestorationFailure>,
+    ) -> String {
+        match rollback {
+            Ok(receipt) => format!("{original}; {}", receipt.public_context()),
+            Err(failure) => format!("{original}; {}", failure.public_context()),
+        }
+    }
+
+    """

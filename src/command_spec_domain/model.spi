@@ -114,17 +114,43 @@ let command_subcommand_effect_code (~input : string) : u64 =
 
 inl command_usages () : string =
     inl agile = agile_subcommand_domain.subcommand.agile_subcommand_usage " | "
-    !!!!StaticStringConcat("status [root]\npatch: apply <root> <plan.spi> [--compiler <absolute>] | check <root> <plan.spi> | rehearse <root> <plan.spi> | gated <root> <plan.spi> <gate-program>\nagile: ", !!!!StaticStringConcat(agile, "\nbundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>\nproxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew\nhelp [verb|--completion|--json|--schema] | proxy <capability>"))
+    !!!!StaticStringConcat("status [root]\npatch: apply <root> <plan.spi> [--compiler <absolute>] | check <root> <plan.spi> | rehearse <root> <plan.spi> | gated <root> <plan.spi> <gate-program>\nagile: ", !!!!StaticStringConcat(agile, """
+
+        bundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>
+        proxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew
+        help [verb|--completion|--json|--schema] | proxy <capability>
+        """))
 
 let command_descriptor_by_index (~input : string) : string * string * string * string * string =
     inl keys = "0|1|2|3|4|5"
-    inl name = rust_std_string.model.pipe_lookup keys "status\npatch\nagile\nbundle\nproxy\nhelp" input
+    inl name = rust_std_string.model.pipe_lookup keys """
+        status
+        patch
+        agile
+        bundle
+        proxy
+        help
+        """ input
     if rust_std_string.model.equals name "" then "unknown", "inspect", "unknown", "unknown public verb", "unknown"
     else
         name,
-        rust_std_string.model.pipe_lookup keys "inspect\nmutate\nmutate\nwrap\nmutate\ninspect" input,
+        rust_std_string.model.pipe_lookup keys """
+            inspect
+            mutate
+            mutate
+            wrap
+            mutate
+            inspect
+            """ input,
         rust_std_string.model.pipe_lookup keys (command_usages ()) input,
-        rust_std_string.model.pipe_lookup keys "inspect migration evidence toolchain and authority state\nrehearse gate and apply typed patch plans\nmanage typed backlog leases and turn receipts\ncheck create verify rehydrate and retain bundles\nexecute bounded filesystem process archive toolchain and evidence capabilities\nrender the public command catalog" input,
+        rust_std_string.model.pipe_lookup keys """
+            inspect migration evidence toolchain and authority state
+            rehearse gate and apply typed patch plans
+            manage typed backlog leases and turn receipts
+            check create verify rehydrate and retain bundles
+            execute bounded filesystem process archive toolchain and evidence capabilities
+            render the public command catalog
+            """ input,
         name
 
 let command_descriptor_json_by_index (~input : string) : string =
@@ -144,7 +170,78 @@ let command_schema_witness () : i32 =
 let proxy_usage (~input : string) : string =
     rust_std_string.model.pipe_lookup
         "plan-ir-inspect|plan-ir-check|install-self|self-upgrade-check|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|fs-list|fs-read|fs-context|fs-search|parallel-search|hash|hash-tree|fs-write|text-replace|fs-remove|fs-remove-tree|run|archive-extract|zip-extract|toolchain|portable-toolchain|legacy-surface|restart-baton|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-slice|parallel-manifest|product-diff|fs-copy|spiral-session-shutdown|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|source-map|spi-diff|source-diff|source-recovery-diff|cold-rebuild-matrix|cold-rebuild-owner|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|formal-receipts-renew|coverage-register"
-        "proxy plan-ir-inspect <index>\nproxy plan-ir-check\nproxy install-self <source-binary> <installed-binary> <canonical-link>\nproxy self-upgrade-check <current-root> <candidate-root>\nproxy fs-chmod <root> <relative-path> <octal-mode>\nproxy fs-symlink <root> <target-relative> <link-relative>\nproxy fs-copy-tree <source> <destination>\nproxy command-output <root> <timeout-ms> <program> [args...]\nproxy command-capture <root> <receipt-relative> <timeout-ms> <program> [args...]\nproxy command-capture-env <root> <receipt-relative> <timeout-ms> <cwd-relative> <env-cell> <program> [args...]\nproxy fs-list <root> [relative]\nproxy fs-read <root> <relative> [max-bytes]\nproxy fs-context <root> <relative> <needle> <radius-bytes>\nproxy fs-search <root> <relative> <needle>\nproxy parallel-search <root> <relative> <needle> <max-hits>\nproxy hash <root> <relative>\nproxy hash-tree <root> <relative>\nproxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>\nproxy text-replace <check|apply> <root> <relative> <old> <new> [--all|--expect <count>]\nproxy fs-remove <root> <relative>\nproxy fs-remove-tree <root> <relative> [--missing-ok]\nproxy run --cwd <directory> --program <program> [--timeout-ms <ms>] [--env KEY=VALUE]... [--unset KEY]... [-- <args...>]\nproxy archive-extract <archive> <destination>\nproxy zip-extract <archive> <destination>\nproxy toolchain <root> <action> ...\nproxy portable-toolchain <root> ...\nproxy legacy-surface\nproxy restart-baton <root> <receipt-relative> <bundle-absolute> <expected-migration> <active-workstream> <touched-sources> <next-gate>\nproxy command-capture-matrix <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]\nproxy command-capture-matrix-gate <root> <report-relative>\nproxy batch-plan <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]\nproxy batch-plan-resume <root> <report-relative> <resume-relative>\nproxy fs-slice <root> <relative> <start> <count>\nproxy parallel-manifest <root> <relative> <max-entries> [preview|apply <output-relative>]\nproxy product-diff <left-root> <right-root>\nproxy fs-copy <root> <source> <target>\nproxy spiral-session-shutdown <compiler> [timeout-ms]\nproxy prune-build-cache <root> <relative-target>\nproxy prune-compiler-sidecars <root> [--dry-run]\nproxy incident-recovery snapshot <root> <source-relative> <snapshot-parent-relative> <receipt-relative> | restore <root> <target-relative> <snapshot-relative> <receipt-relative>\nproxy external-payload <register|hydrate|dehydrate> <root> <payload-relative> <cache-relative> <receipt-relative>\nproxy differential-compare <root> <oracle> <direct> <receipt>\nproxy coverage-assess <test.lcov> <smoke.lcov> <test-floor> <smoke-floor> <combined-floor>\nproxy coverage-export <profraw-dir> <binary-path> <grcov> <llvm-bin-dir> <source-root> <output-lcov> <timeout-ms>\nproxy coverage-union <output-lcov> <input-lcov> <input-lcov> [input-lcov ...]\nproxy coverage-run <root> <cargo> <compiler> <target-dir> <profraw-dir> <public|workspace|smoke|owner:package> <timeout-ms>\nproxy source-stats <root> [--crates]\nproxy source-topology <root> [state/authority_census.spi]\nproxy ingest-map <root>\nproxy ingest-trim-check <root>\nproxy ingest-extracted-manifest <root>\nproxy ingest-targets <root>\nproxy ingest-targets-derive <root>\nproxy frontier-map <root>\nproxy spi-map <root>\nproxy source-map <root>\nproxy spi-diff <left-root> <right-root>\nproxy source-diff <left-root> <right-root>\nproxy source-recovery-diff <current-root> <candidate-root> [candidate-root ...]\nproxy cold-rebuild-matrix <root> <matrix-relative> <eoie> <compiler> <dotnet> <rustfmt> [compiler-timeout-ms]\nproxy cold-rebuild-owner <root> <snapshot-relative> <input-relative> <output-relative> <compiler> <dotnet> <rustfmt-or-empty> <timeout-ms> <workspace-root-or-empty>\nproxy source-author <preview|apply> <root> <target-relative> <template-relative> <expected-target-sha256|missing> <expected-template-sha256> KEY=VALUE...\nproxy fs-batch-write <preview|apply> <root> <plan.spi>\nproxy fs-actions <preview|apply> <root> <plan.spi>\nproxy binary-install <preview|apply> <root> <source-relative> <destination-relative> <provenance-relative> <expected-source-sha256> <expected-destination-sha256|missing> <expected-provenance-sha256|missing> <mode-octal>\nproxy release-closeout <preview|apply> <root> <receipt-relative> <expected-migration> <expected-receipt-sha256|missing> <name|relative|sha256>... (six gates)\nproxy shim install <root> <relative-dir> <block|warn|pass> | uninstall <root> <relative-dir> | status <root> <relative-dir>\nproxy prune-uncovered <root> <relative> <test.lcov> <smoke.lcov> -- <validation-program> [args...]\nproxy formal-receipts-renew <root>\nproxy coverage-register <root> <current.lcov> <seed.lcov>"
+        """
+            proxy plan-ir-inspect <index>
+            proxy plan-ir-check
+            proxy install-self <source-binary> <installed-binary> <canonical-link>
+            proxy self-upgrade-check <current-root> <candidate-root>
+            proxy fs-chmod <root> <relative-path> <octal-mode>
+            proxy fs-symlink <root> <target-relative> <link-relative>
+            proxy fs-copy-tree <source> <destination>
+            proxy command-output <root> <timeout-ms> <program> [args...]
+            proxy command-capture <root> <receipt-relative> <timeout-ms> <program> [args...]
+            proxy command-capture-env <root> <receipt-relative> <timeout-ms> <cwd-relative> <env-cell> <program> [args...]
+            proxy fs-list <root> [relative]
+            proxy fs-read <root> <relative> [max-bytes]
+            proxy fs-context <root> <relative> <needle> <radius-bytes>
+            proxy fs-search <root> <relative> <needle>
+            proxy parallel-search <root> <relative> <needle> <max-hits>
+            proxy hash <root> <relative>
+            proxy hash-tree <root> <relative>
+            proxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>
+            proxy text-replace <check|apply> <root> <relative> <old> <new> [--all|--expect <count>]
+            proxy fs-remove <root> <relative>
+            proxy fs-remove-tree <root> <relative> [--missing-ok]
+            proxy run --cwd <directory> --program <program> [--timeout-ms <ms>] [--env KEY=VALUE]... [--unset KEY]... [-- <args...>]
+            proxy archive-extract <archive> <destination>
+            proxy zip-extract <archive> <destination>
+            proxy toolchain <root> <action> ...
+            proxy portable-toolchain <root> ...
+            proxy legacy-surface
+            proxy restart-baton <root> <receipt-relative> <bundle-absolute> <expected-migration> <active-workstream> <touched-sources> <next-gate>
+            proxy command-capture-matrix <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]
+            proxy command-capture-matrix-gate <root> <report-relative>
+            proxy batch-plan <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]
+            proxy batch-plan-resume <root> <report-relative> <resume-relative>
+            proxy fs-slice <root> <relative> <start> <count>
+            proxy parallel-manifest <root> <relative> <max-entries> [preview|apply <output-relative>]
+            proxy product-diff <left-root> <right-root>
+            proxy fs-copy <root> <source> <target>
+            proxy spiral-session-shutdown <compiler> [timeout-ms]
+            proxy prune-build-cache <root> <relative-target>
+            proxy prune-compiler-sidecars <root> [--dry-run]
+            proxy incident-recovery snapshot <root> <source-relative> <snapshot-parent-relative> <receipt-relative> | restore <root> <target-relative> <snapshot-relative> <receipt-relative>
+            proxy external-payload <register|hydrate|dehydrate> <root> <payload-relative> <cache-relative> <receipt-relative>
+            proxy differential-compare <root> <oracle> <direct> <receipt>
+            proxy coverage-assess <test.lcov> <smoke.lcov> <test-floor> <smoke-floor> <combined-floor>
+            proxy coverage-export <profraw-dir> <binary-path> <grcov> <llvm-bin-dir> <source-root> <output-lcov> <timeout-ms>
+            proxy coverage-union <output-lcov> <input-lcov> <input-lcov> [input-lcov ...]
+            proxy coverage-run <root> <cargo> <compiler> <target-dir> <profraw-dir> <public|workspace|smoke|owner:package> <timeout-ms>
+            proxy source-stats <root> [--crates]
+            proxy source-topology <root> [state/authority_census.spi]
+            proxy ingest-map <root>
+            proxy ingest-trim-check <root>
+            proxy ingest-extracted-manifest <root>
+            proxy ingest-targets <root>
+            proxy ingest-targets-derive <root>
+            proxy frontier-map <root>
+            proxy spi-map <root>
+            proxy source-map <root>
+            proxy spi-diff <left-root> <right-root>
+            proxy source-diff <left-root> <right-root>
+            proxy source-recovery-diff <current-root> <candidate-root> [candidate-root ...]
+            proxy cold-rebuild-matrix <root> <matrix-relative> <eoie> <compiler> <dotnet> <rustfmt> [compiler-timeout-ms]
+            proxy cold-rebuild-owner <root> <snapshot-relative> <input-relative> <output-relative> <compiler> <dotnet> <rustfmt-or-empty> <timeout-ms> <workspace-root-or-empty>
+            proxy source-author <preview|apply> <root> <target-relative> <template-relative> <expected-target-sha256|missing> <expected-template-sha256> KEY=VALUE...
+            proxy fs-batch-write <preview|apply> <root> <plan.spi>
+            proxy fs-actions <preview|apply> <root> <plan.spi>
+            proxy binary-install <preview|apply> <root> <source-relative> <destination-relative> <provenance-relative> <expected-source-sha256> <expected-destination-sha256|missing> <expected-provenance-sha256|missing> <mode-octal>
+            proxy release-closeout <preview|apply> <root> <receipt-relative> <expected-migration> <expected-receipt-sha256|missing> <name|relative|sha256>... (six gates)
+            proxy shim install <root> <relative-dir> <block|warn|pass> | uninstall <root> <relative-dir> | status <root> <relative-dir>
+            proxy prune-uncovered <root> <relative> <test.lcov> <smoke.lcov> -- <validation-program> [args...]
+            proxy formal-receipts-renew <root>
+            proxy coverage-register <root> <current.lcov> <seed.lcov>
+            """
         input
 
 let toolchain_action_code (~input : string) : u64 =

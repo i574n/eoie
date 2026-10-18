@@ -54,182 +54,184 @@ inl emit_policy_exports () : () =
     !!!!Export("eoie_process_receipt_policy_binding", ((fun (first, second) => process_receipt_policy_export first second) : i32 * i32 -> i32))
 
 inl emit_runtime () : () =
-    rust_global """use eoie_process::{
-    run_bounded_capture_with_input, run_bounded_streaming, ProcessStreamKind,
-};
+    rust_global """
+        use eoie_process::{
+            run_bounded_capture_with_input, run_bounded_streaming, ProcessStreamKind,
+        };
 
-pub fn run_bounded_observed_with_input(
-    command: &mut std::process::Command,
-    timeout_ms: u64,
-    input: Option<&[u8]>,
-) -> Result<ProcessObservation, String> {
-    let started = std::time::Instant::now();
-    let capture = run_bounded_capture_with_input(command, timeout_ms, input)?;
-    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-    Ok(ProcessObservation {
-        status: capture.status,
-        termination: capture.termination,
-        elapsed_ms,
-        stdout: capture.stdout,
-        stderr: capture.stderr,
-    })
-}
-
-fn replay_process_chunk(kind: ProcessStreamKind, bytes: &[u8]) -> Result<(), String> {
-    match kind {
-        ProcessStreamKind::Stdout => std::io::Write::write_all(&mut std::io::stdout(), bytes)
-            .map_err(|error| format!("stream stdout: {error}")),
-        ProcessStreamKind::Stderr => std::io::Write::write_all(&mut std::io::stderr(), bytes)
-            .map_err(|error| format!("stream stderr: {error}")),
-    }
-}
-
-pub fn run_bounded_streaming_observed(
-    command: &mut std::process::Command,
-    timeout_ms: u64,
-    input: Option<&[u8]>,
-) -> Result<ProcessObservation, String> {
-    let started = std::time::Instant::now();
-    let capture = run_bounded_streaming(command, timeout_ms, input, replay_process_chunk)?;
-    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-    Ok(ProcessObservation {
-        status: capture.status,
-        termination: capture.termination,
-        elapsed_ms,
-        stdout: capture.stdout,
-        stderr: capture.stderr,
-    })
-}
-
-fn process_receipt_digest(bytes: &[u8]) -> String {
-    let hash = bytes.iter().fold(0xcbf29ce484222325u64, |hash, byte| (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3));
-    format!("fnv1a64:{hash:016x}")
-}
-
-fn process_receipt_env_name_allowed(name: &str) -> bool {
-    let upper = name.to_ascii_uppercase();
-    !["SECRET", "TOKEN", "PASSWORD", "CREDENTIAL", "PRIVATE", "AUTH", "KEY"]
-        .iter()
-        .any(|marker| upper.contains(marker))
-}
-
-fn process_receipt_env_names(command: &std::process::Command) -> String {
-    let mut names = command
-        .get_envs()
-        .filter_map(|(name, _)| name.to_str())
-        .filter(|name| process_receipt_env_name_allowed(name))
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
-    names.sort();
-    names.dedup();
-    if names.is_empty() { "none".to_owned() } else { names.join(",") }
-}
-
-fn process_receipt_outcome_code(observation: &ProcessObservation) -> i32 {
-    if observation.termination == ProcessTermination::TimedOut { return 3; }
-    match observation.termination {
-        ProcessTermination::Signaled(_) => 2,
-        _ if observation.status.success() => 0,
-        _ => 1,
-    }
-}
-
-fn process_receipt_status_name(code: i32) -> &'static str {
-    match code { 0 => "passed", 1 => "failed", 2 => "timed_out", 3 => "rejected", _ => "invalid" }
-}
-
-fn process_receipt_retry_name(code: i32) -> &'static str {
-    match code { 0 => "not_retryable", 1 => "retryable", _ => "invalid" }
-}
-
-fn process_receipt_command_fields(command: &std::process::Command) -> (String, String, String) {
-    let cwd = command.get_current_dir().map_or_else(|| "<inherit>".to_owned(), |path| path.display().to_string());
-    let program = command.get_program().to_string_lossy().into_owned();
-    (cwd, program, process_receipt_env_names(command))
-}
-
-fn emit_process_exit_receipt(command: &std::process::Command, label: &str, observation: &ProcessObservation) {
-    let outcome = process_receipt_outcome_code(observation);
-    let wrapper_status = eoie_process_receipt_policy_binding(outcome, 0);
-    let retryability = eoie_process_receipt_policy_binding(outcome, 1);
-    let child_exit = observation.status.code().map_or_else(|| "none".to_owned(), |code| code.to_string());
-    let signal = match observation.termination { ProcessTermination::Signaled(signal) => signal.to_string(), _ => "none".to_owned() };
-    let timeout = i32::from(observation.termination == ProcessTermination::TimedOut);
-    let (cwd, program, env_names) = process_receipt_command_fields(command);
-    println!("eoie process-exit receipt label={label} wrapper_status={} child_exit={} signal={} timeout={} stderr_digest={} retryability={} cwd={:?} program={:?} env_names={} elapsed_ms={} stdout_bytes={} stderr_bytes={}", process_receipt_status_name(wrapper_status), child_exit, signal, timeout, process_receipt_digest(&observation.stderr), process_receipt_retry_name(retryability), cwd, program, env_names, observation.elapsed_ms, observation.stdout.len(), observation.stderr.len());
-}
-
-fn emit_process_error_receipt(command: &std::process::Command, label: &str, elapsed_ms: u64, error: &str) {
-    let outcome = if error.starts_with("spawn process:") { 4 } else { 5 };
-    let wrapper_status = eoie_process_receipt_policy_binding(outcome, 0);
-    let retryability = eoie_process_receipt_policy_binding(outcome, 1);
-    let (cwd, program, env_names) = process_receipt_command_fields(command);
-    println!("eoie process-exit receipt label={label} wrapper_status={} child_exit=none signal=none timeout=0 stderr_digest={} retryability={} cwd={:?} program={:?} env_names={} elapsed_ms={} stdout_bytes=0 stderr_bytes={}", process_receipt_status_name(wrapper_status), process_receipt_digest(error.as_bytes()), process_receipt_retry_name(retryability), cwd, program, env_names, elapsed_ms, error.len());
-}
-
-pub fn run_bounded_receipted_observed(
-    command: &mut std::process::Command,
-    timeout_ms: u64,
-    label: &str,
-) -> Result<ProcessObservation, String> {
-    let started = std::time::Instant::now();
-    match run_bounded_observed(command, timeout_ms) {
-        Ok(observation) => { emit_process_exit_receipt(command, label, &observation); Ok(observation) }
-        Err(error) => {
+        pub fn run_bounded_observed_with_input(
+            command: &mut std::process::Command,
+            timeout_ms: u64,
+            input: Option<&[u8]>,
+        ) -> Result<ProcessObservation, String> {
+            let started = std::time::Instant::now();
+            let capture = run_bounded_capture_with_input(command, timeout_ms, input)?;
             let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-            emit_process_error_receipt(command, label, elapsed_ms, &error);
-            Err(error)
+            Ok(ProcessObservation {
+                status: capture.status,
+                termination: capture.termination,
+                elapsed_ms,
+                stdout: capture.stdout,
+                stderr: capture.stderr,
+            })
         }
-    }
-}
 
-pub fn run_bounded_streaming_receipted_observed(
-    command: &mut std::process::Command,
-    timeout_ms: u64,
-    label: &str,
-    input: Option<&[u8]>,
-) -> Result<ProcessObservation, String> {
-    let started = std::time::Instant::now();
-    match run_bounded_streaming_observed(command, timeout_ms, input) {
-        Ok(observation) => { emit_process_exit_receipt(command, label, &observation); Ok(observation) }
-        Err(error) => {
+        fn replay_process_chunk(kind: ProcessStreamKind, bytes: &[u8]) -> Result<(), String> {
+            match kind {
+                ProcessStreamKind::Stdout => std::io::Write::write_all(&mut std::io::stdout(), bytes)
+                    .map_err(|error| format!("stream stdout: {error}")),
+                ProcessStreamKind::Stderr => std::io::Write::write_all(&mut std::io::stderr(), bytes)
+                    .map_err(|error| format!("stream stderr: {error}")),
+            }
+        }
+
+        pub fn run_bounded_streaming_observed(
+            command: &mut std::process::Command,
+            timeout_ms: u64,
+            input: Option<&[u8]>,
+        ) -> Result<ProcessObservation, String> {
+            let started = std::time::Instant::now();
+            let capture = run_bounded_streaming(command, timeout_ms, input, replay_process_chunk)?;
             let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-            emit_process_error_receipt(command, label, elapsed_ms, &error);
-            Err(error)
+            Ok(ProcessObservation {
+                status: capture.status,
+                termination: capture.termination,
+                elapsed_ms,
+                stdout: capture.stdout,
+                stderr: capture.stderr,
+            })
         }
-    }
-}
 
-pub fn run_bounded_streaming_checked(
-    command: &mut std::process::Command,
-    timeout_ms: u64,
-    label: &str,
-    input: Option<&[u8]>,
-) -> Result<ProcessObservation, String> {
-    let observation = run_bounded_streaming_receipted_observed(command, timeout_ms, label, input)?;
-    if observation.termination == ProcessTermination::TimedOut {
-        return Err(format!(
-            "{label} timed out after {timeout_ms} ms; stderr={}",
-            process_output_preview(&observation.stderr)
-        ));
-    }
-    if !observation.status.success() {
-        return Err(format!(
-            "{label} failed: {} termination={:?} stderr={}",
-            observation.status, observation.termination, process_output_preview(&observation.stderr)
-        ));
-    }
-    println!(
-        "eoie process plan={label} status=passed termination={:?} elapsed_ms={} stdout_bytes={} stderr_bytes={} streamed=true input_bytes={}",
-        observation.termination,
-        observation.elapsed_ms,
-        observation.stdout.len(),
-        observation.stderr.len(),
-        input.map_or(0, <[u8]>::len)
-    );
-    Ok(observation)
-}
-"""
+        fn process_receipt_digest(bytes: &[u8]) -> String {
+            let hash = bytes.iter().fold(0xcbf29ce484222325u64, |hash, byte| (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3));
+            format!("fnv1a64:{hash:016x}")
+        }
+
+        fn process_receipt_env_name_allowed(name: &str) -> bool {
+            let upper = name.to_ascii_uppercase();
+            !["SECRET", "TOKEN", "PASSWORD", "CREDENTIAL", "PRIVATE", "AUTH", "KEY"]
+                .iter()
+                .any(|marker| upper.contains(marker))
+        }
+
+        fn process_receipt_env_names(command: &std::process::Command) -> String {
+            let mut names = command
+                .get_envs()
+                .filter_map(|(name, _)| name.to_str())
+                .filter(|name| process_receipt_env_name_allowed(name))
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            names.sort();
+            names.dedup();
+            if names.is_empty() { "none".to_owned() } else { names.join(",") }
+        }
+
+        fn process_receipt_outcome_code(observation: &ProcessObservation) -> i32 {
+            if observation.termination == ProcessTermination::TimedOut { return 3; }
+            match observation.termination {
+                ProcessTermination::Signaled(_) => 2,
+                _ if observation.status.success() => 0,
+                _ => 1,
+            }
+        }
+
+        fn process_receipt_status_name(code: i32) -> &'static str {
+            match code { 0 => "passed", 1 => "failed", 2 => "timed_out", 3 => "rejected", _ => "invalid" }
+        }
+
+        fn process_receipt_retry_name(code: i32) -> &'static str {
+            match code { 0 => "not_retryable", 1 => "retryable", _ => "invalid" }
+        }
+
+        fn process_receipt_command_fields(command: &std::process::Command) -> (String, String, String) {
+            let cwd = command.get_current_dir().map_or_else(|| "<inherit>".to_owned(), |path| path.display().to_string());
+            let program = command.get_program().to_string_lossy().into_owned();
+            (cwd, program, process_receipt_env_names(command))
+        }
+
+        fn emit_process_exit_receipt(command: &std::process::Command, label: &str, observation: &ProcessObservation) {
+            let outcome = process_receipt_outcome_code(observation);
+            let wrapper_status = eoie_process_receipt_policy_binding(outcome, 0);
+            let retryability = eoie_process_receipt_policy_binding(outcome, 1);
+            let child_exit = observation.status.code().map_or_else(|| "none".to_owned(), |code| code.to_string());
+            let signal = match observation.termination { ProcessTermination::Signaled(signal) => signal.to_string(), _ => "none".to_owned() };
+            let timeout = i32::from(observation.termination == ProcessTermination::TimedOut);
+            let (cwd, program, env_names) = process_receipt_command_fields(command);
+            println!("eoie process-exit receipt label={label} wrapper_status={} child_exit={} signal={} timeout={} stderr_digest={} retryability={} cwd={:?} program={:?} env_names={} elapsed_ms={} stdout_bytes={} stderr_bytes={}", process_receipt_status_name(wrapper_status), child_exit, signal, timeout, process_receipt_digest(&observation.stderr), process_receipt_retry_name(retryability), cwd, program, env_names, observation.elapsed_ms, observation.stdout.len(), observation.stderr.len());
+        }
+
+        fn emit_process_error_receipt(command: &std::process::Command, label: &str, elapsed_ms: u64, error: &str) {
+            let outcome = if error.starts_with("spawn process:") { 4 } else { 5 };
+            let wrapper_status = eoie_process_receipt_policy_binding(outcome, 0);
+            let retryability = eoie_process_receipt_policy_binding(outcome, 1);
+            let (cwd, program, env_names) = process_receipt_command_fields(command);
+            println!("eoie process-exit receipt label={label} wrapper_status={} child_exit=none signal=none timeout=0 stderr_digest={} retryability={} cwd={:?} program={:?} env_names={} elapsed_ms={} stdout_bytes=0 stderr_bytes={}", process_receipt_status_name(wrapper_status), process_receipt_digest(error.as_bytes()), process_receipt_retry_name(retryability), cwd, program, env_names, elapsed_ms, error.len());
+        }
+
+        pub fn run_bounded_receipted_observed(
+            command: &mut std::process::Command,
+            timeout_ms: u64,
+            label: &str,
+        ) -> Result<ProcessObservation, String> {
+            let started = std::time::Instant::now();
+            match run_bounded_observed(command, timeout_ms) {
+                Ok(observation) => { emit_process_exit_receipt(command, label, &observation); Ok(observation) }
+                Err(error) => {
+                    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+                    emit_process_error_receipt(command, label, elapsed_ms, &error);
+                    Err(error)
+                }
+            }
+        }
+
+        pub fn run_bounded_streaming_receipted_observed(
+            command: &mut std::process::Command,
+            timeout_ms: u64,
+            label: &str,
+            input: Option<&[u8]>,
+        ) -> Result<ProcessObservation, String> {
+            let started = std::time::Instant::now();
+            match run_bounded_streaming_observed(command, timeout_ms, input) {
+                Ok(observation) => { emit_process_exit_receipt(command, label, &observation); Ok(observation) }
+                Err(error) => {
+                    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+                    emit_process_error_receipt(command, label, elapsed_ms, &error);
+                    Err(error)
+                }
+            }
+        }
+
+        pub fn run_bounded_streaming_checked(
+            command: &mut std::process::Command,
+            timeout_ms: u64,
+            label: &str,
+            input: Option<&[u8]>,
+        ) -> Result<ProcessObservation, String> {
+            let observation = run_bounded_streaming_receipted_observed(command, timeout_ms, label, input)?;
+            if observation.termination == ProcessTermination::TimedOut {
+                return Err(format!(
+                    "{label} timed out after {timeout_ms} ms; stderr={}",
+                    process_output_preview(&observation.stderr)
+                ));
+            }
+            if !observation.status.success() {
+                return Err(format!(
+                    "{label} failed: {} termination={:?} stderr={}",
+                    observation.status, observation.termination, process_output_preview(&observation.stderr)
+                ));
+            }
+            println!(
+                "eoie process plan={label} status=passed termination={:?} elapsed_ms={} stdout_bytes={} stderr_bytes={} streamed=true input_bytes={}",
+                observation.termination,
+                observation.elapsed_ms,
+                observation.stdout.len(),
+                observation.stderr.len(),
+                input.map_or(0, <[u8]>::len)
+            );
+            Ok(observation)
+        }
+
+        """
 
 inl main () : i32 =
     inl _ = smoke_plan ()

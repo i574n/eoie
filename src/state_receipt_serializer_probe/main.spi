@@ -5,5 +5,14 @@ inl serialize_exit (~input : string) (~expected : string) : i32 =
 
 inl main () : i32 =
     inl canonical = "snapshot\t42\nmodule\talpha.spi\t12\t34\tbuild:99\n"
-    inl expected = "union state_check_snapshot = | StateCheckSnapshot :: u64 -> state_check_snapshot\nunion module_attestation = | RuntimeAttestation | BuildAttestation :: u64 -> module_attestation\nunion module_typecheck_receipt = | ModuleTypecheckReceipt :: string * u64 * u64 * module_attestation -> module_typecheck_receipt\n\ninl snapshot () : state_check_snapshot = StateCheckSnapshot 42u64\ninl receipt_0000 () : module_typecheck_receipt = ModuleTypecheckReceipt (\"alpha.spi\", 12u64, 34u64, BuildAttestation 99u64)\ninl main () : i32 = 0i32\n"
+    inl expected = """
+        union state_check_snapshot = | StateCheckSnapshot :: u64 -> state_check_snapshot
+        union module_attestation = | RuntimeAttestation | BuildAttestation :: u64 -> module_attestation
+        union module_typecheck_receipt = | ModuleTypecheckReceipt :: string * u64 * u64 * module_attestation -> module_typecheck_receipt
+
+        inl snapshot () : state_check_snapshot = StateCheckSnapshot 42u64
+        inl receipt_0000 () : module_typecheck_receipt = ModuleTypecheckReceipt ("alpha.spi", 12u64, 34u64, BuildAttestation 99u64)
+        inl main () : i32 = 0i32
+
+        """
     serialize_exit canonical expected

@@ -10,7 +10,16 @@ let capture (root : string) (args : string) : string =
     $'{ let mut command=std::process::Command::new(DEV_BIN); command.current_dir(&*!root).env_remove("RUSTFLAGS").env_remove("LLVM_PROFILE_FILE").args(!args.split(char::from(0u8))); let capture=eoie_process::run_bounded_capture_with_input(&mut command,120000,None).unwrap(); let status=if capture.status.success() { "success\n" } else { "failure\n" }; std::rc::Rc::<str>::from([status,&String::from_utf8_lossy(&capture.stdout),&String::from_utf8_lossy(&capture.stderr)].concat()) }' : string
 
 let client_manifest (requires : string) : string =
-    rust_std_string.model.concat5 "[package]\nname='eoie-coverage-prune'\nversion='0.0.0'\nedition='2024'\n[lib]\npath='lib.rs'\n[package.metadata.eoie]\ntest-requires-cli=" requires "\n" "" ""
+    rust_std_string.model.concat5 """
+        [package]
+        name='eoie-coverage-prune'
+        version='0.0.0'
+        edition='2024'
+        [lib]
+        path='lib.rs'
+        [package.metadata.eoie]
+        test-requires-cli=
+        """ requires "\n" "" ""
 
 let selected_args (name : string) : string =
     arg (arg (arg (arg (arg (arg "--test" "--skip-release") "--offline") "--package") name) "--target-dir") "target with spaces ü"
@@ -22,13 +31,35 @@ let selected (root : string) (name : string) (success : bool) (message : string)
     require (contains output message) output
 
 let scenarios (root : string) : i32 =
-    write root "src/Cargo.toml" "[workspace]\nmembers=['cli','client','isolated']\nresolver='3'\n"
-    write root "src/cli/Cargo.toml" "[package]\nname='eoie-cli'\nversion='0.0.0'\nedition='2024'\n[[bin]]\nname='eoie'\npath='main.rs'\n"
+    write root "src/Cargo.toml" """
+        [workspace]
+        members=['cli','client','isolated']
+        resolver='3'
+
+        """
+    write root "src/cli/Cargo.toml" """
+        [package]
+        name='eoie-cli'
+        version='0.0.0'
+        edition='2024'
+        [[bin]]
+        name='eoie'
+        path='main.rs'
+
+        """
     write root "src/cli/main.rs" "fn main() { println!(\"first\"); }\n"
     write root "src/client/Cargo.toml" (client_manifest "true")
     write root "src/client/lib.rs" "#[test] fn fresh_cli_is_available() { let current=std::env::current_exe().unwrap(); let binary=current.parent().unwrap().parent().unwrap().join(format!(\"eoie{}\",std::env::consts::EXE_SUFFIX)); let output=std::process::Command::new(binary).output().expect(\"selected test requires the CLI\"); assert!(output.status.success()); assert_eq!(String::from_utf8(output.stdout).unwrap().trim(),include_str!(\"expected.txt\").trim()); }\n"
     write root "src/client/expected.txt" "first"
-    write root "src/isolated/Cargo.toml" "[package]\nname='isolated'\nversion='0.0.0'\nedition='2024'\n[lib]\npath='lib.rs'\n"
+    write root "src/isolated/Cargo.toml" """
+        [package]
+        name='isolated'
+        version='0.0.0'
+        edition='2024'
+        [lib]
+        path='lib.rs'
+
+        """
     write root "src/isolated/lib.rs" "#[test] fn independent() { assert_eq!(2+2,4); }\n"
     inl lock = host.cargo root (arg "generate-lockfile" "--offline") "" 60000u64
     require (!!!!EQ(lock,0i32)) "fixture lock generation failed"
@@ -58,6 +89,15 @@ let scenarios (root : string) : i32 =
     0i32
 
 inl main () : i32 =
-    !!!!Global("const DEV_BIN: &str = env!(\"CARGO_BIN_EXE_eoie-dev\");\n#[cfg(test)] mod native_selected_tests {\nstruct Fixture(std::path::PathBuf);\nimpl Fixture { fn new() -> Self { let stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(); let root=std::env::temp_dir().join(format!(\"eoie native workflow ü {} {stamp}\",std::process::id())); std::fs::create_dir(&root).unwrap(); Self(root) } }\nimpl Drop for Fixture { fn drop(&mut self) { let _=std::fs::remove_dir_all(&self.0); } }\n#[test] fn selected_packages_preserve_native_build_contracts() { let fixture=Fixture::new(); assert_eq!(super::eoie_dev_selected_scenarios(fixture.0.to_str().unwrap()),0); }\n}\n")
+    !!!!Global("""
+        const DEV_BIN: &str = env!("CARGO_BIN_EXE_eoie-dev");
+        #[cfg(test)] mod native_selected_tests {
+        struct Fixture(std::path::PathBuf);
+        impl Fixture { fn new() -> Self { let stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(); let root=std::env::temp_dir().join(format!("eoie native workflow ü {} {stamp}",std::process::id())); std::fs::create_dir(&root).unwrap(); Self(root) } }
+        impl Drop for Fixture { fn drop(&mut self) { let _=std::fs::remove_dir_all(&self.0); } }
+        #[test] fn selected_packages_preserve_native_build_contracts() { let fixture=Fixture::new(); assert_eq!(super::eoie_dev_selected_scenarios(fixture.0.to_str().unwrap()),0); }
+        }
+
+        """)
     !!!!Export("eoie_dev_selected_scenarios", ((fun root => scenarios root) : string -> i32))
     0i32

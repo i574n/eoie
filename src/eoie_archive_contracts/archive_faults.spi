@@ -1,114 +1,116 @@
 inl emit_archive_fault_contracts () =
-    rust_global """#[cfg(unix)]
-fn archive_snapshot(root: &Path) -> Vec<(String, u32, Vec<u8>)> {
-    use std::os::unix::fs::PermissionsExt as _;
-    fn walk(root: &Path, path: &Path, output: &mut Vec<(String, u32, Vec<u8>)>) {
-        let mut entries = fs::read_dir(path)
-            .expect("snapshot read")
-            .map(|entry| entry.expect("snapshot entry"))
-            .collect::<Vec<_>>();
-        entries.sort_by_key(|entry| entry.file_name());
-        for entry in entries {
-            let child = entry.path();
-            let metadata = fs::symlink_metadata(&child).expect("snapshot metadata");
-            let relative = child
-                .strip_prefix(root)
-                .expect("snapshot relative")
-                .to_string_lossy()
-                .replace('\\', "/");
-            let mode = metadata.permissions().mode();
-            if metadata.is_dir() && !metadata.file_type().is_symlink() {
-                output.push((format!("{relative}/"), mode, Vec::new()));
-                walk(root, &child, output);
-            } else if metadata.file_type().is_symlink() {
-                output.push((
-                    relative,
-                    mode,
-                    fs::read_link(&child)
-                        .expect("snapshot link")
+    rust_global """
+        #[cfg(unix)]
+        fn archive_snapshot(root: &Path) -> Vec<(String, u32, Vec<u8>)> {
+            use std::os::unix::fs::PermissionsExt as _;
+            fn walk(root: &Path, path: &Path, output: &mut Vec<(String, u32, Vec<u8>)>) {
+                let mut entries = fs::read_dir(path)
+                    .expect("snapshot read")
+                    .map(|entry| entry.expect("snapshot entry"))
+                    .collect::<Vec<_>>();
+                entries.sort_by_key(|entry| entry.file_name());
+                for entry in entries {
+                    let child = entry.path();
+                    let metadata = fs::symlink_metadata(&child).expect("snapshot metadata");
+                    let relative = child
+                        .strip_prefix(root)
+                        .expect("snapshot relative")
                         .to_string_lossy()
-                        .as_bytes()
-                        .to_vec(),
-                ));
-            } else {
-                output.push((relative, mode, fs::read(&child).expect("snapshot file")));
+                        .replace('\\', "/");
+                    let mode = metadata.permissions().mode();
+                    if metadata.is_dir() && !metadata.file_type().is_symlink() {
+                        output.push((format!("{relative}/"), mode, Vec::new()));
+                        walk(root, &child, output);
+                    } else if metadata.file_type().is_symlink() {
+                        output.push((
+                            relative,
+                            mode,
+                            fs::read_link(&child)
+                                .expect("snapshot link")
+                                .to_string_lossy()
+                                .as_bytes()
+                                .to_vec(),
+                        ));
+                    } else {
+                        output.push((relative, mode, fs::read(&child).expect("snapshot file")));
+                    }
+                }
             }
+            let mut output = Vec::new();
+            walk(root, root, &mut output);
+            output
         }
-    }
-    let mut output = Vec::new();
-    walk(root, root, &mut output);
-    output
-}
 
-#[cfg(unix)]
-fn run_archive_fault(archive: &Path, destination: &Path, fault: &str) -> Output {
-    Command::new(eoie_binary()).current_dir(env::temp_dir())
-        .args([
-            "proxy",
-            "zip-extract",
-            archive.to_str().expect("archive"),
-            destination.to_str().expect("destination"),
-        ])
-        .env("EOIE_ARCHIVE_FAULT", fault)
-        .env("EOIE_ARCHIVE_MAX_BYTES", "4096")
-        .output()
-        .expect("run archive fault")
-}
+        #[cfg(unix)]
+        fn run_archive_fault(archive: &Path, destination: &Path, fault: &str) -> Output {
+            Command::new(eoie_binary()).current_dir(env::temp_dir())
+                .args([
+                    "proxy",
+                    "zip-extract",
+                    archive.to_str().expect("archive"),
+                    destination.to_str().expect("destination"),
+                ])
+                .env("EOIE_ARCHIVE_FAULT", fault)
+                .env("EOIE_ARCHIVE_MAX_BYTES", "4096")
+                .output()
+                .expect("run archive fault")
+        }
 
-#[cfg(unix)]
-#[test]
-fn zip_extract_faults_restore_parent_bytes_before_commit() {
-    let root = temporary("zip-faults");
-    let source = root.join("source");
-    fs::create_dir_all(source.join("nested")).expect("source");
-    write(&source.join("first.txt"), "first-payload");
-    write(&source.join("nested/second.txt"), "second-payload");
-    write(&root.join("sentinel.txt"), "outside-stage-must-not-change");
-    let archive = root.join("input.zip");
-    let zip_status = Command::new("zip")
-        .current_dir(&source)
-        .arg("-q")
-        .arg(&archive)
-        .arg("first.txt")
-        .arg("nested/second.txt")
-        .status()
-        .expect("create zip");
-    assert!(zip_status.success());
-    let before = archive_snapshot(&root);
-    for fault in ["after-first-payload", "before-commit"] {
-        let destination = root.join(format!("out-{fault}"));
-        let output = run_archive_fault(&archive, &destination, fault);
-        assert!(!output.status.success(), "fault {fault} unexpectedly passed");
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("archive extraction rolled back"), "{stderr}");
-        assert!(stderr.contains(fault), "{stderr}");
-        assert!(!destination.exists(), "fault destination survived: {}", destination.display());
-        assert_eq!(archive_snapshot(&root), before, "fault {fault} changed parent bytes or modes");
-        assert!(
-            fs::read_dir(&root)
-                .expect("root entries")
-                .all(|entry| !entry.expect("entry").file_name().to_string_lossy().contains(".eoie-extract-")),
-            "fault {fault} left extraction staging"
-        );
-    }
-    let destination = root.join("out-success");
-    let output = Command::new(eoie_binary()).current_dir(env::temp_dir())
-        .args([
-            "proxy",
-            "zip-extract",
-            archive.to_str().expect("archive"),
-            destination.to_str().expect("destination"),
-        ])
-        .env_remove("EOIE_ARCHIVE_FAULT")
-        .env("EOIE_ARCHIVE_MAX_BYTES", "4096")
-        .output()
-        .expect("run successful extraction");
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(fs::read_to_string(destination.join("first.txt")).expect("first"), "first-payload");
-    assert_eq!(
-        fs::read_to_string(destination.join("nested/second.txt")).expect("second"),
-        "second-payload"
-    );
-    fs::remove_dir_all(root).expect("cleanup faults");
-}
-"""
+        #[cfg(unix)]
+        #[test]
+        fn zip_extract_faults_restore_parent_bytes_before_commit() {
+            let root = temporary("zip-faults");
+            let source = root.join("source");
+            fs::create_dir_all(source.join("nested")).expect("source");
+            write(&source.join("first.txt"), "first-payload");
+            write(&source.join("nested/second.txt"), "second-payload");
+            write(&root.join("sentinel.txt"), "outside-stage-must-not-change");
+            let archive = root.join("input.zip");
+            let zip_status = Command::new("zip")
+                .current_dir(&source)
+                .arg("-q")
+                .arg(&archive)
+                .arg("first.txt")
+                .arg("nested/second.txt")
+                .status()
+                .expect("create zip");
+            assert!(zip_status.success());
+            let before = archive_snapshot(&root);
+            for fault in ["after-first-payload", "before-commit"] {
+                let destination = root.join(format!("out-{fault}"));
+                let output = run_archive_fault(&archive, &destination, fault);
+                assert!(!output.status.success(), "fault {fault} unexpectedly passed");
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                assert!(stderr.contains("archive extraction rolled back"), "{stderr}");
+                assert!(stderr.contains(fault), "{stderr}");
+                assert!(!destination.exists(), "fault destination survived: {}", destination.display());
+                assert_eq!(archive_snapshot(&root), before, "fault {fault} changed parent bytes or modes");
+                assert!(
+                    fs::read_dir(&root)
+                        .expect("root entries")
+                        .all(|entry| !entry.expect("entry").file_name().to_string_lossy().contains(".eoie-extract-")),
+                    "fault {fault} left extraction staging"
+                );
+            }
+            let destination = root.join("out-success");
+            let output = Command::new(eoie_binary()).current_dir(env::temp_dir())
+                .args([
+                    "proxy",
+                    "zip-extract",
+                    archive.to_str().expect("archive"),
+                    destination.to_str().expect("destination"),
+                ])
+                .env_remove("EOIE_ARCHIVE_FAULT")
+                .env("EOIE_ARCHIVE_MAX_BYTES", "4096")
+                .output()
+                .expect("run successful extraction");
+            assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+            assert_eq!(fs::read_to_string(destination.join("first.txt")).expect("first"), "first-payload");
+            assert_eq!(
+                fs::read_to_string(destination.join("nested/second.txt")).expect("second"),
+                "second-payload"
+            );
+            fs::remove_dir_all(root).expect("cleanup faults");
+        }
+
+        """

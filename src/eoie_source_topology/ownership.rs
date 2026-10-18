@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn spiral_directory_policy_classifies_only_reserved_names() {
-        for (name, expected) in [(".git", 0), ("vendor", 1), ("target", 2), (".cache", 4), ("src", 3), ("retarget", 3)] {
+        for (name, expected) in [(".git", 0), ("vendor", 1), ("target", 2), (".cache", 4), ("_build", 5), ("src", 3), ("retarget", 3)] {
             assert_eq!(crate::eoie_source_directory_kind(name), expected);
         }
     }
@@ -155,6 +155,18 @@ mod tests {
         let (stats, after) = crate::topology_collect_generic(&fixture.0).unwrap();
         assert_eq!((before.own_rust_files, before.generated_rust_files), (after.own_rust_files, after.generated_rust_files));
         assert!(stats.crates.iter().all(|(_, lines)| *lines < 1000), "{:?}", stats.crates);
+    }
+    #[test]
+    fn a_mix_build_directory_is_build_output() {
+        let fixture = Fixture::new("");
+        let before = crate::topology_collect(&fixture.0).unwrap();
+        let (_, generic_before) = crate::topology_collect_generic(&fixture.0).unwrap();
+        std::fs::create_dir_all(fixture.0.join("apps/sim/_build/dev/lib")).unwrap();
+        std::fs::write(fixture.0.join("apps/sim/_build/dev/lib/built.rs"), "fn built() {}\n".repeat(2000)).unwrap();
+        let after = crate::topology_collect(&fixture.0).unwrap();
+        let (_, generic_after) = crate::topology_collect_generic(&fixture.0).unwrap();
+        assert_eq!(before.rust_lines, after.rust_lines);
+        assert_eq!(generic_before.own_rust_files, generic_after.own_rust_files);
     }
     #[test]
     fn toml_comments_and_quoted_keys_are_supported() {

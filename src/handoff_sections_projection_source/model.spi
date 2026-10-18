@@ -66,7 +66,11 @@ let rec handoff_sections_projection_loop (source : string) (at : i32) (source_le
                 inl section_prefix = if (=.) count 0i32 then "\n## " else "\n\n## "
                 inl out0 = sm.concat out section_prefix
                 inl out1 = sm.concat out0 title
-                inl out2 = sm.concat out1 "\n\n"
+                inl out2 = sm.concat out1 """
+
+
+
+                    """
                 inl out3 = sm.concat out2 body
                 handoff_sections_projection_loop source next_at source_len ((+.) count 1i32) out3
         else handoff_sections_projection_loop source next_at source_len count out
@@ -75,7 +79,19 @@ let handoff_sections_projection (source : string) : string =
     handoff_sections_projection_loop source 0i32 (sm.length source : i32) 0i32 "ok"
 
 inl fixture_handoff () : string =
-    "inl a () = HandoffSection (\"A\", \"one\")\ninl b () = HandoffSection (\"B\", \"two\")\ninl c () = HandoffSection (\"C\", \"three\")\ninl d () = HandoffSection (\"D\", \"four\")\n"
+    """
+        inl a () = HandoffSection ("A", "one")
+        inl b () = HandoffSection ("B", "two")
+        inl c () = HandoffSection ("C", "three")
+        inl d () = HandoffSection ("D", "four")
+
+        """
 
 inl fixture_handoff_duplicate () : string =
-    "inl a () = HandoffSection (\"A\", \"one\")\ninl b () = HandoffSection (\"B\", \"two\")\ninl c () = HandoffSection (\"A\", \"three\")\ninl d () = HandoffSection (\"D\", \"four\")\n"
+    """
+        inl a () = HandoffSection ("A", "one")
+        inl b () = HandoffSection ("B", "two")
+        inl c () = HandoffSection ("A", "three")
+        inl d () = HandoffSection ("D", "four")
+
+        """

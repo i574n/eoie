@@ -1,83 +1,85 @@
 inl rust_global (x : string) : () = !!!!Global(x)
 
-inl emit_test_support () : () = rust_global """#[cfg(feature = "test-support")]
-pub mod test_support {
-    use super::*;
+inl emit_test_support () : () = rust_global """
+    #[cfg(feature = "test-support")]
+    pub mod test_support {
+        use super::*;
 
-    pub fn temporary(label: &str) -> PathBuf { let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("clock").as_nanos(); env::temp_dir().join(format!("eoie-patch-property-{label}-{}-{stamp}", std::process::id())) }
+        pub fn temporary(label: &str) -> PathBuf { let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("clock").as_nanos(); env::temp_dir().join(format!("eoie-patch-property-{label}-{}-{stamp}", std::process::id())) }
 
-    fn plan_hex(value: &str) -> String { value.as_bytes().iter().map(|byte| format!("{byte:02x}")).collect() }
+        fn plan_hex(value: &str) -> String { value.as_bytes().iter().map(|byte| format!("{byte:02x}")).collect() }
 
-    pub fn plan(relative: &str, before: &str, after: &str) -> String { format!("op\t{}\t{}\t{}\t{}\t{}\n", plan_hex("patch-exact"), plan_hex(relative), plan_hex(before), plan_hex(after), plan_hex("write")) } 
+        pub fn plan(relative: &str, before: &str, after: &str) -> String { format!("op\t{}\t{}\t{}\t{}\t{}\n", plan_hex("patch-exact"), plan_hex(relative), plan_hex(before), plan_hex(after), plan_hex("write")) } 
 
-    fn canonical_test_plan(source: &str) -> String { format!("EOIE-PLAN-IR\t1\n{source}") }
+        fn canonical_test_plan(source: &str) -> String { format!("EOIE-PLAN-IR\t1\n{source}") }
 
-    pub fn apply(root: &Path, source: &str, count: i32) -> Result<(), String> { let source = canonical_test_plan(source); apply_patch_context(root, &source, count) }
+        pub fn apply(root: &Path, source: &str, count: i32) -> Result<(), String> { let source = canonical_test_plan(source); apply_patch_context(root, &source, count) }
 
-    pub fn apply_fault(root: &Path, source: &str, count: i32, fault_code: i32) -> Result<(), String> {
-        let fault = match fault_code { 1 => Some(PatchFault::BetweenPromotions), 2 => Some(PatchFault::BetweenPromotionsRollbackFailure), _ => None };
-        let source = canonical_test_plan(source); apply_patch_context_with_fault(root, &source, count, fault, None)
-    }
-
-    pub fn rehearse(root: &Path, source: &str, count: i32) -> Result<(), String> { let source = canonical_test_plan(source); apply_patch_context_with_fault(root, &source, count, Some(PatchFault::RehearseRollback), None) }
-
-    pub fn gated(root: &Path, source: &str, count: i32, gate_passes: bool) -> Result<(), String> {
-        let mut gate = || if gate_passes { Ok(()) } else { Err("test executable gate rejected".to_owned()) };
-        let source = canonical_test_plan(source); apply_patch_context_with_fault(root, &source, count, None, Some(&mut gate))
-    }
-
-    pub fn gated_with_corruption(root: &Path, source: &str, count: i32, corrupt_relative: &str) -> Result<(), String> {
-        let target = root.join(corrupt_relative);
-        let mut gate = || { fs::remove_file(&target).map_err(|error| error.to_string())?; fs::create_dir(&target).map_err(|error| error.to_string())?; Err("test executable gate rejected after target corruption".to_owned()) };
-        let source = canonical_test_plan(source); apply_patch_context_with_fault(root, &source, count, None, Some(&mut gate))
-    }
-
-    pub fn bounded_read(path: &Path, limit: usize) -> Result<String, String> { read_patch_target_text(path, limit) }
-
-    pub fn staged_write_mismatch(root: &Path) -> Result<String, String> {
-        let target = root.join("value.txt");
-        fs::write(&target, "old").map_err(|error| error.to_string())?;
-        let receipt = stage_text_receipted_bound(&target, "new", 0, 0)?;
-        let error = authorize_staged_write(0, 4, receipt.bytes_written())
-            .expect_err("mismatched receipt");
-        discard_stage(receipt.temporary())?;
-        if eoie_patch_remove_receipt_binding(receipt.stage_index(), 1) != receipt.stage_index() { return Err("typed remove receipt mismatch".to_owned()); }
-        Ok(error)
-    }
-
-    pub fn promotion_receipt_roundtrip(root: &Path) -> Result<(), String> {
-        let target = root.join("target.txt");
-        let other = root.join("other.txt");
-        fs::write(&target, "old").map_err(|error| error.to_string())?;
-        fs::write(&other, "other").map_err(|error| error.to_string())?;
-        let receipt = stage_text_receipted_bound(&target, "new", 0, 7)?;
-        if authorize_promotion_identity(1, receipt.stage_index(), 7, receipt.backup_slot()).is_ok() {
-            return Err("mismatched promotion identity was accepted".to_owned());
+        pub fn apply_fault(root: &Path, source: &str, count: i32, fault_code: i32) -> Result<(), String> {
+            let fault = match fault_code { 1 => Some(PatchFault::BetweenPromotions), 2 => Some(PatchFault::BetweenPromotionsRollbackFailure), _ => None };
+            let source = canonical_test_plan(source); apply_patch_context_with_fault(root, &source, count, fault, None)
         }
-        authorize_promotion_identity(0, receipt.stage_index(), 7, receipt.backup_slot())?;
-        let promotion = promote_stage_receipted(&receipt)?;
-        authorize_promotion_identity(0, promotion.stage_index(), 7, promotion.backup_slot())?;
-        if promotion.target() != target || fs::read_to_string(&target).map_err(|error| error.to_string())? != "new" {
-            return Err("promotion receipt did not bind the target".to_owned());
+
+        pub fn rehearse(root: &Path, source: &str, count: i32) -> Result<(), String> { let source = canonical_test_plan(source); apply_patch_context_with_fault(root, &source, count, Some(PatchFault::RehearseRollback), None) }
+
+        pub fn gated(root: &Path, source: &str, count: i32, gate_passes: bool) -> Result<(), String> {
+            let mut gate = || if gate_passes { Ok(()) } else { Err("test executable gate rejected".to_owned()) };
+            let source = canonical_test_plan(source); apply_patch_context_with_fault(root, &source, count, None, Some(&mut gate))
         }
-        Ok(())
+
+        pub fn gated_with_corruption(root: &Path, source: &str, count: i32, corrupt_relative: &str) -> Result<(), String> {
+            let target = root.join(corrupt_relative);
+            let mut gate = || { fs::remove_file(&target).map_err(|error| error.to_string())?; fs::create_dir(&target).map_err(|error| error.to_string())?; Err("test executable gate rejected after target corruption".to_owned()) };
+            let source = canonical_test_plan(source); apply_patch_context_with_fault(root, &source, count, None, Some(&mut gate))
+        }
+
+        pub fn bounded_read(path: &Path, limit: usize) -> Result<String, String> { read_patch_target_text(path, limit) }
+
+        pub fn staged_write_mismatch(root: &Path) -> Result<String, String> {
+            let target = root.join("value.txt");
+            fs::write(&target, "old").map_err(|error| error.to_string())?;
+            let receipt = stage_text_receipted_bound(&target, "new", 0, 0)?;
+            let error = authorize_staged_write(0, 4, receipt.bytes_written())
+                .expect_err("mismatched receipt");
+            discard_stage(receipt.temporary())?;
+            if eoie_patch_remove_receipt_binding(receipt.stage_index(), 1) != receipt.stage_index() { return Err("typed remove receipt mismatch".to_owned()); }
+            Ok(error)
+        }
+
+        pub fn promotion_receipt_roundtrip(root: &Path) -> Result<(), String> {
+            let target = root.join("target.txt");
+            let other = root.join("other.txt");
+            fs::write(&target, "old").map_err(|error| error.to_string())?;
+            fs::write(&other, "other").map_err(|error| error.to_string())?;
+            let receipt = stage_text_receipted_bound(&target, "new", 0, 7)?;
+            if authorize_promotion_identity(1, receipt.stage_index(), 7, receipt.backup_slot()).is_ok() {
+                return Err("mismatched promotion identity was accepted".to_owned());
+            }
+            authorize_promotion_identity(0, receipt.stage_index(), 7, receipt.backup_slot())?;
+            let promotion = promote_stage_receipted(&receipt)?;
+            authorize_promotion_identity(0, promotion.stage_index(), 7, promotion.backup_slot())?;
+            if promotion.target() != target || fs::read_to_string(&target).map_err(|error| error.to_string())? != "new" {
+                return Err("promotion receipt did not bind the target".to_owned());
+            }
+            Ok(())
+        }
+
+        pub fn restoration_receipt_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
+            let target = root.join("value.txt");
+            fs::write(&target, "old").map_err(|error| error.to_string())?;
+            let mut backups = TypedBackups::default();
+            let slot = backups.observe(&target, "old", 1024)?;
+            let staged_receipt = stage_text_receipted_bound(
+                &target,
+                "new",
+                0,
+                i32::try_from(slot).map_err(|error| error.to_string())?,
+            )?;
+            promote_stage_receipted(&staged_receipt)?;
+            let staged = vec![(staged_receipt, slot)];
+            rollback_by_spiral(&backups, 1, &staged).map(|receipt| receipt.restored_paths)
+                .map_err(|failure| failure.public_context())
+        }
     }
 
-    pub fn restoration_receipt_paths(root: &Path) -> Result<Vec<PathBuf>, String> {
-        let target = root.join("value.txt");
-        fs::write(&target, "old").map_err(|error| error.to_string())?;
-        let mut backups = TypedBackups::default();
-        let slot = backups.observe(&target, "old", 1024)?;
-        let staged_receipt = stage_text_receipted_bound(
-            &target,
-            "new",
-            0,
-            i32::try_from(slot).map_err(|error| error.to_string())?,
-        )?;
-        promote_stage_receipted(&staged_receipt)?;
-        let staged = vec![(staged_receipt, slot)];
-        rollback_by_spiral(&backups, 1, &staged).map(|receipt| receipt.restored_paths)
-            .map_err(|failure| failure.public_context())
-    }
-}
-"""
+    """

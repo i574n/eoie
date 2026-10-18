@@ -305,7 +305,11 @@ inl bundle_layout_runtime_rust () =
     inl x11 = sm.concat x10 (sm.concat archive_limit ";\nconst BUNDLE_EXTRACT_MAX_BYTES: u64 = ")
     inl x12 = sm.concat x11 (sm.concat extract_limit ";\nconst BUNDLE_CRATE_LINE_LIMIT: usize = ")
     inl x13 = sm.concat x12 (sm.concat crate_line_limit ";\nconst BUNDLE_PUBLIC_BINARY_COUNT: usize = ")
-    sm.concat x13 (sm.concat public_binary_count ";\n\n")
+    sm.concat x13 (sm.concat public_binary_count """
+        ;
+
+
+        """)
 
 inl bundle_profile_runtime_rust () =
     inl profile_arms = bundle_profile_match_arms_rust ()
@@ -314,9 +318,41 @@ inl bundle_profile_runtime_rust () =
     inl roots = bundle_root_entries_array_rust ()
     inl x0a = sm.concat "const BUNDLE_ROOT_ENTRIES: [&str; 4] = " (sm.concat roots ";\nconst BUNDLE_EOIE_AGILE_PATH: &str = ")
     inl x0 = sm.concat x0a (sm.concat agile_path ";\nconst BUNDLE_PROFILE_SIGNATURE: [&str; 4] = ")
-    inl x1 = sm.concat x0 (sm.concat signature ";\nconst BUNDLE_BINARY_NAMES: [&str; 2] = [\"eoie\", \"eoie.exe\"];\n\nfn bundle_profile_signature(root: &Path) -> i32 {\n    let bootstrap_mask = i32::from(BUNDLE_BINARY_NAMES.iter().any(|name| rooted_open_regular_read(&root.join(name)).is_ok())) | (i32::from(rooted_open_regular_read(&root.join(BUNDLE_PROFILE_SIGNATURE[1])).is_ok()) << 1);\n    let model_mask = i32::from(rooted_open_regular_read(&root.join(BUNDLE_PROFILE_SIGNATURE[2])).is_ok()) | (i32::from(rooted_open_regular_read(&root.join(BUNDLE_PROFILE_SIGNATURE[3])).is_ok()) << 1);\n    eoie_bundle_profile_signature_binding(bootstrap_mask, model_mask)\n}\n\nfn resolve_bundle_profile_code(requested: Option<&str>, signature: i32) -> Result<i32, String> {\n    let requested_code = match requested.unwrap_or(\"auto\") {\n")
+    inl x1 = sm.concat x0 (sm.concat signature """
+        ;
+        const BUNDLE_BINARY_NAMES: [&str; 2] = ["eoie", "eoie.exe"];
+
+        fn bundle_profile_signature(root: &Path) -> i32 {
+            let bootstrap_mask = i32::from(BUNDLE_BINARY_NAMES.iter().any(|name| rooted_open_regular_read(&root.join(name)).is_ok())) | (i32::from(rooted_open_regular_read(&root.join(BUNDLE_PROFILE_SIGNATURE[1])).is_ok()) << 1);
+            let model_mask = i32::from(rooted_open_regular_read(&root.join(BUNDLE_PROFILE_SIGNATURE[2])).is_ok()) | (i32::from(rooted_open_regular_read(&root.join(BUNDLE_PROFILE_SIGNATURE[3])).is_ok()) << 1);
+            eoie_bundle_profile_signature_binding(bootstrap_mask, model_mask)
+        }
+
+        fn resolve_bundle_profile_code(requested: Option<&str>, signature: i32) -> Result<i32, String> {
+            let requested_code = match requested.unwrap_or("auto") {
+
+        """)
     inl x2 = x1
     inl x3 = sm.concat x2 profile_arms
-    inl x4 = sm.concat x3 "        other => return Err(format!(\"unknown bundle profile: {other}; expected auto, generic or eoie\")),\n    };\n    let resolved = eoie_bundle_profile_resolve_binding(requested_code, signature);\n    if resolved == 1 || resolved == 2 { Ok(resolved) } else { Err(\"typed bundle profile resolution rejected\".to_owned()) }\n}\n\nfn resolve_bundle_profile(requested: Option<&str>, root: &Path) -> Result<i32, String> { resolve_bundle_profile_code(requested, bundle_profile_signature(root)) }\n\nfn resolve_bundle_archive_profile(requested: Option<&str>, archive: &Path) -> Result<i32, String> {\n    let entries = zip_entries(archive)?;\n    let bootstrap_mask = i32::from(entries.iter().any(|entry| BUNDLE_BINARY_NAMES.contains(&entry.as_str()))) | (i32::from(entries.iter().any(|entry| entry == BUNDLE_PROFILE_SIGNATURE[1])) << 1);\n    let model_mask = i32::from(entries.iter().any(|entry| entry == BUNDLE_PROFILE_SIGNATURE[2])) | (i32::from(entries.iter().any(|entry| entry == BUNDLE_PROFILE_SIGNATURE[3])) << 1);\n"
-    inl profile_runtime = sm.concat x4 "    resolve_bundle_profile_code(requested, eoie_bundle_profile_signature_binding(bootstrap_mask, model_mask))\n}\n\n"
+    inl x4 = sm.concat x3 """
+                other => return Err(format!("unknown bundle profile: {other}; expected auto, generic or eoie")),
+            };
+            let resolved = eoie_bundle_profile_resolve_binding(requested_code, signature);
+            if resolved == 1 || resolved == 2 { Ok(resolved) } else { Err("typed bundle profile resolution rejected".to_owned()) }
+        }
+
+        fn resolve_bundle_profile(requested: Option<&str>, root: &Path) -> Result<i32, String> { resolve_bundle_profile_code(requested, bundle_profile_signature(root)) }
+
+        fn resolve_bundle_archive_profile(requested: Option<&str>, archive: &Path) -> Result<i32, String> {
+            let entries = zip_entries(archive)?;
+            let bootstrap_mask = i32::from(entries.iter().any(|entry| BUNDLE_BINARY_NAMES.contains(&entry.as_str()))) | (i32::from(entries.iter().any(|entry| entry == BUNDLE_PROFILE_SIGNATURE[1])) << 1);
+            let model_mask = i32::from(entries.iter().any(|entry| entry == BUNDLE_PROFILE_SIGNATURE[2])) | (i32::from(entries.iter().any(|entry| entry == BUNDLE_PROFILE_SIGNATURE[3])) << 1);
+
+        """
+    inl profile_runtime = sm.concat x4 """
+            resolve_bundle_profile_code(requested, eoie_bundle_profile_signature_binding(bootstrap_mask, model_mask))
+        }
+
+
+        """
     sm.concat profile_runtime (bundle_layout_runtime_rust ())

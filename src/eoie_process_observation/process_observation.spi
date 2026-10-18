@@ -42,84 +42,86 @@ inl smoke_observation () : process_observation =
     )
 
 inl emit_runtime () : () =
-    rust_global """use eoie_process::ProcessTermination;
-use std::io::Write as _;
+    rust_global """
+        use eoie_process::ProcessTermination;
+        use std::io::Write as _;
 
-#[derive(Debug)]
-pub struct ProcessObservation {
-    pub status: std::process::ExitStatus,
-    pub termination: ProcessTermination,
-    pub elapsed_ms: u64,
-    pub stdout: Vec<u8>,
-    pub stderr: Vec<u8>,
-}
-
-pub fn run_bounded_observed(
-    command: &mut std::process::Command,
-    timeout_ms: u64,
-) -> Result<ProcessObservation, String> {
-    let started = std::time::Instant::now();
-    let capture = eoie_process::run_bounded_capture_with_input(command, timeout_ms, None)?;
-    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-    Ok(ProcessObservation {
-        status: capture.status,
-        termination: capture.termination,
-        elapsed_ms,
-        stdout: capture.stdout,
-        stderr: capture.stderr,
-    })
-}
-
-fn replay_captured_output(observation: &ProcessObservation) -> Result<(), String> {
-    std::io::stdout()
-        .write_all(&observation.stdout)
-        .map_err(|error| format!("replay stdout: {error}"))?;
-    std::io::stderr()
-        .write_all(&observation.stderr)
-        .map_err(|error| format!("replay stderr: {error}"))?;
-    Ok(())
-}
-
-fn process_output_preview(bytes: &[u8]) -> String {
-    let preview = String::from_utf8_lossy(bytes)
-        .trim()
-        .chars()
-        .take(240)
-        .collect::<String>();
-    if preview.is_empty() { "<empty>".to_owned() } else { preview }
-}
-
-pub fn run_bounded_checked(
-    command: &mut std::process::Command,
-    timeout_ms: u64,
-    label: &str,
-) -> Result<ProcessObservation, String> {
-    let started = std::time::Instant::now();
-    let observation = match run_bounded_observed(command, timeout_ms) {
-        Ok(observation) => observation,
-        Err(error) => {
-            let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-            emit_process_error_receipt(command, label, elapsed_ms, &error);
-            return Err(error);
+        #[derive(Debug)]
+        pub struct ProcessObservation {
+            pub status: std::process::ExitStatus,
+            pub termination: ProcessTermination,
+            pub elapsed_ms: u64,
+            pub stdout: Vec<u8>,
+            pub stderr: Vec<u8>,
         }
-    };
-    emit_process_exit_receipt(command, label, &observation);
-    replay_captured_output(&observation)?;
-    if observation.termination == ProcessTermination::TimedOut {
-        return Err(format!("{label} timed out after {timeout_ms} ms; stderr={}", process_output_preview(&observation.stderr)));
-    }
-    if !observation.status.success() {
-        return Err(format!("{label} failed: {} termination={:?} stderr={}", observation.status, observation.termination, process_output_preview(&observation.stderr)));
-    }
-    println!(
-        "eoie process plan={label} status=passed termination={:?} elapsed_ms={} stdout_bytes={} stderr_bytes={}",
-        observation.termination,
-        observation.elapsed_ms,
-        observation.stdout.len(),
-        observation.stderr.len()
-    );
-    Ok(observation)
-}"""
+
+        pub fn run_bounded_observed(
+            command: &mut std::process::Command,
+            timeout_ms: u64,
+        ) -> Result<ProcessObservation, String> {
+            let started = std::time::Instant::now();
+            let capture = eoie_process::run_bounded_capture_with_input(command, timeout_ms, None)?;
+            let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+            Ok(ProcessObservation {
+                status: capture.status,
+                termination: capture.termination,
+                elapsed_ms,
+                stdout: capture.stdout,
+                stderr: capture.stderr,
+            })
+        }
+
+        fn replay_captured_output(observation: &ProcessObservation) -> Result<(), String> {
+            std::io::stdout()
+                .write_all(&observation.stdout)
+                .map_err(|error| format!("replay stdout: {error}"))?;
+            std::io::stderr()
+                .write_all(&observation.stderr)
+                .map_err(|error| format!("replay stderr: {error}"))?;
+            Ok(())
+        }
+
+        fn process_output_preview(bytes: &[u8]) -> String {
+            let preview = String::from_utf8_lossy(bytes)
+                .trim()
+                .chars()
+                .take(240)
+                .collect::<String>();
+            if preview.is_empty() { "<empty>".to_owned() } else { preview }
+        }
+
+        pub fn run_bounded_checked(
+            command: &mut std::process::Command,
+            timeout_ms: u64,
+            label: &str,
+        ) -> Result<ProcessObservation, String> {
+            let started = std::time::Instant::now();
+            let observation = match run_bounded_observed(command, timeout_ms) {
+                Ok(observation) => observation,
+                Err(error) => {
+                    let elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+                    emit_process_error_receipt(command, label, elapsed_ms, &error);
+                    return Err(error);
+                }
+            };
+            emit_process_exit_receipt(command, label, &observation);
+            replay_captured_output(&observation)?;
+            if observation.termination == ProcessTermination::TimedOut {
+                return Err(format!("{label} timed out after {timeout_ms} ms; stderr={}", process_output_preview(&observation.stderr)));
+            }
+            if !observation.status.success() {
+                return Err(format!("{label} failed: {} termination={:?} stderr={}", observation.status, observation.termination, process_output_preview(&observation.stderr)));
+            }
+            println!(
+                "eoie process plan={label} status=passed termination={:?} elapsed_ms={} stdout_bytes={} stderr_bytes={}",
+                observation.termination,
+                observation.elapsed_ms,
+                observation.stdout.len(),
+                observation.stderr.len()
+            );
+            Ok(observation)
+        }
+        """
 
 inl main () : i32 =
     emit_runtime ()

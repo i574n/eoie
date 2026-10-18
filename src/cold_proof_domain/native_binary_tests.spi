@@ -21,7 +21,12 @@ inl fixture_gate (root : string) (name : string) (relative : string) : string =
     gate_text name relative (hash target)
 
 inl proof (root : string) (binary : string) (digest : string) : () =
-    inl header = "inl current_cold_schema () : cold_receipt_schema = ColdReceiptV4\ninl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed\ninl current_cold_replay_flags () : u32 = 15u32\n"
+    inl header = """
+        inl current_cold_schema () : cold_receipt_schema = ColdReceiptV4
+        inl current_cold_proof_status () : cold_receipt_status = ColdReceiptClosed
+        inl current_cold_replay_flags () : u32 = 15u32
+
+        """
     inl census = fixture_gate root "census" "state/authority_census.spi"
     inl migration = fixture_gate root "migration" "state/migration.spi"
     inl workspace = fixture_gate root "workspace" "src/Cargo.lock"
@@ -101,7 +106,15 @@ inl family_catalog (count : u64) : string = $'std::rc::Rc::<str>::from((0..!coun
 
 
 inl family_receipt (digest : string) : string =
-    inl header = "inl current_family_contract_schema () : family_contract_schema = FamilyContractsV1\ninl current_family_contract_status () : family_contract_status = FamilyContractsClosed\ninl current_family_contract_semantic_flags () : u32 = 31u32\ninl current_family_count () : u32 = 36u32\ninl current_family_decision_count () : u32 = 36u32\ninl current_unsettled_family_count () : u32 = 0u32\n"
+    inl header = """
+        inl current_family_contract_schema () : family_contract_schema = FamilyContractsV1
+        inl current_family_contract_status () : family_contract_status = FamilyContractsClosed
+        inl current_family_contract_semantic_flags () : u32 = 31u32
+        inl current_family_count () : u32 = 36u32
+        inl current_family_decision_count () : u32 = 36u32
+        inl current_unsettled_family_count () : u32 = 0u32
+
+        """
     append header (rust_std_string.model.concat5 (gate_text "catalog" "state/legacy_catalog.spi" digest) (gate_text "migration" "state/migration.spi" digest) (gate_text "runtime" "state/runtime_drift.spi" digest) (gate_text "adapter" "state/adapter_inventory.spi" digest) "")
 
 inl family_current (root : string) : bool = $'verify_family_contracts(std::path::Path::new(&*!root)).is_ok()' : bool
@@ -145,4 +158,21 @@ inl emit_tests () : () =
     inl _ = !!!!Export("eoie_test_cold_binary_gate", ((fun root => binary_gate root) : string -> i32))
     inl _ = !!!!Export("eoie_test_cold_census_bounds", ((fun root => census_bounds root) : string -> i32))
     inl _ = !!!!Export("eoie_test_cold_renewal", ((fun root => renewal root) : string -> i32))
-    !!!!Global("#[cfg(test)] mod native_binary_tests {\nstruct Fixture(std::path::PathBuf);\nimpl Fixture { fn new() -> Self {\nlet stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();\nlet root=std::env::temp_dir().join(format!(\"eoie cold binary ü {} {stamp}\",std::process::id()));\nstd::fs::create_dir_all(root.join(\"state\")).unwrap();\nstd::fs::create_dir_all(root.join(\"src\")).unwrap(); Self(root) } }\nimpl Drop for Fixture { fn drop(&mut self) { let _=std::fs::remove_dir_all(&self.0); } }\n#[test] fn cold_binary_selection_accepts_either_name_and_rejects_ambiguity() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_selection(f.0.to_str().unwrap()),0); }\n#[test] fn windows_cold_proof_binds_the_selected_name_and_preserves_hash_checks() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_binary_gate(f.0.to_str().unwrap()),0); }\n#[test] fn cold_census_rejects_counts_that_wrap_the_signed_binding() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_census_bounds(f.0.to_str().unwrap()),0); }\n#[test] fn cold_proof_renewal_binds_the_platform_binary_and_current_lock_and_rolls_back_without_formal_authority() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_renewal(f.0.to_str().unwrap()),0); }\n#[test] fn family_contract_renewal_rechecks_the_catalog_settlement_and_rolls_back_on_drift() { let f=Fixture::new(); assert_eq!(super::eoie_test_family_renewal(f.0.to_str().unwrap()),0); }\n#[test] fn differential_catalog_renewal_requires_the_public_route_and_rolls_back() { let f=Fixture::new(); assert_eq!(super::eoie_test_differential_renewal(f.0.to_str().unwrap()),0); }\n}\n")
+    !!!!Global("""
+        #[cfg(test)] mod native_binary_tests {
+        struct Fixture(std::path::PathBuf);
+        impl Fixture { fn new() -> Self {
+        let stamp=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let root=std::env::temp_dir().join(format!("eoie cold binary ü {} {stamp}",std::process::id()));
+        std::fs::create_dir_all(root.join("state")).unwrap();
+        std::fs::create_dir_all(root.join("src")).unwrap(); Self(root) } }
+        impl Drop for Fixture { fn drop(&mut self) { let _=std::fs::remove_dir_all(&self.0); } }
+        #[test] fn cold_binary_selection_accepts_either_name_and_rejects_ambiguity() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_selection(f.0.to_str().unwrap()),0); }
+        #[test] fn windows_cold_proof_binds_the_selected_name_and_preserves_hash_checks() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_binary_gate(f.0.to_str().unwrap()),0); }
+        #[test] fn cold_census_rejects_counts_that_wrap_the_signed_binding() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_census_bounds(f.0.to_str().unwrap()),0); }
+        #[test] fn cold_proof_renewal_binds_the_platform_binary_and_current_lock_and_rolls_back_without_formal_authority() { let f=Fixture::new(); assert_eq!(super::eoie_test_cold_renewal(f.0.to_str().unwrap()),0); }
+        #[test] fn family_contract_renewal_rechecks_the_catalog_settlement_and_rolls_back_on_drift() { let f=Fixture::new(); assert_eq!(super::eoie_test_family_renewal(f.0.to_str().unwrap()),0); }
+        #[test] fn differential_catalog_renewal_requires_the_public_route_and_rolls_back() { let f=Fixture::new(); assert_eq!(super::eoie_test_differential_renewal(f.0.to_str().unwrap()),0); }
+        }
+
+        """)

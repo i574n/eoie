@@ -1,7 +1,9 @@
 inl rust_global (x : string) : () = !!!!Global(x)
-inl emit_runtime () : () = rust_global """use eoie_process_observation::run_bounded_observed_with_input;
-use std::env;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-"""
+inl emit_runtime () : () = rust_global """
+    use eoie_process_observation::run_bounded_observed_with_input;
+    use std::env;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    """

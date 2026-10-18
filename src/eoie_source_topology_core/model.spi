@@ -22,6 +22,7 @@ union source_directory =
     | VendorDirectory
     | BuildCacheDirectory
     | LocalCacheDirectory
+    | MixBuildDirectory
     | SourceDirectory
 
 inl source_directory_code = function
@@ -30,12 +31,14 @@ inl source_directory_code = function
     | BuildCacheDirectory => 2u64
     | SourceDirectory => 3u64
     | LocalCacheDirectory => 4u64
+    | MixBuildDirectory => 5u64
 
 let source_directory_kind (~name : string) : u64 =
     if rust_std_string.model.equals name ".git" then source_directory_code RepositoryMetadata
     elif rust_std_string.model.equals name "vendor" then source_directory_code VendorDirectory
     elif rust_std_string.model.equals name "target" then source_directory_code BuildCacheDirectory
     elif rust_std_string.model.equals name ".cache" then source_directory_code LocalCacheDirectory
+    elif rust_std_string.model.equals name "_build" then source_directory_code MixBuildDirectory
     else source_directory_code SourceDirectory
 
 union source_map_policy =
@@ -123,11 +126,13 @@ let source_rebuild_count_binding (expected : i32) (observed : i32) : i32 =
 union build_cache_evidence =
     | CacheDirTagged
     | TargetBesideCargoManifest
+    | MixBuildOutput
     | NoBuildCacheEvidence
 
 inl build_cache_evidence_of (kind : u64) (cachedir_tag : bool) (beside_manifest : bool) : build_cache_evidence =
     if cachedir_tag then CacheDirTagged
     elif !!!!EQ(kind, source_directory_code BuildCacheDirectory) && beside_manifest then TargetBesideCargoManifest
+    elif !!!!EQ(kind, source_directory_code MixBuildDirectory) then MixBuildOutput
     else NoBuildCacheEvidence
 
 let build_cache_binding (kind : u64) (cachedir_tag : i32) (beside_manifest : i32) : i32 =

@@ -490,8 +490,20 @@ test findings_render_with_line_numbers_and_json =
 
 ///> rust
 test todo_blocks_keep_their_spiral_lines_and_ids =
-    inl block = rust_std_string.model.concat5 (marked "// " ": EOIE-MEMORY-LINKS add the verb") "\n//     inl links root = ()\n//     links \"backlog\"" "" "" ""
-    inl text = rust_std_string.model.concat5 "inl a = 1\n" block "\nlet b = 2\n" (marked "inl c = 3 // " " trailing") "\n// not part of it\n"
+    inl block = rust_std_string.model.concat5 (marked "// " ": EOIE-MEMORY-LINKS add the verb") """
+
+        //     inl links root = ()
+        //     links "backlog"
+        """ "" "" ""
+    inl text = rust_std_string.model.concat5 "inl a = 1\n" block """
+
+        let b = 2
+
+        """ (marked "inl c = 3 // " " trailing") """
+
+        // not part of it
+
+        """
     inl lines, count = findings CFamily text "repo/a.spi" false
     expect (i32_eq count 2i32) "a block and a trailing comment"
     expect (rust_std_string.model.contains lines (rust_std_string.model.concat5 "repo/a.spi:2  " block "" "" "")) lines

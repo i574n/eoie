@@ -19,7 +19,14 @@ inl recovered_topology_count_ok () : bool =
 inl recovered_fixture_ledger_ok () : bool =
     inl ledger = "  // recovered-fixture|cap-a|evidence/a|evidence/b|evidence/c  \n// recovered-fixture|cap-b|evidence/d|evidence/e|evidence/f"
     (=.) (state_receipt_recovered_fixture_record_count_or_max ledger) 2u64
-    && (=.) (state_receipt_recovered_fixture_paths ledger) "evidence/a\nevidence/b\nevidence/c\nevidence/d\nevidence/e\nevidence/f"
+    && (=.) (state_receipt_recovered_fixture_paths ledger) """
+        evidence/a
+        evidence/b
+        evidence/c
+        evidence/d
+        evidence/e
+        evidence/f
+        """
     && (=.) (state_receipt_recovered_fixture_record_count_or_max "// recovered-fixture|cap-a|a|b|c\n// recovered-fixture|cap-a|d|e|f") 18446744073709551615u64
     && (=.) (state_receipt_recovered_fixture_record_count_or_max "// recovered-fixture|cap-a|a|b|c|extra") 18446744073709551615u64
     && (=.) (state_receipt_recovered_fixture_record_count_or_max "// recovered-fixture|cap-a|a|b|") 18446744073709551615u64
@@ -31,7 +38,11 @@ inl main () : i32 =
                 if dash_shape_ok "a-b-c" 32u64 then
                     if dash_shape_ok "-a-" 32u64 then
                         if dash_shape_ok "a-" 21u64 then
-                            if migration_payload_ok "prefix\ninl x () = MigrationDenominator (69u32, 69u32, 1000u32, 987u32)\nsuffix" "69u32, 69u32, 1000u32, 987u32" then
+                            if migration_payload_ok """
+                                prefix
+                                inl x () = MigrationDenominator (69u32, 69u32, 1000u32, 987u32)
+                                suffix
+                                """ "69u32, 69u32, 1000u32, 987u32" then
                                 if migration_payload_ok "no constructor here" "" then
                                     if state_receipt_series_records_valid "" then
                                         if state_receipt_series_records_valid "SeriesRecord (1u32, 69u32, 987u32, \"a\", \"b\", 1u64, \"c\", \"d\", 2u64, \"p\")" then

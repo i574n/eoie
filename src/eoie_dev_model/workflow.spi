@@ -93,7 +93,11 @@ inl run () : i32 =
     inl length = host.count ()
     if validate 1i32 length then
         if has "--help" then
-            host.print "eoie-dev [--test] [--skip-release] [--package NAME] [--offline] [--root PATH] [--target-dir PATH] [--compiler-contracts] [--compiler PATH] [--timeout-ms N] [--dry-run]\nBuilds a candidate; installation remains a separately validated operation.\n"
+            host.print """
+                eoie-dev [--test] [--skip-release] [--package NAME] [--offline] [--root PATH] [--target-dir PATH] [--compiler-contracts] [--compiler PATH] [--timeout-ms N] [--dry-run]
+                Builds a candidate; installation remains a separately validated operation.
+
+                """
             0i32
         else
             inl test = has "--test"

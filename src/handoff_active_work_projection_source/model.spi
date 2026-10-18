@@ -75,4 +75,9 @@ let handoff_active_work_projection (source : string) : string =
     handoff_active_work_projection_loop source 0i32 (sm.length source : i32) "ok"
 
 inl fixture_agile () : string =
-    "inl active () = Task (\"ACTIVE-WORK\", \"Do u32 active work\", TaskKind, P0, D4, 55u32, Active, \"\", \"x\", \"current\", \"current\")\ninl done () = Task (\"DONE-WORK\", \"Done work\", TaskKind, P0, D4, 100u32, Done, \"\", \"x\", \"current\", \"settled\")\ninl blocked () = Task (\"BLOCKED-WORK\", \"Wait for evidence\", TaskKind, P1, D6, 7u32, Blocked, \"\", \"x\", \"current\", \"current\")\n"
+    """
+        inl active () = Task ("ACTIVE-WORK", "Do u32 active work", TaskKind, P0, D4, 55u32, Active, "", "x", "current", "current")
+        inl done () = Task ("DONE-WORK", "Done work", TaskKind, P0, D4, 100u32, Done, "", "x", "current", "settled")
+        inl blocked () = Task ("BLOCKED-WORK", "Wait for evidence", TaskKind, P1, D6, 7u32, Blocked, "", "x", "current", "current")
+
+        """

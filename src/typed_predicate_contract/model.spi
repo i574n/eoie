@@ -33,5 +33,8 @@ let differential () : i32 =
 
 inl main () : i32 =
     !!!!Export("eoie_test_typed_predicates", ((fun () => differential ()) : () -> i32))
-    !!!!Global("#[cfg(test)] mod typed_predicate_tests { #[test] fn ascii_and_unicode_match_original_rust_predicates() { assert_eq!(super::eoie_test_typed_predicates(),0); } }\n")
+    !!!!Global("""
+        #[cfg(test)] mod typed_predicate_tests { #[test] fn ascii_and_unicode_match_original_rust_predicates() { assert_eq!(super::eoie_test_typed_predicates(),0); } }
+
+        """)
     0i32

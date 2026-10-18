@@ -91,7 +91,16 @@ let handoff_census_projection (source : string) : string =
     else projection_census_loop line 0i32 line_len 0i32 ""
 
 inl fixture_ratings () : string =
-    "inl active_coverage_attainment () : u32 = 804u32\ninl active_codebase_readiness () : u32 = 477u32\ninl subjective_phase_ceiling () : u32 = 620u32\ninl phase_runtime_drift () : phase_dimension = PhaseDimension (\"runtime-drift-burndown\", 510u32, 12u32)\ninl phase_parallel_readiness () : phase_dimension = PhaseDimension (\"parallel-readiness\", 550u32, 8u32)\ninl phase_plan_ir () : phase_dimension = PhaseDimension (\"canonical-plan-ir\", 750u32, 10u32)\ninl migration () = Rating (MigrationCompleteness, 987u32, 0i32)\n"
+    """
+        inl active_coverage_attainment () : u32 = 804u32
+        inl active_codebase_readiness () : u32 = 477u32
+        inl subjective_phase_ceiling () : u32 = 620u32
+        inl phase_runtime_drift () : phase_dimension = PhaseDimension ("runtime-drift-burndown", 510u32, 12u32)
+        inl phase_parallel_readiness () : phase_dimension = PhaseDimension ("parallel-readiness", 550u32, 8u32)
+        inl phase_plan_ir () : phase_dimension = PhaseDimension ("canonical-plan-ir", 750u32, 10u32)
+        inl migration () = Rating (MigrationCompleteness, 987u32, 0i32)
+
+        """
 
 inl fixture_census () : string =
     "inl census () : authority_census = AuthorityCensus (446u32, 90u32, 2141u32, 19236u32, 27530u32, 81u32, 239u32, 158u32, 996u32, 957u32)\n"

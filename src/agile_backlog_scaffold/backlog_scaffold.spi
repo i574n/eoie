@@ -18,13 +18,48 @@ inl scaffold_relative = function
     | BacklogSchema => "/state/agile.spi"
 
 inl scaffold_text = function
-    | StatePackage => "modules:\n    agile\n    prompt\n"
+    | StatePackage => """
+        modules:
+            agile
+            prompt
+
+        """
     | BacklogSchema =>
-        inl kinds = "union task_kind =\n    | Epic :: task_kind\n    | Feature :: task_kind\n    | Story :: task_kind\n    | TaskKind :: task_kind\n\n"
-        inl priorities = "union priority =\n    | P0 :: priority | P1 :: priority | P2 :: priority | P3 :: priority | P4 :: priority | P5 :: priority\n\n"
-        inl difficulties = "union difficulty =\n    | D0 :: difficulty | D1 :: difficulty | D2 :: difficulty | D3 :: difficulty | D4 :: difficulty\n    | D5 :: difficulty | D6 :: difficulty | D7 :: difficulty | D8 :: difficulty\n\n"
-        inl statuses = "union task_status =\n    | Planned :: task_status | Active :: task_status | Blocked :: task_status | Paused :: task_status | Done :: task_status\n\n"
-        inl item = "union agile_item =\n    | Task :: string * string * task_kind * priority * difficulty * u32 * task_status * string * string * string * string -> agile_item\n\ninl main () : i32 = 0i32\n"
+        inl kinds = """
+            union task_kind =
+                | Epic :: task_kind
+                | Feature :: task_kind
+                | Story :: task_kind
+                | TaskKind :: task_kind
+
+
+            """
+        inl priorities = """
+            union priority =
+                | P0 :: priority | P1 :: priority | P2 :: priority | P3 :: priority | P4 :: priority | P5 :: priority
+
+
+            """
+        inl difficulties = """
+            union difficulty =
+                | D0 :: difficulty | D1 :: difficulty | D2 :: difficulty | D3 :: difficulty | D4 :: difficulty
+                | D5 :: difficulty | D6 :: difficulty | D7 :: difficulty | D8 :: difficulty
+
+
+            """
+        inl statuses = """
+            union task_status =
+                | Planned :: task_status | Active :: task_status | Blocked :: task_status | Paused :: task_status | Done :: task_status
+
+
+            """
+        inl item = """
+            union agile_item =
+                | Task :: string * string * task_kind * priority * difficulty * u32 * task_status * string * string * string * string -> agile_item
+
+            inl main () : i32 = 0i32
+
+            """
         rust_std_string.model.concat5 kinds priorities difficulties statuses item
 
 inl scaffold_path (~root : string) (file : scaffold_file) : string = rust_std_string.model.concat5 root (scaffold_relative file) "" "" ""

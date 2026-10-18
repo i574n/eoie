@@ -1,71 +1,73 @@
 inl rust_global (x : string) : () = !!!!Global(x)
 
 inl emit_owned_runtime () : () =
-    rust_global """#[must_use]
-pub fn patch_prepare_source_owned(root: &str, plan: &str) -> std::rc::Rc<str> {
-    match prepare_patch_source(root, plan) {
-        Ok(source) => std::rc::Rc::<str>::from(source),
-        Err(error) => {
-            eprintln!("eoie error: {error}");
-            std::rc::Rc::<str>::default()
+    rust_global """
+        #[must_use]
+        pub fn patch_prepare_source_owned(root: &str, plan: &str) -> std::rc::Rc<str> {
+            match prepare_patch_source(root, plan) {
+                Ok(source) => std::rc::Rc::<str>::from(source),
+                Err(error) => {
+                    eprintln!("eoie error: {error}");
+                    std::rc::Rc::<str>::default()
+                }
+            }
         }
-    }
-}
 
-#[must_use]
-pub fn patch_check_context_owned(root: &str, source: &str, validated_count: i32) -> i32 {
-    match apply_patch_context_with_fault(
-        std::path::Path::new(root),
-        source,
-        validated_count,
-        Some(PatchFault::CheckOnly),
-        None,
-    ) {
-        Ok(()) => validated_count,
-        Err(error) => {
-            eprintln!("eoie error: {error}");
-            -1
+        #[must_use]
+        pub fn patch_check_context_owned(root: &str, source: &str, validated_count: i32) -> i32 {
+            match apply_patch_context_with_fault(
+                std::path::Path::new(root),
+                source,
+                validated_count,
+                Some(PatchFault::CheckOnly),
+                None,
+            ) {
+                Ok(()) => validated_count,
+                Err(error) => {
+                    eprintln!("eoie error: {error}");
+                    -1
+                }
+            }
         }
-    }
-}
 
-#[must_use]
-pub fn patch_apply_context_owned(root: &str, source: &str, validated_count: i32) -> i32 {
-    if std::env::var("EOIE_PATCH_FAULT").ok().as_deref() == Some("after-typecheck") {
-        return patch_finish(Err("injected patch fault after typecheck".to_owned()));
-    }
-    let result = apply_patch_context(std::path::Path::new(root), source, validated_count);
-    if result.is_ok()
-        && let Err(error) = eoie_patch_source_adapter::patch_resume_complete(root, source)
-    {
-        return patch_finish(Err(error));
-    }
-    patch_finish(result)
-}
+        #[must_use]
+        pub fn patch_apply_context_owned(root: &str, source: &str, validated_count: i32) -> i32 {
+            if std::env::var("EOIE_PATCH_FAULT").ok().as_deref() == Some("after-typecheck") {
+                return patch_finish(Err("injected patch fault after typecheck".to_owned()));
+            }
+            let result = apply_patch_context(std::path::Path::new(root), source, validated_count);
+            if result.is_ok()
+                && let Err(error) = eoie_patch_source_adapter::patch_resume_complete(root, source)
+            {
+                return patch_finish(Err(error));
+            }
+            patch_finish(result)
+        }
 
-#[must_use]
-pub fn patch_rehearse_context_owned(root: &str, source: &str, validated_count: i32) -> i32 {
-    patch_finish(apply_patch_context_with_fault(
-        std::path::Path::new(root),
-        source,
-        validated_count,
-        Some(PatchFault::RehearseRollback),
-        None,
-    ))
-}
+        #[must_use]
+        pub fn patch_rehearse_context_owned(root: &str, source: &str, validated_count: i32) -> i32 {
+            patch_finish(apply_patch_context_with_fault(
+                std::path::Path::new(root),
+                source,
+                validated_count,
+                Some(PatchFault::RehearseRollback),
+                None,
+            ))
+        }
 
-#[must_use]
-pub fn patch_apply_gated_context_owned<F>(root: &str, source: &str, validated_count: i32, mut gate: F) -> i32
-where
-    F: FnMut() -> Result<(), String>,
-{
-    patch_finish(apply_patch_context_with_fault(
-        std::path::Path::new(root),
-        source,
-        validated_count,
-        None,
-        Some(&mut gate),
-    ))
-}
+        #[must_use]
+        pub fn patch_apply_gated_context_owned<F>(root: &str, source: &str, validated_count: i32, mut gate: F) -> i32
+        where
+            F: FnMut() -> Result<(), String>,
+        {
+            patch_finish(apply_patch_context_with_fault(
+                std::path::Path::new(root),
+                source,
+                validated_count,
+                None,
+                Some(&mut gate),
+            ))
+        }
 
-"""
+
+        """

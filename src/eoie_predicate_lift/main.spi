@@ -20,5 +20,9 @@ inl main () : i32 =
             host.print "Input and output must be .spi files.\n"
             2i32
     else
-        host.print "eoie-lift-predicate <sha256|receipt-text> <function> <input.spi> <new-output.spi>\nAdd typed_predicate to the owning package before regenerating.\n"
+        host.print """
+            eoie-lift-predicate <sha256|receipt-text> <function> <input.spi> <new-output.spi>
+            Add typed_predicate to the owning package before regenerating.
+
+            """
         if (=.) (host.count ()) 2i32 && predicate_rules.model.equal (host.argument 1i32) "--help" then 0i32 else 2i32
