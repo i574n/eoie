@@ -22,7 +22,7 @@ enum US2 {
 fn declared_from_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
     loop {
         let mut v3: i32 = v0.get(v2 as usize..).and_then(|rest| rest.find(&*v1)).map(|found| (found + v2 as usize) as i32).unwrap_or(-1);
-        let mut v4: bool = v3 < 0;
+        let mut v4: bool = v3 < 0i32;
         if v4 {
             return v3;
         } else {
@@ -33,7 +33,7 @@ fn declared_from_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
             if v8 {
                 return v3;
             } else {
-                let mut v9: i32 = v3 + 1;
+                let mut v9: i32 = v3.wrapping_add(1i32);
                 (v0, v1, v2) = (v0.clone(), v1.clone(), v9);
                 continue;
             }
@@ -52,7 +52,7 @@ fn binding_declared_3(mut v0: Rc<str>, mut v1: Rc<str>) -> bool {
         true
     } else {
         let mut v9: i32 = v0.find(&*v5).map(|offset| offset as i32).unwrap_or(-1);
-        let mut v10: bool = v9 < 0;
+        let mut v10: bool = v9 < 0i32;
         let mut v11: bool = v10 == false;
         v11
     }
@@ -140,7 +140,7 @@ fn renamed_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> i32 {
             let mut v22: Rc<str> = std::rc::Rc::<str>::from([&*v19, &*v20, &*v1, &*v21, &*v5].concat());
             let mut v23: i32 = 0i32;
             let mut v24: i32 = declared_from_2(v18.clone(), v22.clone(), v23);
-            let mut v25: bool = v24 < 0;
+            let mut v25: bool = v24 < 0i32;
             let mut v26: bool = v25 == false;
             let mut v27: bool = v26 == false;
             if v27 {
@@ -155,7 +155,7 @@ fn renamed_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> i32 {
                 let mut v33: Rc<str> = std::rc::Rc::<str>::from([&*v19, &*v20, &*v2, &*v21, &*v5].concat());
                 let mut v34: i32 = 0i32;
                 let mut v35: i32 = declared_from_2(v18.clone(), v33.clone(), v34);
-                let mut v36: bool = v35 < 0;
+                let mut v36: bool = v35 < 0i32;
                 let mut v37: bool = v36 == false;
                 if v37 {
                     let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("the id "); } LIT.with(|lit| lit.clone()) };
@@ -299,7 +299,7 @@ fn id_bytes_valid_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> bool {
                 }
             };
             if v11 {
-                let mut v12: i32 = v1 + 1;
+                let mut v12: i32 = v1.wrapping_add(1i32);
                 (v0, v1, v2) = (v0.clone(), v12, v2);
                 continue;
             } else {

@@ -1,4 +1,5 @@
 packages:
+    |core-
     differential_catalog_bindings
     differential_catalog_contract
 modules:

@@ -1,0 +1,89 @@
+nominal child_process = $'std::rc::Rc<std::cell::RefCell<std::process::Child>>'
+
+nominal spawn_outcome = $'Result<std::rc::Rc<std::cell::RefCell<std::process::Child>>, std::rc::Rc<str>>'
+
+inl argument (~index : i32) : string =
+    $'std::rc::Rc::<str>::from(std::env::args().nth(!index as usize).unwrap_or_default())' : string
+
+inl argument_count () : i32 = $'std::env::args().count() as i32' : i32
+
+inl arguments_from (~index : i32) : string =
+    $'std::rc::Rc::<str>::from(std::env::args().skip(!index as usize).collect::<Vec<_>>().join("\n"))' : string
+
+let decimal_u64 (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+
+inl decimal_i32 (~text : string) : i32 = $'!text.trim().parse::<i32>().unwrap_or(-1)' : i32
+
+let decimal_text (~value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+
+let now_ms () : u64 =
+    $'std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_millis() as u64).unwrap_or(0)' : u64
+
+inl sleep_ms (~millis : u64) : () = $'std::thread::sleep(std::time::Duration::from_millis(!millis))' : ()
+
+let heavy_gate_script () : string =
+    $'std::rc::Rc::<str>::from(std::env::var_os("EOIE_HEAVY_GATE").map(std::path::PathBuf::from).filter(|path| path.is_file()).or_else(|| std::env::current_dir().ok().and_then(|cwd| cwd.ancestors().map(|base| base.join("spiral").join("apps").join("compiler").join("tmp").join("scripts").join("heavy.ps1")).find(|candidate| candidate.is_file()))).map(|path| path.to_string_lossy().into_owned()).unwrap_or_default())' : string
+
+let jobs_root () : string =
+    $'std::rc::Rc::<str>::from(std::env::var_os("EOIE_JOBS_HOME").map(std::path::PathBuf::from).or_else(|| std::env::var_os("LOCALAPPDATA").map(|base| std::path::PathBuf::from(base).join("eoie").join("jobs"))).or_else(|| std::env::var_os("HOME").map(|base| std::path::PathBuf::from(base).join(".cache").join("eoie").join("jobs"))).unwrap_or_else(|| std::path::PathBuf::from(".eoie-jobs")).to_string_lossy().as_ref())' : string
+
+let joined (~base : string) (~name : string) : string =
+    $'std::rc::Rc::<str>::from(std::path::Path::new(&*!base).join(&*!name).to_string_lossy().as_ref())' : string
+
+inl current_directory () : string =
+    $'std::rc::Rc::<str>::from(std::env::current_dir().map(|path| path.to_string_lossy().into_owned()).unwrap_or_default())' : string
+
+inl directory_created (~path : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::create_dir_all(&*!path).err().map(|error| format\!("create {}: {error}", &*!path)).unwrap_or_default())' : string
+
+let text_written (~path : string) (~text : string) : string =
+    $'{ let temporary = format\!("{}.tmp", &*!path); std::rc::Rc::<str>::from(std::fs::write(&temporary, !text.as_bytes()).and_then(|_| std::fs::rename(&temporary, &*!path)).err().map(|error| format\!("write {}: {error}", &*!path)).unwrap_or_default()) }' : string
+
+let text_or_empty (~path : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap_or_default())' : string
+
+let file_bytes (~path : string) : u64 = $'std::fs::metadata(&*!path).map(|metadata| metadata.len()).unwrap_or(0)' : u64
+
+inl directory_exists (~path : string) : bool = $'std::path::Path::new(&*!path).is_dir()' : bool
+
+inl newest_directories (~path : string) (~count : u64) : string =
+    $'{ let mut names = std::fs::read_dir(&*!path).map(|entries| entries.filter_map(|entry| entry.ok()).filter(|entry| entry.path().is_dir()).map(|entry| entry.file_name().to_string_lossy().into_owned()).filter(|name| name.starts_with("job-")).collect::<Vec<_>>()).unwrap_or_default(); names.sort(); names.reverse(); names.truncate(!count as usize); std::rc::Rc::<str>::from(names.join("\n")) }' : string
+
+let last_lines (~path : string) (~count : u64) : string =
+    $'{ let text = std::fs::read_to_string(&*!path).unwrap_or_default(); let lines = text.lines().collect::<Vec<_>>(); let from = lines.len().saturating_sub(!count as usize); std::rc::Rc::<str>::from(lines[from..].join("\n")) }' : string
+
+let stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+
+let stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+
+let supervisor_executable (~root : string) : string =
+    $'{ let copy = || -> std::io::Result<std::path::PathBuf> { let source = std::env::current_exe()?; let metadata = std::fs::metadata(&source)?; let stamp = metadata.modified().ok().and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map(|elapsed| elapsed.as_secs()).unwrap_or(0); let folder = std::path::Path::new(&*!root).join("supervisor"); std::fs::create_dir_all(&folder)?; let target = folder.join(format\!("eoie-{}-{}{}", metadata.len(), stamp, std::env::consts::EXE_SUFFIX)); if \!target.is_file() { let temporary = target.with_extension("tmp"); std::fs::copy(&source, &temporary)?; std::fs::rename(&temporary, &target)?; } Ok(target) }; std::rc::Rc::<str>::from(copy().map(|path| path.to_string_lossy().into_owned()).unwrap_or_default()) }' : string
+
+inl already_relaunched () : bool = $'std::env::var_os("EOIE_JOB_RELAUNCHED").is_some()' : bool
+
+inl running_from (~executable : string) : bool =
+    $'std::env::current_exe().map(|path| path.to_string_lossy() == &*!executable).unwrap_or(false)' : bool
+
+inl relaunched_as (~executable : string) : i32 =
+    $'match std::process::Command::new(&*!executable).args(std::env::args().skip(1)).env("EOIE_JOB_RELAUNCHED", "1").status() { Ok(status) => status.code().unwrap_or(1), Err(error) => { eprintln\!("eoie error: job relaunch: {error}"); 2 } }' : i32
+
+inl supervisor_launched (~id : string) : string =
+    inl executable = supervisor_executable (jobs_root ())
+    $'{ \#[cfg(windows)] { unsafe extern "system" { fn SetHandleInformation(handle: *mut std::ffi::c_void, mask: u32, flags: u32) -> i32; } use std::os::windows::io::AsRawHandle; unsafe { SetHandleInformation(std::io::stdin().as_raw_handle(), 1, 0); SetHandleInformation(std::io::stdout().as_raw_handle(), 1, 0); SetHandleInformation(std::io::stderr().as_raw_handle(), 1, 0); } } let launch = |flags: u32| { let program = if (&*!executable).is_empty() { std::env::current_exe()? } else { std::path::PathBuf::from(&*!executable) }; let mut command = std::process::Command::new(program); command.arg("job").arg("supervise").arg(&*!id).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()); \#[cfg(windows)] { use std::os::windows::process::CommandExt; command.creation_flags(flags); } \#[cfg(unix)] { use std::os::unix::process::CommandExt; command.process_group(0); let _ = flags; } command.spawn() }; match launch(0x0100_0208).or_else(|_| launch(0x0000_0208)) { Ok(child) => std::rc::Rc::<str>::from(child.id().to_string()), Err(error) => std::rc::Rc::<str>::from(format\!("error: {error}")) } }' : string
+
+inl logged_spawn (~argv : string) (~cwd : string) (~stdout_path : string) (~stderr_path : string) : spawn_outcome =
+    $'{ let mut parts = !argv.lines(); let program = parts.next().unwrap_or_default().to_owned(); let arguments = parts.map(str::to_owned).collect::<Vec<_>>(); let outcome = (|| -> std::io::Result<std::process::Child> { let stdout = std::fs::File::create(&*!stdout_path)?; let stderr = std::fs::File::create(&*!stderr_path)?; std::process::Command::new(&program).args(&arguments).current_dir(&*!cwd).stdin(std::process::Stdio::null()).stdout(stdout).stderr(stderr).spawn() })(); outcome.map(|child| std::rc::Rc::new(std::cell::RefCell::new(child))).map_err(|error| std::rc::Rc::<str>::from(format\!("spawn {program}: {error}"))) }' : spawn_outcome
+
+inl spawned (~outcome : spawn_outcome) : bool = $'!outcome.is_ok()' : bool
+
+inl spawned_child (~outcome : spawn_outcome) : child_process = $'!outcome.clone().unwrap()' : child_process
+
+inl spawn_error (~outcome : spawn_outcome) : string = $'!outcome.clone().err().unwrap_or_default()' : string
+
+inl child_pid (~child : child_process) : u64 = $'!child.borrow().id() as u64' : u64
+
+inl child_exit_or_running (~child : child_process) : i64 =
+    $'match !child.borrow_mut().try_wait() { Ok(Some(status)) => status.code().map(|code| code as i64).unwrap_or(-2), Ok(None) => -1, Err(_) => -2 }' : i64
+
+inl child_killed (~child : child_process) : () =
+    $'{ let mut child = !child.borrow_mut(); let _ = child.kill(); let _ = child.wait(); }' : ()

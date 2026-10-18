@@ -1,3 +1,5 @@
+packages:
+    |core-
 modules:
     state_terminal
     check_runtime

@@ -89,35 +89,35 @@ inl estimate_unit_factor = function
 
 inl estimate_digit_limit () : i32 = 6i32
 inl ascii_zero () : i32 = 48i32
-inl ascii_digit (code : i32) : bool = if i32_le (ascii_zero ()) code then i32_le code 57i32 else false
+inl ascii_digit (code : i32) : bool = if ascii_zero () <= code then code <= 57i32 else false
 inl decimal_step (value : i32) (code : i32) : i32 = $"!value * 10 + !code - 48"
 inl i32_scaled (value : i32) (factor : i32) : i32 = $"!value * !factor"
 
 let rec decimal_digits_value (text : string) (offset : i32) (length : i32) (value : i32) : i32 =
-    if i32_le length offset then value
-    elif ascii_digit (byte_at text offset) then decimal_digits_value text (i32_next offset) length (decimal_step value (byte_at text offset))
+    if length <= offset then value
+    elif ascii_digit (byte_at text offset) then decimal_digits_value text (offset + 1i32) length (decimal_step value (byte_at text offset))
     else -1i32
 
 let decimal_value (~digits : string) : validation_result i32 =
     inl length = byte_len digits
-    if i32_le length 0i32 then Invalid
-    elif i32_le length (estimate_digit_limit ()) then
+    if length <= 0i32 then Invalid
+    elif length <= estimate_digit_limit () then
         inl value = decimal_digits_value digits 0i32 length 0i32
-        if i32_negative value then Invalid else Valid value
+        if value < 0i32 then Invalid else Valid value
     else Invalid
 
 inl estimate_unit_of (~text : string) : estimate_unit =
     if rust_std_string.model.ends_with text "h" then HourUnit else MinuteUnit
 
 inl estimate_digits (~text : string) : string =
-    if rust_std_string.model.ends_with text "h" then byte_slice text 0i32 (i32_prev (byte_len text))
-    elif rust_std_string.model.ends_with text "m" then byte_slice text 0i32 (i32_prev (byte_len text))
+    if rust_std_string.model.ends_with text "h" then byte_slice text 0i32 (byte_len text - 1i32)
+    elif rust_std_string.model.ends_with text "m" then byte_slice text 0i32 (byte_len text - 1i32)
     else text
 
 inl estimate_minute_ceiling () : i32 = 999999i32
 
 inl bounded_estimate (minutes : i32) : validation_result planned_estimate =
-    if i32_le minutes (estimate_minute_ceiling ()) then Valid (EstimateMinutes minutes) else Invalid
+    if minutes <= estimate_minute_ceiling () then Valid (EstimateMinutes minutes) else Invalid
 
 let parse_planned_estimate (~text : string) : validation_result planned_estimate =
     if cleared_value text then Valid Unestimated
@@ -279,9 +279,9 @@ let planning_row (~id : string) (tokens : planning_tokens) : string =
 
 let rec declared_from (text : string) (~needle : string) (offset : i32) : i32 =
     inl found = byte_find_from text needle offset
-    if i32_negative found then found
+    if found < 0i32 then found
     elif declared_task text found then found
-    else declared_from text needle (i32_next found)
+    else declared_from text needle (found + 1i32)
 
 inl planning_offset (text : string) (~id : string) : i32 = declared_from text (planning_anchor id) 0i32
 
@@ -291,36 +291,36 @@ let planning_at (text : string) (found : i32) : task_planning =
 
 let planning_of (text : string) (~id : string) : task_planning =
     inl found = planning_offset text id
-    if i32_negative found then unplanned () else planning_at text found
+    if found < 0i32 then unplanned () else planning_at text found
 
 let planning_tokens_of (text : string) (~id : string) : planning_tokens =
     inl found = planning_offset text id
-    if i32_negative found then unset_tokens ()
+    if found < 0i32 then unset_tokens ()
     else
         inl field = tuple_field text ($"!found + !(planning_arguments_offset ())" : i32) (byte_len text)
         { estimate_token = field 1i32; load_token = field 2i32; assignee_token = field 3i32 }
 
 inl line_end_after (text : string) (offset : i32) : i32 =
     inl found = byte_find_from text "\n" offset
-    if i32_negative found then byte_len text else found
+    if found < 0i32 then byte_len text else found
 
 inl spliced (text : string) (start : i32) (stop : i32) (~middle : string) : string =
     rust_std_string.model.concat5 (byte_slice text 0i32 start) middle (byte_slice text stop (byte_len text)) "" ""
 
 let planning_upserted (text : string) (~id : string) (tokens : planning_tokens) : validation_result string =
     inl task = byte_find text (task_anchor id)
-    if i32_negative task then Invalid
+    if task < 0i32 then Invalid
     else
         inl existing = planning_offset text id
-        if i32_negative existing then
+        if existing < 0i32 then
             inl stop = line_end_after text task
             Valid (spliced text stop stop (rust_std_string.model.concat5 "\n" (planning_row id tokens) "" "" ""))
         else Valid (spliced text (line_start_before text existing) (line_end_after text existing) (planning_row id tokens))
 
 let planning_schema_ensured (text : string) : string =
-    if i32_negative (byte_find text (planning_schema_marker ())) then
+    if byte_find text (planning_schema_marker ()) < 0i32 then
         inl item = byte_find text (agile_item_marker ())
-        if i32_negative item then rust_std_string.model.concat5 (planning_schema ()) """
+        if item < 0i32 then rust_std_string.model.concat5 (planning_schema ()) """
 
 
 

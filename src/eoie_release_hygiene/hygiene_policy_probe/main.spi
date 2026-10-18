@@ -43,21 +43,21 @@ inl main () : i32 =
     inl class_cold = classify ".cold-rebuild-a"
     inl class_cargo = classify ".cargo"
     inl class_keep = classify "keep.txt"
-    if !!!!LT(spiral_entry,1i32) then 1i32
-    elif !!!!LT(typecheck_rs,1i32) then 1i32
-    elif !!!!LT(0i32,primary_keep) then 1i32
-    elif !!!!LT(typecheck_tmp,1i32) then 1i32
-    elif !!!!LT(c_sidecar,1i32) then 1i32
-    elif !!!!LT(0i32,secondary_keep) then 1i32
-    elif !!!!LT(root_receipt,1i32) then 1i32
-    elif !!!!LT(root_candidate,1i32) then 1i32
-    elif !!!!LT(0i32,root_file_keep) then 1i32
-    elif !!!!LT(root_probe,1i32) then 1i32
-    elif !!!!LT(root_cold,1i32) then 1i32
-    elif !!!!LT(0i32,root_aux_keep) then 1i32
-    elif !!!!LT(root_directory_cold,1i32) then 1i32
-    elif !!!!LT(root_directory_cargo,1i32) then 1i32
-    elif !!!!LT(0i32,root_directory_keep) then 1i32
+    if spiral_entry < 1i32 then 1i32
+    elif typecheck_rs < 1i32 then 1i32
+    elif 0i32 < primary_keep then 1i32
+    elif typecheck_tmp < 1i32 then 1i32
+    elif c_sidecar < 1i32 then 1i32
+    elif 0i32 < secondary_keep then 1i32
+    elif root_receipt < 1i32 then 1i32
+    elif root_candidate < 1i32 then 1i32
+    elif 0i32 < root_file_keep then 1i32
+    elif root_probe < 1i32 then 1i32
+    elif root_cold < 1i32 then 1i32
+    elif 0i32 < root_aux_keep then 1i32
+    elif root_directory_cold < 1i32 then 1i32
+    elif root_directory_cargo < 1i32 then 1i32
+    elif 0i32 < root_directory_keep then 1i32
     elif !!!!NEQ(class_spiral_entry,1u64) then 1i32
     elif !!!!NEQ(class_typecheck,1u64) then 1i32
     elif !!!!NEQ(class_typecheck_tmp,1u64) then 1i32

@@ -141,7 +141,7 @@ fn decimal_digits_value_6(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32
                 false
             };
             if v8 {
-                let mut v9: i32 = v1 + 1;
+                let mut v9: i32 = v1.wrapping_add(1i32);
                 let mut v10: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
                 let mut v11: i32 = v3 * 10 + v10 - 48;
                 (v0, v1, v2, v3) = (v0.clone(), v9, v2, v11);
@@ -163,7 +163,7 @@ fn decimal_value_5(mut v0: Rc<str>) -> US8 {
             let mut v5: i32 = 0i32;
             let mut v6: i32 = 0i32;
             let mut v7: i32 = decimal_digits_value_6(v0.clone(), v5, v1, v6);
-            let mut v8: bool = v7 < 0;
+            let mut v8: bool = v7 < 0i32;
             if v8 {
                 US8::US8_Invalid
             } else {
@@ -185,7 +185,7 @@ fn parse_planned_estimate_4(mut v0: Rc<str>) -> US6 {
         let mut v6: bool = v0.ends_with(&*v5);
         let mut v16: Rc<str> = if v6 {
             let mut v7: i32 = v0.len() as i32;
-            let mut v8: i32 = v7 - 1;
+            let mut v8: i32 = v7.wrapping_sub(1i32);
             let mut v9: Rc<str> = std::rc::Rc::<str>::from(v0.get(0i32 as usize..v8 as usize).unwrap_or(""));
             v9.clone()
         } else {
@@ -193,7 +193,7 @@ fn parse_planned_estimate_4(mut v0: Rc<str>) -> US6 {
             let mut v11: bool = v0.ends_with(&*v10);
             if v11 {
                 let mut v12: i32 = v0.len() as i32;
-                let mut v13: i32 = v12 - 1;
+                let mut v13: i32 = v12.wrapping_sub(1i32);
                 let mut v14: Rc<str> = std::rc::Rc::<str>::from(v0.get(0i32 as usize..v13 as usize).unwrap_or(""));
                 v14.clone()
             } else {

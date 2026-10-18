@@ -1,4 +1,5 @@
 packages:
+    |core-
     eoie_process_observation
 modules:
     main

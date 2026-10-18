@@ -18,6 +18,7 @@ enum US1 {
     US1_AgilePlan,
     US1_AgileMigrateTags,
     US1_AgileNote,
+    US1_AgileNoteEdit,
     US1_AgileNotes,
     US1_AgileRename,
     US1_AgileTodos,
@@ -100,7 +101,7 @@ fn command_descriptor_by_index_3(mut v0: Rc<str>) -> (Rc<str>, Rc<str>, Rc<str>,
     } else {
         let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("inspect\nmutate\nmutate\nwrap\nmutate\ninspect"); } LIT.with(|lit| lit.clone()) };
         let mut v10: Rc<str> = v1.split("|").zip(v9.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-        let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status [root]\npatch: apply <root> <plan.spi> [--compiler <absolute>] | check <root> <plan.spi> | rehearse <root> <plan.spi> | gated <root> <plan.spi> <gate-program>\nagile: init <root> | begin <root> <title> | lease <root> | status <root> | handoff <root> | list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json] | check <root> [--compiler <absolute>] | record <root> | set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done> | add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags> | edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value> | show <root> <id> [--json] | plan <root> [--json] | migrate-tags preview|apply <root> | note <root> <id> <text> [--as <author>] | notes from-title <root> <id> | rename <root> <old-id> <new-id> | todos <root> [<path>...] [--json]\nbundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>\nproxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew\nhelp [verb|--completion|--json|--schema] | proxy <capability>"); } LIT.with(|lit| lit.clone()) };
+        let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status [root]\npatch: apply <root> <plan.spi> [--compiler <absolute>] | check <root> <plan.spi> | rehearse <root> <plan.spi> | gated <root> <plan.spi> <gate-program>\nagile: init <root> | begin <root> <title> | lease <root> | status <root> | handoff <root> | list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json] | check <root> [--compiler <absolute>] | record <root> | set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done> | add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags> | edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value> | show <root> <id> [--json] | plan <root> [--json] | migrate-tags preview|apply <root> | note <root> <id> <text> [--as <author>] | note-edit <root> <id> <note-number> <text> | notes from-title <root> <id> | rename <root> <old-id> <new-id> | todos <root> [<path>...] [--json]\nbundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>\nproxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew\nrepo: state <root> [<root>...]\nread <path>[:from-to]... [--max-lines n] | lines <path|glob>... | grep <root> <needle> [--glob pattern] [--context n] [--max n] [--ignore-case]\ntable: query <file> [--where col=value]... [--cols a,b] [--group col] [--limit n] | diff <left> <right> --key a,b [--cols x,y] [--limit n]\njob: start <label> <timeout-ms> <program> [args...] | status <id> | wait <id> <max-ms> | list [count] | tail <id> [lines]\nhelp [verb|--completion|--json|--schema] | proxy <capability>"); } LIT.with(|lit| lit.clone()) };
         let mut v12: Rc<str> = v1.split("|").zip(v11.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
         let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("inspect migration evidence toolchain and authority state\nrehearse gate and apply typed patch plans\nmanage typed backlog leases and turn receipts\ncheck create verify rehydrate and retain bundles\nexecute bounded filesystem process archive toolchain and evidence capabilities\nrender the public command catalog"); } LIT.with(|lit| lit.clone()) };
         let mut v14: Rc<str> = v1.split("|").zip(v13.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
@@ -392,29 +393,37 @@ fn agile_subcommand_of_14(mut v0: Rc<str>) -> US0 {
     } else {
         v71.clone()
     };
-    let mut v77: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("notes"); } LIT.with(|lit| lit.clone()) };
+    let mut v77: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("note-edit"); } LIT.with(|lit| lit.clone()) };
     let mut v78: bool = v0 == v77 ;
     let mut v81: US0 = if v78 {
-        let mut v79: US1 = US1::US1_AgileNotes;
+        let mut v79: US1 = US1::US1_AgileNoteEdit;
         US0::US0_AgileKnown(v79.clone())
     } else {
         v76.clone()
     };
-    let mut v82: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rename"); } LIT.with(|lit| lit.clone()) };
+    let mut v82: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("notes"); } LIT.with(|lit| lit.clone()) };
     let mut v83: bool = v0 == v82 ;
     let mut v86: US0 = if v83 {
-        let mut v84: US1 = US1::US1_AgileRename;
+        let mut v84: US1 = US1::US1_AgileNotes;
         US0::US0_AgileKnown(v84.clone())
     } else {
         v81.clone()
     };
-    let mut v87: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("todos"); } LIT.with(|lit| lit.clone()) };
+    let mut v87: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rename"); } LIT.with(|lit| lit.clone()) };
     let mut v88: bool = v0 == v87 ;
-    if v88 {
-        let mut v89: US1 = US1::US1_AgileTodos;
+    let mut v91: US0 = if v88 {
+        let mut v89: US1 = US1::US1_AgileRename;
         US0::US0_AgileKnown(v89.clone())
     } else {
         v86.clone()
+    };
+    let mut v92: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("todos"); } LIT.with(|lit| lit.clone()) };
+    let mut v93: bool = v0 == v92 ;
+    if v93 {
+        let mut v94: US1 = US1::US1_AgileTodos;
+        US0::US0_AgileKnown(v94.clone())
+    } else {
+        v91.clone()
     }
 }
 fn agile_subcommand_known_13(mut v0: Rc<str>) -> i32 {

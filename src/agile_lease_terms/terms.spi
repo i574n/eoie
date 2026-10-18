@@ -91,10 +91,10 @@ inl two_digits (value : u64) : string =
     else u64_text value
 
 inl duration_text (milliseconds : u64) : string =
-    inl seconds = u64_div milliseconds 1000u64
-    inl hours = u64_div seconds 3600u64
-    inl minutes = u64_rem (u64_div seconds 60u64) 60u64
-    inl rest = u64_rem seconds 60u64
+    inl seconds = milliseconds / 1000u64
+    inl hours = seconds / 3600u64
+    inl minutes = (seconds / 60u64) % 60u64
+    inl rest = seconds % 60u64
     if u64_positive hours then rust_std_string.model.concat5 (u64_text hours) "h" (two_digits minutes) "m" ""
     elif u64_positive minutes then rust_std_string.model.concat5 (u64_text minutes) "m" (two_digits rest) "s" ""
     else rust_std_string.model.concat5 (u64_text rest) "s" "" "" ""

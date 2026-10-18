@@ -1,0 +1,16 @@
+[package.metadata.spiral]
+entry = "compiled.spi"
+output = "do_program.rs"
+
+[package]
+name = "eoie-do-program"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do_program"
+path = "do_program.rs"
+
+[dependencies]

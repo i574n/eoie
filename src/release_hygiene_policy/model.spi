@@ -3,13 +3,13 @@ union hygiene_candidate =
     | RemoveCompilerSidecar
 
 let hygiene_primary_binding (spiral_entry : i32) (typecheck_rs : i32) : i32 =
-    if !!!!LT(0i32,spiral_entry) then 1i32
-    elif !!!!LT(0i32,typecheck_rs) then 1i32
+    if 0i32 < spiral_entry then 1i32
+    elif 0i32 < typecheck_rs then 1i32
     else 0i32
 
 let hygiene_secondary_binding (typecheck_tmp : i32) (c_with_spi : i32) : i32 =
-    if !!!!LT(0i32,typecheck_tmp) then 1i32
-    elif !!!!LT(0i32,c_with_spi) then 1i32
+    if 0i32 < typecheck_tmp then 1i32
+    elif 0i32 < c_with_spi then 1i32
     else 0i32
 
 union hygiene_root_transient =
@@ -27,18 +27,18 @@ inl hygiene_root_transient_label = function
     | RootCargoDirectory => ".cargo"
 
 let hygiene_root_file_binding (receipt : i32) (release_candidate : i32) : i32 =
-    if !!!!LT(0i32,receipt) then 1i32
-    elif !!!!LT(0i32,release_candidate) then 1i32
+    if 0i32 < receipt then 1i32
+    elif 0i32 < release_candidate then 1i32
     else 0i32
 
 let hygiene_root_aux_binding (probe_source : i32) (cold_rebuild : i32) : i32 =
-    if !!!!LT(0i32,probe_source) then 1i32
-    elif !!!!LT(0i32,cold_rebuild) then 1i32
+    if 0i32 < probe_source then 1i32
+    elif 0i32 < cold_rebuild then 1i32
     else 0i32
 
 let hygiene_root_directory_binding (cold_rebuild : i32) (toolchain_config : i32) : i32 =
-    if !!!!LT(0i32,cold_rebuild) then 1i32
-    elif !!!!LT(0i32,toolchain_config) then 1i32
+    if 0i32 < cold_rebuild then 1i32
+    elif 0i32 < toolchain_config then 1i32
     else 0i32
 
 

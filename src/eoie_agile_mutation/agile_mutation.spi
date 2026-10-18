@@ -30,7 +30,7 @@ inl i32_eq a b : bool = $"!a == !b"
 inl i32_le a b : bool = $"!a <= !b"
 inl i32_nonnegative value : bool = $"0 <= !value"
 inl i32_positive value : bool = $"0 < !value"
-inl i32_digit value : bool = if i32_le 48i32 value then i32_le value 57i32 else false
+inl i32_digit value : bool = if 48i32 <= value then value <= 57i32 else false
 inl i32_digit_value value : i32 = $"!value - 48"
 inl i32_pair_value a b : i32 = $"!a * 10 + !b"
 inl i32_triple_value a b c : i32 = $"!a * 100 + !b * 10 + !c"
@@ -73,11 +73,11 @@ inl validate_progress () : validation_result agile_progress =
     inl a = digit_value 3i32 0i32
     inl b = digit_value 3i32 1i32
     inl c = digit_value 3i32 2i32
-    if all2 (i32_eq length 1i32) (i32_nonnegative a) then Valid (agile_progress a)
-    elif all3 (i32_eq length 2i32) (i32_nonnegative a) (i32_nonnegative b) then Valid (agile_progress (i32_pair_value a b))
-    elif all4 (i32_eq length 3i32) (i32_nonnegative a) (i32_nonnegative b) (i32_nonnegative c) then
+    if all2 (length = 1i32) (i32_nonnegative a) then Valid (agile_progress a)
+    elif all3 (length = 2i32) (i32_nonnegative a) (i32_nonnegative b) then Valid (agile_progress (i32_pair_value a b))
+    elif all4 (length = 3i32) (i32_nonnegative a) (i32_nonnegative b) (i32_nonnegative c) then
         inl value = i32_triple_value a b c
-        if i32_le value 100i32 then Valid (agile_progress value) else Invalid
+        if value <= 100i32 then Valid (agile_progress value) else Invalid
     else Invalid
 inl validate_status () : validation_result agile_status =
     inl text = argument_owned 4i32
@@ -93,7 +93,7 @@ inl agile_edit_route () : i32 =
 inl agile_argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
 
 inl agile_root_only (run : string -> i32) : i32 = if args_len_is 2i32 then run (argument_owned 1i32) else agile_usage_error ()
-inl agile_with_root (route : () -> i32) : i32 = if i32_le 2i32 (agile_argument_count ()) then route () else agile_usage_error ()
+inl agile_with_root (route : () -> i32) : i32 = if 2i32 <= agile_argument_count () then route () else agile_usage_error ()
 inl agile_arity_route (accepted : bool) (route : () -> i32) : i32 = if accepted then route () else agile_usage_error ()
 inl agile_either_arity a b : bool = if args_len_is a then true else args_len_is b
 inl agile_begin_route () : i32 =
@@ -127,6 +127,7 @@ inl agile_route (subcommand : agile_subcommand) : i32 =
     | AgilePlan => agile_with_root fun () => $"agile_planning_rollup::eoie_agile_planning_rollup_run()"
     | AgileMigrateTags => agile_with_root fun () => $"agile_planning_migration::eoie_agile_migrate_tags_run()"
     | AgileNote => agile_arity_route (agile_either_arity 4i32 6i32) fun () => $"agile_task_notes::eoie_agile_note_run()"
+    | AgileNoteEdit => agile_arity_route (args_len_is 5i32) fun () => $"agile_task_notes::eoie_agile_note_edit_run()"
     | AgileNotes => agile_arity_route (args_len_is 4i32) fun () => $"agile_title_notes::eoie_agile_notes_from_title_run()"
     | AgileRename => agile_arity_route (args_len_is 4i32) fun () => $"agile_task_rename::eoie_agile_rename_run()"
     | AgileTodos => agile_with_root fun () => $"agile_todo_scan::eoie_agile_todos_run()"

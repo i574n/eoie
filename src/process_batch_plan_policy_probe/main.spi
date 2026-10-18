@@ -37,21 +37,21 @@ inl main () : i32 =
     inl cargo_root = workspace_policy 3i32 1i32
     inl noncargo_nested = workspace_policy 0i32 1i32
     inl invalid_workspace = workspace_policy 4i32 1i32
-    if !!!!EQ(spawn,1i32) then
-        if !!!!EQ(run,2i32) then
-            if !!!!EQ(link,3i32) then
-                if !!!!EQ(complete,5i32) then
-                    if !!!!EQ(row_pass,1i32) then
-                        if !!!!EQ(row_block,1i32) then
-                            if !!!!EQ(dep_root,1i32) then
-                                if !!!!EQ(dep_pass,1i32) then
-                                    if !!!!EQ(accept_pass,1i32) then
-                                        if !!!!EQ(accept_block,1i32) then
-                                            if !!!!EQ(resume_skip,0i32) then
-                                                if !!!!EQ(cargo_nested,1i32) then
-                                                    if !!!!EQ(cargo_root,0i32) then
-                                                        if !!!!EQ(noncargo_nested,0i32) then
-                                                            if !!!!LT(invalid_workspace,0i32) then 0i32 else 1i32
+    if spawn = 1i32 then
+        if run = 2i32 then
+            if link = 3i32 then
+                if complete = 5i32 then
+                    if row_pass = 1i32 then
+                        if row_block = 1i32 then
+                            if dep_root = 1i32 then
+                                if dep_pass = 1i32 then
+                                    if accept_pass = 1i32 then
+                                        if accept_block = 1i32 then
+                                            if resume_skip = 0i32 then
+                                                if cargo_nested = 1i32 then
+                                                    if cargo_root = 0i32 then
+                                                        if noncargo_nested = 0i32 then
+                                                            if invalid_workspace < 0i32 then 0i32 else 1i32
                                                         else 1i32
                                                     else 1i32
                                                 else 1i32

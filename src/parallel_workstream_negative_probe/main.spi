@@ -7,11 +7,11 @@ inl main () : i32 =
     inl cancel_unsafe = workstream_cancel_before_promotion_binding 1i32 2i32 1i32 2i32 1i32 0i32 2i32
     inl canonical_unsafe = workstream_cancel_before_promotion_binding 1i32 2i32 1i32 2i32 0i32 1i32 2i32
     inl negative_guard =
-        if !!!!EQ(concurrency,0i32) then
-            if !!!!EQ(completion,1i32) then
-                if !!!!EQ(merge_authorized,0i32) then
-                    if !!!!EQ(cancel_unsafe,0i32) then
-                        if !!!!EQ(canonical_unsafe,0i32) then 0i32 else 1i32
+        if concurrency = 0i32 then
+            if completion = 1i32 then
+                if merge_authorized = 0i32 then
+                    if cancel_unsafe = 0i32 then
+                        if canonical_unsafe = 0i32 then 0i32 else 1i32
                     else 1i32
                 else 1i32
             else 1i32

@@ -265,7 +265,7 @@ fn closure0() -> Rc<dyn Fn(Rc<str>, Rc<str>) -> bool> {
 fn declared_from_7(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
     loop {
         let mut v3: i32 = v0.get(v2 as usize..).and_then(|rest| rest.find(&*v1)).map(|found| (found + v2 as usize) as i32).unwrap_or(-1);
-        let mut v4: bool = v3 < 0;
+        let mut v4: bool = v3 < 0i32;
         if v4 {
             return v3;
         } else {
@@ -276,7 +276,7 @@ fn declared_from_7(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
             if v8 {
                 return v3;
             } else {
-                let mut v9: i32 = v3 + 1;
+                let mut v9: i32 = v3.wrapping_add(1i32);
                 (v0, v1, v2) = (v0.clone(), v1.clone(), v9);
                 continue;
             }
@@ -307,7 +307,7 @@ fn field_end_10(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US10) -> i32 
             if v9 {
                 return v1;
             } else {
-                let mut v10: i32 = v1 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
                 let mut v25: US10 = match &v3 {
                     US10::US10_ScanEscaped => {
                         US10::US10_ScanQuoted
@@ -345,7 +345,7 @@ fn skip_spaces_11(mut v0: Rc<str>, mut v1: i32) -> i32 {
         let mut v2: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
         let mut v3: bool = v2 == 32i32;
         if v3 {
-            let mut v4: i32 = v1 + 1;
+            let mut v4: i32 = v1.wrapping_add(1i32);
             (v0, v1) = (v0.clone(), v4);
             continue;
         } else {
@@ -361,9 +361,9 @@ fn field_start_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 
         } else {
             let mut v5: US10 = US10::US10_ScanPlain;
             let mut v6: i32 = field_end_10(v0.clone(), v1, v2, v5.clone());
-            let mut v7: i32 = v6 + 1;
+            let mut v7: i32 = v6.wrapping_add(1i32);
             let mut v8: i32 = skip_spaces_11(v0.clone(), v7);
-            let mut v9: i32 = v3 - 1;
+            let mut v9: i32 = v3.wrapping_sub(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v8, v2, v9);
             continue;
         }
@@ -384,7 +384,7 @@ fn decimal_digits_value_13(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i3
                 false
             };
             if v8 {
-                let mut v9: i32 = v1 + 1;
+                let mut v9: i32 = v1.wrapping_add(1i32);
                 let mut v10: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
                 let mut v11: i32 = v3 * 10 + v10 - 48;
                 (v0, v1, v2, v3) = (v0.clone(), v9, v2, v11);
@@ -406,7 +406,7 @@ fn decimal_value_12(mut v0: Rc<str>) -> US11 {
             let mut v5: i32 = 0i32;
             let mut v6: i32 = 0i32;
             let mut v7: i32 = decimal_digits_value_13(v0.clone(), v5, v1, v6);
-            let mut v8: bool = v7 < 0;
+            let mut v8: bool = v7 < 0i32;
             if v8 {
                 US11::US11_Invalid
             } else {
@@ -501,7 +501,7 @@ fn planning_of_6(mut v0: Rc<str>, mut v1: Rc<str>) -> (US9, US2, US6) {
     let mut v5: Rc<str> = std::rc::Rc::<str>::from([&*v2, &*v1, &*v3, &*v4, &*v4].concat());
     let mut v6: i32 = 0i32;
     let mut v7: i32 = declared_from_7(v0.clone(), v5.clone(), v6);
-    let mut v8: bool = v7 < 0;
+    let mut v8: bool = v7 < 0i32;
     let (mut v15, mut v16, mut v17): (US9, US2, US6) = if v8 {
         let mut v9: US9 = US9::US9_Unestimated;
         let mut v10: US2 = US2::US2_LoadUnset;

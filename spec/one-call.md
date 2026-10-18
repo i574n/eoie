@@ -49,7 +49,7 @@ show lib/main.spi'
 
 ```expected
 edit lib/bench_kit.spi  2 replacements  lines 2-3  sha256 <hash> -> <hash>
-edit lib/main.spi     1 replacement   line 1     sha256 <hash> -> <hash>
+edit lib/main.spi       1 replacement   line 1     sha256 <hash> -> <hash>
 lib/main.spi
 1  inl main () : i32 =
 2      bench_kit.run_all []
@@ -101,7 +101,7 @@ eoie do . 'search "if v|RecursiveCreate" in out/**/*.rs context 1 first 12 per f
 ```expected
 out/a/main.rs
 1  fn f() {
-2> if v0 { RecursiveCreate(1) }
+2>     if v0 { RecursiveCreate(1) }
 3  }
 ok  files 2 searched  1 matched  matches 1  <elapsed>  <clock>
 ```

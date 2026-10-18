@@ -8,9 +8,9 @@ inl main () : i32 =
     inl default_limit = streaming_policy_export 1i32 0i32
     inl ceiling_limit = streaming_policy_export 2i32 67108864i32
     inl tree_allowed = streaming_policy_export 0i32 1i32
-    if !!!!EQ(default_limit,16777216i32) then
-        if !!!!EQ(ceiling_limit,67108864i32) then
-            if !!!!EQ(tree_allowed,1i32) then
+    if default_limit = 16777216i32 then
+        if ceiling_limit = 67108864i32 then
+            if tree_allowed = 1i32 then
                 match ProcessStdoutStream, ProcessStderrStream with
                 | ProcessStdoutStream, ProcessStderrStream => 0i32
             else -1i32

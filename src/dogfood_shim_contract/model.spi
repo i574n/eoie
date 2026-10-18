@@ -28,33 +28,33 @@ inl dogfood_shim_plan () : shim_plan shim_idle shim_installed =
     ))
 
 let shim_decision_binding (mode : i32) (native_equivalent : i32) (allow_real : i32) (gap_present : i32) : i32 =
-    if !!!!LT(mode,0i32) then -1i32
-    elif !!!!LT(2i32,mode) then -1i32
-    elif !!!!LT(native_equivalent,0i32) then -1i32
-    elif !!!!LT(1i32,native_equivalent) then -1i32
-    elif !!!!LT(allow_real,0i32) then -1i32
-    elif !!!!LT(1i32,allow_real) then -1i32
-    elif !!!!LT(gap_present,0i32) then -1i32
-    elif !!!!LT(1i32,gap_present) then -1i32
-    elif !!!!EQ(mode,2i32) then 2i32
-    elif !!!!EQ(native_equivalent,1i32) then 0i32
-    elif !!!!EQ(allow_real,1i32) then
-        if !!!!EQ(gap_present,1i32) then 1i32 else 0i32
+    if mode < 0i32 then -1i32
+    elif 2i32 < mode then -1i32
+    elif native_equivalent < 0i32 then -1i32
+    elif 1i32 < native_equivalent then -1i32
+    elif allow_real < 0i32 then -1i32
+    elif 1i32 < allow_real then -1i32
+    elif gap_present < 0i32 then -1i32
+    elif 1i32 < gap_present then -1i32
+    elif mode = 2i32 then 2i32
+    elif native_equivalent = 1i32 then 0i32
+    elif allow_real = 1i32 then
+        if gap_present = 1i32 then 1i32 else 0i32
     else 0i32
 
 let shim_decision_packed_binding (mode : i32) (flags : i32) : i32 =
-    if !!!!LT(flags,0i32) then -1i32
-    elif !!!!LT(7i32,flags) then -1i32
+    if flags < 0i32 then -1i32
+    elif 7i32 < flags then -1i32
     else
-        inl native_equivalent = !!!!Mod(flags,2i32)
-        inl allow_real = !!!!Mod(!!!!Div(flags,2i32),2i32)
-        inl gap_present = !!!!Mod(!!!!Div(flags,4i32),2i32)
+        inl native_equivalent = flags % 2i32
+        inl allow_real = (flags / 2i32) % 2i32
+        inl gap_present = (flags / 4i32) % 2i32
         shim_decision_binding mode native_equivalent allow_real gap_present
 
 let shim_install_packed_binding (shape : i32) (mode : i32) : i32 =
     if !!!!NEQ(shape,9i32) then 0i32
-    elif !!!!LT(mode,0i32) then 0i32
-    elif !!!!LT(2i32,mode) then 0i32
+    elif mode < 0i32 then 0i32
+    elif 2i32 < mode then 0i32
     else 1i32
 
 let shim_uninstall_binding (manifest_present : i32) (wrapper_count : i32) : i32 =

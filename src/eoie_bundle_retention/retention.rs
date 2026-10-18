@@ -21,7 +21,7 @@ fn retention_build_plan(directory: &Path, current: &str) -> Result<RetentionPlan
 fn retention_atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> { let parent = path.parent().ok_or_else(|| format!("path has no parent: {}", path.display()))?; fs::create_dir_all(parent).map_err(|error| format!("create {}: {error}", parent.display()))?; let name = path.file_name().and_then(|value| value.to_str()).unwrap_or("retention.spi"); let temporary = parent.join(format!(".{name}.eoie-retention-{}", std::process::id())); fs::write(&temporary, bytes).map_err(|error| format!("write {}: {error}", temporary.display()))?; fs::rename(&temporary, path).map_err(|error| format!("commit {}: {error}", path.display()))?; Ok(()) }
 fn retention_receipt_source(plan: &RetentionPlan, status: &str, remaining: usize) -> String { eoie_retention_receipt_source(&plan.fingerprint, &plan.current_hash, plan.candidate_count as u64, plan.delete_count as u64, remaining as u64, status).to_string() }
 fn retention_write_receipt(path: &Path, plan: &RetentionPlan, status: &str, remaining: usize) -> Result<(), String> { let previous = fs::read(path).ok(); let source = retention_receipt_source(plan, status, remaining); retention_atomic_write(path, source.as_bytes())?; let verified = retention_read_receipt(path).and_then(|receipt| { let ok = receipt.fingerprint == plan.fingerprint && receipt.current_hash == plan.current_hash && receipt.candidates == plan.candidate_count && receipt.deletes == plan.delete_count && receipt.remaining == remaining && receipt.status == status; if ok { Ok(()) } else { Err("retention receipt runtime readback mismatch".to_owned()) } }); if let Err(error) = verified { if let Some(bytes) = previous { let _ = retention_atomic_write(path, &bytes); } else { let _ = fs::remove_file(path); } return Err(error); } Ok(()) }
-fn retention_read_receipt(path: &Path) -> Result<RetentionReceipt, String> { let text = fs::read_to_string(path).map_err(|error| format!("read {}: {error}", path.display()))?; let line = text.lines().find(|line| line.starts_with("// retention-receipt|")).ok_or_else(|| "retention receipt marker missing".to_owned())?; let mut schema = None; let mut fingerprint = None; let mut current_hash = None; let mut candidates = None; let mut deletes = None; let mut remaining = None; let mut status = None; for field in line.split('|').skip(1) { let (key, value) = field.split_once('=').ok_or_else(|| format!("invalid retention receipt field: {field}"))?; match key { "schema" => schema = Some(value.to_owned()), "fingerprint" => fingerprint = Some(value.to_owned()), "current" => current_hash = Some(value.to_owned()), "candidates" => candidates = Some(value.parse::<usize>().map_err(|error| error.to_string())?), "deletes" => deletes = Some(value.parse::<usize>().map_err(|error| error.to_string())?), "remaining" => remaining = Some(value.parse::<usize>().map_err(|error| error.to_string())?), "status" => status = Some(value.to_owned()), _ => return Err(format!("unknown retention receipt field: {key}")), } } if schema.as_deref() != Some("1") { return Err("unsupported retention receipt schema".to_owned()); } let receipt = RetentionReceipt { fingerprint: fingerprint.ok_or_else(|| "missing receipt fingerprint".to_owned())?, current_hash: current_hash.ok_or_else(|| "missing receipt current hash".to_owned())?, candidates: candidates.ok_or_else(|| "missing receipt candidate count".to_owned())?, deletes: deletes.ok_or_else(|| "missing receipt delete count".to_owned())?, remaining: remaining.ok_or_else(|| "missing receipt remaining count".to_owned())?, status: status.ok_or_else(|| "missing receipt status".to_owned())? }; if receipt.status != "planned" && receipt.status != "applied" { return Err(format!("invalid retention receipt status: {}", receipt.status)); } Ok(receipt) }
+fn retention_read_receipt(path: &Path) -> Result<RetentionReceipt, String> { let text = fs::read_to_string(path).map_err(|error| format!("read {}: {error}", path.display()))?; let error = eoie_retention_receipt_error(&text); if !error.is_empty() { return Err(error.to_string()); } let row = eoie_retention_receipt_row(&text); let parts = row.split(char::from(9u8)).collect::<Vec<_>>(); let field = |index: usize| parts.get(index).copied().unwrap_or_default(); Ok(RetentionReceipt { fingerprint: field(0).to_owned(), current_hash: field(1).to_owned(), candidates: field(2).parse().unwrap_or(0), deletes: field(3).parse().unwrap_or(0), remaining: field(4).parse().unwrap_or(0), status: field(5).to_owned() }) }
 fn retention_series_names(directory: &Path, prefix: &str) -> Result<BTreeSet<String>, String> { let mut names = BTreeSet::new(); for entry in fs::read_dir(directory).map_err(|error| format!("read {}: {error}", directory.display()))? { let entry = entry.map_err(|error| error.to_string())?; let name = entry.file_name().into_string().map_err(|_| "retention candidate name is not UTF-8".to_owned())?; if !name.starts_with(prefix) || !name.ends_with(".zip") { continue; } let digits = &name[prefix.len()..name.len() - 4]; if digits.is_empty() || !digits.bytes().all(|byte| byte.is_ascii_digit()) { return Err(format!("malformed retention candidate: {name}")); } let metadata = fs::symlink_metadata(entry.path()).map_err(|error| error.to_string())?; if metadata.file_type().is_symlink() || !metadata.is_file() { return Err(format!("retention candidate must be regular: {name}")); } names.insert(name); } Ok(names) }
 fn retention_stage_copy(source: &Path, staged: &Path) -> Result<(), String> { if let Some(parent) = staged.parent() { fs::create_dir_all(parent).map_err(|error| format!("create {}: {error}", parent.display()))?; } if let Err(link_error) = fs::hard_link(source, staged) { fs::copy(source, staged).map_err(|copy_error| format!("stage {}: hardlink={link_error}; copy={copy_error}", source.display()))?; } if retention_file_hash(source)? != retention_file_hash(staged)? { return Err(format!("staged retention hash mismatch: {}", source.display())); } Ok(()) }
 fn retention_restore(directory: &Path, stage: &Path, names: &[String]) -> Result<(), String> { let mut errors = Vec::new(); for name in names { let source = directory.join(name); let staged = stage.join(name); if !source.exists() && staged.is_file() { if let Err(error) = fs::hard_link(&staged, &source).or_else(|_| fs::copy(&staged, &source).map(|_| ())) { errors.push(format!("restore {name}: {error}")); } } } let _ = fs::remove_dir_all(stage); if errors.is_empty() { Ok(()) } else { Err(errors.join("; ")) } }
@@ -46,8 +46,23 @@ enum US0 {
 }
 #[derive(Clone)]
 enum US2 {
-    US2_PlannedReceipt,
-    US2_AppliedReceipt,
+    US2_ReceiptRead(Rc<str>),
+    US2_ReceiptRejected(Rc<str>),
+}
+#[derive(Clone)]
+enum US3 {
+    US3_Absent,
+    US3_Present(Rc<str>),
+}
+#[derive(Clone)]
+enum US4 {
+    US4_FieldTaken(US3, US3, US3, US3, US3, US3, US3),
+    US4_FieldRejected(Rc<str>),
+}
+#[derive(Clone)]
+enum US5 {
+    US5_PlannedReceipt,
+    US5_AppliedReceipt,
 }
 fn read_series_1(mut v0: Rc<str>) -> US0 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".zip"); } LIT.with(|lit| lit.clone()) };
@@ -168,7 +183,367 @@ fn closure2() -> Rc<dyn Fn(Rc<str>) -> u64> {
         series_alpha_3(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn receipt_source_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: Rc<str>) -> Rc<str> {
+fn field_applied_7(mut v0: US3, mut v1: US3, mut v2: US3, mut v3: US3, mut v4: US3, mut v5: US3, mut v6: US3, mut v7: Rc<str>) -> US4 {
+    let mut v8: bool = v7.contains(char::from(61u8));
+    if v8 {
+        let mut v9: Rc<str> = std::rc::Rc::<str>::from(v7.split_once(char::from(61u8)).map(|pair| pair.0).unwrap_or(""));
+        let mut v10: Rc<str> = std::rc::Rc::<str>::from(v7.split_once(char::from(61u8)).map(|pair| pair.1).unwrap_or(""));
+        let mut v11: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("schema"); } LIT.with(|lit| lit.clone()) };
+        if v11 {
+            let mut v12: US3 = US3::US3_Present(v10.clone());
+            US4::US4_FieldTaken(v12.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone())
+        } else {
+            let mut v14: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fingerprint"); } LIT.with(|lit| lit.clone()) };
+            if v14 {
+                let mut v15: US3 = US3::US3_Present(v10.clone());
+                US4::US4_FieldTaken(v0.clone(), v15.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone())
+            } else {
+                let mut v17: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("current"); } LIT.with(|lit| lit.clone()) };
+                if v17 {
+                    let mut v18: US3 = US3::US3_Present(v10.clone());
+                    US4::US4_FieldTaken(v0.clone(), v1.clone(), v18.clone(), v3.clone(), v4.clone(), v5.clone(), v6.clone())
+                } else {
+                    let mut v20: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("candidates"); } LIT.with(|lit| lit.clone()) };
+                    let mut v22: bool = if v20 {
+                        true
+                    } else {
+                        let mut v21: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deletes"); } LIT.with(|lit| lit.clone()) };
+                        v21
+                    };
+                    let mut v24: bool = if v22 {
+                        true
+                    } else {
+                        let mut v23: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("remaining"); } LIT.with(|lit| lit.clone()) };
+                        v23
+                    };
+                    if v24 {
+                        let mut v25: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().err().map(|error| error.to_string()).unwrap_or_default());
+                        let mut v26: bool = v25.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                        let mut v27: bool = v26 != true;
+                        if v27 {
+                            US4::US4_FieldRejected(v25.clone())
+                        } else {
+                            if v20 {
+                                let mut v29: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
+                                let mut v30: US3 = US3::US3_Present(v29.clone());
+                                US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v30.clone(), v4.clone(), v5.clone(), v6.clone())
+                            } else {
+                                let mut v32: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deletes"); } LIT.with(|lit| lit.clone()) };
+                                if v32 {
+                                    let mut v33: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
+                                    let mut v34: US3 = US3::US3_Present(v33.clone());
+                                    US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v34.clone(), v5.clone(), v6.clone())
+                                } else {
+                                    let mut v36: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
+                                    let mut v37: US3 = US3::US3_Present(v36.clone());
+                                    US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v37.clone(), v6.clone())
+                                }
+                            }
+                        }
+                    } else {
+                        let mut v42: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status"); } LIT.with(|lit| lit.clone()) };
+                        if v42 {
+                            let mut v43: US3 = US3::US3_Present(v10.clone());
+                            US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v43.clone())
+                        } else {
+                            let mut v45: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unknown retention receipt field: "); } LIT.with(|lit| lit.clone()) };
+                            let mut v46: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                            let mut v47: Rc<str> = std::rc::Rc::<str>::from([&*v45, &*v9, &*v46, &*v46, &*v46].concat());
+                            US4::US4_FieldRejected(v47.clone())
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid retention receipt field: "); } LIT.with(|lit| lit.clone()) };
+        let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        let mut v56: Rc<str> = std::rc::Rc::<str>::from([&*v54, &*v7, &*v55, &*v55, &*v55].concat());
+        US4::US4_FieldRejected(v56.clone())
+    }
+}
+fn fields_from_6(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: US3, mut v4: US3, mut v5: US3, mut v6: US3, mut v7: US3, mut v8: US3, mut v9: US3) -> US4 {
+    loop {
+        let mut v10: bool = v1 < v2;
+        if v10 {
+            let mut v11: Rc<str> = std::rc::Rc::<str>::from(v0.split(char::from(124u8)).nth(v1 as usize).unwrap_or(""));
+            let mut v12: US4 = field_applied_7(v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone(), v9.clone(), v11.clone());
+            match &v12 {
+                US4::US4_FieldRejected(v22) => {
+                    let mut v22: Rc<str> = v22.clone();
+                    return US4::US4_FieldRejected(v22.clone());
+                }
+                US4::US4_FieldTaken(v13, v14, v15, v16, v17, v18, v19) => {
+                    let mut v13: US3 = v13.clone();
+                    let mut v14: US3 = v14.clone();
+                    let mut v15: US3 = v15.clone();
+                    let mut v16: US3 = v16.clone();
+                    let mut v17: US3 = v17.clone();
+                    let mut v18: US3 = v18.clone();
+                    let mut v19: US3 = v19.clone();
+                    let mut v20: u64 = v1.wrapping_add(1u64);
+                    (v0, v1, v2, v3, v4, v5, v6, v7, v8, v9) = (v0.clone(), v20, v2, v13.clone(), v14.clone(), v15.clone(), v16.clone(), v17.clone(), v18.clone(), v19.clone());
+                    continue;
+                }
+            }
+        } else {
+            return US4::US4_FieldTaken(v3.clone(), v4.clone(), v5.clone(), v6.clone(), v7.clone(), v8.clone(), v9.clone());
+        }
+    }
+}
+fn receipt_reading_of_5(mut v0: Rc<str>) -> US2 {
+    let mut v1: Rc<str> = std::rc::Rc::<str>::from(v0.lines().find(|line| line.starts_with("// retention-receipt|")).unwrap_or(""));
+    let mut v2: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+    if v2 {
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("retention receipt marker missing"); } LIT.with(|lit| lit.clone()) };
+        US2::US2_ReceiptRejected(v3.clone())
+    } else {
+        let mut v5: u64 = 1u64;
+        let mut v6: u64 = v1.split(char::from(124u8)).count() as u64;
+        let mut v7: US3 = US3::US3_Absent;
+        let mut v8: US3 = US3::US3_Absent;
+        let mut v9: US3 = US3::US3_Absent;
+        let mut v10: US3 = US3::US3_Absent;
+        let mut v11: US3 = US3::US3_Absent;
+        let mut v12: US3 = US3::US3_Absent;
+        let mut v13: US3 = US3::US3_Absent;
+        let mut v14: US4 = fields_from_6(v1.clone(), v5, v6, v7.clone(), v8.clone(), v9.clone(), v10.clone(), v11.clone(), v12.clone(), v13.clone());
+        match &v14 {
+            US4::US4_FieldRejected(v15) => {
+                let mut v15: Rc<str> = v15.clone();
+                US2::US2_ReceiptRejected(v15.clone())
+            }
+            US4::US4_FieldTaken(v17, v18, v19, v20, v21, v22, v23) => {
+                let mut v17: US3 = v17.clone();
+                let mut v18: US3 = v18.clone();
+                let mut v19: US3 = v19.clone();
+                let mut v20: US3 = v20.clone();
+                let mut v21: US3 = v21.clone();
+                let mut v22: US3 = v22.clone();
+                let mut v23: US3 = v23.clone();
+                let mut v27: bool = match &v17 {
+                    US3::US3_Absent => {
+                        false
+                    }
+                    US3::US3_Present(v24) => {
+                        let mut v24: Rc<str> = v24.clone();
+                        let mut v25: bool = v24.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
+                        v25
+                    }
+                };
+                let mut v28: bool = v27 == false;
+                if v28 {
+                    let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unsupported retention receipt schema"); } LIT.with(|lit| lit.clone()) };
+                    US2::US2_ReceiptRejected(v29.clone())
+                } else {
+                    let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("missing receipt fingerprint"); } LIT.with(|lit| lit.clone()) };
+                    let mut v36: US2 = match &v18 {
+                        US3::US3_Absent => {
+                            US2::US2_ReceiptRejected(v31.clone())
+                        }
+                        US3::US3_Present(v32) => {
+                            let mut v32: Rc<str> = v32.clone();
+                            US2::US2_ReceiptRead(v32.clone())
+                        }
+                    };
+                    let mut v37: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("missing receipt current hash"); } LIT.with(|lit| lit.clone()) };
+                    let mut v42: US2 = match &v19 {
+                        US3::US3_Absent => {
+                            US2::US2_ReceiptRejected(v37.clone())
+                        }
+                        US3::US3_Present(v38) => {
+                            let mut v38: Rc<str> = v38.clone();
+                            US2::US2_ReceiptRead(v38.clone())
+                        }
+                    };
+                    match &v36 {
+                        US2::US2_ReceiptRejected(v43) => {
+                            let mut v43: Rc<str> = v43.clone();
+                            US2::US2_ReceiptRejected(v43.clone())
+                        }
+                        _ => {
+                            match &v42 {
+                                US2::US2_ReceiptRejected(v45) => {
+                                    let mut v45: Rc<str> = v45.clone();
+                                    US2::US2_ReceiptRejected(v45.clone())
+                                }
+                                _ => {
+                                    match &v36 {
+                                        US2::US2_ReceiptRead(v47) => {
+                                            let mut v47: Rc<str> = v47.clone();
+                                            match &v42 {
+                                                US2::US2_ReceiptRead(v48) => {
+                                                    let mut v48: Rc<str> = v48.clone();
+                                                    let mut v49: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("missing receipt candidate count"); } LIT.with(|lit| lit.clone()) };
+                                                    let mut v54: US2 = match &v20 {
+                                                        US3::US3_Absent => {
+                                                            US2::US2_ReceiptRejected(v49.clone())
+                                                        }
+                                                        US3::US3_Present(v50) => {
+                                                            let mut v50: Rc<str> = v50.clone();
+                                                            US2::US2_ReceiptRead(v50.clone())
+                                                        }
+                                                    };
+                                                    let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("missing receipt delete count"); } LIT.with(|lit| lit.clone()) };
+                                                    let mut v60: US2 = match &v21 {
+                                                        US3::US3_Absent => {
+                                                            US2::US2_ReceiptRejected(v55.clone())
+                                                        }
+                                                        US3::US3_Present(v56) => {
+                                                            let mut v56: Rc<str> = v56.clone();
+                                                            US2::US2_ReceiptRead(v56.clone())
+                                                        }
+                                                    };
+                                                    match &v54 {
+                                                        US2::US2_ReceiptRejected(v61) => {
+                                                            let mut v61: Rc<str> = v61.clone();
+                                                            US2::US2_ReceiptRejected(v61.clone())
+                                                        }
+                                                        _ => {
+                                                            match &v60 {
+                                                                US2::US2_ReceiptRejected(v63) => {
+                                                                    let mut v63: Rc<str> = v63.clone();
+                                                                    US2::US2_ReceiptRejected(v63.clone())
+                                                                }
+                                                                _ => {
+                                                                    match &v54 {
+                                                                        US2::US2_ReceiptRead(v65) => {
+                                                                            let mut v65: Rc<str> = v65.clone();
+                                                                            match &v60 {
+                                                                                US2::US2_ReceiptRead(v66) => {
+                                                                                    let mut v66: Rc<str> = v66.clone();
+                                                                                    let mut v67: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("missing receipt remaining count"); } LIT.with(|lit| lit.clone()) };
+                                                                                    let mut v72: US2 = match &v22 {
+                                                                                        US3::US3_Absent => {
+                                                                                            US2::US2_ReceiptRejected(v67.clone())
+                                                                                        }
+                                                                                        US3::US3_Present(v68) => {
+                                                                                            let mut v68: Rc<str> = v68.clone();
+                                                                                            US2::US2_ReceiptRead(v68.clone())
+                                                                                        }
+                                                                                    };
+                                                                                    let mut v73: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("missing receipt status"); } LIT.with(|lit| lit.clone()) };
+                                                                                    let mut v78: US2 = match &v23 {
+                                                                                        US3::US3_Absent => {
+                                                                                            US2::US2_ReceiptRejected(v73.clone())
+                                                                                        }
+                                                                                        US3::US3_Present(v74) => {
+                                                                                            let mut v74: Rc<str> = v74.clone();
+                                                                                            US2::US2_ReceiptRead(v74.clone())
+                                                                                        }
+                                                                                    };
+                                                                                    match &v72 {
+                                                                                        US2::US2_ReceiptRejected(v79) => {
+                                                                                            let mut v79: Rc<str> = v79.clone();
+                                                                                            US2::US2_ReceiptRejected(v79.clone())
+                                                                                        }
+                                                                                        _ => {
+                                                                                            match &v78 {
+                                                                                                US2::US2_ReceiptRejected(v81) => {
+                                                                                                    let mut v81: Rc<str> = v81.clone();
+                                                                                                    US2::US2_ReceiptRejected(v81.clone())
+                                                                                                }
+                                                                                                _ => {
+                                                                                                    match &v72 {
+                                                                                                        US2::US2_ReceiptRead(v83) => {
+                                                                                                            let mut v83: Rc<str> = v83.clone();
+                                                                                                            match &v78 {
+                                                                                                                US2::US2_ReceiptRead(v84) => {
+                                                                                                                    let mut v84: Rc<str> = v84.clone();
+                                                                                                                    let mut v85: bool = v84.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("planned"); } LIT.with(|lit| lit.clone()) };
+                                                                                                                    let mut v87: bool = if v85 {
+                                                                                                                        true
+                                                                                                                    } else {
+                                                                                                                        let mut v86: bool = v84.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("applied"); } LIT.with(|lit| lit.clone()) };
+                                                                                                                        v86
+                                                                                                                    };
+                                                                                                                    if v87 {
+                                                                                                                        let mut v88: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
+                                                                                                                        let mut v89: Rc<str> = std::rc::Rc::<str>::from([&*v47, &*v88, &*v48, &*v88, &*v65].concat());
+                                                                                                                        let mut v90: Rc<str> = std::rc::Rc::<str>::from([&*v66, &*v88, &*v83, &*v88, &*v84].concat());
+                                                                                                                        let mut v91: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                                                                                                                        let mut v92: Rc<str> = std::rc::Rc::<str>::from([&*v89, &*v88, &*v90, &*v91, &*v91].concat());
+                                                                                                                        US2::US2_ReceiptRead(v92.clone())
+                                                                                                                    } else {
+                                                                                                                        let mut v94: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid retention receipt status: "); } LIT.with(|lit| lit.clone()) };
+                                                                                                                        let mut v95: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                                                                                                                        let mut v96: Rc<str> = std::rc::Rc::<str>::from([&*v94, &*v84, &*v95, &*v95, &*v95].concat());
+                                                                                                                        US2::US2_ReceiptRejected(v96.clone())
+                                                                                                                    }
+                                                                                                                }
+                                                                                                                _ => unreachable!(),
+                                                                                                            }
+                                                                                                        }
+                                                                                                        _ => unreachable!(),
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                                _ => unreachable!(),
+                                                                            }
+                                                                        }
+                                                                        _ => unreachable!(),
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                                _ => unreachable!(),
+                                            }
+                                        }
+                                        _ => unreachable!(),
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+fn receipt_error_4(mut v0: Rc<str>) -> Rc<str> {
+    let mut v1: US2 = receipt_reading_of_5(v0.clone());
+    match &v1 {
+        US2::US2_ReceiptRead(v2) => {
+            let mut v2: Rc<str> = v2.clone();
+            let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            v3.clone()
+        }
+        US2::US2_ReceiptRejected(v4) => {
+            let mut v4: Rc<str> = v4.clone();
+            v4.clone()
+        }
+    }
+}
+fn closure3() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        receipt_error_4(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn receipt_row_8(mut v0: Rc<str>) -> Rc<str> {
+    let mut v1: US2 = receipt_reading_of_5(v0.clone());
+    match &v1 {
+        US2::US2_ReceiptRead(v2) => {
+            let mut v2: Rc<str> = v2.clone();
+            v2.clone()
+        }
+        US2::US2_ReceiptRejected(v3) => {
+            let mut v3: Rc<str> = v3.clone();
+            let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            v4.clone()
+        }
+    }
+}
+fn closure4() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        receipt_row_8(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn receipt_source_9(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: Rc<str>) -> Rc<str> {
     let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("// retention-receipt|schema=1|fingerprint="); } LIT.with(|lit| lit.clone()) };
     let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|current="); } LIT.with(|lit| lit.clone()) };
     let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|candidates="); } LIT.with(|lit| lit.clone()) };
@@ -186,10 +561,10 @@ fn receipt_source_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: u64, mut v3: u64, 
     let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\", \""); } LIT.with(|lit| lit.clone()) };
     let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("planned"); } LIT.with(|lit| lit.clone()) };
     let mut v22: bool = v5 == v21 ;
-    let mut v25: US2 = if v22 {
-        US2::US2_PlannedReceipt
+    let mut v25: US5 = if v22 {
+        US5::US5_PlannedReceipt
     } else {
-        US2::US2_AppliedReceipt
+        US5::US5_AppliedReceipt
     };
     let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\", "); } LIT.with(|lit| lit.clone()) };
     let mut v27: Rc<str> = std::rc::Rc::<str>::from((v2).to_string());
@@ -198,11 +573,11 @@ fn receipt_source_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: u64, mut v3: u64, 
     let mut v30: Rc<str> = std::rc::Rc::<str>::from([&*v26, &*v27, &*v28, &*v29, &*v28].concat());
     let mut v31: Rc<str> = std::rc::Rc::<str>::from((v4).to_string());
     let mut v35: Rc<str> = match &v25 {
-        US2::US2_AppliedReceipt => {
+        US5::US5_AppliedReceipt => {
             let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("RetentionApplied"); } LIT.with(|lit| lit.clone()) };
             v33.clone()
         }
-        US2::US2_PlannedReceipt => {
+        US5::US5_PlannedReceipt => {
             let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("RetentionDryRun"); } LIT.with(|lit| lit.clone()) };
             v32.clone()
         }
@@ -214,9 +589,9 @@ fn receipt_source_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: u64, mut v3: u64, 
     let mut v40: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v19, &*v0, &*v20, &*v39].concat());
     v40.clone()
 }
-fn closure3() -> Rc<dyn Fn(Rc<str>, Rc<str>, u64, u64, u64, Rc<str>) -> Rc<str>> {
+fn closure5() -> Rc<dyn Fn(Rc<str>, Rc<str>, u64, u64, u64, Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, Rc<str>, u64, u64, u64, Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>, mut v1: Rc<str>, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: Rc<str>| -> Rc<str> {
-        receipt_source_4(v0.clone(), v1.clone(), v2, v3, v4, v5.clone())
+        receipt_source_9(v0.clone(), v1.clone(), v2, v3, v4, v5.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_retention_series_error(v0: &str) -> Rc<str> {
@@ -228,6 +603,12 @@ pub fn eoie_retention_series_prefix(v0: &str) -> Rc<str> {
 pub fn eoie_retention_series_alpha(v0: &str) -> u64 {
     closure2()(Rc::<str>::from(v0))
 }
+pub fn eoie_retention_receipt_error(v0: &str) -> Rc<str> {
+    closure3()(Rc::<str>::from(v0))
+}
+pub fn eoie_retention_receipt_row(v0: &str) -> Rc<str> {
+    closure4()(Rc::<str>::from(v0))
+}
 pub fn eoie_retention_receipt_source(v0: &str, v1: &str, v2: u64, v3: u64, v4: u64, v5: &str) -> Rc<str> {
-    closure3()(Rc::<str>::from(v0), Rc::<str>::from(v1), v2, v3, v4, Rc::<str>::from(v5))
+    closure5()(Rc::<str>::from(v0), Rc::<str>::from(v1), v2, v3, v4, Rc::<str>::from(v5))
 }

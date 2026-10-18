@@ -17,16 +17,16 @@ inl (=.) forall t. (a : t) (b : t) : bool =
     $'!a == !b '
 
 inl (<) forall t {number}. (a : t) (b : t) : bool =
-    !!!!LT(a,b)
+    a < b
 
 inl (<=) forall t {number}. (a : t) (b : t) : bool =
-    !!!!LTE(a,b)
+    a <= b
 
 inl (>) forall t {number}. (a : t) (b : t) : bool =
-    !!!!GT(a,b)
+    a > b
 
 inl (>=) forall t {number}. (a : t) (b : t) : bool =
-    !!!!GTE(a,b)
+    a >= b
 
 nominal array t = array_base t
 

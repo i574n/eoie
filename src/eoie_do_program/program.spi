@@ -1,0 +1,217 @@
+///- --package .
+test program static =
+    open rust_std_string.model
+    open eoie_do_model.model
+
+open rust_std_string.model
+open eoie_do_model.model
+
+nominal token_list = $'std::rc::Rc<Vec<(i32, std::rc::Rc<str>)>>'
+
+let tokens_of (~program : string) : token_list =
+    $'{ let newline = char::from(10u8); let semicolon = char::from(59u8); let quote = char::from(34u8); let backslash = char::from(92u8); let mut found: Vec<(i32, std::rc::Rc<str>)> = Vec::new(); let mut characters = (&*!program).chars().peekable(); while let Some(character) = characters.next() { if character == newline || character == semicolon { found.push((2, std::rc::Rc::from(""))); } else if character.is_whitespace() { } else if character == quote { let mut text = String::new(); let mut closed = false; while let Some(inner) = characters.next() { if inner == backslash { match characters.next() { Some(escaped) if escaped == char::from(110u8) => text.push(newline), Some(escaped) if escaped == char::from(116u8) => text.push(char::from(9u8)), Some(escaped) => text.push(escaped), None => {} } } else if inner == quote { closed = true; break; } else { text.push(inner); } } found.push((if closed { 1 } else { 3 }, std::rc::Rc::from(text))); } else { let mut text = String::from(character); while let Some(&next) = characters.peek() { if next.is_whitespace() || next == semicolon || next == quote { break; } text.push(next); characters.next(); } found.push((0, std::rc::Rc::from(text))); } } std::rc::Rc::new(found) }' : token_list
+
+inl token_count (~tokens : token_list) : i32 = $'!tokens.len() as i32' : i32
+inl token_kind (~tokens : token_list) (~index : i32) : i32 = $'!tokens[!index as usize].0' : i32
+inl token_text (~tokens : token_list) (~index : i32) : string = $'!tokens[!index as usize].1.clone()' : string
+inl decimal_of (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+inl all_digits (~text : string) : bool = $'\!!text.is_empty() && !text.bytes().all(|byte| byte.is_ascii_digit())' : bool
+
+union token =
+    | Word : string
+    | Quoted : string
+    | StatementEnd
+    | Unterminated : string
+
+let token_at (~tokens : token_list) (~index : i32) : token =
+    if index >= token_count tokens then StatementEnd
+    else
+        inl kind = token_kind tokens index
+        inl text = token_text tokens index
+        if kind = 0i32 then Word text
+        elif kind = 1i32 then Quoted text
+        elif kind = 2i32 then StatementEnd
+        else Unterminated text
+
+union parsed a =
+    | Parsed : a * i32
+    | Rejected : string
+
+let word_is (~tokens : token_list) (~index : i32) (~word : string) : bool =
+    match token_at tokens index with
+    | Word text => text = word
+    | _ => false
+
+let rec skip_ends (~tokens : token_list) (~index : i32) : i32 =
+    if index < token_count tokens then
+        match token_at tokens index with
+        | StatementEnd => skip_ends tokens (index + 1i32)
+        | _ => index
+    else index
+
+let quoted_problem (~prefix : string) (~text : string) : string = concat5 prefix ": \"" text "\"" ""
+
+let count_at (~tokens : token_list) (~index : i32) : parsed replace_count =
+    if word_is tokens index "once" then Parsed (Once, index + 1i32)
+    elif word_is tokens index "all" then Parsed (Every, index + 1i32)
+    elif word_is tokens (index + 1i32) "times" then
+        match token_at tokens index with
+        | Word times => if all_digits times then Parsed (Exactly (decimal_of times), index + 2i32) else Rejected (concat5 "replace: not a count: " times "" "" "")
+        | _ => Rejected "replace: expected once, all or <n> times"
+    else Rejected "replace: expected once, all or <n> times"
+
+let rule_at (~tokens : token_list) (~index : i32) : parsed rule =
+    match count_at tokens (index + 1i32) with
+    | Rejected message => Rejected message
+    | Parsed (count, at) =>
+        match token_at tokens at with
+        | Quoted anchor =>
+            if word_is tokens (at + 1i32) "with" then
+                match token_at tokens (at + 2i32) with
+                | Quoted replacement =>
+                    match token_at tokens (at + 3i32) with
+                    | StatementEnd => Parsed ({ anchor = anchor; replacement = replacement; count = count }, at + 3i32)
+                    | _ => Rejected "replace: unexpected text after the replacement"
+                | Unterminated text => Rejected (quoted_problem "unterminated string" text)
+                | _ => Rejected "replace: expected a quoted replacement after with"
+            else Rejected "replace: expected with after the anchor"
+        | Unterminated text => Rejected (quoted_problem "unterminated string" text)
+        | _ => Rejected "replace: expected a quoted anchor"
+
+let rec rules_at (~tokens : token_list) (~index : i32) : parsed rule_list =
+    inl at = skip_ends tokens index
+    if word_is tokens at "replace" then
+        match rule_at tokens at with
+        | Rejected message => Rejected message
+        | Parsed (rule, next) =>
+            match rules_at tokens next with
+            | Rejected message => Rejected message
+            | Parsed (rest, last) => Parsed (Rule (rule, rest), last)
+    else Parsed (NoRules, at)
+
+let rec header_options (~tokens : token_list) (~index : i32) (~block : edit_block) : parsed edit_block =
+    match token_at tokens index with
+    | StatementEnd => Parsed (block, index)
+    | Word word =>
+        if word = "dry-run" then header_options tokens (index + 1i32) { block with mode = Preview }
+        elif word = "expect" && word_is tokens (index + 1i32) "files" && word_is tokens (index + 3i32) "replacements" then
+            match token_at tokens (index + 2i32) with
+            | Word files =>
+                match token_at tokens (index + 4i32) with
+                | Word count =>
+                    if all_digits files && all_digits count then header_options tokens (index + 5i32) { block with expectation = Expected (decimal_of files, decimal_of count) }
+                    else Rejected "edit: expect files <n> replacements <n>"
+                | _ => Rejected "edit: expect files <n> replacements <n>"
+            | _ => Rejected "edit: expect files <n> replacements <n>"
+        else Rejected (concat5 "edit: unknown option " word "" "" "")
+    | _ => Rejected "edit: unexpected quoted text"
+
+let edit_header_at (~tokens : token_list) (~index : i32) : parsed edit_block =
+    inl opened target = header_options tokens (index + 2i32) { target = target; mode = Apply; expectation = Unchecked; rules = NoRules }
+    match token_at tokens (index + 1i32) with
+    | Word target => opened target
+    | Quoted target => opened target
+    | _ => Rejected "edit: expected a path or glob"
+
+let show_at (~tokens : token_list) (~index : i32) : parsed step =
+    match token_at tokens (index + 1i32) with
+    | Word path =>
+        match token_at tokens (index + 2i32) with
+        | StatementEnd => Parsed (ShowStep path, index + 2i32)
+        | _ => Rejected "show: expected one path"
+    | _ => Rejected "show: expected a path"
+
+let edit_at (~tokens : token_list) (~index : i32) : parsed step =
+    match edit_header_at tokens index with
+    | Rejected message => Rejected message
+    | Parsed (header, next) =>
+        match rules_at tokens next with
+        | Rejected message => Rejected message
+        | Parsed (NoRules, _) => Rejected (concat5 "edit " header.target ": no replace lines under it" "" "")
+        | Parsed (rules, after) => Parsed (EditStep { header with rules = rules }, after)
+
+inl field_separator () : string = $'std::rc::Rc::<str>::from(char::from(31u8).to_string())' : string
+
+let rec query_words (~tokens : token_list) (~index : i32) (~text : string) : parsed string =
+    inl joined word = if text = "" then word else concat5 text (field_separator ()) word "" ""
+    match token_at tokens index with
+    | StatementEnd => Parsed (text, index)
+    | Word word => query_words tokens (index + 1i32) (joined (concat5 "w" word "" "" ""))
+    | Quoted quoted => query_words tokens (index + 1i32) (joined (concat5 "q" quoted "" "" ""))
+    | Unterminated text => Rejected (quoted_problem "unterminated string" text)
+
+let query_at (~tokens : token_list) (~index : i32) (~verb : string) : parsed step =
+    match query_words tokens (index + 1i32) "" with
+    | Rejected message => Rejected message
+    | Parsed (words, next) => Parsed (QueryStep (verb, words), next)
+
+let step_at (~tokens : token_list) (~index : i32) : parsed step =
+    match token_at tokens index with
+    | Word word =>
+        if word = "edit" then edit_at tokens index
+        elif word = "show" then show_at tokens index
+        elif word = "search" then query_at tokens index "search"
+        elif word = "read" then query_at tokens index "read"
+        elif word = "files" then query_at tokens index "files"
+        elif word = "head" then query_at tokens index "head"
+        elif word = "tail" then query_at tokens index "tail"
+        elif word = "wait" then query_at tokens index "wait"
+        elif word = "replace" then Rejected "replace: needs an edit line above it"
+        else Rejected (concat5 "unsupported statement: " word "" "" "")
+    | Unterminated text => Rejected (quoted_problem "unterminated string" text)
+    | Quoted text => Rejected (quoted_problem "unexpected quoted text" text)
+    | StatementEnd => Rejected "empty statement"
+
+let rec steps_at (~tokens : token_list) (~index : i32) : parsed steps =
+    inl at = skip_ends tokens index
+    if at >= token_count tokens then Parsed (Done, at)
+    else
+        match step_at tokens at with
+        | Rejected message => Rejected message
+        | Parsed (step, next) =>
+            match steps_at tokens next with
+            | Rejected message => Rejected message
+            | Parsed (rest, last) => Parsed (Step (step, rest), last)
+
+let program_of (~text : string) : parsed steps = steps_at (tokens_of text) 0i32
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl rejection_of (outcome : parsed steps) : string =
+    match outcome with
+    | Rejected message => message
+    | Parsed _ => ""
+
+let rec rule_total (rules : rule_list) : i32 =
+    match rules with
+    | NoRules => 0i32
+    | Rule (_, rest) => 1i32 + rule_total rest
+
+///> rust
+test edit_blocks_group_their_replace_lines =
+    match program_of "\nedit lib/a.spi\n  replace once \"x |> f\" with \"f x\"\n  replace all \"a\\nb\" with \"c\"\nedit b.txt dry-run expect files 2 replacements 3\n  replace 2 times \"p\" with \"q\"; show lib/a.spi" with
+    | Rejected message => expect false message
+    | Parsed (steps, _) =>
+        match steps with
+        | Step (EditStep first, Step (EditStep second, Step (ShowStep shown, Done))) =>
+            expect (first.target = "lib/a.spi" && rule_total first.rules = 2i32) "first block has two rules"
+            match first.rules with
+            | Rule (rule, Rule (multi, NoRules)) => expect (rule.anchor = "x |> f" && rule.replacement = "f x" && multi.anchor = "a\nb") "anchors decode escapes"
+            | _ => expect false "rule shape"
+            match second.mode with
+            | Preview => ()
+            | Apply => expect false "dry-run"
+            match second.expectation with
+            | Expected (files, count) => expect (files = 2u64 && count = 3u64 && second.target = "b.txt") "expectation"
+            | Unchecked => expect false "expectation missing"
+            expect (shown = "lib/a.spi") "show path"
+        | _ => expect false "three steps"
+
+///> rust
+test malformed_programs_are_rejected_with_a_reason =
+    expect (rejection_of (program_of "replace once \"a\" with \"b\"") = "replace: needs an edit line above it") "orphan replace"
+    expect (rejection_of (program_of "edit a.txt") = "edit a.txt: no replace lines under it") "empty edit"
+    expect (rejection_of (program_of "edit a.txt\n replace once \"a\" with \"b") = "unterminated string: \"b\"") "unterminated"
+    expect (rejection_of (program_of "run build.cmd") = "unsupported statement: run") "unsupported"
+    expect (rejection_of (program_of "edit a.txt\n replace twice \"a\" with \"b\"") = "replace: expected once, all or <n> times") "bad count"
+

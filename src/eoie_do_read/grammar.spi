@@ -1,0 +1,127 @@
+///- --package .
+test grammar static =
+    open rust_std_string.model
+    open eoie_do_model.model
+    open host
+
+open rust_std_string.model
+open eoie_do_model.model
+open host
+
+union query_item =
+    | Bare : string
+    | Text : string
+    | Finished
+
+union query_parse =
+    | QueryParsed : query
+    | QueryRejected : string
+
+let item_at (~records : record_list) (~record : i32) (~field : i32) : query_item =
+    inl raw = field_at records record field
+    if raw = "" then Finished
+    else
+        inl kind = $'std::rc::Rc::<str>::from(&(&*!raw)[..1])' : string
+        inl body = $'std::rc::Rc::<str>::from(&(&*!raw)[1..])' : string
+        if kind = "q" then Text body else Bare body
+
+let value_at (~records : record_list) (~record : i32) (~field : i32) : string =
+    match item_at records record field with
+    | Bare text => text
+    | Text text => text
+    | Finished => ""
+
+inl first_number (~text : string) : u64 = $'!text.split(char::from(44u8)).next().and_then(|value| value.trim().parse::<u64>().ok()).unwrap_or(0)' : u64
+inl last_number (~text : string) : u64 = $'!text.rsplit(char::from(44u8)).next().and_then(|value| value.trim().parse::<u64>().ok()).unwrap_or(0)' : u64
+inl duration_ms (~text : string) : u64 = $'{ let text = (&*!text).trim(); let (digits, scale) = if let Some(value) = text.strip_suffix("ms") { (value, 1) } else if let Some(value) = text.strip_suffix(char::from(115u8)) { (value, 1000) } else if let Some(value) = text.strip_suffix(char::from(109u8)) { (value, 60000) } else { (text, 1000) }; digits.trim().parse::<u64>().map(|value| value * scale).unwrap_or(0) }' : u64
+inl all_digits (~text : string) : bool = $'\!!text.is_empty() && !text.bytes().all(|byte| byte.is_ascii_digit())' : bool
+
+let verb_of (~word : string) : query_verb =
+    if word = "search" then Search
+    elif word = "read" then ReadAround
+    elif word = "files" then ListFiles
+    elif word = "head" then Head
+    elif word = "wait" then Wait
+    else Tail
+
+let opened_query (~verb : query_verb) : query =
+    { verb = verb; needle = ""; literal = false; target = ""; before = 0u64; after = 0u64; first = 0u64; include = ""; exclude = ""; paths_only = false; count = 0u64; timeout_ms = 0u64 }
+
+let rec query_options (~records : record_list) (~record : i32) (~field : i32) (~q : query) : query_parse =
+    match item_at records record field with
+    | Finished => QueryParsed q
+    | Text text => query_options records record (field + 1i32) { q with needle = text }
+    | Bare word =>
+        inl value = value_at records record (field + 1i32)
+        inl valued = word = "in" || word = "context" || word = "first" || word = "include" || word = "exclude" || word = "timeout"
+        if word = "literal" then query_options records record (field + 1i32) { q with literal = true }
+        elif word = "paths" then query_options records record (field + 1i32) { q with paths_only = true }
+        elif word = "around" || word = "per" || word = "file" || word = "~" then query_options records record (field + 1i32) q
+        elif valued && value = "" then QueryRejected (concat5 word ": expected a value after it" "" "" "")
+        elif word = "in" then query_options records record (field + 2i32) { q with target = value }
+        elif word = "context" then query_options records record (field + 2i32) { q with before = first_number value; after = last_number value }
+        elif word = "first" then query_options records record (field + 2i32) { q with first = decimal_of value }
+        elif word = "include" then query_options records record (field + 2i32) { q with include = value }
+        elif word = "exclude" then query_options records record (field + 2i32) { q with exclude = value }
+        elif word = "timeout" then query_options records record (field + 2i32) { q with timeout_ms = duration_ms value }
+        elif all_digits word then query_options records record (field + 1i32) { q with count = decimal_of word }
+        elif q.target = "" then query_options records record (field + 1i32) { q with target = word }
+        else QueryRejected (concat5 "unexpected word: " word "" "" "")
+
+let query_problem (~q : query) : string =
+    inl target = q.target
+    inl needle = q.needle
+    match q.verb with
+    | Search => if needle = "" then "search: expected a quoted pattern" elif target = "" then "search: expected in <path|glob>" else ""
+    | ReadAround => if target = "" then "read: expected a path" elif needle = "" then "read: expected around \"<text>\"" else ""
+    | ListFiles => if target = "" then "files: expected a path or glob" else ""
+    | Head => if target = "" then "head: expected a path or glob" else ""
+    | Tail => if target = "" then "tail: expected a path or glob" else ""
+    | Wait => if target = "" then "wait: expected a file" elif needle = "" then "wait: expected ~ \"<regex>\"" else ""
+
+let query_parsed (~records : record_list) (~record : i32) : query_parse =
+    match query_options records record 2i32 (opened_query (verb_of (field_at records record 1i32))) with
+    | QueryRejected message => QueryRejected message
+    | QueryParsed q =>
+        inl problem = query_problem q
+        inl counted = if q.count = 0u64 then { q with count = 10u64 } else q
+        if problem = "" then QueryParsed (if counted.timeout_ms = 0u64 then { counted with timeout_ms = 60000u64 } else counted) else QueryRejected problem
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl records_from_bars (~text : string) : record_list =
+    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
+
+inl rejection_at (~records : record_list) (~record : i32) : string =
+    match query_parsed records record with
+    | QueryRejected message => message
+    | QueryParsed _ => ""
+
+///> rust
+test query_statements_share_one_option_grammar =
+    inl records = records_from_bars "ok\nquery|search|wliteral|qshow <root>|win|wsrc/**|winclude|w*.rs,*.spi|wexclude|wsrc/target/**|wcontext|w1,2|wfirst|w12|wper|wfile|wpaths\nquery|head|wlogs/*.log|w2\nquery|read|wsrc/lib.fs|waround|qsection: parse|wcontext|w1\nquery|tail|wtasks/*.output"
+    match query_parsed records 1i32 with
+    | QueryRejected message => expect false message
+    | QueryParsed search =>
+        expect (search.literal && search.needle = "show <root>" && search.target = "src/**" && search.include = "*.rs,*.spi" && search.exclude = "src/target/**") "search words"
+        expect (search.before = 1u64 && search.after = 2u64 && search.first = 12u64 && search.paths_only) "search numbers"
+    match query_parsed records 2i32 with
+    | QueryRejected message => expect false message
+    | QueryParsed head => expect (head.target = "logs/*.log" && head.count = 2u64) "head count"
+    match query_parsed records 3i32 with
+    | QueryRejected message => expect false message
+    | QueryParsed around => expect (around.target = "src/lib.fs" && around.needle = "section: parse" && around.before = 1u64 && around.after = 1u64) "read around"
+    match query_parsed records 4i32 with
+    | QueryRejected message => expect false message
+    | QueryParsed tail => expect (tail.count = 10u64) "tail defaults to ten lines"
+    match query_parsed (records_from_bars "ok\nquery|wait|wout.log|w~|qSUITE-EXIT|wtimeout|w5s") 1i32 with
+    | QueryRejected message => expect false message
+    | QueryParsed wait => expect (wait.target = "out.log" && wait.needle = "SUITE-EXIT" && wait.timeout_ms = 5000u64) "wait with timeout"
+
+///> rust
+test incomplete_queries_are_rejected_with_a_reason =
+    inl records = records_from_bars "ok\nquery|search|win|wsrc\nquery|read|wsrc/lib.fs\nquery|files\nquery|search|qx|win"
+    expect (rejection_at records 1i32 = "search: expected a quoted pattern") "search without pattern"
+    expect (rejection_at records 2i32 = "read: expected around \"<text>\"") "read without around"
+    expect (rejection_at records 3i32 = "files: expected a path or glob") "files without target"
+    expect (rejection_at records 4i32 = "in: expected a value after it") "dangling in"

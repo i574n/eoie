@@ -1,4 +1,5 @@
 packages:
+    |core-
     predicate_lex_core-
 modules:
     main

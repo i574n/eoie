@@ -1,3 +1,5 @@
+packages:
+    |core-
 modules:
     cli_driver-
     archive_links-

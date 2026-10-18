@@ -28,6 +28,7 @@ enum US1 {
     US1_AgilePlan,
     US1_AgileMigrateTags,
     US1_AgileNote,
+    US1_AgileNoteEdit,
     US1_AgileNotes,
     US1_AgileRename,
     US1_AgileTodos,
@@ -56,8 +57,8 @@ enum US3 {
     US3_Invalid,
 }
 fn agile_subcommand_shape_2(mut v0: Rc<str>) -> Rc<str> {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags|note|notes|rename|todos"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\npreview|apply <root>\n<root> <id> <text> [--as <author>]\nfrom-title <root> <id>\n<root> <old-id> <new-id>\n<root> [<path>...] [--json]"); } LIT.with(|lit| lit.clone()) };
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("init|begin|lease|status|handoff|list|check|record|set|add|edit|show|plan|migrate-tags|note|note-edit|notes|rename|todos"); } LIT.with(|lit| lit.clone()) };
+    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("<root>\n<root> <title>\n<root>\n<root>\n<root>\n<root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json]\n<root> [--compiler <absolute>]\n<root>\n<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>\n<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>\n<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>\n<root> <id> [--json]\n<root> [--json]\npreview|apply <root>\n<root> <id> <text> [--as <author>]\n<root> <id> <note-number> <text>\nfrom-title <root> <id>\n<root> <old-id> <new-id>\n<root> [<path>...] [--json]"); } LIT.with(|lit| lit.clone()) };
     let mut v3: Rc<str> = v1.split("|").zip(v2.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
     v3.clone()
 }
@@ -68,7 +69,7 @@ fn agile_usage_error_1() -> i32 {
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v4: bool = v2 == v3 ;
     if v4 {
-        let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root> [--compiler <absolute>], record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags preview|apply <root>, note <root> <id> <text> [--as <author>], notes from-title <root> <id>, rename <root> <old-id> <new-id>, todos <root> [<path>...] [--json]"); } LIT.with(|lit| lit.clone()) };
+        let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile supports init <root>, begin <root> <title>, lease <root>, status <root>, handoff <root>, list <root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json], check <root> [--compiler <absolute>], record <root>, set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>, add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>, edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>, show <root> <id> [--json], plan <root> [--json], migrate-tags preview|apply <root>, note <root> <id> <text> [--as <author>], note-edit <root> <id> <note-number> <text>, notes from-title <root> <id>, rename <root> <old-id> <new-id>, todos <root> [<path>...] [--json]"); } LIT.with(|lit| lit.clone()) };
         let mut v6: i32 = agile_mutation_error(&v5);
         v6
     } else {
@@ -204,29 +205,37 @@ fn agile_subcommand_of_3(mut v0: Rc<str>) -> US0 {
     } else {
         v71.clone()
     };
-    let mut v77: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("notes"); } LIT.with(|lit| lit.clone()) };
+    let mut v77: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("note-edit"); } LIT.with(|lit| lit.clone()) };
     let mut v78: bool = v0 == v77 ;
     let mut v81: US0 = if v78 {
-        let mut v79: US1 = US1::US1_AgileNotes;
+        let mut v79: US1 = US1::US1_AgileNoteEdit;
         US0::US0_AgileKnown(v79.clone())
     } else {
         v76.clone()
     };
-    let mut v82: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rename"); } LIT.with(|lit| lit.clone()) };
+    let mut v82: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("notes"); } LIT.with(|lit| lit.clone()) };
     let mut v83: bool = v0 == v82 ;
     let mut v86: US0 = if v83 {
-        let mut v84: US1 = US1::US1_AgileRename;
+        let mut v84: US1 = US1::US1_AgileNotes;
         US0::US0_AgileKnown(v84.clone())
     } else {
         v81.clone()
     };
-    let mut v87: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("todos"); } LIT.with(|lit| lit.clone()) };
+    let mut v87: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rename"); } LIT.with(|lit| lit.clone()) };
     let mut v88: bool = v0 == v87 ;
-    if v88 {
-        let mut v89: US1 = US1::US1_AgileTodos;
+    let mut v91: US0 = if v88 {
+        let mut v89: US1 = US1::US1_AgileRename;
         US0::US0_AgileKnown(v89.clone())
     } else {
         v86.clone()
+    };
+    let mut v92: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("todos"); } LIT.with(|lit| lit.clone()) };
+    let mut v93: bool = v0 == v92 ;
+    if v93 {
+        let mut v94: US1 = US1::US1_AgileTodos;
+        US0::US0_AgileKnown(v94.clone())
+    } else {
+        v91.clone()
     }
 }
 fn agile_entry_0() -> i32 {
@@ -372,12 +381,22 @@ fn agile_entry_0() -> i32 {
                         agile_usage_error_1()
                     }
                 }
-                US1::US1_AgileNotes => {
-                    let mut v212: i32 = 4i32;
+                US1::US1_AgileNoteEdit => {
+                    let mut v212: i32 = 5i32;
                     let mut v213: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v212 ;
                     if v213 {
-                        let mut v214: i32 = agile_title_notes::eoie_agile_notes_from_title_run();
+                        let mut v214: i32 = agile_task_notes::eoie_agile_note_edit_run();
                         v214
+                    } else {
+                        agile_usage_error_1()
+                    }
+                }
+                US1::US1_AgileNotes => {
+                    let mut v217: i32 = 4i32;
+                    let mut v218: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v217 ;
+                    if v218 {
+                        let mut v219: i32 = agile_title_notes::eoie_agile_notes_from_title_run();
+                        v219
                     } else {
                         agile_usage_error_1()
                     }
@@ -405,11 +424,11 @@ fn agile_entry_0() -> i32 {
                     }
                 }
                 US1::US1_AgileRename => {
-                    let mut v217: i32 = 4i32;
-                    let mut v218: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v217 ;
-                    if v218 {
-                        let mut v219: i32 = agile_task_rename::eoie_agile_rename_run();
-                        v219
+                    let mut v222: i32 = 4i32;
+                    let mut v223: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v222 ;
+                    if v223 {
+                        let mut v224: i32 = agile_task_rename::eoie_agile_rename_run();
+                        v224
                     } else {
                         agile_usage_error_1()
                     }
@@ -634,11 +653,11 @@ fn agile_entry_0() -> i32 {
                     }
                 }
                 US1::US1_AgileTodos => {
-                    let mut v222: i32 = std::env::args().skip(2).count() as i32;
-                    let mut v223: bool = 2i32 <= v222;
-                    if v223 {
-                        let mut v224: i32 = agile_todo_scan::eoie_agile_todos_run();
-                        v224
+                    let mut v227: i32 = std::env::args().skip(2).count() as i32;
+                    let mut v228: bool = 2i32 <= v227;
+                    if v228 {
+                        let mut v229: i32 = agile_todo_scan::eoie_agile_todos_run();
+                        v229
                     } else {
                         agile_usage_error_1()
                     }

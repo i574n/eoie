@@ -15,7 +15,7 @@ fn walked_names_3(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32
         } else {
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
             let mut v8: i32 = v2.get(v3 as usize..).and_then(|rest| rest.find(&*v7)).map(|found| (found + v3 as usize) as i32).unwrap_or(-1);
-            let mut v9: bool = v8 < 0;
+            let mut v9: bool = v8 < 0i32;
             let mut v11: i32 = if v9 {
                 let mut v10: i32 = v2.len() as i32;
                 v10
@@ -23,7 +23,7 @@ fn walked_names_3(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32
                 v8
             };
             let mut v12: Rc<str> = std::rc::Rc::<str>::from(v2.get(v3 as usize..v11 as usize).unwrap_or(""));
-            let mut v13: i32 = v11 + 1;
+            let mut v13: i32 = v11.wrapping_add(1i32);
             let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             let mut v15: bool = v0 == v14 ;
             let mut v18: Rc<str> = if v15 {
@@ -88,7 +88,7 @@ fn walked_names_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32
     } else {
         let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
         let mut v7: i32 = v2.get(v3 as usize..).and_then(|rest| rest.find(&*v6)).map(|found| (found + v3 as usize) as i32).unwrap_or(-1);
-        let mut v8: bool = v7 < 0;
+        let mut v8: bool = v7 < 0i32;
         let mut v10: i32 = if v8 {
             let mut v9: i32 = v2.len() as i32;
             v9
@@ -96,7 +96,7 @@ fn walked_names_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32
             v7
         };
         let mut v11: Rc<str> = std::rc::Rc::<str>::from(v2.get(v3 as usize..v10 as usize).unwrap_or(""));
-        let mut v12: i32 = v10 + 1;
+        let mut v12: i32 = v10.wrapping_add(1i32);
         let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         let mut v14: bool = v0 == v13 ;
         let mut v17: Rc<str> = if v14 {

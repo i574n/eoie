@@ -1,4 +1,5 @@
 packages:
+    |core-
     patch_preflight_contract
 modules:
     main

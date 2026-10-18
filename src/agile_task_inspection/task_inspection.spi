@@ -28,20 +28,20 @@ inl ascii_t () : i32 = 116i32
 
 inl escape_target (text : string) (escaped : i32) : string =
     inl code = byte_at text escaped
-    if i32_eq code (ascii_n ()) then "\n"
-    elif i32_eq code (ascii_r ()) then "\r"
-    elif i32_eq code (ascii_t ()) then "\t"
-    else byte_slice text escaped (i32_next escaped)
+    if code = ascii_n () then "\n"
+    elif code = ascii_r () then "\r"
+    elif code = ascii_t () then "\t"
+    else byte_slice text escaped (escaped + 1i32)
 
 let rec unescaped_from (text : string) (offset : i32) (run_start : i32) (length : i32) (decoded : string) : string =
-    if i32_le length offset then rust_std_string.model.concat5 decoded (byte_slice text run_start length) "" "" ""
-    elif i32_eq (byte_at text offset) (backslash_byte ()) then
-        inl escaped = i32_next offset
-        inl resumed = i32_next escaped
+    if length <= offset then rust_std_string.model.concat5 decoded (byte_slice text run_start length) "" "" ""
+    elif byte_at text offset = backslash_byte () then
+        inl escaped = offset + 1i32
+        inl resumed = escaped + 1i32
         unescaped_from text resumed resumed length (rust_std_string.model.concat5 decoded (byte_slice text run_start offset) (escape_target text escaped) "" "")
-    else unescaped_from text (i32_next offset) run_start length decoded
+    else unescaped_from text (offset + 1i32) run_start length decoded
 
-inl quote_stripped (~token : string) : string = byte_slice token 1i32 (i32_prev (byte_len token))
+inl quote_stripped (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
 
 let unquoted (~token : string) : string =
     inl inner = quote_stripped token
@@ -122,7 +122,7 @@ let agile_show (~root : string) (~id : string) (format : show_format) : i32 =
     | FileReadable file =>
         inl text = loaded_string (read_text file)
         inl found = byte_find text (task_anchor id)
-        if i32_negative found then agile_show_failure "no task with this id" id
+        if found < 0i32 then agile_show_failure "no task with this id" id
         else
             inl arguments = $"!found + !(task_arguments_offset ())" : i32
             match format with
@@ -130,7 +130,7 @@ let agile_show (~root : string) (~id : string) (format : show_format) : i32 =
             | ShowJson => stdout_line (task_json (task_json_record_at text arguments (byte_len text)) (rust_std_string.model.concat5 (planning_json text id) "," (notes_json text id) "" "") started)
 
 let agile_show_entry () : i32 =
-    if i32_eq (argument_count ()) 3i32 then agile_show (argument_owned 1i32) (argument_owned 2i32) ShowText
+    if argument_count () = 3i32 then agile_show (argument_owned 1i32) (argument_owned 2i32) ShowText
     else
         match show_format_of (argument_owned 3i32) with
         | Valid format => agile_show (argument_owned 1i32) (argument_owned 2i32) format

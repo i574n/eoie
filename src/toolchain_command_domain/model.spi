@@ -124,32 +124,32 @@ inl success_policy_code = function
     | RequireSuccessfulExit => 0i32
 
 let valid_action_code (action_code : i32) : i32 =
-    if !!!!LT(action_code,0i32) then 0i32
-    elif !!!!LT(7i32,action_code) then 0i32
+    if action_code < 0i32 then 0i32
+    elif 7i32 < action_code then 0i32
     else 1i32
 
 let program_profile_binding (action_code : i32) (unused : i32) : i32 =
-    if !!!!LT(valid_action_code action_code,1i32) then -1i32
-    elif !!!!EQ(action_code,1i32) then program_profile_code CargoFmtSibling
-    elif !!!!EQ(action_code,4i32) then program_profile_code CargoClippySibling
+    if valid_action_code action_code < 1i32 then -1i32
+    elif action_code = 1i32 then program_profile_code CargoFmtSibling
+    elif action_code = 4i32 then program_profile_code CargoClippySibling
     else program_profile_code SelectedTool
 
 let argument_profile_binding (action_code : i32) (unused : i32) : i32 =
-    if !!!!LT(valid_action_code action_code,1i32) then -1i32
-    elif !!!!EQ(action_code,7i32) then argument_profile_code VersionOnly
+    if valid_action_code action_code < 1i32 then -1i32
+    elif action_code = 7i32 then argument_profile_code VersionOnly
     else action_code
 
 let environment_profile_binding (action_code : i32) (unused : i32) : i32 =
-    if !!!!LT(valid_action_code action_code,1i32) then -1i32
-    elif !!!!EQ(action_code,3i32) then environment_profile_code CargoEnvironmentWithSpiralAuthorities
-    elif !!!!EQ(action_code,7i32) then environment_profile_code CleanEnvironment
+    if valid_action_code action_code < 1i32 then -1i32
+    elif action_code = 3i32 then environment_profile_code CargoEnvironmentWithSpiralAuthorities
+    elif action_code = 7i32 then environment_profile_code CleanEnvironment
     else environment_profile_code CargoEnvironment
 
 let timeout_profile_binding (action_code : i32) (unused : i32) : i32 =
-    if !!!!LT(valid_action_code action_code,1i32) then -1i32 else timeout_policy_code CallerPositiveMilliseconds
+    if valid_action_code action_code < 1i32 then -1i32 else timeout_policy_code CallerPositiveMilliseconds
 
 let success_profile_binding (action_code : i32) (unused : i32) : i32 =
-    if !!!!LT(valid_action_code action_code,1i32) then -1i32 else success_policy_code RequireSuccessfulExit
+    if valid_action_code action_code < 1i32 then -1i32 else success_policy_code RequireSuccessfulExit
 
 inl toolchain_command_plan_probe_code () : i32 = 1012i32
 

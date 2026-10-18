@@ -5,7 +5,12 @@ function Resolve-EoieSpiralBundle {
     if (-not (Test-Path -LiteralPath (Join-Path $CompilerBundle 'scripts/env.ps1'))) {
         throw "Spiral compiler bundle not found at $CompilerBundle. Clone https://github.com/i574n/spiral beside this repository or set EOIE_SPIRAL_BUNDLE to its apps/compiler/tmp."
     }
-    (Resolve-Path -LiteralPath $CompilerBundle).Path
+    $bundle = (Resolve-Path -LiteralPath $CompilerBundle).Path
+    if (-not $env:SPIRAL_COMPILER_PACKAGE_DIR) {
+        $core = Join-Path $bundle '../../../deps/The-Spiral-Language/VS Code Plugin'
+        if (Test-Path -LiteralPath (Join-Path $core 'core/package.spiproj')) { $env:SPIRAL_COMPILER_PACKAGE_DIR = (Resolve-Path -LiteralPath $core).Path }
+    }
+    $bundle
 }
 
 function Copy-EoieCompilerSnapshot {

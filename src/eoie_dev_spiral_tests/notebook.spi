@@ -1,3 +1,6 @@
+inl present (root : string) (relative : string) : bool =
+    $'std::path::Path::new(&*!root).join(&*!relative).is_file()' : bool
+
 inl announce (relative : string) : i32 =
     $'{ std::io::Write::write_all(&mut std::io::stdout(),format\!("spiral test blocks {}\n",&*!relative).as_bytes()).unwrap(); 0i32 }' : i32
 

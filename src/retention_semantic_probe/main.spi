@@ -32,13 +32,13 @@ inl main () : i32 =
     if prepared then
         inl _ : retention_semantic_transition retention_probe_fixture_ready retention_probe_planned = PlanRetentionWindow
         inl plan_code = status_code5 eoie "bundle" "retention-plan" base "bundle_eoie_alpha5.zip" receipt
-        if !!!!EQ(plan_code,0i32) then
+        if plan_code = 0i32 then
             inl _ : retention_semantic_transition retention_probe_planned retention_probe_receipt_verified = VerifyOpaqueReceipt
             inl ok = text_contains "fingerprint=" receipt && text_contains "current=" receipt && text_contains "candidates=5" receipt && text_contains "deletes=2" receipt && text_contains "remaining=5" receipt && text_contains "status=planned" receipt && text_excludes "bundle_eoie_alpha" receipt
             if ok then
                 inl invalid_code = status_code5 eoie "bundle" "retention-plan" base "nested/current.zip" rejected_receipt
                 inl _ = cleanup_tree base
-                if !!!!EQ(invalid_code,0i32) then 31i32
+                if invalid_code = 0i32 then 31i32
                 else
                     inl _ : retention_semantic_transition retention_probe_receipt_verified retention_probe_complete = ConfirmNestedCurrentRejected
                     0i32

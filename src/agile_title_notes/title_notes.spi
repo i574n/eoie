@@ -34,10 +34,10 @@ let title_moved (~state : string) (~id : string) (~original : string) (started :
     inl start, stop = title_bounds schema_ready found
     inl title = unquoted (byte_slice schema_ready start stop)
     inl first = kept_end title
-    if i32_negative first then from_title_failure "the title has no \"; \" tail starting with a date or time to move" id
+    if first < 0i32 then from_title_failure "the title has no \"; \" tail starting with a date or time to move" id
     else
         inl kept = rust_std_string.model.trim (byte_slice title 0i32 first)
-        inl moved, rows = tail_rows title id (i32_next (note_count schema_ready id)) (utc_stamp started)
+        inl moved, rows = tail_rows title id (note_count schema_ready id + 1i32) (utc_stamp started)
         inl retitled = spliced schema_ready start stop (spi_quoted kept)
         inl updated = notes_appended retitled id rows
         match state_written state original updated with
@@ -46,7 +46,7 @@ let title_moved (~state : string) (~id : string) (~original : string) (started :
 
 let from_title_entry () : i32 =
     inl id = argument_owned 3i32
-    if i32_eq (argument_count ()) 4i32 then
+    if argument_count () = 4i32 then
         if rust_std_string.model.equals (argument_owned 1i32) "from-title" then
             inl started = unix_ms ()
             inl state = backlog_state_path (argument_owned 2i32)

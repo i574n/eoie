@@ -15,4 +15,4 @@ inl main () : i32 =
     inl rejected_clean_entry = environment_entry 7i32 0i32
     inl cargo_test_count = environment_count 3i32 0i32
     inl cargo_test_dotnet = environment_entry 3i32 7i32
-    if !!!!LT(rejected_action,0i32) && !!!!LT(rejected_witness,0i32) && !!!!LT(rejected_negative_index,0i32) && !!!!LT(rejected_past_end,0i32) && !!!!LT(rejected_clean_entry,0i32) && !!!!EQ(cargo_test_count,8i32) && !!!!EQ(cargo_test_dotnet,103i32) then 0i32 else 61i32
+    if rejected_action < 0i32 && rejected_witness < 0i32 && rejected_negative_index < 0i32 && rejected_past_end < 0i32 && rejected_clean_entry < 0i32 && cargo_test_count = 8i32 && cargo_test_dotnet = 103i32 then 0i32 else 61i32

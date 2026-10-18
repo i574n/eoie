@@ -56,6 +56,6 @@ inl argument_sequence_count (toolchain_argument_sequence x) : i32 = x.count
 inl argument_sequence_probe_code () : i32 =
     inl clippy = argument_sequence CargoClippy
     inl version = argument_sequence CargoVersion
-    if !!!!EQ(argument_sequence_count clippy,6i32) && !!!!EQ(argument_sequence_count version,1i32)
+    if argument_sequence_count clippy = 6i32 && argument_sequence_count version = 1i32
     then 1016i32
     else -16i32

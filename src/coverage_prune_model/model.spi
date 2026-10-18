@@ -1,8 +1,8 @@
 nominal coverage_idle = ()
 let coverage_jobs_binding (requested : i32) (available : i32) : i32 =
-    if !!!!EQ(requested,0i32) then
-        if !!!!LT(available,2i32) then 1i32 else 2i32
-    elif !!!!LT(requested,1i32) || !!!!LT(256i32,requested) then -1i32
+    if requested = 0i32 then
+        if available < 2i32 then 1i32 else 2i32
+    elif requested < 1i32 || 256i32 < requested then -1i32
     else requested
 
 nominal coverage_profiles_loaded = ()

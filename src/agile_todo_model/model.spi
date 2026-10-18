@@ -108,40 +108,40 @@ inl ascii_double_quote () : i32 = 34i32
 inl ascii_single_quote () : i32 = 39i32
 
 let rec last_offset_of (~text : string) (~code : i32) (~offset : i32) (~found : i32) : i32 =
-    if i32_le (byte_len text) offset then found
-    elif i32_eq (byte_at text offset) code then last_offset_of text code (i32_next offset) offset
-    else last_offset_of text code (i32_next offset) found
+    if byte_len text <= offset then found
+    elif byte_at text offset = code then last_offset_of text code (offset + 1i32) offset
+    else last_offset_of text code (offset + 1i32) found
 
 let rec count_of_byte (~text : string) (~code : i32) (~offset : i32) (~stop : i32) (~count : i32) : i32 =
-    if i32_le stop offset then count
-    elif i32_eq (byte_at text offset) code then count_of_byte text code (i32_next offset) stop (i32_next count)
-    else count_of_byte text code (i32_next offset) stop count
+    if stop <= offset then count
+    elif byte_at text offset = code then count_of_byte text code (offset + 1i32) stop (count + 1i32)
+    else count_of_byte text code (offset + 1i32) stop count
 
 let rec first_visible_offset (~text : string) (~offset : i32) : i32 =
-    if i32_le (byte_len text) offset then offset
-    elif i32_eq (byte_at text offset) (ascii_space ()) then first_visible_offset text (i32_next offset)
-    elif i32_eq (byte_at text offset) (ascii_tab ()) then first_visible_offset text (i32_next offset)
+    if byte_len text <= offset then offset
+    elif byte_at text offset = ascii_space () then first_visible_offset text (offset + 1i32)
+    elif byte_at text offset = ascii_tab () then first_visible_offset text (offset + 1i32)
     else offset
 
 let rec visible_end (~text : string) (~stop : i32) : i32 =
-    if i32_le stop 0i32 then 0i32
-    elif i32_eq (byte_at text (i32_prev stop)) (ascii_space ()) then visible_end text (i32_prev stop)
-    elif i32_eq (byte_at text (i32_prev stop)) (ascii_tab ()) then visible_end text (i32_prev stop)
-    elif i32_eq (byte_at text (i32_prev stop)) (ascii_return ()) then visible_end text (i32_prev stop)
+    if stop <= 0i32 then 0i32
+    elif byte_at text (stop - 1i32) = ascii_space () then visible_end text (stop - 1i32)
+    elif byte_at text (stop - 1i32) = ascii_tab () then visible_end text (stop - 1i32)
+    elif byte_at text (stop - 1i32) = ascii_return () then visible_end text (stop - 1i32)
     else stop
 
 let rec leader_run_start (~text : string) (~start : i32) (~code : i32) : i32 =
-    if i32_le start 0i32 then 0i32
-    elif i32_eq (byte_at text (i32_prev start)) code then leader_run_start text (i32_prev start) code
+    if start <= 0i32 then 0i32
+    elif byte_at text (start - 1i32) = code then leader_run_start text (start - 1i32) code
     else start
 
 inl file_name (~relative : string) : string =
     inl slash = last_offset_of relative (ascii_slash ()) 0i32 (-1i32)
-    byte_slice relative (i32_next slash) (byte_len relative)
+    byte_slice relative (slash + 1i32) (byte_len relative)
 
 inl extension_of (~name : string) : string =
     inl dot = last_offset_of name (ascii_dot ()) 0i32 (-1i32)
-    if i32_negative dot then "" else byte_slice name (i32_next dot) (byte_len name)
+    if dot < 0i32 then "" else byte_slice name (dot + 1i32) (byte_len name)
 
 let syntax_of_path (~relative : string) : syntax_lookup =
     inl name = ascii_lowercase (file_name relative)
@@ -163,9 +163,9 @@ let syntax_of_path (~relative : string) : syntax_lookup =
 
 let rec vendor_segment_from (~relative : string) (~offset : i32) : bool =
     inl slash = byte_find_from relative "/" offset
-    if i32_negative slash then false
+    if slash < 0i32 then false
     elif rust_std_string.model.pipe_member (vendor_directory_names ()) (byte_slice relative offset slash) then true
-    else vendor_segment_from relative (i32_next slash)
+    else vendor_segment_from relative (slash + 1i32)
 
 inl vendor_directory (~name : string) : bool = rust_std_string.model.pipe_member (vendor_directory_names ()) name
 
@@ -222,7 +222,7 @@ inl path_verdict_code (verdict : path_verdict) : i32 =
     | SkipLinkedEntry => 5i32
 
 let path_verdict_of_code (code : i32) : path_verdict =
-    if i32_le (scanned_code_base ()) code then ScanPath (syntax_of_code (i32_sub code (scanned_code_base ())))
+    if scanned_code_base () <= code then ScanPath (syntax_of_code (i32_sub code (scanned_code_base ())))
     else
         match code with
         | 1i32 => SkipNestedRepository
@@ -236,24 +236,24 @@ inl size_verdict (size : u64) : content_verdict =
 inl bytes_verdict (has_nul : bool) : content_verdict = if has_nul then SkipBinary else ScanContent
 
 inl identifier_byte (code : i32) : bool =
-    if both (i32_le 65i32 code) (i32_le code 90i32) then true
-    elif both (i32_le 97i32 code) (i32_le code 122i32) then true
-    elif both (i32_le 48i32 code) (i32_le code 57i32) then true
-    else i32_eq code 95i32
+    if both (65i32 <= code) (code <= 90i32) then true
+    elif both (97i32 <= code) (code <= 122i32) then true
+    elif both (48i32 <= code) (code <= 57i32) then true
+    else code = 95i32
 
 inl outside_strings (syntax : comment_syntax) (~line : string) (~stop : i32) : bool =
     inl doubles = count_of_byte line (ascii_double_quote ()) 0i32 stop 0i32
-    inl even_doubles = i32_eq (i32_remainder doubles 2i32) 0i32
-    if single_quote_strings syntax then both even_doubles (i32_eq (i32_remainder (count_of_byte line (ascii_single_quote ()) 0i32 stop 0i32) 2i32) 0i32)
+    inl even_doubles = i32_remainder doubles 2i32 = 0i32
+    if single_quote_strings syntax then both even_doubles (i32_remainder (count_of_byte line (ascii_single_quote ()) 0i32 stop 0i32) 2i32 = 0i32)
     else even_doubles
 
 let rec leader_before (~leaders : string) (~before : string) (~offset : i32) : string =
     inl bar = byte_find_from leaders "|" offset
-    inl stop = if i32_negative bar then byte_len leaders else bar
+    inl stop = if bar < 0i32 then byte_len leaders else bar
     inl leader = byte_slice leaders offset stop
     if rust_std_string.model.ends_with before leader then leader
-    elif i32_negative bar then ""
-    else leader_before leaders before (i32_next bar)
+    elif bar < 0i32 then ""
+    else leader_before leaders before (bar + 1i32)
 
 inl directive_line (~line : string) : bool =
     if rust_std_string.model.starts_with line "///>" then true else rust_std_string.model.starts_with line "///-"
@@ -270,7 +270,7 @@ inl comment_text (~raw : string) : string =
 
 let todo_in_line (syntax : comment_syntax) (~line : string) : todo_match =
     inl marker = byte_find line (todo_marker ())
-    if i32_negative marker then NoTodo
+    if marker < 0i32 then NoTodo
     elif directive_line line then NoTodo
     elif identifier_byte (byte_at line (i32_add marker 4i32)) then NoTodo
     else
@@ -280,7 +280,7 @@ let todo_in_line (syntax : comment_syntax) (~line : string) : todo_match =
         inl leader_start = i32_sub (byte_len before) (byte_len leader)
         inl first_visible = first_visible_offset line 0i32
         if rust_std_string.model.equals leader "" then
-            if both (negated (rust_std_string.model.equals line_leader "")) (both (rust_std_string.model.ends_with before line_leader) (i32_eq (i32_sub (byte_len before) (byte_len line_leader)) first_visible)) then
+            if both (negated (rust_std_string.model.equals line_leader "")) (both (rust_std_string.model.ends_with before line_leader) (i32_sub (byte_len before) (byte_len line_leader) = first_visible)) then
                 TodoComment (comment_text (byte_slice line first_visible (byte_len line)))
             else NoTodo
         else
@@ -291,21 +291,21 @@ let todo_in_line (syntax : comment_syntax) (~line : string) : todo_match =
 inl empty_tally () : scan_tally = { files = 0i32; scanned = 0i32; todos = 0i32; nested = 0i32; vendor = 0i32; syntax = 0i32; generated = 0i32; binary = 0i32; large = 0i32; links = 0i32; unreadable = 0i32 }
 
 let counted_path (tally : scan_tally) (verdict : path_verdict) : scan_tally =
-    inl listed = { tally with files = i32_next tally.files }
+    inl listed = { tally with files = (tally.files + 1i32) }
     match verdict with
     | ScanPath _ => listed
-    | SkipNestedRepository => { listed with nested = i32_next listed.nested }
-    | SkipVendorDirectory => { listed with vendor = i32_next listed.vendor }
-    | SkipUnknownSyntax => { listed with syntax = i32_next listed.syntax }
-    | SkipGeneratedOutput => { listed with generated = i32_next listed.generated }
-    | SkipLinkedEntry => { listed with links = i32_next listed.links }
+    | SkipNestedRepository => { listed with nested = (listed.nested + 1i32) }
+    | SkipVendorDirectory => { listed with vendor = (listed.vendor + 1i32) }
+    | SkipUnknownSyntax => { listed with syntax = (listed.syntax + 1i32) }
+    | SkipGeneratedOutput => { listed with generated = (listed.generated + 1i32) }
+    | SkipLinkedEntry => { listed with links = (listed.links + 1i32) }
 
 let counted_content (tally : scan_tally) (verdict : content_verdict) : scan_tally =
     match verdict with
-    | ScanContent => { tally with scanned = i32_next tally.scanned }
-    | SkipBinary => { tally with binary = i32_next tally.binary }
-    | SkipLarge => { tally with large = i32_next tally.large }
-    | SkipUnreadable => { tally with unreadable = i32_next tally.unreadable }
+    | ScanContent => { tally with scanned = (tally.scanned + 1i32) }
+    | SkipBinary => { tally with binary = (tally.binary + 1i32) }
+    | SkipLarge => { tally with large = (tally.large + 1i32) }
+    | SkipUnreadable => { tally with unreadable = (tally.unreadable + 1i32) }
 
 let counted_todos (tally : scan_tally) (found : i32) : scan_tally = { tally with todos = i32_add tally.todos found }
 
@@ -316,25 +316,25 @@ let json_escaped (~text : string) : string =
     rust_std_string.model.replace (rust_std_string.model.replace tabs "\r" "\\r") "\n" "\\n"
 
 inl id_byte (code : i32) : bool =
-    if i32_le 65i32 code then i32_le code 90i32
-    elif i32_le 48i32 code then i32_le code 57i32
-    else i32_eq code 45i32
+    if 65i32 <= code then code <= 90i32
+    elif 48i32 <= code then code <= 57i32
+    else code = 45i32
 
 let rec id_end (~comment : string) (offset : i32) : i32 =
-    if i32_le (byte_len comment) offset then offset
-    elif id_byte (byte_at comment offset) then id_end comment (i32_next offset)
+    if byte_len comment <= offset then offset
+    elif id_byte (byte_at comment offset) then id_end comment (offset + 1i32)
     else offset
 
 let todo_id (~comment : string) : string =
     inl marker = byte_find comment (todo_marker ())
     inl colon = i32_add marker 4i32
-    if i32_negative marker then ""
-    elif i32_eq (byte_at comment colon) 58i32 then
-        inl start = first_visible_offset comment (i32_next colon)
+    if marker < 0i32 then ""
+    elif byte_at comment colon = 58i32 then
+        inl start = first_visible_offset comment (colon + 1i32)
         inl stop = id_end comment start
         inl token = byte_slice comment start stop
-        inl closed = if i32_le (byte_len comment) stop then true else i32_eq (byte_at comment stop) 32i32
-        inl capital = if i32_le stop start then false else both (i32_le 65i32 (byte_at comment start)) (i32_le (byte_at comment start) 90i32)
+        inl closed = if byte_len comment <= stop then true else byte_at comment stop = 32i32
+        inl capital = if stop <= start then false else both (65i32 <= byte_at comment start) (byte_at comment start <= 90i32)
         if both closed capital then token else ""
     else ""
 inl finding_line (~path : string) (line : i32) (~text : string) : string =
@@ -348,11 +348,11 @@ let finding_json (~path : string) (line : i32) (~text : string) : string =
 
 let rec leader_prefix (~leaders : string) (~text : string) (~offset : i32) : bool =
     inl bar = byte_find_from leaders "|" offset
-    inl stop = if i32_negative bar then byte_len leaders else bar
+    inl stop = if bar < 0i32 then byte_len leaders else bar
     inl leader = byte_slice leaders offset stop
     if rust_std_string.model.starts_with text leader then true
-    elif i32_negative bar then false
-    else leader_prefix leaders text (i32_next bar)
+    elif bar < 0i32 then false
+    else leader_prefix leaders text (bar + 1i32)
 
 let comment_starts_line (syntax : comment_syntax) (~line : string) : bool =
     inl first = first_visible_offset line 0i32
@@ -366,31 +366,31 @@ let todo_free (syntax : comment_syntax) (~line : string) : bool =
     | TodoComment _ => false
 
 let rec block_from (syntax : comment_syntax) (~text : string) (~column : i32) (~offset : i32) (~block : string) (~lines : i32) : string * i32 * i32 =
-    if i32_le (byte_len text) offset then block, offset, lines
+    if byte_len text <= offset then block, offset, lines
     else
         inl newline = byte_find_from text "\n" offset
-        inl stop = if i32_negative newline then byte_len text else newline
+        inl stop = if newline < 0i32 then byte_len text else newline
         inl line = without_trailing_space (byte_slice text offset stop)
-        inl aligned = i32_eq (first_visible_offset line 0i32) column
+        inl aligned = first_visible_offset line 0i32 = column
         inl body = byte_slice line column (byte_len line)
         if both (both aligned (comment_starts_line syntax line)) (both (todo_free syntax line) (negated (directive_line body))) then
-            block_from syntax text column (i32_next stop) (rust_std_string.model.concat5 block "\n" body "" "") (i32_next lines)
+            block_from syntax text column (stop + 1i32) (rust_std_string.model.concat5 block "\n" body "" "") (lines + 1i32)
         else block, offset, lines
 
 let rec findings_from (syntax : comment_syntax) (~text : string) (~path : string) (json : bool) (~offset : i32) (~number : i32) (~rendered : string) (~count : i32) : string * i32 =
-    if i32_le (byte_len text) offset then rendered, count
+    if byte_len text <= offset then rendered, count
     else
         inl newline = byte_find_from text "\n" offset
-        inl stop = if i32_negative newline then byte_len text else newline
+        inl stop = if newline < 0i32 then byte_len text else newline
         inl line = byte_slice text offset stop
-        inl next = i32_next stop
+        inl next = stop + 1i32
         match todo_in_line syntax line with
-        | NoTodo => findings_from syntax text path json next (i32_next number) rendered count
+        | NoTodo => findings_from syntax text path json next (number + 1i32) rendered count
         | TodoComment comment =>
             inl block, after, extra = if comment_starts_line syntax line then block_from syntax text (first_visible_offset line 0i32) next comment 0i32 else comment, next, 0i32
             inl entry = if json then finding_json path number block else finding_line path number block
             inl joined = if rust_std_string.model.equals rendered "" then entry elif json then rust_std_string.model.concat5 rendered ",\n" entry "" "" else rust_std_string.model.concat5 rendered "\n" entry "" ""
-            findings_from syntax text path json after (i32_add (i32_next number) extra) joined (i32_next count)
+            findings_from syntax text path json after (i32_add (number + 1i32) extra) joined (count + 1i32)
 
 inl findings (syntax : comment_syntax) (~text : string) (~path : string) (json : bool) : string * i32 =
     findings_from syntax text path json 0i32 1i32 "" 0i32
@@ -479,10 +479,10 @@ test paths_skip_vendor_generated_and_unknown_files =
 test findings_render_with_line_numbers_and_json =
     inl text = rust_std_string.model.concat5 "inl a = 1\n" (marked "// " " split") "\r\nlet b = 2\n" (marked "    // " ": \"quoted\"") "\n"
     inl lines, count = findings CFamily text "repo/a.spi" false
-    expect (i32_eq count 2i32) "two findings"
+    expect (count = 2i32) "two findings"
     expect (rust_std_string.model.equals lines (rust_std_string.model.concat5 (marked "repo/a.spi:2  // " " split") "\n" (marked "repo/a.spi:4  // " ": \"quoted\"") "" "")) lines
     inl json, json_count = findings CFamily text "repo/a.spi" true
-    expect (i32_eq json_count 2i32) "two json findings"
+    expect (json_count = 2i32) "two json findings"
     expect (rust_std_string.model.contains json (marked "{\"path\":\"repo/a.spi\",\"line\":4,\"text\":\"// " ": \\\"quoted\\\"\"}")) json
     inl tally = counted_todos (counted_content (counted_path (counted_path (empty_tally ()) (ScanPath CFamily)) SkipGeneratedOutput) ScanContent) 2i32
     expect (rust_std_string.model.equals (tally_skips tally) "nested:0,vendor:0,generated:1,syntax:0,binary:0,large:0,links:0,unreadable:0") (tally_skips tally)
@@ -505,12 +505,12 @@ test todo_blocks_keep_their_spiral_lines_and_ids =
 
         """
     inl lines, count = findings CFamily text "repo/a.spi" false
-    expect (i32_eq count 2i32) "a block and a trailing comment"
+    expect (count = 2i32) "a block and a trailing comment"
     expect (rust_std_string.model.contains lines (rust_std_string.model.concat5 "repo/a.spi:2  " block "" "" "")) lines
     expect (rust_std_string.model.contains lines (marked "repo/a.spi:6  // " " trailing")) lines
     expect (negated (rust_std_string.model.contains lines "not part of it")) lines
     inl json, json_count = findings CFamily text "repo/a.spi" true
-    expect (i32_eq json_count 2i32) "two json findings"
+    expect (json_count = 2i32) "two json findings"
     expect (rust_std_string.model.contains json "\"line\":2,\"id\":\"EOIE-MEMORY-LINKS\",\"text\":") json
     expect (rust_std_string.model.contains json "\\n//     inl links root = ()\\n//     links \\\"backlog\\\"") json
     expect (rust_std_string.model.equals (todo_id (marked "// " " plain")) "") "no id without a tag"
@@ -525,4 +525,4 @@ test verdicts_survive_the_crate_boundary_as_codes =
     labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "samples/a/main.c" true)))) "generated"
     labelled (path_label (path_verdict_of_code (path_verdict_code SkipLinkedEntry))) "link"
     labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "deps/x/" false)))) "nested"
-    expect (i32_eq (syntax_code (syntax_of_code 11i32)) 11i32) "batch syntax code"
+    expect (syntax_code (syntax_of_code 11i32) = 11i32) "batch syntax code"

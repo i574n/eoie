@@ -10,18 +10,18 @@ union process_budget =
     | Milliseconds :: u32 -> process_budget
 
 let process_timeout_valid_export (positive_flag : i32) (reserved : i32) : i32 =
-    if !!!!EQ(positive_flag,1i32) then
-        if !!!!EQ(reserved,0i32) then 1i32 else 0i32
+    if positive_flag = 1i32 then
+        if reserved = 0i32 then 1i32 else 0i32
     else 0i32
 
 let process_compiler_budget_valid_export (segmented_positive : i32) (timeout_positive : i32) : i32 =
-    if !!!!EQ(segmented_positive,1i32) then
-        if !!!!EQ(timeout_positive,1i32) then 1i32 else 0i32
+    if segmented_positive = 1i32 then
+        if timeout_positive = 1i32 then 1i32 else 0i32
     else 0i32
 
 let process_session_match_export (field_count : i32) (packed_flags : i32) : i32 =
-    if !!!!LT(field_count,3i32) then 0i32
-    elif !!!!EQ(packed_flags,7i32) then 1i32
+    if field_count < 3i32 then 0i32
+    elif packed_flags = 7i32 then 1i32
     else 0i32
 
 union process_op from to result =

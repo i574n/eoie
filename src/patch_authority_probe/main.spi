@@ -1,5 +1,5 @@
-inl eq_i32 (a : i32) (b : i32) : bool = !!!!EQ(a,b)
-inl minus_one () : i32 = !!!!Neg(1i32)
+inl eq_i32 (a : i32) (b : i32) : bool = a = b
+inl minus_one () : i32 = (-(1i32))
 
 inl fallback_complete_route (role : i32) (before_hash : i32) (after_hash : i32) : i32 =
     inl role = patch_fallback_domain.patch_route_role_binding role role

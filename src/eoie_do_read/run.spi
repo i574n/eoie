@@ -1,0 +1,106 @@
+open rust_std_string.model
+open eoie_receipt.receipt
+open eoie_do_model.model
+open host
+open grammar
+
+type query_tally =
+    {
+        report : string
+        failed : bool
+        searched : u64
+        matched : u64
+        matches : u64
+        lines : u64
+        bytes : u64
+        searches : u64
+        arounds : u64
+        listings : u64
+        waits : u64
+        timed_out : u64
+    }
+
+let empty_query_tally () : query_tally =
+    { report = ""; failed = false; searched = 0u64; matched = 0u64; matches = 0u64; lines = 0u64; bytes = 0u64; searches = 0u64; arounds = 0u64; listings = 0u64; waits = 0u64; timed_out = 0u64 }
+
+let lines_joined (~left : string) (~right : string) : string =
+    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+
+let query_step (~root : string) (~touched : touched_files) (~q : query) : query_outcome =
+    inl target = q.target
+    inl paths = files_matching root target q.include q.exclude
+    touched_with touched paths
+    match q.verb with
+    | Search => searched root paths q.needle q.literal q.before q.after q.first q.paths_only
+    | ReadAround => around root target q.needle q.before q.after
+    | ListFiles => listing root paths
+    | Head => edge_lines root paths q.count false
+    | Tail => edge_lines root paths q.count true
+    | Wait => waited root target q.needle q.timeout_ms
+
+let outcome_merged (~state : query_tally) (~verb : query_verb) (~outcome : query_outcome) : query_tally =
+    inl report = lines_joined state.report (outcome_report outcome)
+    inl failed = state.failed || outcome_failed outcome
+    inl first = outcome_counter outcome 0u64
+    inl second = outcome_counter outcome 1u64
+    inl third = outcome_counter outcome 2u64
+    match verb with
+    | Search => { state with report = report; failed = failed; searched = (state.searched + first); matched = (state.matched + second); matches = (state.matches + third); searches = (state.searches + 1u64) }
+    | ReadAround => { state with report = report; failed = failed; matches = (state.matches + second); lines = (state.lines + third); arounds = (state.arounds + 1u64) }
+    | ListFiles => { state with report = report; failed = failed; bytes = (state.bytes + second); listings = (state.listings + 1u64) }
+    | Wait => { state with report = report; failed = failed; waits = (state.waits + 1u64); timed_out = (state.timed_out + second) }
+    | _ => { state with report = report; failed = failed }
+
+let rec queries_run (~root : string) (~touched : touched_files) (~records : record_list) (~index : i32) (~state : query_tally) : query_tally =
+    if index < record_count records then
+        match query_parsed records index with
+        | QueryParsed q => queries_run root touched records (index + 1i32) (outcome_merged state q.verb (query_step root touched q))
+        | QueryRejected _ => queries_run root touched records (index + 1i32) state
+    else state
+
+inl mixed (~records : record_list) : bool =
+    $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| \!kind.is_empty() && &**kind \!= "query").unwrap_or(false))' : bool
+
+let rec first_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        match query_parsed records index with
+        | QueryRejected message => message
+        | QueryParsed _ => first_rejection records (index + 1i32)
+    else ""
+
+let receipt_counts (~state : query_tally) (~touched : u64) : string =
+    inl head =
+        if state.searches > 0u64 then concat5 "files " (decimal_text state.searched) " searched  " (decimal_text state.matched) (concat5 " matched  matches " (decimal_text state.matches) "" "" "")
+        else concat5 "files " (decimal_text touched) "" "" ""
+    inl with_matches = if state.searches = 0u64 && state.arounds > 0u64 then concat5 head "  matches " (decimal_text state.matches) "" "" else head
+    inl with_lines = if state.arounds > 0u64 then concat5 with_matches "  lines " (decimal_text state.lines) "" "" else with_matches
+    inl with_bytes = if state.listings > 0u64 then concat5 with_lines "  bytes " (decimal_text state.bytes) "" "" else with_lines
+    inl waits = concat5 "waits " (decimal_text state.waits) "" "" ""
+    if state.waits = 0u64 then with_bytes
+    elif state.timed_out = 0u64 then waits
+    else concat5 waits "  timed out " (decimal_text state.timed_out) "  exit 3" ""
+
+let read_run (~root : string) (~encoded : string) : i32 =
+    inl started = now_ms ()
+    inl records = records_of encoded
+    inl rejection = if mixed records then "edit and query statements cannot share one program yet; run them as two calls" else first_rejection records 1i32
+    if rejection = "" then
+        inl touched = touched_new ()
+        inl state = queries_run root touched records 1i32 (empty_query_tally ())
+        inl report = state.report
+        if report = "" then () else stdout_line report
+        inl counts = receipt_counts state (touched_count touched)
+        if state.failed then
+            receipt_line Failed counts started
+            if state.timed_out > 0u64 then 3i32 else 1i32
+        else
+            receipt_line Succeeded counts started
+            0i32
+    else
+        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        receipt_line Failed "files 0" started
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_do_read_run", ((fun (root, encoded) => read_run root encoded) : string * string -> i32))
+    0i32

@@ -70,10 +70,10 @@ inl standing_label = function
     | UnknownTodo => "unknown (no backlog item): "
 
 let rec standings_from (state : scan_state) (~rendered : string) (offset : i32) : scan_state =
-    if i32_le (byte_len rendered) offset then state
+    if byte_len rendered <= offset then state
     else
         inl newline = byte_find_from rendered "\n" offset
-        inl stop = if i32_negative newline then byte_len rendered else newline
+        inl stop = if newline < 0i32 then byte_len rendered else newline
         inl line = byte_slice rendered offset stop
         inl id = $'agile_todo_lines::eoie_agile_todo_id(&*!line)' : string
         inl next_state =
@@ -84,9 +84,9 @@ let rec standings_from (state : scan_state) (~rendered : string) (offset : i32) 
                 | standing =>
                     inl _ = if state.json then 0i32 else stdout_line (rust_std_string.model.concat5 (standing_label standing) id " at " line "")
                     match standing with
-                    | StaleTodo => { state with stale = i32_next state.stale }
-                    | _ => { state with unknown = i32_next state.unknown }
-        standings_from next_state rendered (i32_next stop)
+                    | StaleTodo => { state with stale = (state.stale + 1i32) }
+                    | _ => { state with unknown = (state.unknown + 1i32) }
+        standings_from next_state rendered (stop + 1i32)
 
 inl standing_receipt (state : scan_state) : string =
     rust_std_string.model.concat5 " stale=" (i32_text state.stale) " unknown=" (i32_text state.unknown) ""
@@ -108,7 +108,7 @@ inl read_and_scanned (state : scan_state) (tally : scan_tally) (syntax : comment
     | ScanContent =>
         inl rendered, count = crate_findings syntax text display state.json
         inl counted = { state with tally = counted_todos (counted_content tally ScanContent) count }
-        if i32_le count 0i32 then counted else standings_from (emitted_findings counted rendered) rendered 0i32
+        if count <= 0i32 then counted else standings_from (emitted_findings counted rendered) rendered 0i32
     | verdict => { state with tally = counted_content tally verdict }
 
 let scanned_file (state : scan_state) (~display : string) (~absolute : string) (~relative : string) : scan_state =
@@ -131,12 +131,12 @@ let scanned_file (state : scan_state) (~display : string) (~absolute : string) (
         | _ => { state with tally = tally }
 
 let rec listed_files (state : scan_state) (~base : string) (~display : string) (~listing : string) (~offset : i32) : scan_state =
-    if i32_le (byte_len listing) offset then state
+    if byte_len listing <= offset then state
     else
         inl nul = byte_find_from listing (nul_text ()) offset
-        inl stop = if i32_negative nul then byte_len listing else nul
+        inl stop = if nul < 0i32 then byte_len listing else nul
         inl relative = byte_slice listing offset stop
-        inl next = i32_next stop
+        inl next = stop + 1i32
         if rust_std_string.model.equals relative "" then listed_files state base display listing next
         else listed_files (scanned_file state (joined_path display relative) (joined_path base relative) relative) base display listing next
 
@@ -150,18 +150,18 @@ let scanned_root (state : scan_state) (~path : string) : scan_state =
     | _ => state
 
 let rec scanned_arguments (state : scan_state) (index : i32) (count : i32) (roots : i32) : scan_state * i32 =
-    if i32_le count index then state, roots
+    if count <= index then state, roots
     else
         inl argument = argument_owned index
-        if rust_std_string.model.equals argument (json_flag ()) then scanned_arguments state (i32_next index) count roots
-        else scanned_arguments (scanned_root state argument) (i32_next index) count (i32_next roots)
+        if rust_std_string.model.equals argument (json_flag ()) then scanned_arguments state (index + 1i32) count roots
+        else scanned_arguments (scanned_root state argument) (index + 1i32) count (roots + 1i32)
 
 inl todos_failure (~reason : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile todos rejected: " reason "" "" "")
 
 let todos_entry () : i32 =
     inl started = unix_ms ()
     inl count = argument_count ()
-    if i32_le count 1i32 then todos_failure "usage: agile todos <root> [<path>...] [--json]"
+    if count <= 1i32 then todos_failure "usage: agile todos <root> [<path>...] [--json]"
     else
         inl root = argument_owned 1i32
         match entry_kind_of root with
@@ -170,10 +170,10 @@ let todos_entry () : i32 =
             inl _ = if json then stdout_line "{\"todos\":[" else 0i32
             inl initial = { tally = empty_tally (); json = json; emitted = false; backlog = state_text root; stale = 0i32; unknown = 0i32 }
             inl scanned, roots = scanned_arguments initial 2i32 count 0i32
-            inl finished, total = if i32_eq roots 0i32 then scanned_root scanned root, 1i32 else scanned, roots
+            inl finished, total = if roots = 0i32 then scanned_root scanned root, 1i32 else scanned, roots
             if json then
                 inl tail = tally_json_tail total finished.tally (ms_since started)
-                inl tail_head = byte_slice tail 0i32 (i32_prev (byte_len tail))
+                inl tail_head = byte_slice tail 0i32 (byte_len tail - 1i32)
                 stdout_line (rust_std_string.model.concat5 tail_head ",\"stale\":" (i32_text finished.stale) ",\"unknown\":" (rust_std_string.model.concat5 (i32_text finished.unknown) "}" "" "" ""))
             else stdout_line (rust_std_string.model.concat5 (tally_receipt total finished.tally (ms_since started)) (standing_receipt finished) "" "" "")
         | _ => todos_failure (rust_std_string.model.concat5 "the backlog root " root " is not a directory" "" "")

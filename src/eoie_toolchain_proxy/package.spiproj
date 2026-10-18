@@ -1,4 +1,5 @@
 packages:
+    |core-
     state_receipt_codec_model-
 
     process_batch_plan_domain

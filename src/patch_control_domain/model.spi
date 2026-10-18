@@ -27,30 +27,30 @@ inl native_patch_control_plan () : patch_control_plan patch_plan_parsed patch_co
     ))
 
 let patch_witness_authorized (validated : i32) (parsed : i32) : i32 =
-    if !!!!LT(validated,1i32) then 0i32
-    elif !!!!LT(parsed,1i32) then 0i32
-    elif !!!!LT(validated,parsed) then 0i32
-    elif !!!!LT(parsed,validated) then 0i32
+    if validated < 1i32 then 0i32
+    elif parsed < 1i32 then 0i32
+    elif validated < parsed then 0i32
+    elif parsed < validated then 0i32
     else 1i32
 
 let patch_operation_authorized (expected : i32) (observed : i32) : i32 =
-    if !!!!LT(expected,0i32) then 0i32
-    elif !!!!LT(observed,0i32) then 0i32
-    elif !!!!LT(expected,observed) then 0i32
-    elif !!!!LT(observed,expected) then 0i32
+    if expected < 0i32 then 0i32
+    elif observed < 0i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
     else 1i32
 
 let patch_operation_next (cursor : i32) (total : i32) : i32 =
-    if !!!!LT(cursor,0i32) then -1i32
-    elif !!!!LT(total,1i32) then -1i32
-    elif !!!!LT(cursor,total) then !!!!Add(cursor,1i32)
+    if cursor < 0i32 then -1i32
+    elif total < 1i32 then -1i32
+    elif cursor < total then cursor + 1i32
     else -1i32
 
 let patch_match_authorized (count : i32) (operation_authorized : i32) : i32 =
-    if !!!!LT(operation_authorized,1i32) then 0i32
-    elif !!!!LT(1i32,operation_authorized) then 0i32
-    elif !!!!LT(count,1i32) then 0i32
-    elif !!!!LT(1i32,count) then 0i32
+    if operation_authorized < 1i32 then 0i32
+    elif 1i32 < operation_authorized then 0i32
+    elif count < 1i32 then 0i32
+    elif 1i32 < count then 0i32
     else 1i32
 
 let patch_commit_authorized (expected : i32) (committed : i32) : i32 =
@@ -73,22 +73,22 @@ inl restoration_attempt_witness outcome : restoration_attempt_step restoration_a
     | RestorationFailed => RecordRestorationFailure
 
 let restoration_payload_identity (selected : i32) (observed_stage : i32) : i32 =
-    if !!!!LT(selected,0i32) then -1i32
-    elif !!!!LT(observed_stage,0i32) then -1i32
-    elif !!!!LT(selected,observed_stage) then -1i32
-    elif !!!!LT(observed_stage,selected) then -1i32
+    if selected < 0i32 then -1i32
+    elif observed_stage < 0i32 then -1i32
+    elif selected < observed_stage then -1i32
+    elif observed_stage < selected then -1i32
     else selected
 
 let restoration_payload_slot_binding (identity : i32) (slot_authorized : i32) : i32 =
-    if !!!!LT(identity,0i32) then -1i32
-    elif !!!!LT(slot_authorized,1i32) then -1i32
-    elif !!!!LT(1i32,slot_authorized) then -1i32
+    if identity < 0i32 then -1i32
+    elif slot_authorized < 1i32 then -1i32
+    elif 1i32 < slot_authorized then -1i32
     else identity
 
 let restoration_payload_outcome_binding (identity : i32) (outcome : i32) : i32 =
-    if !!!!LT(identity,0i32) then -1i32
-    elif !!!!LT(outcome,1i32) then -1i32
-    elif !!!!LT(2i32,outcome) then -1i32
+    if identity < 0i32 then -1i32
+    elif outcome < 1i32 then -1i32
+    elif 2i32 < outcome then -1i32
     else identity
 
 union patch_plan_failure =
@@ -107,8 +107,8 @@ inl patch_plan_failure_message = function
 
 let patch_plan_failure_binding (code : i32) : string =
     inl malformed, oversized, unavailable = -1i32, -2i32, -3i32
-    if !!!!EQ(code,0i32) then patch_plan_failure_message PatchPlanEmpty
-    elif !!!!EQ(code,malformed) then patch_plan_failure_message PatchPlanMalformed
-    elif !!!!EQ(code,oversized) then patch_plan_failure_message PatchPlanOversized
-    elif !!!!EQ(code,unavailable) then patch_plan_failure_message PatchPlanUnavailable
+    if code = 0i32 then patch_plan_failure_message PatchPlanEmpty
+    elif code = malformed then patch_plan_failure_message PatchPlanMalformed
+    elif code = oversized then patch_plan_failure_message PatchPlanOversized
+    elif code = unavailable then patch_plan_failure_message PatchPlanUnavailable
     else patch_plan_failure_message PatchPlanInvalidWitness

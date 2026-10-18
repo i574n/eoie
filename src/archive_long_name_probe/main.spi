@@ -28,10 +28,10 @@ inl main () : i32 =
     if create_dir source && write_text long_path "ok" then
         inl _ : archive_long_name_probe probe_source_ready probe_archive_ready = BuildGnuTar
         inl tar_code = status_code5 "/bin/tar" "--format=gnu" "-cf" archive "--directory=/mnt/data/eoie-archive-long-name-probe/source" "."
-        if !!!!EQ(tar_code,0i32) then
+        if tar_code = 0i32 then
             inl _ : archive_long_name_probe probe_archive_ready probe_extracted = ExtractWithEoie
             inl extract_code = status_code4 eoie "proxy" "archive-extract" archive extracted
-            if !!!!EQ(extract_code,0i32) then
+            if extract_code = 0i32 then
                 inl _ : archive_long_name_probe probe_extracted probe_verified = VerifyPayload
                 inl verified = text_equals "ok" extracted_long_path
                 inl _ = cleanup_tree base

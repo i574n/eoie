@@ -1,4 +1,5 @@
 packages:
+    |core-
     typed_predicate
     rust_std_string
     cold_proof_bindings

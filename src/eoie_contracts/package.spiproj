@@ -1,4 +1,5 @@
 packages:
+    |core-
     contracts_entry
 modules:
     contracts

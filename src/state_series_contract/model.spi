@@ -23,26 +23,26 @@ inl append_only_series_plan () : series_plan series_idle series_typechecked =
     ))
 
 let series_sequence_binding (previous : i32) (next : i32) : i32 =
-    if !!!!LT(previous,0i32) then 0i32
-    elif !!!!EQ(!!!!Add(previous,1i32),next) then 1i32
+    if previous < 0i32 then 0i32
+    elif previous + 1i32 = next then 1i32
     else 0i32
 
 let series_source_binding (path_length : i32) (packed_shape : i32) : i32 =
-    if !!!!LT(path_length,1i32) then 0i32
-    elif !!!!EQ(packed_shape,32i32) then 1i32
+    if path_length < 1i32 then 0i32
+    elif packed_shape = 32i32 then 1i32
     else 0i32
 
 let series_pair_binding (ratings_present : i32) (bench_present : i32) : i32 =
-    if !!!!EQ(ratings_present,1i32) then
-        if !!!!EQ(bench_present,1i32) then 1i32 else 0i32
+    if ratings_present = 1i32 then
+        if bench_present = 1i32 then 1i32 else 0i32
     else 0i32
 
 let series_monotonic_binding (previous : i32) (next : i32) : i32 =
-    if !!!!LT(previous,0i32) then 0i32
-    elif !!!!LT(next,previous) then 0i32
+    if previous < 0i32 then 0i32
+    elif next < previous then 0i32
     else 1i32
 
 let series_fingerprint_binding (ratings_nonzero : i32) (bench_nonzero : i32) : i32 =
-    if !!!!EQ(ratings_nonzero,1i32) then
-        if !!!!EQ(bench_nonzero,1i32) then 1i32 else 0i32
+    if ratings_nonzero = 1i32 then
+        if bench_nonzero = 1i32 then 1i32 else 0i32
     else 0i32

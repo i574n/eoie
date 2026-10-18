@@ -99,7 +99,7 @@ fn print_group_rows_3(mut v0: Rc<str>, mut v1: US0, mut v2: Rc<str>, mut v3: Rc<
         } else {
             let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
             let mut v9: i32 = v3.get(v4 as usize..).and_then(|rest| rest.find(&*v8)).map(|found| (found + v4 as usize) as i32).unwrap_or(-1);
-            let mut v10: bool = v9 < 0;
+            let mut v10: bool = v9 < 0i32;
             let mut v12: i32 = if v10 {
                 let mut v11: i32 = v3.len() as i32;
                 v11
@@ -111,7 +111,7 @@ fn print_group_rows_3(mut v0: Rc<str>, mut v1: US0, mut v2: Rc<str>, mut v3: Rc<
             let mut v19: Rc<str> = rollup_line_5(v1.clone(), v2.clone(), v13.clone(), v14, v15, v16, v17, v18, v5);
             let mut v20: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v19.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-            let mut v21: i32 = v12 + 1;
+            let mut v21: i32 = v12.wrapping_add(1i32);
             let mut v22: bool = false;
             (v0, v1, v2, v3, v4, v5) = (v0.clone(), v1.clone(), v2.clone(), v3.clone(), v21, v22);
             continue;
@@ -142,7 +142,7 @@ fn field_end_11(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US1) -> i32 {
             if v9 {
                 return v1;
             } else {
-                let mut v10: i32 = v1 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
                 let mut v25: US1 = match &v3 {
                     US1::US1_ScanEscaped => {
                         US1::US1_ScanQuoted
@@ -180,7 +180,7 @@ fn skip_spaces_12(mut v0: Rc<str>, mut v1: i32) -> i32 {
         let mut v2: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
         let mut v3: bool = v2 == 32i32;
         if v3 {
-            let mut v4: i32 = v1 + 1;
+            let mut v4: i32 = v1.wrapping_add(1i32);
             (v0, v1) = (v0.clone(), v4);
             continue;
         } else {
@@ -196,9 +196,9 @@ fn field_start_10(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> i32
         } else {
             let mut v5: US1 = US1::US1_ScanPlain;
             let mut v6: i32 = field_end_11(v0.clone(), v1, v2, v5.clone());
-            let mut v7: i32 = v6 + 1;
+            let mut v7: i32 = v6.wrapping_add(1i32);
             let mut v8: i32 = skip_spaces_12(v0.clone(), v7);
-            let mut v9: i32 = v3 - 1;
+            let mut v9: i32 = v3.wrapping_sub(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v8, v2, v9);
             continue;
         }
@@ -208,7 +208,7 @@ fn epic_ids_from_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) -
     loop {
         let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Task (\""); } LIT.with(|lit| lit.clone()) };
         let mut v5: i32 = v0.get(v1 as usize..).and_then(|rest| rest.find(&*v4)).map(|found| (found + v1 as usize) as i32).unwrap_or(-1);
-        let mut v6: bool = v5 < 0;
+        let mut v6: bool = v5 < 0i32;
         if v6 {
             return v3.clone();
         } else {
@@ -232,7 +232,7 @@ fn epic_ids_from_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) -
                     let mut v22: i32 = field_end_11(v0.clone(), v20, v2, v21.clone());
                     let mut v23: Rc<str> = std::rc::Rc::<str>::from(v0.get(v20 as usize..v22 as usize).unwrap_or(""));
                     let mut v24: i32 = v23.len() as i32;
-                    let mut v25: i32 = v24 - 1;
+                    let mut v25: i32 = v24.wrapping_sub(1i32);
                     let mut v26: Rc<str> = std::rc::Rc::<str>::from(v23.get(1i32 as usize..v25 as usize).unwrap_or(""));
                     let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                     let mut v28: bool = v3 == v27 ;
@@ -301,7 +301,7 @@ fn print_group_rows_13(mut v0: Rc<str>, mut v1: US0, mut v2: Rc<str>, mut v3: Rc
         } else {
             let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
             let mut v10: i32 = v4.get(v5 as usize..).and_then(|rest| rest.find(&*v9)).map(|found| (found + v5 as usize) as i32).unwrap_or(-1);
-            let mut v11: bool = v10 < 0;
+            let mut v11: bool = v10 < 0i32;
             let mut v13: i32 = if v11 {
                 let mut v12: i32 = v4.len() as i32;
                 v12
@@ -313,7 +313,7 @@ fn print_group_rows_13(mut v0: Rc<str>, mut v1: US0, mut v2: Rc<str>, mut v3: Rc
             let mut v20: Rc<str> = rollup_line_14(v1.clone(), v2.clone(), v3.clone(), v14.clone(), v15, v16, v17, v18, v19, v6);
             let mut v21: i32 = std::io::Write::write_all(&mut std::io::stdout(), (v20.to_string() + "
 ").as_bytes()).map(|_| 0i32).unwrap_or(2i32);
-            let mut v22: i32 = v13 + 1;
+            let mut v22: i32 = v13.wrapping_add(1i32);
             let mut v23: bool = false;
             (v0, v1, v2, v3, v4, v5, v6) = (v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v22, v23);
             continue;

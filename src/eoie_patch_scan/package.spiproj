@@ -1,4 +1,5 @@
 packages:
+    |core-
     patch_model
     patch_domain
 modules:

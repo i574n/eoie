@@ -1,4 +1,5 @@
 packages:
+    |core-
     hash_integrity_contract
 modules:
     model

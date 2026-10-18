@@ -1,4 +1,5 @@
 packages:
+    |core-
     filesystem_roundtrip_contract
 modules:
     main

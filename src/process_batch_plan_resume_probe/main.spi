@@ -25,15 +25,15 @@ inl main () : i32 =
     inl rejected_pass = observed 0i32 1i32
     inl tolerate = resume 0i32 1i32
     inl rerun = resume 0i32 0i32
-    if !!!!EQ(timeout_event,3i32) then
-        if !!!!EQ(timeout_checkpoint,4i32) then
-            if !!!!EQ(completion_event,4i32) then
-                if !!!!EQ(completion_checkpoint,5i32) then
-                    if !!!!LT(invalid_row,0i32) then
-                        if !!!!EQ(missing_dep,0i32) then
-                            if !!!!EQ(rejected_pass,0i32) then
-                                if !!!!EQ(tolerate,1i32) then
-                                    if !!!!EQ(rerun,2i32) then 0i32 else 1i32
+    if timeout_event = 3i32 then
+        if timeout_checkpoint = 4i32 then
+            if completion_event = 4i32 then
+                if completion_checkpoint = 5i32 then
+                    if invalid_row < 0i32 then
+                        if missing_dep = 0i32 then
+                            if rejected_pass = 0i32 then
+                                if tolerate = 1i32 then
+                                    if rerun = 2i32 then 0i32 else 1i32
                                 else 1i32
                             else 1i32
                         else 1i32

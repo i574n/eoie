@@ -1,4 +1,5 @@
 packages:
+    |core-
     filesystem_batch_write_contract
     canonical_plan_ir_types-
 modules:

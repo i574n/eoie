@@ -1,4 +1,5 @@
 packages:
+    |core-
     state_receipt_codec_model-
     toolchain_command_domain
 modules:

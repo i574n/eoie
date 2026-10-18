@@ -1,6 +1,9 @@
 packages:
+    |core-
+    rust_std_string
     coverage_prune_model-
 modules:
+    lcov
     prune_terminal
     coverage_export
     coverage_union

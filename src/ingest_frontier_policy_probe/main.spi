@@ -8,4 +8,4 @@ inl main () : i32 =
     inl targets = targets_binding 1i32 2i32
     inl frontier = frontier_binding 3i32 3i32
     inl result = complete_binding manifest trim extracted targets frontier
-    if !!!!LT(result,1i32) then 1i32 else 0i32
+    if result < 1i32 then 1i32 else 0i32

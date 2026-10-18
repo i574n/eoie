@@ -4,7 +4,7 @@ union child_outcome =
     | ChildSucceeded
     | ChildFailed : i32
 
-inl child_outcome_of (status : i32) : child_outcome = if i32_eq status 0i32 then ChildSucceeded else ChildFailed status
+inl child_outcome_of (status : i32) : child_outcome = if status = 0i32 then ChildSucceeded else ChildFailed status
 
 inl outcome_word = function
     | ChildSucceeded => "ok"

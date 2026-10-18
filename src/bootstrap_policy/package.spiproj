@@ -1,4 +1,5 @@
 packages:
+    |core-
     domain
     rust_std_process
     workspace_state_contract

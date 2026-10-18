@@ -1,11 +1,11 @@
 let bundle_rehydrate_structure_binding (profile : i32) (observed_mask : i32) : i32 =
-    if !!!!EQ(profile,2i32) then
-        if !!!!EQ(observed_mask,3i32) || !!!!EQ(observed_mask,7i32) then 1i32 else 0i32
+    if profile = 2i32 then
+        if observed_mask = 3i32 || observed_mask = 7i32 then 1i32 else 0i32
     else
-        if !!!!EQ(observed_mask,4i32) || !!!!EQ(observed_mask,5i32) || !!!!EQ(observed_mask,6i32) || !!!!EQ(observed_mask,7i32) then 1i32 else 0i32
+        if observed_mask = 4i32 || observed_mask = 5i32 || observed_mask = 6i32 || observed_mask = 7i32 then 1i32 else 0i32
 
 let bundle_profile_signature_binding (bootstrap_mask : i32) (model_mask : i32) : i32 =
-    if !!!!EQ(bootstrap_mask,3i32) && !!!!EQ(model_mask,3i32) then 1i32 else 0i32
+    if bootstrap_mask = 3i32 && model_mask = 3i32 then 1i32 else 0i32
 
 inl main () : i32 =
     inl _ = bundle_rehydrate_structure_binding 2i32 7i32

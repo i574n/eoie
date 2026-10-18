@@ -1,4 +1,5 @@
 packages:
+    |core-
     state_receipt_codec_model-
     bundle_policy_domain
     filesystem_directory_contract

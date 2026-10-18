@@ -1,4 +1,5 @@
 packages:
+    |core-
     backup_domain
     patch_model
     patch_domain

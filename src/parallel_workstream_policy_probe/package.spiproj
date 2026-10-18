@@ -1,4 +1,5 @@
 packages:
+    |core-
     parallel_workstream_contract
     rust_std_process
 modules:

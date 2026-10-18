@@ -1,4 +1,5 @@
 packages:
+    |core-
     dogfood_shim_contract
     exact_replace_contract
     command_spec_domain

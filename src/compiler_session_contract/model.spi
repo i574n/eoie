@@ -23,29 +23,29 @@ union rec compiler_session_plan from to =
     | SessionThen :: forall from to. (exists middle. compiler_session_plan from middle * compiler_session_plan middle to) -> compiler_session_plan from to
 
 let lane_binding (lanes : i32) (lane : i32) : i32 =
-    if !!!!LT(lanes,1i32) then 0i32
-    elif !!!!LT(lane,0i32) then 0i32
-    elif !!!!LT(lane,lanes) then 1i32
+    if lanes < 1i32 then 0i32
+    elif lane < 0i32 then 0i32
+    elif lane < lanes then 1i32
     else 0i32
 
 let revision_binding (seen_before : i32) (same_source : i32) (kind_code : i32) : i32 =
-    if !!!!EQ(seen_before,0i32) then if !!!!EQ(kind_code,0i32) then 1i32 else 0i32
-    elif !!!!EQ(same_source,1i32) then if !!!!EQ(kind_code,1i32) then 1i32 else 0i32
-    elif !!!!EQ(kind_code,2i32) then 1i32
+    if seen_before = 0i32 then if kind_code = 0i32 then 1i32 else 0i32
+    elif same_source = 1i32 then if kind_code = 1i32 then 1i32 else 0i32
+    elif kind_code = 2i32 then 1i32
     else 0i32
 
 let cache_binding (revision_code : i32) (cache_code : i32) : i32 =
-    if !!!!EQ(cache_code,0i32) then 1i32
-    elif !!!!EQ(cache_code,1i32) then if !!!!EQ(revision_code,1i32) then 1i32 else 0i32
+    if cache_code = 0i32 then 1i32
+    elif cache_code = 1i32 then if revision_code = 1i32 then 1i32 else 0i32
     else 0i32
 
-let request_binding (status : i32) : i32 = if !!!!EQ(status,0i32) then 1i32 else 0i32
-let shutdown_binding (survivors : i32) : i32 = if !!!!EQ(survivors,0i32) then 1i32 else 0i32
+let request_binding (status : i32) : i32 = if status = 0i32 then 1i32 else 0i32
+let shutdown_binding (survivors : i32) : i32 = if survivors = 0i32 then 1i32 else 0i32
 
 let authority_binding (lane_ok : i32) (revision_ok : i32) (cache_ok : i32) (request_ok : i32) (shutdown_ok : i32) : i32 =
-    inl a = !!!!Mult(lane_ok,revision_ok)
-    inl b = !!!!Mult(cache_ok,request_ok)
-    !!!!Mult(!!!!Mult(a,b),shutdown_ok)
+    inl a = lane_ok * revision_ok
+    inl b = cache_ok * request_ok
+    ((a * b) * shutdown_ok)
 
 inl build_session_plan () : compiler_session_plan session_unassigned session_shutdown_verified =
     inl lane = LaneEvidence (8i32,5i32)
@@ -72,7 +72,7 @@ inl authority_status () : i32 =
     inl open_ok = revision_binding 0i32 0i32 0i32
     inl change_ok = revision_binding 1i32 0i32 2i32
     inl unchanged_ok = revision_binding 1i32 1i32 1i32
-    inl revision_ok = !!!!Mult(open_ok, !!!!Mult(change_ok,unchanged_ok))
+    inl revision_ok = open_ok * (change_ok * unchanged_ok)
     authority_binding
         (lane_binding 8i32 5i32)
         revision_ok

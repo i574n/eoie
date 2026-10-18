@@ -1,4 +1,5 @@
 packages:
+    |core-
     legacy_capability_model
 modules:
     self_install-

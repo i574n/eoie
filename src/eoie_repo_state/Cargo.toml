@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "repo.spi"
+output = "repo_state.rs"
+
+[package]
+name = "eoie-repo-state"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_repo_state"
+path = "repo_state.rs"

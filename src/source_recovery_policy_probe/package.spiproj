@@ -1,4 +1,5 @@
 packages:
+    |core-
     source_recovery_contract
 modules:
     main

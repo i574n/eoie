@@ -11,11 +11,11 @@ inl i32_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_str
 
 let rec count_status (text : string) (offset : i32) (length : i32) (~status : string) (counted : i32) : i32 =
     inl found = byte_find_from text (task_marker ()) offset
-    if i32_negative found then counted
+    if found < 0i32 then counted
     else
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
         inl matching = if declared_task text found then rust_std_string.model.equals (tuple_field text arguments length 6i32) status else false
-        inl next = if matching then i32_next counted else counted
+        inl next = if matching then counted + 1i32 else counted
         count_status text arguments length status next
 
 let status_count_text (text : string) (length : i32) (~status : string) : string =
@@ -35,11 +35,11 @@ let census_json (text : string) : string = status_counts_json text (byte_len tex
 
 let rec status_of_id (text : string) (~anchor : string) (offset : i32) (length : i32) : string =
     inl found = byte_find_from text anchor offset
-    if i32_negative found then ""
+    if found < 0i32 then ""
     else
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
         if declared_task text found then tuple_field text arguments length 6i32
-        else status_of_id text anchor (i32_next found) length
+        else status_of_id text anchor (found + 1i32) length
 
 let task_status_of (text : string) (~id : string) : string =
     status_of_id text (rust_std_string.model.concat5 "Task (\"" id "\"," "" "") 0i32 (byte_len text)

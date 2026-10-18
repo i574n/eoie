@@ -1,4 +1,5 @@
 packages:
+    |core-
     eoie_source_topology_core-
 modules:
     main

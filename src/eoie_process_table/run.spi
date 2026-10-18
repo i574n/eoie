@@ -1,0 +1,59 @@
+open rust_std_string.model
+open eoie_receipt.receipt
+open model
+open host
+
+let rec flag_present (~flag : string) (~index : i32) (~count : i32) : bool =
+    if index < count then (if argument index = flag then true else flag_present flag (index + 1i32) count) else false
+
+let rec pattern_from (~index : i32) (~count : i32) : string =
+    if index < count then (if argument index = "--tree" then pattern_from (index + 1i32) count else argument index) else ""
+
+let list_run (~started : u64) : i32 =
+    inl count = argument_count ()
+    inl listing = process_table (pattern_from 2i32 count) (flag_present "--tree" 2i32 count) (local_offset_minutes ())
+    stdout_line (listing_text listing)
+    receipt_line Succeeded (concat5 "processes " (decimal_text (listing_count listing)) "" "" "") started
+    0i32
+
+let rec stops_from (~index : i32) (~count : i32) (~tree : bool) (~own : u64) (~ancestors : string) (~stopped : u64) (~refused : u64) : u64 * u64 =
+    if index < count then
+        inl word = argument index
+        if word = "--tree" then stops_from (index + 1i32) count tree own ancestors stopped refused
+        else
+            match stop_refusal_of word own ancestors with
+            | Allowed pid =>
+                stdout_line (process_stopped pid tree)
+                stops_from (index + 1i32) count tree own ancestors (stopped + 1u64) refused
+            | refusal =>
+                stdout_line (refusal_text word refusal)
+                stops_from (index + 1i32) count tree own ancestors stopped (refused + 1u64)
+    else (stopped, refused)
+
+let stop_run (~started : u64) : i32 =
+    inl count = argument_count ()
+    if count < 3i32 then
+        stdout_line (concat5 "usage: eoie " (process_usage ()) "" "" "")
+        2i32
+    else
+        inl stopped, refused = stops_from 2i32 count (flag_present "--tree" 2i32 count) (own_pid ()) (ancestor_pids ()) 0u64 0u64
+        inl counts = concat5 "stopped " (decimal_text stopped) "  refused " (decimal_text refused) ""
+        if refused = 0u64 then
+            receipt_line Succeeded counts started
+            0i32
+        else
+            receipt_line Failed counts started
+            1i32
+
+let process_run () : i32 =
+    inl started = now_ms ()
+    match process_command_of (argument 1i32) with
+    | ListProcesses => list_run started
+    | StopProcesses => stop_run started
+    | ProcessUnknown =>
+        stdout_line (concat5 "usage: eoie " (process_usage ()) "" "" "")
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_process_run", ((fun () => process_run ()) : () -> i32))
+    0i32

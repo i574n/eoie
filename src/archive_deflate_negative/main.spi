@@ -29,21 +29,21 @@ inl main () : i32 =
     inl unsafe_tree = archive_deflate_domain.archive_tree_binding 1i32 0i32
     inl unsupported_format = archive_deflate_domain.archive_format_binding 5i32 1i32
     inl missing_tool = archive_deflate_domain.archive_format_binding 3i32 0i32
-    if !!!!LT(0i32,missing_archive) then 1i32
-    elif !!!!LT(0i32,existing_destination) then 1i32
-    elif !!!!LT(0i32,unsafe_entry) then 1i32
-    elif !!!!LT(0i32,escaping_tar_symlink) then 1i32
-    elif !!!!LT(0i32,payload_tar_symlink) then 1i32
-    elif !!!!LT(0i32,missing_tar_hardlink) then 1i32
-    elif !!!!LT(0i32,payload_tar_hardlink) then 1i32
-    elif !!!!LT(0i32,oversized_tar_long_link) then 1i32
-    elif !!!!LT(0i32,non_utf8_tar_long_link) then 1i32
-    elif !!!!LT(0i32,unsafe_tar_pax_path) then 1i32
-    elif !!!!LT(0i32,unsupported_tar_pax_record) then 1i32
-    elif !!!!LT(0i32,unsupported_compression) then 1i32
-    elif !!!!LT(0i32,budget_exceeded) then 1i32
-    elif !!!!LT(0i32,count_mismatch) then 1i32
-    elif !!!!LT(0i32,unsafe_tree) then 1i32
-    elif !!!!LT(0i32,unsupported_format) then 1i32
-    elif !!!!LT(0i32,missing_tool) then 1i32
+    if 0i32 < missing_archive then 1i32
+    elif 0i32 < existing_destination then 1i32
+    elif 0i32 < unsafe_entry then 1i32
+    elif 0i32 < escaping_tar_symlink then 1i32
+    elif 0i32 < payload_tar_symlink then 1i32
+    elif 0i32 < missing_tar_hardlink then 1i32
+    elif 0i32 < payload_tar_hardlink then 1i32
+    elif 0i32 < oversized_tar_long_link then 1i32
+    elif 0i32 < non_utf8_tar_long_link then 1i32
+    elif 0i32 < unsafe_tar_pax_path then 1i32
+    elif 0i32 < unsupported_tar_pax_record then 1i32
+    elif 0i32 < unsupported_compression then 1i32
+    elif 0i32 < budget_exceeded then 1i32
+    elif 0i32 < count_mismatch then 1i32
+    elif 0i32 < unsafe_tree then 1i32
+    elif 0i32 < unsupported_format then 1i32
+    elif 0i32 < missing_tool then 1i32
     else 0i32

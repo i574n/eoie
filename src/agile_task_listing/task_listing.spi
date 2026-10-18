@@ -19,6 +19,8 @@ type task_row =
         difficulty : string
         progress : string
         status : string
+        deps : string
+        tags : string
     }
 
 union status_filter =
@@ -38,7 +40,7 @@ inl status_selected (filter : status_filter) (~status : string) : bool =
     | AllStatuses => true
     | OnlyStatus wanted => rust_std_string.model.equals wanted status
 
-inl unquoted (~token : string) : string = byte_slice token 1i32 (i32_prev (byte_len token))
+inl unquoted (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
 inl progress_digits (~token : string) : string = rust_std_string.model.replace token "u32" ""
 inl padded (~text : string) (width : i32) : string =
     $'{ let text = !text; let filler = (!width as usize).saturating_sub(text.chars().count()); std::rc::Rc::<str>::from(text.to_string() + &" ".repeat(filler)) }' : string
@@ -57,6 +59,8 @@ let task_row_at (text : string) (arguments : i32) (length : i32) : task_row =
         difficulty = field 4i32
         progress = progress_digits (field 5i32)
         status = field 6i32
+        deps = unquoted (field 7i32)
+        tags = unquoted (field 8i32)
     }
 
 inl id_width () = 26i32
@@ -78,28 +82,42 @@ union listing_format =
     | TableFormat
     | JsonFormat
 
+nominal note_index = $'std::rc::Rc<std::collections::HashMap<String, (u32, String)>>'
+
+let note_index_of (~text : string) : note_index =
+    $'std::rc::Rc::new(!text.lines().filter(|line| line.starts_with("inl note_of_")).filter_map(|line| { let body = line.split_once("= Note (")?.1; let mut fields = body.splitn(4, ", "); let id = fields.next()?.trim_matches(char::from(34u8)).to_owned(); let _seq = fields.next()?; let at = fields.next()?.trim_matches(char::from(34u8)).to_owned(); Some((id, at)) }).fold(std::collections::HashMap::new(), |mut index, (id, at)| { let entry = index.entry(id).or_insert((0u32, String::new())); entry.0 += 1; entry.1 = at; index }))' : note_index
+
+inl empty_note_index () : note_index = $'std::rc::Rc::new(std::collections::HashMap::new())' : note_index
+
+inl note_count_in (index : note_index) (~id : string) : u32 = $'!index.get(&*!id).map(|entry| entry.0).unwrap_or(0)' : u32
+
+inl last_note_in (index : note_index) (~id : string) : string = $'std::rc::Rc::<str>::from(!index.get(&*!id).map(|entry| entry.1.as_str()).unwrap_or(""))' : string
+
 type list_request =
     {
         status : status_filter
         load : string
         assignee : string
         format : listing_format
+        notes : note_index
     }
 
 inl json_string (~text : string) : string = rust_std_string.model.concat5 "\"" text "\"" "" ""
 inl json_field (~name : string) (~value : string) : string = rust_std_string.model.concat5 "\"" name "\":" value ""
 
-let json_line (row : task_row) (~planning : string) (first : bool) : string =
+let json_line (row : task_row) (~planning : string) (notes : note_index) (first : bool) : string =
     inl separator = if first then "" else ","
     inl head = rust_std_string.model.concat5 separator "{" (json_field "id" (json_string row.id)) "," (json_field "title" (json_string row.title))
     inl middle = rust_std_string.model.concat5 "," (json_field "kind" (json_string row.kind)) "," (json_field "priority" (json_string row.priority)) ","
     inl tail = rust_std_string.model.concat5 (json_field "difficulty" (json_string row.difficulty)) "," (json_field "progress" row.progress) "," (json_field "status" (json_string row.status))
-    rust_std_string.model.concat5 head middle tail "," (rust_std_string.model.concat5 planning "}" "" "" "")
+    inl count_text = $'std::rc::Rc::<str>::from((!(note_count_in notes row.id)).to_string())' : string
+    inl extra = rust_std_string.model.concat5 (json_field "deps" (json_string row.deps)) "," (json_field "tags" (json_string row.tags)) "," (rust_std_string.model.concat5 (json_field "notes" count_text) "," (json_field "last_note" (json_string (last_note_in notes row.id))) "," "")
+    rust_std_string.model.concat5 head middle tail "," (rust_std_string.model.concat5 extra planning "}" "" "")
 
 let row_line (text : string) (request : list_request) (row : task_row) (first : bool) : string =
     match request.format with
     | TableFormat => table_line row (planning_columns text row.id)
-    | JsonFormat => json_line row (planning_json text row.id) first
+    | JsonFormat => json_line row (planning_json text row.id) request.notes first
 
 inl any_planning (~filter : string) : bool = rust_std_string.model.equals filter "all"
 
@@ -119,16 +137,16 @@ let row_selected (text : string) (request : list_request) (row : task_row) : boo
 
 let rec print_priority_rows (text : string) (offset : i32) (length : i32) (~priority : string) (request : list_request) (earlier : i32) (shown : i32) : i32 =
     inl found = byte_find_from text (task_marker ()) offset
-    if i32_negative found then shown
+    if found < 0i32 then shown
     else
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
         inl row = task_row_at text arguments length
         if declared_task text found then
             if rust_std_string.model.equals row.priority priority then
                 if row_selected text request row then
-                    inl first = i32_eq ($"!earlier + !shown" : i32) 0i32
+                    inl first = ($"!earlier + !shown" : i32) = 0i32
                     inl _ = stdout_line (row_line text request row first)
-                    print_priority_rows text arguments length priority request earlier (i32_next shown)
+                    print_priority_rows text arguments length priority request earlier (shown + 1i32)
                 else print_priority_rows text arguments length priority request earlier shown
             else print_priority_rows text arguments length priority request earlier shown
         else print_priority_rows text arguments length priority request earlier shown
@@ -145,9 +163,9 @@ inl lowest_priority_rank () = 5i32
 inl priority_name (rank : i32) : string = rust_std_string.model.concat5 "P" (i32_text rank) "" "" ""
 
 let rec print_rows_from_rank (text : string) (length : i32) (request : list_request) (rank : i32) (shown : i32) : i32 =
-    if i32_le rank (lowest_priority_rank ()) then
+    if rank <= lowest_priority_rank () then
         inl printed = print_priority_rows text 0i32 length (priority_name rank) request shown 0i32
-        print_rows_from_rank text length request (i32_next rank) (i32_sum shown printed)
+        print_rows_from_rank text length request (rank + 1i32) (shown + printed)
     else shown
 
 inl status_counts (text : string) (length : i32) : string = $"agile_task_census::eoie_agile_status_counts(&!text)" : string
@@ -191,7 +209,7 @@ let agile_list (~root : string) (request : list_request) : i32 =
         inl text = loaded_string (read_text file)
         inl length = byte_len text
         inl malformed = first_malformed_task text 0i32 length
-        if i32_negative malformed then print_listing text length request started
+        if malformed < 0i32 then print_listing text length { request with notes = note_index_of text } started
         else malformed_task_failure malformed
 
 union list_parse =
@@ -206,20 +224,20 @@ inl planning_filter_reason () : string = "invalid planning filter (expected --lo
 let json_request (request : list_request) : list_request = { request with format = JsonFormat }
 
 let rec list_request_from (index : i32) (count : i32) (request : list_request) : list_parse =
-    if i32_le count index then
+    if count <= index then
         if planning_filters_valid request.load request.assignee then ListParsed request
         else ListRejected (planning_filter_reason ())
     else
         inl argument = argument_owned index
-        if rust_std_string.model.equals argument "--json" then list_request_from (i32_next index) count (json_request request)
-        elif rust_std_string.model.equals argument "--load" then list_request_from (i32_sum index 2i32) count { request with load = argument_owned (i32_next index) }
-        elif rust_std_string.model.equals argument "--assignee" then list_request_from (i32_sum index 2i32) count { request with assignee = argument_owned (i32_next index) }
+        if rust_std_string.model.equals argument "--json" then list_request_from (index + 1i32) count (json_request request)
+        elif rust_std_string.model.equals argument "--load" then list_request_from (index + 2i32) count { request with load = argument_owned (index + 1i32) }
+        elif rust_std_string.model.equals argument "--assignee" then list_request_from (index + 2i32) count { request with assignee = argument_owned (index + 1i32) }
         else
             match parse_status_filter argument with
-            | Valid filter => list_request_from (i32_next index) count { request with status = filter }
+            | Valid filter => list_request_from (index + 1i32) count { request with status = filter }
             | Invalid => ListRejected (invalid_filter_reason argument)
 
-let default_list_request () : list_request = { status = AllStatuses; load = "all"; assignee = "all"; format = TableFormat }
+let default_list_request () : list_request = { status = AllStatuses; load = "all"; assignee = "all"; format = TableFormat; notes = empty_note_index () }
 
 let agile_list_entry () : i32 =
     match list_request_from 2i32 (argument_count ()) (default_list_request ()) with

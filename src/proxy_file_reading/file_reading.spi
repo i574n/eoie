@@ -52,8 +52,8 @@ inl read_extent_of (shown : u64) (file_bytes : u64) : read_extent = if $"!shown 
 inl ascii_newline () : i32 = 10i32
 
 inl content_ending_of (last_byte : i32) : content_ending =
-    if i32_negative last_byte then ContentClosed
-    elif i32_eq last_byte (ascii_newline ()) then ContentClosed
+    if last_byte < 0i32 then ContentClosed
+    elif last_byte = ascii_newline () then ContentClosed
     else ContentOpen
 
 inl content_ending_text (ending : content_ending) : string =
@@ -75,7 +75,7 @@ inl stream_file (~path : string) (limit : read_limit) (started : u64) : read_out
     match stream_result_of (streamed_prefix path (limit_bytes limit)) with
     | StreamFailed => ReadRejected (rust_std_string.model.concat5 "fs-read failed while streaming: " path "" "" "")
     | Streamed shown =>
-        if i32_eq (flushed_stdout ()) 0i32 then ReadShown (stderr_line (read_receipt_text path shown (byte_before path shown) started))
+        if flushed_stdout () = 0i32 then ReadShown (stderr_line (read_receipt_text path shown (byte_before path shown) started))
         else ReadRejected (rust_std_string.model.concat5 "fs-read could not flush stdout: " path "" "" "")
 
 inl read_rooted (~root : string) (~relative : string) (limit : read_limit) (started : u64) : read_outcome =

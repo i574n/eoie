@@ -1,0 +1,109 @@
+///- --package .
+test model static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union job_command =
+    | JobStart
+    | JobSupervise
+    | JobStatus
+    | JobWait
+    | JobList
+    | JobTail
+    | JobUnknown
+
+inl job_command_of (~word : string) : job_command =
+    if word = "start" then JobStart
+    elif word = "supervise" then JobSupervise
+    elif word = "status" then JobStatus
+    elif word = "wait" then JobWait
+    elif word = "list" then JobList
+    elif word = "tail" then JobTail
+    else JobUnknown
+
+inl job_usage () : string = "job start [--heavy] <label> <timeout-ms> <program> [args...] | job status <id> | job wait <id> <max-ms> | job list [count] | job tail <id> [lines]"
+
+union job_state =
+    | JobPending
+    | JobRunning
+    | JobFinished : i32
+    | JobTimedOut
+    | JobSpawnFailed : string
+    | JobLost
+
+inl state_word = function
+    | JobPending => "pending"
+    | JobRunning => "running"
+    | JobFinished _ => "finished"
+    | JobTimedOut => "timed-out"
+    | JobSpawnFailed _ => "spawn-failed"
+    | JobLost => "lost"
+
+inl state_exit = function
+    | JobFinished code => code
+    | JobTimedOut => 124i32
+    | JobSpawnFailed _ => 125i32
+    | JobLost => 125i32
+    | JobPending => 3i32
+    | JobRunning => 3i32
+
+inl state_settled = function
+    | JobPending => false
+    | JobRunning => false
+    | _ => true
+
+inl silence_limit_ms () : u64 = 15000u64
+
+type job_record =
+    {
+        exit_text : string
+        heartbeat_ms : u64
+        started_ms : u64
+        now_ms : u64
+    }
+
+inl exit_word (~exit_text : string) : string = $'std::rc::Rc::<str>::from(!exit_text.split(char::from(9u8)).nth(2).unwrap_or("").trim())' : string
+inl exit_code (~exit_text : string) : i32 = $'!exit_text.split(char::from(9u8)).next().and_then(|code| code.trim().parse::<i32>().ok()).unwrap_or(1)' : i32
+inl exit_detail (~exit_text : string) : string = $'std::rc::Rc::<str>::from(!exit_text.split(char::from(9u8)).nth(3).unwrap_or("").trim())' : string
+
+inl silent_since (record : job_record) (since : u64) : bool = since + silence_limit_ms () < record.now_ms
+
+let job_state_of (record : job_record) : job_state =
+    if record.exit_text <> "" then
+        inl word = exit_word record.exit_text
+        if word = "finished" then JobFinished (exit_code record.exit_text)
+        elif word = "timed-out" then JobTimedOut
+        else JobSpawnFailed (exit_detail record.exit_text)
+    elif record.heartbeat_ms > 0u64 then
+        if silent_since record record.heartbeat_ms then JobLost else JobRunning
+    elif silent_since record record.started_ms then JobLost
+    else JobPending
+
+inl exit_line (code : i32) (ended : u64) (state : job_state) (~detail : string) : string =
+    inl code_text = $'std::rc::Rc::<str>::from((!code).to_string())' : string
+    inl ended_text = $'std::rc::Rc::<str>::from((!ended).to_string())' : string
+    concat5 code_text "\t" ended_text "\t" (concat5 (state_word state) "\t" detail "\n" "")
+
+inl label_safe (~label : string) : string =
+    $'std::rc::Rc::<str>::from(!label.chars().map(|c| if c.is_ascii_alphanumeric() || c == char::from(45u8) { c } else { char::from(95u8) }).take(40).collect::<String>())' : string
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl record_at (exit_text : string) (heartbeat : u64) (started : u64) (now : u64) : job_record =
+    { exit_text = exit_text; heartbeat_ms = heartbeat; started_ms = started; now_ms = now }
+
+///> rust
+test job_states_follow_the_registry_records =
+    expect (state_word (job_state_of (record_at "" 0u64 1000u64 2000u64)) = "pending") "fresh start"
+    expect (state_word (job_state_of (record_at "" 0u64 1000u64 40000u64)) = "lost") "never started"
+    expect (state_word (job_state_of (record_at "" 30000u64 1000u64 40000u64)) = "running") "recent heartbeat"
+    expect (state_word (job_state_of (record_at "" 10000u64 1000u64 40000u64)) = "lost") "stale heartbeat"
+    expect (state_exit (job_state_of (record_at "7\t5000\tfinished\t" 4000u64 1000u64 40000u64)) = 7i32) "finished code"
+    expect (state_exit (job_state_of (record_at "1\t5000\ttimed-out\t" 4000u64 1000u64 40000u64)) = 124i32) "timeout code"
+    expect (state_word (job_state_of (record_at "125\t5000\tspawn-failed\tno such program" 0u64 1000u64 40000u64)) = "spawn-failed") "spawn failure"
+
+///> rust
+test labels_become_safe_directory_names =
+    expect (label_safe "eoie regen: batch 1/7" = "eoie_regen__batch_1_7") "unsafe characters"
+    expect (job_command_of "wait" <> JobUnknown) "known verb"

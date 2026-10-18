@@ -61,7 +61,7 @@ fn field_end_4(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US1) -> i32 {
             if v9 {
                 return v1;
             } else {
-                let mut v10: i32 = v1 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
                 let mut v25: US1 = match &v3 {
                     US1::US1_ScanEscaped => {
                         US1::US1_ScanQuoted
@@ -99,7 +99,7 @@ fn skip_spaces_5(mut v0: Rc<str>, mut v1: i32) -> i32 {
         let mut v2: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
         let mut v3: bool = v2 == 32i32;
         if v3 {
-            let mut v4: i32 = v1 + 1;
+            let mut v4: i32 = v1.wrapping_add(1i32);
             (v0, v1) = (v0.clone(), v4);
             continue;
         } else {
@@ -115,9 +115,9 @@ fn field_start_3(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 
         } else {
             let mut v5: US1 = US1::US1_ScanPlain;
             let mut v6: i32 = field_end_4(v0.clone(), v1, v2, v5.clone());
-            let mut v7: i32 = v6 + 1;
+            let mut v7: i32 = v6.wrapping_add(1i32);
             let mut v8: i32 = skip_spaces_5(v0.clone(), v7);
-            let mut v9: i32 = v3 - 1;
+            let mut v9: i32 = v3.wrapping_sub(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v8, v2, v9);
             continue;
         }
@@ -127,7 +127,7 @@ fn agile_edit_entry_0() -> i32 {
     let mut v0: i32 = 3i32;
     let mut v1: Rc<str> = argument_owned_2(v0);
     let mut v2: i32 = agile_field_rendering::eoie_agile_edit_field_position(&*v1);
-    let mut v3: bool = v2 < 0;
+    let mut v3: bool = v2 < 0i32;
     if v3 {
         let mut v4: Rc<str> = agile_field_rendering::eoie_agile_edit_field_rule(&*v1);
         let mut v5: i32 = 2i32;
@@ -163,7 +163,7 @@ fn agile_edit_entry_0() -> i32 {
                 let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\","); } LIT.with(|lit| lit.clone()) };
                 let mut v29: Rc<str> = std::rc::Rc::<str>::from([&*v27, &*v11, &*v28, &*v16, &*v16].concat());
                 let mut v30: i32 = v26.find(&*v29).map(|offset| offset as i32).unwrap_or(-1);
-                let mut v31: bool = v30 < 0;
+                let mut v31: bool = v30 < 0i32;
                 if v31 {
                     let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("no task with this id"); } LIT.with(|lit| lit.clone()) };
                     agile_edit_failure_1(v32.clone(), v11.clone())

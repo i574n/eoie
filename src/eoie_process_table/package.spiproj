@@ -1,0 +1,8 @@
+packages:
+    |core-
+    rust_std_string
+    eoie_receipt
+modules:
+    model
+    host
+    run

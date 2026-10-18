@@ -94,7 +94,7 @@ fn task_id_bytes_allowed_1(mut v0: i32, mut v1: i32) -> bool {
                 }
             };
             if v13 {
-                let mut v14: i32 = v0 + 1;
+                let mut v14: i32 = v0.wrapping_add(1i32);
                 (v0, v1) = (v14, v1);
                 continue;
             } else {

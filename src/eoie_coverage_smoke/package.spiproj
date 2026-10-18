@@ -1,3 +1,5 @@
+packages:
+    |core-
 modules:
     coverage_terminal
     toolchain_smoke

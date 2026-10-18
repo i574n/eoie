@@ -49,7 +49,7 @@ fn read_receipt_text_2(mut v0: Rc<str>, mut v1: u64, mut v2: i32, mut v3: u64) -
             v24.clone()
         }
         US2::US2_WholeFileShown => {
-            let mut v13: bool = v2 < 0;
+            let mut v13: bool = v2 < 0i32;
             let mut v19: US3 = if v13 {
                 US3::US3_ContentClosed
             } else {

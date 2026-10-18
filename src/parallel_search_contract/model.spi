@@ -37,39 +37,39 @@ inl parallel_search_public_plan () : parallel_search_plan parallel_search_raw pa
     ))
 
 let parallel_search_request_binding (flags : i32) (limit : i32) : i32 =
-    if !!!!LT(flags,0i32) then 0i32
-    elif !!!!LT(0i32,flags) then 0i32
-    elif !!!!LT(limit,1i32) then 0i32
+    if flags < 0i32 then 0i32
+    elif 0i32 < flags then 0i32
+    elif limit < 1i32 then 0i32
     else 1i32
 
 let parallel_search_worker_binding (workers : i32) (available : i32) : i32 =
-    if !!!!LT(workers,1i32) then 0i32
-    elif !!!!LT(available,workers) then 0i32
+    if workers < 1i32 then 0i32
+    elif available < workers then 0i32
     else 1i32
 
 let parallel_search_parity_binding (serial_count : i32) (parallel_count : i32) : i32 =
-    if !!!!LT(serial_count,0i32) then 0i32
-    elif !!!!LT(parallel_count,0i32) then 0i32
-    elif !!!!EQ(serial_count,parallel_count) then 1i32
+    if serial_count < 0i32 then 0i32
+    elif parallel_count < 0i32 then 0i32
+    elif serial_count = parallel_count then 1i32
     else 0i32
 
 let parallel_manifest_order_binding (is_sorted : i32) (is_unique : i32) : i32 =
-    if !!!!LT(is_sorted,1i32) then 0i32
-    elif !!!!LT(is_unique,1i32) then 0i32
+    if is_sorted < 1i32 then 0i32
+    elif is_unique < 1i32 then 0i32
     else 1i32
 
 let parallel_manifest_parity_binding (serial_fingerprint : i32) (parallel_fingerprint : i32) : i32 =
-    if !!!!EQ(serial_fingerprint,parallel_fingerprint) then 1i32
+    if serial_fingerprint = parallel_fingerprint then 1i32
     else 0i32
 
 let parallel_consumer_mode_binding (mode : i32) (output_segments : i32) : i32 =
-    if !!!!LT(mode,0i32) then 0i32
-    elif !!!!LT(1i32,mode) then 0i32
-    elif !!!!LT(output_segments,1i32) then 0i32
+    if mode < 0i32 then 0i32
+    elif 1i32 < mode then 0i32
+    elif output_segments < 1i32 then 0i32
     else 1i32
 
 let parallel_consumer_output_binding (expected_fingerprint : i32) (output_fingerprint : i32) : i32 =
-    if !!!!EQ(expected_fingerprint,output_fingerprint) then 1i32 else 0i32
+    if expected_fingerprint = output_fingerprint then 1i32 else 0i32
 
 union search_scope =
     | SearchWholeRoot

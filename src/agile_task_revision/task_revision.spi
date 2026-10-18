@@ -38,7 +38,7 @@ inl agile_edit (~root : string) (~id : string) (position : i32) (~field_name : s
     | FileReadable file =>
         inl original = loaded_string (read_text file)
         inl anchor = byte_find original (task_anchor id)
-        if i32_negative anchor then agile_edit_failure "no task with this id" id
+        if anchor < 0i32 then agile_edit_failure "no task with this id" id
         else
             inl length = byte_len original
             inl start = field_start original ($"!anchor + !(task_arguments_offset ())" : i32) length position
@@ -54,7 +54,7 @@ inl agile_edit (~root : string) (~id : string) (position : i32) (~field_name : s
 let agile_edit_entry () : i32 =
     inl field_name = argument_owned 3i32
     inl position = edit_field_position field_name
-    if i32_negative position then agile_edit_failure (edit_field_rule field_name) (argument_owned 2i32)
+    if position < 0i32 then agile_edit_failure (edit_field_rule field_name) (argument_owned 2i32)
     else agile_edit (argument_owned 1i32) (argument_owned 2i32) position field_name (argument_owned 4i32)
 
 inl main () : i32 =

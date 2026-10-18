@@ -43,9 +43,9 @@ let read_series (~current : string) : series_reading =
     if ends_with current (zip_suffix ()) then
         inl stem = without_suffix current (zip_suffix ())
         inl marker = last_index_of stem (alpha_marker ())
-        if !!!!LT(marker, 0i64) then SeriesRejected MissingAlphaSuffix
+        if marker < 0i64 then SeriesRejected MissingAlphaSuffix
         else
-            inl prefix_end = !!!!Add(marker, 5i64)
+            inl prefix_end = marker + 5i64
             inl digits = from_index stem prefix_end
             if ascii_digits digits then
                 inl overflow = decimal_overflow digits
@@ -80,7 +80,7 @@ inl expect (condition : bool) (~detail : string) : () = if condition then () els
 inl member (current : string) (prefix : string) (alpha : u64) : () =
     expect (equals (series_error current) "") current
     expect (equals (series_prefix current) prefix) current
-    expect !!!!EQ(series_alpha current, alpha) current
+    expect (series_alpha current = alpha) current
 
 inl rejected (current : string) (message : string) : () =
     expect (equals (series_error current) message) current

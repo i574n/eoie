@@ -10,10 +10,10 @@ inl i32_add (a : i32) (b : i32) : i32 = $"!a + !b"
 inl invalid_i32 () : i32 = $"-1"
 
 inl title_space byte : bool =
-    if i32_eq byte 32i32 then true else i32_eq byte 9i32
+    if byte = 32i32 then true else byte = 9i32
 
 inl title_visible byte : bool =
-    if i32_le 33i32 byte then i32_le byte 126i32 else false
+    if 33i32 <= byte then byte <= 126i32 else false
 
 let rec validate_title_loop index length words in_word : i32 =
     if i32_lt index length then
@@ -25,8 +25,8 @@ let rec validate_title_loop index length words in_word : i32 =
         else invalid_i32 ()
     else
         inl words = if in_word then i32_add words 1i32 else words
-        if i32_le 3i32 words then
-            if i32_le words 7i32 then words else invalid_i32 ()
+        if 3i32 <= words then
+            if words <= 7i32 then words else invalid_i32 ()
         else invalid_i32 ()
 
 inl validate_title () : i32 =

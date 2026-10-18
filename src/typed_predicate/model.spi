@@ -13,8 +13,8 @@ inl byte_at (text : string) (index : u64) : u64 =
 inl rec evaluate forall input. (rule : predicate input) (value : input) : bool =
     match rule with
     | Range (low, high) =>
-        if !!!!LT(value,low) then false else !!!!LTE(value,high)
-    | Minimum low => !!!!LTE(low,value)
+        if value < low then false else value <= high
+    | Minimum low => (low <= value)
     | Either (left, right) =>
         if evaluate left value then true else evaluate right value
     | Both (left, right) =>
@@ -25,8 +25,8 @@ inl rec evaluate forall input. (rule : predicate input) (value : input) : bool =
     | EveryByte inner =>
         inl length = byte_length value
         let rec loop (index : u64) : bool =
-            if !!!!EQ(index,length) then true
-            elif evaluate inner (byte_at value index) then loop (!!!!Add(index,1u64))
+            if index = length then true
+            elif evaluate inner (byte_at value index) then loop (index + 1u64)
             else false
         loop 0u64
 

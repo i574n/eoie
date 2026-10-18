@@ -1,4 +1,5 @@
 packages:
+    |core-
     parallel_search_contract
 modules:
     model

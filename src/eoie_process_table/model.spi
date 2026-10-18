@@ -1,0 +1,63 @@
+///- --package .
+test model static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union process_command =
+    | ListProcesses
+    | StopProcesses
+    | ProcessUnknown
+
+union stop_scope =
+    | JustProcess
+    | WithDescendants
+
+union stop_refusal =
+    | Allowed : u64
+    | OwnProcess
+    | OwnAncestor
+    | NotAProcessId
+
+inl process_usage () : string = "ps [regex] [--tree] | kill <pid>... [--tree]"
+
+inl process_command_of (~word : string) : process_command =
+    if word = "ps" then ListProcesses elif word = "kill" then StopProcesses else ProcessUnknown
+
+inl all_digits (~text : string) : bool = $'\!!text.is_empty() && !text.bytes().all(|byte| byte.is_ascii_digit())' : bool
+inl decimal_of (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+
+let stop_refusal_of (~pid_text : string) (~own : u64) (~ancestors : string) : stop_refusal =
+    if all_digits pid_text then
+        inl pid = decimal_of pid_text
+        if pid = own then OwnProcess
+        elif contains (concat5 "," ancestors "," "" "") (concat5 "," pid_text "," "" "") then OwnAncestor
+        else Allowed pid
+    else NotAProcessId
+
+inl refusal_text (~pid_text : string) (refusal : stop_refusal) : string =
+    match refusal with
+    | Allowed _ => ""
+    | OwnProcess => concat5 "stop " pid_text "  refused: that is this eoie process" "" ""
+    | OwnAncestor => concat5 "stop " pid_text "  refused: that is a parent of this eoie (the calling shell)" "" ""
+    | NotAProcessId => concat5 "stop " pid_text "  refused: not a process id" "" ""
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test stopping_never_reaches_this_process_or_its_callers =
+    match stop_refusal_of "4120" 77u64 "12,300,4" with
+    | Allowed pid => expect (pid = 4120u64) "a foreign pid is allowed"
+    | _ => expect false "4120 should be allowed"
+    match stop_refusal_of "77" 77u64 "12,300,4" with
+    | OwnProcess => ()
+    | _ => expect false "own pid"
+    match stop_refusal_of "300" 77u64 "12,300,4" with
+    | OwnAncestor => ()
+    | _ => expect false "ancestor"
+    match stop_refusal_of "30" 77u64 "12,300,4" with
+    | Allowed _ => ()
+    | _ => expect false "30 is not 300"
+    match stop_refusal_of "j1" 77u64 "" with
+    | NotAProcessId => expect (refusal_text "j1" NotAProcessId = "stop j1  refused: not a process id") "refusal text"
+    | _ => expect false "not a number"

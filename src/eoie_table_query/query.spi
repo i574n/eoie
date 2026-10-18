@@ -1,0 +1,67 @@
+///- --package .
+test query static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union table_command =
+    | TableQuery
+    | TableDiff
+    | TableUnknown
+
+inl table_command_of (~word : string) : table_command =
+    if word = "query" then TableQuery
+    elif word = "diff" then TableDiff
+    else TableUnknown
+
+inl table_usage () : string = "table query <file> [--where col=value]... [--cols a,b] [--group col] [--limit n] | table diff <left> <right> --key a,b [--cols x,y] [--limit n]"
+
+type table_request =
+    {
+        wheres : string
+        cols : string
+        group : string
+        key : string
+        limit : u64
+    }
+
+inl no_request () : table_request = { wheres = ""; cols = ""; group = ""; key = ""; limit = 20u64 }
+
+union option_step =
+    | StepTaken : table_request
+    | StepRejected : string
+
+inl appended (~list : string) (~item : string) : string = if list = "" then item else concat5 list "\n" item "" ""
+
+inl decimal_u64 (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+
+let option_applied (request : table_request) (~name : string) (~value : string) : option_step =
+    if name = "--where" then
+        if contains value "=" then StepTaken { request with wheres = appended request.wheres value }
+        else StepRejected (concat5 "--where expects col=value, got " value "" "" "")
+    elif name = "--cols" then StepTaken { request with cols = value }
+    elif name = "--group" then StepTaken { request with group = value }
+    elif name = "--key" then StepTaken { request with key = value }
+    elif name = "--limit" then
+        inl limit = decimal_u64 value
+        if limit = 0u64 then StepRejected "--limit expects a positive integer" else StepTaken { request with limit = limit }
+    else StepRejected (concat5 "unknown option " name "" "" "")
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl taken (step : option_step) : table_request =
+    match step with
+    | StepTaken request => request
+    | StepRejected reason => failwith reason
+
+///> rust
+test options_build_a_typed_request =
+    inl a = taken (option_applied (no_request ()) "--where" "backend=C")
+    inl b = taken (option_applied a "--where" "native=ran")
+    expect (b.wheres = "backend=C\nnative=ran") "wheres accumulate in order"
+    expect ((taken (option_applied b "--limit" "5")).limit = 5u64) "limit"
+    inl rejected =
+        match option_applied b "--where" "backend" with
+        | StepRejected _ => true
+        | StepTaken _ => false
+    expect rejected "where without equals"

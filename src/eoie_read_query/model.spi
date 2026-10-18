@@ -1,0 +1,79 @@
+///- --package .
+test model static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union read_command =
+    | ReadFiles
+    | CountLines
+    | SearchText
+    | ReadUnknown
+
+inl read_command_of (~word : string) : read_command =
+    if word = "read" then ReadFiles
+    elif word = "lines" then CountLines
+    elif word = "grep" then SearchText
+    else ReadUnknown
+
+inl read_usage () : string = "read <path>[:from-to]... [--max-lines n] | lines <path|glob>... | grep <root> <needle> [--glob pattern] [--context n] [--max n] [--ignore-case]"
+
+union line_range =
+    | WholeFile
+    | FromTo : u64 * u64
+    | OneLine : u64
+
+type read_spec =
+    {
+        path : string
+        range : line_range
+    }
+
+inl colon_index (~spec : string) : i64 =
+    $'{ let bytes = !spec.as_bytes(); bytes.iter().rposition(|byte| *byte == 58u8).filter(|index| *index > 1 || \!(bytes.len() > 1 && bytes[1] == 58u8)).map(|index| index as i64).unwrap_or(-1) }' : i64
+
+inl before_index (~text : string) (~index : i64) : string = $'std::rc::Rc::<str>::from(&(&*!text)[..!index as usize])' : string
+inl after_index (~text : string) (~index : i64) : string = $'std::rc::Rc::<str>::from(&(&*!text)[(!index as usize) + 1..])' : string
+inl decimal_or_zero (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+inl all_digits (~text : string) : bool = $'\!!text.is_empty() && !text.bytes().all(|byte| byte.is_ascii_digit())' : bool
+
+inl range_of (~text : string) : line_range =
+    if contains text "-" then
+        inl dash = $'!text.find(char::from(45u8)).map(|index| index as i64).unwrap_or(-1)' : i64
+        inl first = decimal_or_zero (before_index text dash)
+        inl last = decimal_or_zero (after_index text dash)
+        if first = 0u64 || last < first then WholeFile else FromTo (first, last)
+    elif all_digits text then OneLine (decimal_or_zero text)
+    else WholeFile
+
+let read_spec_of (~spec : string) : read_spec =
+    inl colon = colon_index spec
+    if colon < 0i64 then { path = spec; range = WholeFile }
+    else
+        inl suffix = after_index spec colon
+        if all_digits suffix || (contains suffix "-" && all_digits (rust_std_string.model.replace suffix "-" "")) then { path = before_index spec colon; range = range_of suffix }
+        else { path = spec; range = WholeFile }
+
+inl range_first = function
+    | WholeFile => 1u64
+    | FromTo (first, _) => first
+    | OneLine line => line
+
+inl range_last (range : line_range) (~limit : u64) : u64 =
+    match range with
+    | WholeFile => limit
+    | FromTo (_, last) => last
+    | OneLine line => line
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test specs_split_paths_from_line_ranges =
+    inl a = read_spec_of "src/eoie_jobs/jobs.spi:10-20"
+    expect (a.path = "src/eoie_jobs/jobs.spi" && range_first a.range = 10u64 && range_last a.range 400u64 = 20u64) "range"
+    inl b = read_spec_of "C:\\home\\git\\eoie\\README.md"
+    expect (b.path = "C:\\home\\git\\eoie\\README.md" && range_first b.range = 1u64 && range_last b.range 400u64 = 400u64) "drive letter is not a range"
+    inl c = read_spec_of "C:\\x\\y.spi:7"
+    expect (c.path = "C:\\x\\y.spi" && range_first c.range = 7u64 && range_last c.range 400u64 = 7u64) "single line"
+    inl d = read_spec_of "notes:todo.md"
+    expect (d.path = "notes:todo.md") "a colon before a word stays in the path"

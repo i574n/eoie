@@ -114,7 +114,7 @@ fn field_end_7(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US2) -> i32 {
             if v9 {
                 return v1;
             } else {
-                let mut v10: i32 = v1 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
                 let mut v25: US2 = match &v3 {
                     US2::US2_ScanEscaped => {
                         US2::US2_ScanQuoted
@@ -152,7 +152,7 @@ fn skip_spaces_8(mut v0: Rc<str>, mut v1: i32) -> i32 {
         let mut v2: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
         let mut v3: bool = v2 == 32i32;
         if v3 {
-            let mut v4: i32 = v1 + 1;
+            let mut v4: i32 = v1.wrapping_add(1i32);
             (v0, v1) = (v0.clone(), v4);
             continue;
         } else {
@@ -168,9 +168,9 @@ fn field_start_6(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 
         } else {
             let mut v5: US2 = US2::US2_ScanPlain;
             let mut v6: i32 = field_end_7(v0.clone(), v1, v2, v5.clone());
-            let mut v7: i32 = v6 + 1;
+            let mut v7: i32 = v6.wrapping_add(1i32);
             let mut v8: i32 = skip_spaces_8(v0.clone(), v7);
-            let mut v9: i32 = v3 - 1;
+            let mut v9: i32 = v3.wrapping_sub(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v8, v2, v9);
             continue;
         }
@@ -183,7 +183,7 @@ fn task_json_record_at_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> (Rc<str>,
     let mut v6: i32 = field_end_7(v0.clone(), v4, v2, v5.clone());
     let mut v7: Rc<str> = std::rc::Rc::<str>::from(v0.get(v4 as usize..v6 as usize).unwrap_or(""));
     let mut v8: i32 = v7.len() as i32;
-    let mut v9: i32 = v8 - 1;
+    let mut v9: i32 = v8.wrapping_sub(1i32);
     let mut v10: Rc<str> = std::rc::Rc::<str>::from(v7.get(1i32 as usize..v9 as usize).unwrap_or(""));
     let mut v11: i32 = 1i32;
     let mut v12: i32 = field_start_6(v0.clone(), v1, v2, v11);
@@ -191,7 +191,7 @@ fn task_json_record_at_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> (Rc<str>,
     let mut v14: i32 = field_end_7(v0.clone(), v12, v2, v13.clone());
     let mut v15: Rc<str> = std::rc::Rc::<str>::from(v0.get(v12 as usize..v14 as usize).unwrap_or(""));
     let mut v16: i32 = v15.len() as i32;
-    let mut v17: i32 = v16 - 1;
+    let mut v17: i32 = v16.wrapping_sub(1i32);
     let mut v18: Rc<str> = std::rc::Rc::<str>::from(v15.get(1i32 as usize..v17 as usize).unwrap_or(""));
     let mut v19: i32 = 2i32;
     let mut v20: i32 = field_start_6(v0.clone(), v1, v2, v19);
@@ -227,7 +227,7 @@ fn task_json_record_at_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> (Rc<str>,
     let mut v50: i32 = field_end_7(v0.clone(), v48, v2, v49.clone());
     let mut v51: Rc<str> = std::rc::Rc::<str>::from(v0.get(v48 as usize..v50 as usize).unwrap_or(""));
     let mut v52: i32 = v51.len() as i32;
-    let mut v53: i32 = v52 - 1;
+    let mut v53: i32 = v52.wrapping_sub(1i32);
     let mut v54: Rc<str> = std::rc::Rc::<str>::from(v51.get(1i32 as usize..v53 as usize).unwrap_or(""));
     let mut v55: i32 = 8i32;
     let mut v56: i32 = field_start_6(v0.clone(), v1, v2, v55);
@@ -235,7 +235,7 @@ fn task_json_record_at_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> (Rc<str>,
     let mut v58: i32 = field_end_7(v0.clone(), v56, v2, v57.clone());
     let mut v59: Rc<str> = std::rc::Rc::<str>::from(v0.get(v56 as usize..v58 as usize).unwrap_or(""));
     let mut v60: i32 = v59.len() as i32;
-    let mut v61: i32 = v60 - 1;
+    let mut v61: i32 = v60.wrapping_sub(1i32);
     let mut v62: Rc<str> = std::rc::Rc::<str>::from(v59.get(1i32 as usize..v61 as usize).unwrap_or(""));
     (v10.clone(), v18.clone(), v23.clone(), v28.clone(), v33.clone(), v41.clone(), v46.clone(), v54.clone(), v62.clone())
 }
@@ -296,12 +296,12 @@ fn unescaped_from_13(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>)
             let mut v8: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
             let mut v9: bool = v8 == 92i32;
             if v9 {
-                let mut v10: i32 = v1 + 1;
-                let mut v11: i32 = v10 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
+                let mut v11: i32 = v10.wrapping_add(1i32);
                 let mut v12: Rc<str> = std::rc::Rc::<str>::from(v0.get(v1 as usize..v1 as usize).unwrap_or(""));
                 let mut v13: i32 = v0.as_bytes().get(v10 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
                 let mut v14: bool = v13 == 110i32;
-                let mut v24: Rc<str> = if v14 {
+                let mut v23: Rc<str> = if v14 {
                     let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                     v15.clone()
                 } else {
@@ -315,19 +315,18 @@ fn unescaped_from_13(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>)
                             let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
                             v19.clone()
                         } else {
-                            let mut v20: i32 = v10 + 1;
-                            let mut v21: Rc<str> = std::rc::Rc::<str>::from(v0.get(v10 as usize..v20 as usize).unwrap_or(""));
-                            v21.clone()
+                            let mut v20: Rc<str> = std::rc::Rc::<str>::from(v0.get(v10 as usize..v11 as usize).unwrap_or(""));
+                            v20.clone()
                         }
                     }
                 };
-                let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                let mut v26: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v12, &*v24, &*v25, &*v25].concat());
-                (v0, v1, v2, v3) = (v0.clone(), v11, v2, v26.clone());
+                let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                let mut v25: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v12, &*v23, &*v24, &*v24].concat());
+                (v0, v1, v2, v3) = (v0.clone(), v11, v2, v25.clone());
                 continue;
             } else {
-                let mut v28: i32 = v1 + 1;
-                return unescaped_from_12(v0.clone(), v28, v1, v2, v3.clone());
+                let mut v27: i32 = v1.wrapping_add(1i32);
+                return unescaped_from_12(v0.clone(), v27, v1, v2, v3.clone());
             }
         }
     }
@@ -344,12 +343,12 @@ fn unescaped_from_12(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut
             let mut v9: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
             let mut v10: bool = v9 == 92i32;
             if v10 {
-                let mut v11: i32 = v1 + 1;
-                let mut v12: i32 = v11 + 1;
+                let mut v11: i32 = v1.wrapping_add(1i32);
+                let mut v12: i32 = v11.wrapping_add(1i32);
                 let mut v13: Rc<str> = std::rc::Rc::<str>::from(v0.get(v2 as usize..v1 as usize).unwrap_or(""));
                 let mut v14: i32 = v0.as_bytes().get(v11 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
                 let mut v15: bool = v14 == 110i32;
-                let mut v25: Rc<str> = if v15 {
+                let mut v24: Rc<str> = if v15 {
                     let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                     v16.clone()
                 } else {
@@ -363,18 +362,17 @@ fn unescaped_from_12(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut
                             let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
                             v20.clone()
                         } else {
-                            let mut v21: i32 = v11 + 1;
-                            let mut v22: Rc<str> = std::rc::Rc::<str>::from(v0.get(v11 as usize..v21 as usize).unwrap_or(""));
-                            v22.clone()
+                            let mut v21: Rc<str> = std::rc::Rc::<str>::from(v0.get(v11 as usize..v12 as usize).unwrap_or(""));
+                            v21.clone()
                         }
                     }
                 };
-                let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v4, &*v13, &*v25, &*v26, &*v26].concat());
-                return unescaped_from_13(v0.clone(), v12, v3, v27.clone());
+                let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                let mut v26: Rc<str> = std::rc::Rc::<str>::from([&*v4, &*v13, &*v24, &*v25, &*v25].concat());
+                return unescaped_from_13(v0.clone(), v12, v3, v26.clone());
             } else {
-                let mut v29: i32 = v1 + 1;
-                (v0, v1, v2, v3, v4) = (v0.clone(), v29, v2, v3, v4.clone());
+                let mut v28: i32 = v1.wrapping_add(1i32);
+                (v0, v1, v2, v3, v4) = (v0.clone(), v28, v2, v3, v4.clone());
                 continue;
             }
         }
@@ -382,7 +380,7 @@ fn unescaped_from_12(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut
 }
 fn unquoted_11(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = v0.len() as i32;
-    let mut v2: i32 = v1 - 1;
+    let mut v2: i32 = v1.wrapping_sub(1i32);
     let mut v3: Rc<str> = std::rc::Rc::<str>::from(v0.get(1i32 as usize..v2 as usize).unwrap_or(""));
     let mut v4: i32 = 0i32;
     let mut v5: i32 = 0i32;
@@ -474,7 +472,7 @@ fn agile_show_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US0) -> i32 {
             let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\","); } LIT.with(|lit| lit.clone()) };
             let mut v21: Rc<str> = std::rc::Rc::<str>::from([&*v19, &*v1, &*v20, &*v5, &*v5].concat());
             let mut v22: i32 = v18.find(&*v21).map(|offset| offset as i32).unwrap_or(-1);
-            let mut v23: bool = v22 < 0;
+            let mut v23: bool = v22 < 0i32;
             if v23 {
                 let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("no task with this id"); } LIT.with(|lit| lit.clone()) };
                 let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile show "); } LIT.with(|lit| lit.clone()) };

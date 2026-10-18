@@ -1,4 +1,5 @@
 packages:
+    |core-
     exact_replace_contract
 modules:
     main

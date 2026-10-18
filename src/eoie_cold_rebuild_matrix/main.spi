@@ -9,12 +9,12 @@ inl cold_format_lane_code = function
     | DensityFormatLane => 1i32
 
 let cold_format_lane_binding (owner_code : i32) (reserved : i32) : i32 =
-    if !!!!EQ(reserved,0i32) then
-        if !!!!LT(owner_code,0i32) then -1i32
-        elif !!!!LT(16i32,owner_code) then -1i32
-        elif !!!!EQ(owner_code,10i32) then cold_format_lane_code PreserveCompilerLayout
-        elif !!!!EQ(owner_code,14i32) then cold_format_lane_code PreserveCompilerLayout
-        elif !!!!LT(6i32,owner_code) then cold_format_lane_code DensityFormatLane
+    if reserved = 0i32 then
+        if owner_code < 0i32 then -1i32
+        elif 16i32 < owner_code then -1i32
+        elif owner_code = 10i32 then cold_format_lane_code PreserveCompilerLayout
+        elif owner_code = 14i32 then cold_format_lane_code PreserveCompilerLayout
+        elif 6i32 < owner_code then cold_format_lane_code DensityFormatLane
         else cold_format_lane_code PreserveCompilerLayout
     else -1i32
 

@@ -1,4 +1,5 @@
 packages:
+    |core-
     family_contract_bindings
     family_contract_contract
 modules:

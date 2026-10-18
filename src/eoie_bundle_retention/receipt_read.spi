@@ -1,0 +1,132 @@
+///- --package .
+test receipt_read static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union field_value =
+    | Absent
+    | Present : string
+
+type receipt_fields =
+    {
+        schema : field_value
+        fingerprint : field_value
+        current : field_value
+        candidates : field_value
+        deletes : field_value
+        remaining : field_value
+        status : field_value
+    }
+
+inl no_fields () : receipt_fields =
+    { schema = Absent; fingerprint = Absent; current = Absent; candidates = Absent; deletes = Absent; remaining = Absent; status = Absent }
+
+union receipt_reading =
+    | ReceiptRead : string
+    | ReceiptRejected : string
+
+union field_step =
+    | FieldTaken : receipt_fields
+    | FieldRejected : string
+
+inl marker_line (~text : string) : string =
+    $'std::rc::Rc::<str>::from(!text.lines().find(|line| line.starts_with("// retention-receipt|")).unwrap_or(""))' : string
+
+inl field_count (~line : string) : u64 = $'!line.split(char::from(124u8)).count() as u64' : u64
+inl field_at (~line : string) (~index : u64) : string = $'std::rc::Rc::<str>::from(!line.split(char::from(124u8)).nth(!index as usize).unwrap_or(""))' : string
+inl has_equals (~field : string) : bool = $'!field.contains(char::from(61u8))' : bool
+inl key_of (~field : string) : string = $'std::rc::Rc::<str>::from(!field.split_once(char::from(61u8)).map(|pair| pair.0).unwrap_or(""))' : string
+inl value_of (~field : string) : string = $'std::rc::Rc::<str>::from(!field.split_once(char::from(61u8)).map(|pair| pair.1).unwrap_or(""))' : string
+inl count_error (~value : string) : string = $'std::rc::Rc::<str>::from(!value.parse::<usize>().err().map(|error| error.to_string()).unwrap_or_default())' : string
+inl count_text (~value : string) : string = $'std::rc::Rc::<str>::from(!value.parse::<usize>().map(|count| count.to_string()).unwrap_or_default())' : string
+
+inl counted (fields : receipt_fields) (~key : string) (~value : string) : field_step =
+    inl error = count_error value
+    if error <> "" then FieldRejected error
+    elif key = "candidates" then FieldTaken { fields with candidates = Present (count_text value) }
+    elif key = "deletes" then FieldTaken { fields with deletes = Present (count_text value) }
+    else FieldTaken { fields with remaining = Present (count_text value) }
+
+let field_applied (fields : receipt_fields) (~field : string) : field_step =
+    if has_equals field then
+        inl key = key_of field
+        inl value = value_of field
+        if key = "schema" then FieldTaken { fields with schema = Present value }
+        elif key = "fingerprint" then FieldTaken { fields with fingerprint = Present value }
+        elif key = "current" then FieldTaken { fields with current = Present value }
+        elif key = "candidates" || key = "deletes" || key = "remaining" then counted fields key value
+        elif key = "status" then FieldTaken { fields with status = Present value }
+        else FieldRejected (concat5 "unknown retention receipt field: " key "" "" "")
+    else FieldRejected (concat5 "invalid retention receipt field: " field "" "" "")
+
+let rec fields_from (~line : string) (index : u64) (count : u64) (fields : receipt_fields) : field_step =
+    if index < count then
+        match field_applied fields (field_at line index) with
+        | FieldTaken next => fields_from line (index + 1u64) count next
+        | FieldRejected reason => FieldRejected reason
+    else FieldTaken fields
+
+inl present_or (value : field_value) (~missing : string) : receipt_reading =
+    match value with
+    | Present text => ReceiptRead text
+    | Absent => ReceiptRejected missing
+
+inl schema_supported (value : field_value) : bool =
+    match value with
+    | Present text => text = "1"
+    | Absent => false
+
+let receipt_reading_of (~text : string) : receipt_reading =
+    inl line = marker_line text
+    if line = "" then ReceiptRejected "retention receipt marker missing"
+    else
+        match fields_from line 1u64 (field_count line) (no_fields ()) with
+        | FieldRejected reason => ReceiptRejected reason
+        | FieldTaken fields =>
+            if schema_supported fields.schema = false then ReceiptRejected "unsupported retention receipt schema"
+            else
+                match present_or fields.fingerprint "missing receipt fingerprint", present_or fields.current "missing receipt current hash" with
+                | ReceiptRejected reason, _ => ReceiptRejected reason
+                | _, ReceiptRejected reason => ReceiptRejected reason
+                | ReceiptRead fingerprint, ReceiptRead current =>
+                    match present_or fields.candidates "missing receipt candidate count", present_or fields.deletes "missing receipt delete count" with
+                    | ReceiptRejected reason, _ => ReceiptRejected reason
+                    | _, ReceiptRejected reason => ReceiptRejected reason
+                    | ReceiptRead candidates, ReceiptRead deletes =>
+                        match present_or fields.remaining "missing receipt remaining count", present_or fields.status "missing receipt status" with
+                        | ReceiptRejected reason, _ => ReceiptRejected reason
+                        | _, ReceiptRejected reason => ReceiptRejected reason
+                        | ReceiptRead remaining, ReceiptRead status =>
+                            if status = "planned" || status = "applied" then
+                                ReceiptRead (concat5 (concat5 fingerprint "\t" current "\t" candidates) "\t" (concat5 deletes "\t" remaining "\t" status) "" "")
+                            else ReceiptRejected (concat5 "invalid retention receipt status: " status "" "" "")
+
+let receipt_error (~text : string) : string =
+    match receipt_reading_of text with
+    | ReceiptRead _ => ""
+    | ReceiptRejected reason => reason
+
+let receipt_row (~text : string) : string =
+    match receipt_reading_of text with
+    | ReceiptRead row => row
+    | ReceiptRejected _ => ""
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl marker (~fields : string) : string = concat5 "// retention-receipt|" fields "\nunion retention_receipt_status =\n" "" ""
+
+///> rust
+test a_written_receipt_reads_back_as_one_row =
+    expect (receipt_row (marker "schema=1|fingerprint=ab|current=cd|candidates=5|deletes=2|remaining=3|status=applied") = "ab\tcd\t5\t2\t3\tapplied") "row"
+    expect (receipt_error (marker "schema=1|fingerprint=|current=cd|candidates=5|deletes=2|remaining=3|status=planned") = "") "an empty value is present"
+
+///> rust
+test each_broken_receipt_has_its_reason =
+    expect (receipt_error "no marker here" = "retention receipt marker missing") "marker"
+    expect (receipt_error (marker "schema=1|oops") = "invalid retention receipt field: oops") "no equals"
+    expect (receipt_error (marker "schema=1|color=red") = "unknown retention receipt field: color") "unknown key"
+    expect (receipt_error (marker "schema=1|candidates=x") = "invalid digit found in string") "count parse error text"
+    expect (receipt_error (marker "schema=2|fingerprint=ab") = "unsupported retention receipt schema") "schema"
+    expect (receipt_error (marker "schema=1|current=cd") = "missing receipt fingerprint") "missing fingerprint first"
+    expect (receipt_error (marker "schema=1|fingerprint=ab|current=cd|candidates=5|deletes=2|remaining=3|status=done") = "invalid retention receipt status: done") "status"

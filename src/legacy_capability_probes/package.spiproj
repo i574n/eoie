@@ -1,3 +1,5 @@
+packages:
+    |core-
 modules:
     self_install_probe/main
     restart_baton_probe/main

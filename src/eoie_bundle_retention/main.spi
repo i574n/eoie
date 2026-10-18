@@ -3,6 +3,8 @@ inl main () : i32 =
     !!!!Export("eoie_retention_series_error", ((fun current => series.series_error current) : string -> string))
     !!!!Export("eoie_retention_series_prefix", ((fun current => series.series_prefix current) : string -> string))
     !!!!Export("eoie_retention_series_alpha", ((fun current => series.series_alpha current) : string -> u64))
+    !!!!Export("eoie_retention_receipt_error", ((fun text => receipt_read.receipt_error text) : string -> string))
+    !!!!Export("eoie_retention_receipt_row", ((fun text => receipt_read.receipt_row text) : string -> string))
     !!!!Export("eoie_retention_receipt_source", ((fun (fingerprint, current, candidates, deletes, remaining, status) => receipt.receipt_source fingerprint current candidates deletes remaining status) : string * string * u64 * u64 * u64 * string -> string))
     rust_global "#![allow(clippy::collapsible_if)]"
     emit_runtime ()

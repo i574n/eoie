@@ -33,13 +33,13 @@ inl smoke_wrapper_status () : process_receipt_wrapper_status = WrapperPassed
 inl smoke_retryability () : process_receipt_retryability = ReceiptNotRetryable
 
 let process_receipt_policy_export (outcome_code : i32) (field_code : i32) : i32 =
-    if !!!!EQ(field_code,0i32) then
-        if !!!!EQ(outcome_code,0i32) then 0i32
-        elif !!!!EQ(outcome_code,3i32) then 2i32
-        elif !!!!EQ(outcome_code,4i32) then 3i32
+    if field_code = 0i32 then
+        if outcome_code = 0i32 then 0i32
+        elif outcome_code = 3i32 then 2i32
+        elif outcome_code = 4i32 then 3i32
         else 1i32
-    elif !!!!EQ(field_code,1i32) then
-        if !!!!EQ(outcome_code,3i32) || !!!!EQ(outcome_code,4i32) || !!!!EQ(outcome_code,5i32) then 1i32
+    elif field_code = 1i32 then
+        if outcome_code = 3i32 || outcome_code = 4i32 || outcome_code = 5i32 then 1i32
         else 0i32
     else -1i32
 

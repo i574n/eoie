@@ -45,7 +45,7 @@ inl codepoint_index (str : string) (target : i32) : string =
     slice str {from; to=(-.) near_to 1i32}
 
 inl codepoint_slice (str : string) {from=(from_codepoint : i32) to=(to_codepoint : i32)} : string =
-    if !!!!LT(to_codepoint,from_codepoint) then ""
+    if to_codepoint < from_codepoint then ""
     else
         inl from = codepoint_byte_offset str from_codepoint
         inl near_to = codepoint_byte_offset str ((+.) to_codepoint 1i32)

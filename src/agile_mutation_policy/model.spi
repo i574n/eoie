@@ -46,15 +46,15 @@ inl agile_status_code status : i32 =
     | AgileDone => 4i32
 
 inl agile_status_code_valid code : bool =
-    if i32_eq code 0i32 then true
-    elif i32_eq code 1i32 then true
-    elif i32_eq code 2i32 then true
-    elif i32_eq code 3i32 then true
-    elif i32_eq code 4i32 then true
+    if code = 0i32 then true
+    elif code = 1i32 then true
+    elif code = 2i32 then true
+    elif code = 3i32 then true
+    elif code = 4i32 then true
     else false
 
 inl agile_progress_valid value : bool =
-    if i32_nonnegative value then i32_le value 100i32 else false
+    if i32_nonnegative value then value <= 100i32 else false
 
 let agile_set_decision (progress : i32) (status_code : i32) : i32 =
     if agile_progress_valid progress then
@@ -62,26 +62,26 @@ let agile_set_decision (progress : i32) (status_code : i32) : i32 =
     else 0i32
 
 let agile_task_shape_decision (field_count : i32) : i32 =
-    if i32_eq field_count 11i32 then 1i32 else 0i32
+    if field_count = 11i32 then 1i32 else 0i32
 
 let agile_task_identity_decision (field_count : i32) (id_equal : i32) : i32 =
-    if i32_eq (agile_task_shape_decision field_count) 1i32 then
-        if i32_eq id_equal 1i32 then 1i32 else 0i32
+    if agile_task_shape_decision field_count = 1i32 then
+        if id_equal = 1i32 then 1i32 else 0i32
     else 0i32
 
 let agile_receipt_content_decision (bytes_equal : i32) (fingerprint_equal : i32) : i32 =
-    if i32_eq bytes_equal 1i32 then
-        if i32_eq fingerprint_equal 1i32 then 1i32 else 0i32
+    if bytes_equal = 1i32 then
+        if fingerprint_equal = 1i32 then 1i32 else 0i32
     else 0i32
 
 let agile_receipt_snapshot_decision (snapshot_equal : i32) (reserved : i32) : i32 =
-    if i32_eq reserved 0i32 then
-        if i32_eq snapshot_equal 1i32 then 1i32 else 0i32
+    if reserved = 0i32 then
+        if snapshot_equal = 1i32 then 1i32 else 0i32
     else 0i32
 
 let agile_receipt_build_current_decision (content_current : i32) (build_fingerprint_equal : i32) : i32 =
-    if i32_eq content_current 1i32 then
-        if i32_eq build_fingerprint_equal 1i32 then 1i32 else 0i32
+    if content_current = 1i32 then
+        if build_fingerprint_equal = 1i32 then 1i32 else 0i32
     else 0i32
 
 inl agile_tuple_space (value : char) : bool =

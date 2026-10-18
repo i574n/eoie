@@ -139,7 +139,27 @@ inl run_public_verb () : i32 =
         | LeaseDeniedHandler => 2i32
     | _ => 2i32
 
-inl run () : i32 =
-    match shim_argv0_code () with
-    | 0 => run_public_verb ()
-    | _ => shim_run ()
+inl job_run () : i32 = $"eoie_jobs::eoie_job_run()" : i32
+
+inl repo_run () : i32 = $"eoie_repo_state::eoie_repo_run()" : i32
+
+inl table_run () : i32 = $"eoie_table_query::eoie_table_run()" : i32
+
+inl read_run () : i32 = $"eoie_read_query::eoie_read_run()" : i32
+inl do_run () : i32 = $"eoie_do::eoie_do_run()" : i32
+inl process_run () : i32 = $"eoie_process_table::eoie_process_run()" : i32
+
+inl run_direct () : i32 =
+    inl verb = argument_file.process_argument 1i32
+    if verb = "job" then job_run ()
+    elif verb = "repo" then repo_run ()
+    elif verb = "table" then table_run ()
+    elif verb = "read" || verb = "lines" || verb = "grep" then read_run ()
+    elif verb = "do" then do_run ()
+    elif verb = "ps" || verb = "kill" then process_run ()
+    else
+        match shim_argv0_code () with
+        | 0 => run_public_verb ()
+        | _ => shim_run ()
+
+inl run () : i32 = argument_file.run_from (argument_file.argument_source ()) run_direct

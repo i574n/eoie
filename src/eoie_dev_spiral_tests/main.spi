@@ -5,10 +5,10 @@ let rec run_all (root : string) (target : string) (names : string) (separator : 
     | NoMoreNotebooks => 0i32
     | SpiralTestNotebook (package, relative, rest) =>
         inl code =
-            if selects names separator package then
+            if selects names separator package && notebook.present root relative then
                 if dry then notebook.announce relative else notebook.run root target relative timeout
             else 0i32
-        if !!!!EQ(code,0i32) then run_all root target names separator dry timeout rest else code
+        if code = 0i32 then run_all root target names separator dry timeout rest else code
 
 inl main () : i32 =
     !!!!Export("eoie_dev_spiral_tests_run", ((fun (root, target, names, separator, dry, timeout) => run_all root target names separator dry timeout (registered ())) : string * string * string * string * bool * u64 -> i32))

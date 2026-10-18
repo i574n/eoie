@@ -43,44 +43,44 @@ inl multi_patch_public_plan () : multi_patch_plan multi_patch_raw multi_patch_co
     ))
 
 let multi_patch_shape_binding (files : i32) (places : i32) (operations : i32) : i32 =
-    if !!!!LT(files,2i32) then 0i32
-    elif !!!!LT(places,files) then 0i32
-    elif !!!!LT(operations,places) then 0i32
+    if files < 2i32 then 0i32
+    elif places < files then 0i32
+    elif operations < places then 0i32
     else 1i32
 
 let multi_patch_topology_binding (collisions : i32) (inversions : i32) : i32 =
-    if !!!!LT(collisions,0i32) then 0i32
-    elif !!!!LT(inversions,0i32) then 0i32
-    elif !!!!LT(0i32,collisions) then 0i32
-    elif !!!!LT(0i32,inversions) then 0i32
+    if collisions < 0i32 then 0i32
+    elif inversions < 0i32 then 0i32
+    elif 0i32 < collisions then 0i32
+    elif 0i32 < inversions then 0i32
     else 1i32
 
 let multi_patch_freshness_binding (expected : i32) (observed : i32) : i32 =
-    if !!!!LT(expected,1i32) then 0i32
-    elif !!!!LT(observed,1i32) then 0i32
-    elif !!!!LT(expected,observed) then 0i32
-    elif !!!!LT(observed,expected) then 0i32
+    if expected < 1i32 then 0i32
+    elif observed < 1i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
     else 1i32
 
 let multi_patch_mode_binding (apply_mode : i32) (check_mode : i32) : i32 =
-    if !!!!LT(apply_mode,0i32) then 0i32
-    elif !!!!LT(check_mode,0i32) then 0i32
-    elif !!!!LT(1i32,apply_mode) then 0i32
-    elif !!!!LT(1i32,check_mode) then 0i32
-    elif !!!!LT(apply_mode,1i32) then
-        if !!!!LT(check_mode,1i32) then 0i32 else 1i32
+    if apply_mode < 0i32 then 0i32
+    elif check_mode < 0i32 then 0i32
+    elif 1i32 < apply_mode then 0i32
+    elif 1i32 < check_mode then 0i32
+    elif apply_mode < 1i32 then
+        if check_mode < 1i32 then 0i32 else 1i32
     else
-        if !!!!LT(check_mode,1i32) then 1i32 else 0i32
+        if check_mode < 1i32 then 1i32 else 0i32
 
 let multi_patch_rollback_binding (touched : i32) (restored : i32) : i32 =
-    if !!!!LT(touched,2i32) then 0i32
-    elif !!!!LT(restored,2i32) then 0i32
-    elif !!!!LT(touched,restored) then 0i32
-    elif !!!!LT(restored,touched) then 0i32
+    if touched < 2i32 then 0i32
+    elif restored < 2i32 then 0i32
+    elif touched < restored then 0i32
+    elif restored < touched then 0i32
     else 1i32
 
 let multi_patch_commit_binding (authorized : i32) (operations : i32) : i32 =
-    if !!!!LT(authorized,1i32) then 0i32
-    elif !!!!LT(1i32,authorized) then 0i32
-    elif !!!!LT(operations,2i32) then 0i32
+    if authorized < 1i32 then 0i32
+    elif 1i32 < authorized then 0i32
+    elif operations < 2i32 then 0i32
     else operations

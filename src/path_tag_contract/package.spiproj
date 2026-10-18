@@ -1,3 +1,5 @@
+packages:
+    |core-
 modules:
     model
     path_tag_bindings

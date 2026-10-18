@@ -14,6 +14,7 @@ union agile_subcommand =
     | AgilePlan
     | AgileMigrateTags
     | AgileNote
+    | AgileNoteEdit
     | AgileNotes
     | AgileRename
     | AgileTodos
@@ -36,6 +37,7 @@ inl agile_subcommand_spec = function
     | AgilePlan => { name = "plan"; shape = "<root> [--json]" }
     | AgileMigrateTags => { name = "migrate-tags"; shape = "preview|apply <root>" }
     | AgileNote => { name = "note"; shape = "<root> <id> <text> [--as <author>]" }
+    | AgileNoteEdit => { name = "note-edit"; shape = "<root> <id> <note-number> <text>" }
     | AgileNotes => { name = "notes"; shape = "from-title <root> <id>" }
     | AgileRename => { name = "rename"; shape = "<root> <old-id> <new-id>" }
     | AgileTodos => { name = "todos"; shape = "<root> [<path>...] [--json]" }

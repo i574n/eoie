@@ -22,42 +22,42 @@ union rec ingest_frontier_plan from to =
     | IngestFrontierThen :: forall from to. (exists middle. ingest_frontier_plan from middle * ingest_frontier_plan middle to) -> ingest_frontier_plan from to
 
 let manifest_binding (has_manifest : i32) (payload_files : i32) : i32 =
-    if !!!!LT(has_manifest,1i32) then 0i32
-    elif !!!!LT(payload_files,0i32) then 0i32
-    elif !!!!LT(payload_files,1i32) then 1i32
+    if has_manifest < 1i32 then 0i32
+    elif payload_files < 0i32 then 0i32
+    elif payload_files < 1i32 then 1i32
     else 2i32
 
 let trim_binding (toolchain_tarballs : i32) : i32 =
-    if !!!!LT(toolchain_tarballs,0i32) then 0i32
-    elif !!!!LT(0i32,toolchain_tarballs) then 0i32
+    if toolchain_tarballs < 0i32 then 0i32
+    elif 0i32 < toolchain_tarballs then 0i32
     else 1i32
 
 let extracted_binding (has_ingest_md : i32) (has_extracted_manifest : i32) (toolchain_tarballs : i32) : i32 =
     inl trim_ok = trim_binding toolchain_tarballs
-    if !!!!LT(has_ingest_md,1i32) then 0i32
-    elif !!!!LT(has_extracted_manifest,1i32) then 0i32
-    elif !!!!LT(trim_ok,1i32) then 0i32
+    if has_ingest_md < 1i32 then 0i32
+    elif has_extracted_manifest < 1i32 then 0i32
+    elif trim_ok < 1i32 then 0i32
     else 1i32
 
 let targets_binding (manual_targets : i32) (derived_targets : i32) : i32 =
-    if !!!!LT(manual_targets,0i32) then 0i32
-    elif !!!!LT(derived_targets,0i32) then 0i32
-    elif !!!!LT(manual_targets,1i32) then
-        if !!!!LT(derived_targets,1i32) then 0i32 else 1i32
+    if manual_targets < 0i32 then 0i32
+    elif derived_targets < 0i32 then 0i32
+    elif manual_targets < 1i32 then
+        if derived_targets < 1i32 then 0i32 else 1i32
     else 1i32
 
 let frontier_binding (frontier_count : i32) (top_priority : i32) : i32 =
-    if !!!!LT(frontier_count,1i32) then 0i32
-    elif !!!!LT(top_priority,1i32) then 0i32
-    elif !!!!LT(3i32,top_priority) then 0i32
+    if frontier_count < 1i32 then 0i32
+    elif top_priority < 1i32 then 0i32
+    elif 3i32 < top_priority then 0i32
     else 1i32
 
 let complete_binding (manifest_code : i32) (trim_ok : i32) (extracted_ok : i32) (targets_ok : i32) (frontier_ok : i32) : i32 =
-    if !!!!LT(manifest_code,1i32) then 0i32
-    elif !!!!LT(trim_ok,1i32) then 0i32
-    elif !!!!LT(extracted_ok,1i32) then 0i32
-    elif !!!!LT(targets_ok,1i32) then 0i32
-    elif !!!!LT(frontier_ok,1i32) then 0i32
+    if manifest_code < 1i32 then 0i32
+    elif trim_ok < 1i32 then 0i32
+    elif extracted_ok < 1i32 then 0i32
+    elif targets_ok < 1i32 then 0i32
+    elif frontier_ok < 1i32 then 0i32
     else 1i32
 
 inl full_plan forall owner. () : ingest_frontier_plan (ingest_unmapped owner) (ingest_frontier_settled owner) =

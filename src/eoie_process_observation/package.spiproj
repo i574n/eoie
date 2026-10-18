@@ -1,3 +1,5 @@
+packages:
+    |core-
 modules:
     streaming_observation
     stdout_observation

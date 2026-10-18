@@ -54,10 +54,10 @@ inl main () : i32 =
     if create_dir base && write_text first first_text && write_text second second_text then
         inl _ : coverage_public_probe probe_fixtures probe_union = UnionCoverage
         inl union_code = status_code5 eoie "proxy" "coverage-union" merged first second
-        if !!!!EQ(union_code,0i32) then
+        if union_code = 0i32 then
             inl _ : coverage_public_probe probe_union probe_assess_ok = AssessCoverage
             inl assess_ok = status_code7 eoie "proxy" "coverage-assess" first second "500" "500" "1000"
-            if !!!!EQ(assess_ok,0i32) then
+            if assess_ok = 0i32 then
                 inl _ : coverage_public_probe probe_assess_ok probe_assess_floor = RejectCoverageFloor
                 inl assess_floor = status_code7 eoie "proxy" "coverage-assess" first second "1000" "1000" "1000"
                 if !!!!NEQ(assess_floor,0i32) then

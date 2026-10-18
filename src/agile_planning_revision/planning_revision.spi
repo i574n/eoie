@@ -11,7 +11,7 @@ union planning_step =
     | StepText : string
     | StepRejected : string
 
-inl step_from (code, detail) : planning_step = if i32_eq code 0i32 then StepText detail else StepRejected detail
+inl step_from (code, detail) : planning_step = if code = 0i32 then StepText detail else StepRejected detail
 
 let value_token (~field_name : string) (~value : string) : planning_step =
     step_from ($'agile_planning_values::eoie_agile_planning_value_token(&*!field_name, &*!value)' : i32 * string)

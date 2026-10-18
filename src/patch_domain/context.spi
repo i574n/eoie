@@ -32,25 +32,25 @@ inl i32_sub (a : i32) (b : i32) : i32 = $"!a - !b"
 inl i32_positive (value : i32) : bool = $"0 < !value"
 
 inl allowed_escape byte : bool =
-    if i32_eq byte 110i32 then true
-    elif i32_eq byte 114i32 then true
-    elif i32_eq byte 116i32 then true
-    elif i32_eq byte 92i32 then true
-    else i32_eq byte 34i32
+    if byte = 110i32 then true
+    elif byte = 114i32 then true
+    elif byte = 116i32 then true
+    elif byte = 92i32 then true
+    else byte = 34i32
 
 let rec skip_spaces source index length : i32 =
     if i32_lt index length then
         inl byte = source_byte source index
-        if i32_eq byte 32i32 then skip_spaces source (i32_add index 1i32) length
-        elif i32_eq byte 9i32 then skip_spaces source (i32_add index 1i32) length
+        if byte = 32i32 then skip_spaces source (i32_add index 1i32) length
+        elif byte = 9i32 then skip_spaces source (i32_add index 1i32) length
         else index
     else index
 
 let rec scan_quoted source index length : quoted_result =
     if i32_lt index length then
         inl byte = source_byte source index
-        if i32_eq byte 34i32 then QuotedOk (i32_add index 1i32)
-        elif i32_eq byte 92i32 then
+        if byte = 34i32 then QuotedOk (i32_add index 1i32)
+        elif byte = 92i32 then
             inl escaped_index = i32_add index 1i32
             if i32_lt escaped_index length then
                 inl escaped = source_byte source escaped_index
@@ -62,23 +62,23 @@ let rec scan_quoted source index length : quoted_result =
 
 inl parse_quoted source index length : quoted_result =
     if i32_lt index length then
-        if i32_eq (source_byte source index) 34i32 then scan_quoted source (i32_add index 1i32) length
+        if source_byte source index = 34i32 then scan_quoted source (i32_add index 1i32) length
         else QuotedError
     else QuotedError
 
 inl parse_separator source index length : separator_result =
     inl index = skip_spaces source index length
     if i32_lt index length then
-        if i32_eq (source_byte source index) 44i32 then SeparatorOk (skip_spaces source (i32_add index 1i32) length)
+        if source_byte source index = 44i32 then SeparatorOk (skip_spaces source (i32_add index 1i32) length)
         else SeparatorError
     else SeparatorError
 
 inl safe_segment source start near_to : bool =
     inl length = i32_sub near_to start
     if i32_positive length then
-        if i32_eq length 1i32 then if i32_eq (source_byte source start) 46i32 then false else true
-        elif i32_eq length 2i32 then
-            if i32_eq (source_byte source start) 46i32 then if i32_eq (source_byte source (i32_add start 1i32)) 46i32 then false else true
+        if length = 1i32 then if source_byte source start = 46i32 then false else true
+        elif length = 2i32 then
+            if source_byte source start = 46i32 then if source_byte source (i32_add start 1i32) = 46i32 then false else true
             else true
         else true
     else false
@@ -86,8 +86,8 @@ inl safe_segment source start near_to : bool =
 let rec safe_path_loop source index near_to segment_start : bool =
     if i32_lt index near_to then
         inl byte = source_byte source index
-        if i32_eq byte 92i32 then false
-        elif i32_eq byte 47i32 then
+        if byte = 92i32 then false
+        elif byte = 47i32 then
             if safe_segment source segment_start index then safe_path_loop source (i32_add index 1i32) near_to (i32_add index 1i32)
             else false
         else safe_path_loop source (i32_add index 1i32) near_to segment_start
@@ -99,8 +99,8 @@ inl safe_path source quoted_start quoted_after : bool =
     inl content_length = i32_sub content_end content_start
     if i32_positive content_length then
         inl first = source_byte source content_start
-        if i32_eq first 47i32 then false
-        elif i32_eq first 92i32 then false
+        if first = 47i32 then false
+        elif first = 92i32 then false
         else safe_path_loop source content_start content_end content_start
     else false
 
@@ -119,7 +119,7 @@ inl parse_patch source marker_index length : parsed_patch =
                         | QuotedOk after_after =>
                             inl end_index = skip_spaces source after_after length
                             if i32_lt end_index length then
-                                if i32_eq (source_byte source end_index) 41i32 then ParsedPatch (i32_add end_index 1i32)
+                                if source_byte source end_index = 41i32 then ParsedPatch (i32_add end_index 1i32)
                                 else InvalidPatch
                             else InvalidPatch
                         | QuotedError => InvalidPatch
@@ -130,7 +130,7 @@ inl parse_patch source marker_index length : parsed_patch =
     | QuotedError => InvalidPatch
 
 inl byte_at_is source index offset expected : bool =
-    i32_eq (source_byte source (i32_add index offset)) expected
+    source_byte source (i32_add index offset) = expected
 
 inl marker_at source index : bool =
     if byte_at_is source index 0i32 80i32 then
@@ -172,7 +172,7 @@ inl validate_source (patch_source source) : patch_validation =
     else
         inl length = source_len source
         if i32_lt length 0i32 then PatchPlanUnavailable
-        elif i32_le length 262144i32 then scan_plan source 0i32 length 0i32
+        elif length <= 262144i32 then scan_plan source 0i32 length 0i32
         else PatchPlanTooLarge
 
 inl validate_context (patch_context value) : patch_validation = validate_source value.source

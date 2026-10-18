@@ -167,11 +167,11 @@ fn lease_status_entry_2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, 
     let mut v28: bool = v1 <= v7;
     let mut v111: Rc<str> = if v28 {
         let mut v29: u64 = v7.saturating_sub(v1);
-        let mut v30: u64 = v29 / 1000u64;
-        let mut v31: u64 = v30 / 3600u64;
-        let mut v32: u64 = v30 / 60u64;
-        let mut v33: u64 = v32 % 60u64;
-        let mut v34: u64 = v30 % 60u64;
+        let mut v30: u64 = v29.wrapping_div(1000u64);
+        let mut v31: u64 = v30.wrapping_div(3600u64);
+        let mut v32: u64 = v30.wrapping_div(60u64);
+        let mut v33: u64 = v32.wrapping_rem(60u64);
+        let mut v34: u64 = v30.wrapping_rem(60u64);
         let mut v35: bool = 0 < v31;
         let mut v66: Rc<str> = if v35 {
             let mut v36: Rc<str> = std::rc::Rc::<str>::from((v31).to_string());
@@ -226,11 +226,11 @@ fn lease_status_entry_2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, 
     } else {
         let mut v70: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("in_"); } LIT.with(|lit| lit.clone()) };
         let mut v71: u64 = v1.saturating_sub(v7);
-        let mut v72: u64 = v71 / 1000u64;
-        let mut v73: u64 = v72 / 3600u64;
-        let mut v74: u64 = v72 / 60u64;
-        let mut v75: u64 = v74 % 60u64;
-        let mut v76: u64 = v72 % 60u64;
+        let mut v72: u64 = v71.wrapping_div(1000u64);
+        let mut v73: u64 = v72.wrapping_div(3600u64);
+        let mut v74: u64 = v72.wrapping_div(60u64);
+        let mut v75: u64 = v74.wrapping_rem(60u64);
+        let mut v76: u64 = v72.wrapping_rem(60u64);
         let mut v77: bool = 0 < v73;
         let mut v108: Rc<str> = if v77 {
             let mut v78: Rc<str> = std::rc::Rc::<str>::from((v73).to_string());
@@ -286,11 +286,11 @@ fn lease_status_entry_2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, 
     let mut v113: bool = v2 <= v7;
     let mut v196: Rc<str> = if v113 {
         let mut v114: u64 = v7.saturating_sub(v2);
-        let mut v115: u64 = v114 / 1000u64;
-        let mut v116: u64 = v115 / 3600u64;
-        let mut v117: u64 = v115 / 60u64;
-        let mut v118: u64 = v117 % 60u64;
-        let mut v119: u64 = v115 % 60u64;
+        let mut v115: u64 = v114.wrapping_div(1000u64);
+        let mut v116: u64 = v115.wrapping_div(3600u64);
+        let mut v117: u64 = v115.wrapping_div(60u64);
+        let mut v118: u64 = v117.wrapping_rem(60u64);
+        let mut v119: u64 = v115.wrapping_rem(60u64);
         let mut v120: bool = 0 < v116;
         let mut v151: Rc<str> = if v120 {
             let mut v121: Rc<str> = std::rc::Rc::<str>::from((v116).to_string());
@@ -345,11 +345,11 @@ fn lease_status_entry_2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, 
     } else {
         let mut v155: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("in_"); } LIT.with(|lit| lit.clone()) };
         let mut v156: u64 = v2.saturating_sub(v7);
-        let mut v157: u64 = v156 / 1000u64;
-        let mut v158: u64 = v157 / 3600u64;
-        let mut v159: u64 = v157 / 60u64;
-        let mut v160: u64 = v159 % 60u64;
-        let mut v161: u64 = v157 % 60u64;
+        let mut v157: u64 = v156.wrapping_div(1000u64);
+        let mut v158: u64 = v157.wrapping_div(3600u64);
+        let mut v159: u64 = v157.wrapping_div(60u64);
+        let mut v160: u64 = v159.wrapping_rem(60u64);
+        let mut v161: u64 = v157.wrapping_rem(60u64);
         let mut v162: bool = 0 < v158;
         let mut v193: Rc<str> = if v162 {
             let mut v163: Rc<str> = std::rc::Rc::<str>::from((v158).to_string());
@@ -406,11 +406,11 @@ fn lease_status_entry_2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, 
     let mut v199: bool = v3 <= v7;
     let mut v282: Rc<str> = if v199 {
         let mut v200: u64 = v7.saturating_sub(v3);
-        let mut v201: u64 = v200 / 1000u64;
-        let mut v202: u64 = v201 / 3600u64;
-        let mut v203: u64 = v201 / 60u64;
-        let mut v204: u64 = v203 % 60u64;
-        let mut v205: u64 = v201 % 60u64;
+        let mut v201: u64 = v200.wrapping_div(1000u64);
+        let mut v202: u64 = v201.wrapping_div(3600u64);
+        let mut v203: u64 = v201.wrapping_div(60u64);
+        let mut v204: u64 = v203.wrapping_rem(60u64);
+        let mut v205: u64 = v201.wrapping_rem(60u64);
         let mut v206: bool = 0 < v202;
         let mut v237: Rc<str> = if v206 {
             let mut v207: Rc<str> = std::rc::Rc::<str>::from((v202).to_string());
@@ -465,11 +465,11 @@ fn lease_status_entry_2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, 
     } else {
         let mut v241: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("in_"); } LIT.with(|lit| lit.clone()) };
         let mut v242: u64 = v3.saturating_sub(v7);
-        let mut v243: u64 = v242 / 1000u64;
-        let mut v244: u64 = v243 / 3600u64;
-        let mut v245: u64 = v243 / 60u64;
-        let mut v246: u64 = v245 % 60u64;
-        let mut v247: u64 = v243 % 60u64;
+        let mut v243: u64 = v242.wrapping_div(1000u64);
+        let mut v244: u64 = v243.wrapping_div(3600u64);
+        let mut v245: u64 = v243.wrapping_div(60u64);
+        let mut v246: u64 = v245.wrapping_rem(60u64);
+        let mut v247: u64 = v243.wrapping_rem(60u64);
         let mut v248: bool = 0 < v244;
         let mut v279: Rc<str> = if v248 {
             let mut v249: Rc<str> = std::rc::Rc::<str>::from((v244).to_string());
@@ -522,11 +522,11 @@ fn lease_status_entry_2(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: u64, 
         v281.clone()
     };
     let mut v283: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" remaining="); } LIT.with(|lit| lit.clone()) };
-    let mut v284: u64 = v4 / 1000u64;
-    let mut v285: u64 = v284 / 3600u64;
-    let mut v286: u64 = v284 / 60u64;
-    let mut v287: u64 = v286 % 60u64;
-    let mut v288: u64 = v284 % 60u64;
+    let mut v284: u64 = v4.wrapping_div(1000u64);
+    let mut v285: u64 = v284.wrapping_div(3600u64);
+    let mut v286: u64 = v284.wrapping_div(60u64);
+    let mut v287: u64 = v286.wrapping_rem(60u64);
+    let mut v288: u64 = v284.wrapping_rem(60u64);
     let mut v289: bool = 0 < v285;
     let mut v320: Rc<str> = if v289 {
         let mut v290: Rc<str> = std::rc::Rc::<str>::from((v285).to_string());

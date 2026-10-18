@@ -121,8 +121,8 @@ inl success_probe_result () : i32 =
     inl started = spawned_receipt ()
     inl completed = success_receipt 8u64
     if all4
-        (i32_eq (receipt_code started) 10i32)
-        (i32_eq (receipt_code completed) 0i32)
+        (receipt_code started = 10i32)
+        (receipt_code completed = 0i32)
         (u64_eq (receipt_elapsed completed) 8u64)
         (receipt_within_budget completed)
     then 0i32
@@ -133,23 +133,23 @@ inl failure_probe_result () : i32 =
     inl timed_out = timeout_receipt 10u64 11u64
     inl rejected = rejected_receipt ()
     if all5
-        (i32_eq (receipt_code exited) 7i32)
+        (receipt_code exited = 7i32)
         (u64_eq (receipt_elapsed exited) 12u64)
-        (i32_eq (receipt_code timed_out) 124i32)
+        (receipt_code timed_out = 124i32)
         (receipt_within_budget timed_out)
-        (i32_eq (receipt_code rejected) 127i32)
+        (receipt_code rejected = 127i32)
     then 0i32
     else 62i32
 
 inl termination_probe_result () : i32 =
     inl terminated = terminated_receipt 4u64
     if all3
-        (i32_eq (receipt_code terminated) 137i32)
+        (receipt_code terminated = 137i32)
         (u64_eq (receipt_elapsed terminated) 4u64)
         (receipt_within_budget terminated)
     then 0i32
     else 63i32
 
-inl success_probe_ok () : bool = i32_eq (success_probe_result ()) 0i32
-inl failure_probe_ok () : bool = i32_eq (failure_probe_result ()) 0i32
-inl termination_probe_ok () : bool = i32_eq (termination_probe_result ()) 0i32
+inl success_probe_ok () : bool = success_probe_result () = 0i32
+inl failure_probe_ok () : bool = failure_probe_result () = 0i32
+inl termination_probe_ok () : bool = termination_probe_result () = 0i32

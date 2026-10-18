@@ -12,10 +12,10 @@ inl classify_state_entry package_owned transient_known =
     | _ => InvalidStateEntry
 
 let agile_state_entry_kind_binding (package_owned : i32) (transient_known : i32) : i32 =
-    if !!!!EQ(package_owned,1i32) then
-        if !!!!EQ(transient_known,1i32) then 0i32 else 1i32
+    if package_owned = 1i32 then
+        if transient_known = 1i32 then 0i32 else 1i32
     else
-        if !!!!EQ(transient_known,1i32) then 2i32 else 0i32
+        if transient_known = 1i32 then 2i32 else 0i32
 
 union agile_state_module_name_class =
     | StableStateModuleName
@@ -54,8 +54,8 @@ let agile_record_required_catalog (~version : string) : string =
     if rust_std_string.model.equals version "v1" then "history.spi|ratings.spi|bench.spi|migration.spi" else ""
 
 let agile_record_preflight_binding (observed_mask : i32) (reserved : i32) : i32 =
-    if !!!!LT(observed_mask,0i32) || !!!!LT(15i32,observed_mask) || !!!!LT(reserved,0i32) || !!!!LT(0i32,reserved) then -1i32
-    elif !!!!EQ(observed_mask,15i32) then 1i32
+    if observed_mask < 0i32 || 15i32 < observed_mask || reserved < 0i32 || 0i32 < reserved then -1i32
+    elif observed_mask = 15i32 then 1i32
     else 0i32
 
 union agile_attestation_decision =
@@ -73,19 +73,19 @@ inl agile_attestation_decision_code = function
     | RequireBuildCompiler => 4i32
 
 let agile_attestation_decision_binding (kind_code : i32) (observation_mask : i32) : i32 =
-    if !!!!LT(observation_mask,0i32) || !!!!LT(7i32,observation_mask) || !!!!EQ(observation_mask,4i32) || !!!!EQ(observation_mask,5i32) then
+    if observation_mask < 0i32 || 7i32 < observation_mask || observation_mask = 4i32 || observation_mask = 5i32 then
         agile_attestation_decision_code RejectUnknownStateEntry
-    elif !!!!EQ(kind_code,2i32) then
-        if !!!!EQ(observation_mask,1i32) || !!!!EQ(observation_mask,3i32) || !!!!EQ(observation_mask,7i32) then
+    elif kind_code = 2i32 then
+        if observation_mask = 1i32 || observation_mask = 3i32 || observation_mask = 7i32 then
             agile_attestation_decision_code SkipCurrentAttestation
         else
             agile_attestation_decision_code RuntimeAttestTransient
-    elif !!!!EQ(kind_code,1i32) then
-        if !!!!EQ(observation_mask,7i32) || !!!!EQ(observation_mask,1i32) then
+    elif kind_code = 1i32 then
+        if observation_mask = 7i32 || observation_mask = 1i32 then
             agile_attestation_decision_code SkipCurrentAttestation
-        elif !!!!EQ(observation_mask,2i32) || !!!!EQ(observation_mask,3i32) || !!!!EQ(observation_mask,6i32) then
+        elif observation_mask = 2i32 || observation_mask = 3i32 || observation_mask = 6i32 then
             agile_attestation_decision_code BuildAttestStatic
-        elif !!!!EQ(observation_mask,0i32) then
+        elif observation_mask = 0i32 then
             agile_attestation_decision_code RequireBuildCompiler
         else
             agile_attestation_decision_code RejectUnknownStateEntry

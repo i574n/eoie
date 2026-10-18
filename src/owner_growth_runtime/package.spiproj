@@ -1,4 +1,5 @@
 packages:
+    |core-
     crate_growth_contract
 modules:
     growth

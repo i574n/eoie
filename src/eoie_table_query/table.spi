@@ -1,0 +1,45 @@
+open rust_std_string.model
+open query
+
+inl argument (~index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(!index as usize).unwrap_or_default())' : string
+inl argument_count () : i32 = $'std::env::args().count() as i32' : i32
+inl stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+
+inl rejected (~message : string) : i32 =
+    stderr_line (concat5 "eoie error: table " message "" "" "")
+    2i32
+
+let rec options_from (index : i32) (count : i32) (request : table_request) : option_step =
+    if index < count then
+        if index + 1i32 < count then
+            match option_applied request (argument index) (argument (index + 1i32)) with
+            | StepTaken next => options_from (index + 2i32) count next
+            | StepRejected reason => StepRejected reason
+        else StepRejected (concat5 "option " (argument index) " has no value" "" "")
+    else StepTaken request
+
+let query_rows (~file : string) (~wheres : string) (~cols : string) (~group : string) (limit : u64) : i32 =
+    $'(|| -> i32 { let path = &*!file; let text = match std::fs::read_to_string(path) { Ok(text) => text, Err(error) => { eprintln\!("eoie error: table {path}: {error}"); return 2; } }; let separator = if path.ends_with(".csv") { char::from(44u8) } else { char::from(9u8) }; let mut lines = text.lines(); let header = lines.next().unwrap_or("").split(separator).map(str::to_owned).collect::<Vec<_>>(); let column = |name: &str| header.iter().position(|item| item == name); let mut missing = Vec::new(); let mut filters = Vec::new(); for clause in (&*!wheres).lines() { if let Some((name, value)) = clause.split_once(char::from(61u8)) { match column(name) { Some(index) => filters.push((index, value.to_owned())), None => missing.push(name.to_owned()) } } } let projection = if (&*!cols).is_empty() { (0..header.len()).collect::<Vec<_>>() } else { (&*!cols).split(char::from(44u8)).filter_map(|name| match column(name) { Some(index) => Some(index), None => { missing.push(name.to_owned()); None } }).collect::<Vec<_>>() }; let grouping = if (&*!group).is_empty() { None } else { match column(&*!group) { Some(index) => Some(index), None => { missing.push((&*!group).to_owned()); None } } }; if \!missing.is_empty() { eprintln\!("eoie error: table unknown columns: {} (header: {})", missing.join(","), header.join(",")); return 2; } let mut total = 0usize; let mut matched = 0usize; let mut shown = 0usize; let mut groups: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new(); if grouping.is_none() { println\!("{}", projection.iter().map(|index| header[*index].as_str()).collect::<Vec<_>>().join("\t")); } for line in lines { total += 1; let cells = line.split(separator).collect::<Vec<_>>(); if \!filters.iter().all(|(index, value)| cells.get(*index).map(|cell| cell == value).unwrap_or(false)) { continue; } matched += 1; match grouping { Some(index) => { *groups.entry(cells.get(index).unwrap_or(&"").to_string()).or_insert(0) += 1; } None => { if (shown as u64) < !limit { println\!("{}", projection.iter().map(|index| *cells.get(*index).unwrap_or(&"")).collect::<Vec<_>>().join("\t")); shown += 1; } } } } if grouping.is_some() { let mut counted = groups.into_iter().collect::<Vec<_>>(); counted.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0))); println\!("count\t{}", &*!group); for (value, count) in counted.iter().take(!limit as usize) { println\!("{count}\t{value}"); shown += 1; } println\!("eoie table query ok total={total} matched={matched} groups={} shown={shown}", counted.len()); } else { println\!("eoie table query ok total={total} matched={matched} shown={shown}"); } 0 })()' : i32
+
+let diff_rows (~left : string) (~right : string) (~key : string) (~cols : string) (limit : u64) : i32 =
+    $'(|| -> i32 { let read = |path: &str| -> Result<(Vec<String>, Vec<Vec<String>>), String> { let text = std::fs::read_to_string(path).map_err(|error| format\!("{path}: {error}"))?; let separator = if path.ends_with(".csv") { char::from(44u8) } else { char::from(9u8) }; let mut lines = text.lines(); let header = lines.next().unwrap_or("").split(separator).map(str::to_owned).collect::<Vec<_>>(); Ok((header, lines.map(|line| line.split(separator).map(str::to_owned).collect()).collect())) }; let (left_header, left_rows) = match read(&*!left) { Ok(table) => table, Err(error) => { eprintln\!("eoie error: table {error}"); return 2; } }; let (right_header, right_rows) = match read(&*!right) { Ok(table) => table, Err(error) => { eprintln\!("eoie error: table {error}"); return 2; } }; let keys = (&*!key).split(char::from(44u8)).filter(|name| \!name.is_empty()).map(str::to_owned).collect::<Vec<_>>(); if keys.is_empty() { eprintln\!("eoie error: table diff needs --key a,b"); return 2; } let position = |header: &Vec<String>, name: &str| header.iter().position(|item| item == name); let mut missing = keys.iter().filter(|name| position(&left_header, name).is_none() || position(&right_header, name).is_none()).cloned().collect::<Vec<_>>(); let compared = if (&*!cols).is_empty() { left_header.iter().filter(|name| \!keys.contains(name) && position(&right_header, name).is_some()).cloned().collect::<Vec<_>>() } else { (&*!cols).split(char::from(44u8)).map(str::to_owned).collect::<Vec<_>>() }; missing.extend(compared.iter().filter(|name| position(&left_header, name).is_none() || position(&right_header, name).is_none()).cloned()); if \!missing.is_empty() { eprintln\!("eoie error: table diff unknown columns: {}", missing.join(",")); return 2; } let key_of = |header: &Vec<String>, row: &Vec<String>| keys.iter().map(|name| row.get(position(header, name).unwrap()).cloned().unwrap_or_default()).collect::<Vec<_>>().join("|"); let right_index = right_rows.iter().map(|row| (key_of(&right_header, row), row)).collect::<std::collections::HashMap<_, _>>(); let mut counts: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new(); let mut samples = Vec::new(); let mut only_left = 0usize; let mut seen = std::collections::HashSet::new(); for row in &left_rows { let key_text = key_of(&left_header, row); seen.insert(key_text.clone()); match right_index.get(&key_text) { None => only_left += 1, Some(other) => { for name in &compared { let a = row.get(position(&left_header, name).unwrap()).cloned().unwrap_or_default(); let b = other.get(position(&right_header, name).unwrap()).cloned().unwrap_or_default(); if a \!= b { *counts.entry(name.clone()).or_insert(0) += 1; if (samples.len() as u64) < !limit { samples.push(format\!("{key_text}\t{name}\t{a}\t{b}")); } } } } } } let only_right = right_rows.iter().filter(|row| \!seen.contains(&key_of(&right_header, row))).count(); for (name, count) in &counts { println\!("column {name} differs={count}"); } if \!samples.is_empty() { println\!("key\tcolumn\tleft\tright"); for sample in &samples { println\!("{sample}"); } } println\!("eoie table diff ok left_rows={} right_rows={} only_left={only_left} only_right={only_right} differing_cells={}", left_rows.len(), right_rows.len(), counts.values().sum::<usize>()); 0 })()' : i32
+
+let table_run () : i32 =
+    match table_command_of (argument 2i32) with
+    | TableQuery =>
+        if argument_count () < 4i32 then rejected (table_usage ())
+        else
+            match options_from 4i32 (argument_count ()) (no_request ()) with
+            | StepTaken request => query_rows (argument 3i32) request.wheres request.cols request.group request.limit
+            | StepRejected reason => rejected reason
+    | TableDiff =>
+        if argument_count () < 5i32 then rejected (table_usage ())
+        else
+            match options_from 5i32 (argument_count ()) (no_request ()) with
+            | StepTaken request => diff_rows (argument 3i32) (argument 4i32) request.key request.cols request.limit
+            | StepRejected reason => rejected reason
+    | TableUnknown => rejected (table_usage ())
+
+inl main () : i32 =
+    !!!!Export("eoie_table_run", ((fun () => table_run ()) : () -> i32))
+    0i32

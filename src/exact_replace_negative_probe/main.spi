@@ -1,8 +1,8 @@
 open exact_replace_contract.model
 
 inl zero_is (value : i32) : bool =
-    if !!!!LT(value,0i32) then false
-    elif !!!!LT(0i32,value) then false
+    if value < 0i32 then false
+    elif 0i32 < value then false
     else true
 
 inl main () : i32 =

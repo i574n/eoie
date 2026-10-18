@@ -1,0 +1,7 @@
+packages:
+    |core-
+    rust_std_string
+    eoie_do_model
+modules:
+    program
+    compiled

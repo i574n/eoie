@@ -18,11 +18,11 @@ inl smoke_plan () : streaming_plan streaming_idle streaming_running =
     StreamingLaunch (ProcessInputText "streaming-smoke", 5000u64)
 
 let streaming_policy_export (policy_code : i32) (value : i32) : i32 =
-    if !!!!EQ(policy_code,0i32) then value
-    elif !!!!EQ(policy_code,1i32) then 16777216i32
-    elif !!!!EQ(policy_code,2i32) then
-        if !!!!LT(value,1i32) then -1i32
-        elif !!!!LT(67108864i32,value) then -1i32
+    if policy_code = 0i32 then value
+    elif policy_code = 1i32 then 16777216i32
+    elif policy_code = 2i32 then
+        if value < 1i32 then -1i32
+        elif 67108864i32 < value then -1i32
         else value
     else -1i32
 

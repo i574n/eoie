@@ -20,16 +20,16 @@ inl ascii_dash () : i32 = 45i32
 inl negated (value : bool) : bool = if value then false else true
 
 inl id_byte (code : i32) : bool =
-    if i32_le (ascii_upper_a ()) code then i32_le code (ascii_upper_z ())
-    elif i32_le (ascii_zero ()) code then i32_le code (ascii_nine ())
-    else i32_eq code (ascii_dash ())
+    if ascii_upper_a () <= code then code <= ascii_upper_z ()
+    elif ascii_zero () <= code then code <= ascii_nine ()
+    else code = ascii_dash ()
 
 let rec id_bytes_valid (~text : string) (~offset : i32) (~length : i32) : bool =
-    if i32_le length offset then true
-    elif id_byte (byte_at text offset) then id_bytes_valid text (i32_next offset) length
+    if length <= offset then true
+    elif id_byte (byte_at text offset) then id_bytes_valid text (offset + 1i32) length
     else false
 
-inl id_well_formed (~id : string) : bool = if i32_le (byte_len id) 0i32 then false else id_bytes_valid id 0i32 (byte_len id)
+inl id_well_formed (~id : string) : bool = if byte_len id <= 0i32 then false else id_bytes_valid id 0i32 (byte_len id)
 
 type rename_tally =
     {
@@ -43,11 +43,11 @@ type rename_tally =
 let binding_declared (~text : string) (~binding : string) : bool =
     inl needle = rust_std_string.model.concat5 "\ninl " binding " (" "" ""
     if rust_std_string.model.starts_with text (rust_std_string.model.concat5 "inl " binding " (" "" "") then true
-    else negated (i32_negative (byte_find text needle))
+    else negated (byte_find text needle < 0i32)
 
 inl starts_with_digit (~id : string) : bool =
     inl first = byte_at id 0i32
-    if i32_le (ascii_zero ()) first then i32_le first (ascii_nine ()) else false
+    if ascii_zero () <= first then first <= ascii_nine () else false
 
 inl renamed_text (~text : string) (~old : string) (~new : string) : string * rename_tally =
     inl updated, items, deps_count, deps_tasks, title_count, title_tasks =
@@ -83,7 +83,7 @@ let renamed (~root : string) (~old : string) (~new : string) : i32 =
 let rename_entry () : i32 =
     inl old = argument_owned 2i32
     inl new = argument_owned 3i32
-    if negated (i32_eq (argument_count ()) 4i32) then rename_failure "usage: agile rename <root> <old-id> <new-id>" old
+    if negated (argument_count () = 4i32) then rename_failure "usage: agile rename <root> <old-id> <new-id>" old
     elif negated (id_well_formed new) then rename_failure "a task id is upper-case letters, digits and -" old
     elif starts_with_digit new then rename_failure "the new id must start with a letter, so its inl name is a valid identifier" old
     elif rust_std_string.model.equals old new then rename_failure "the new id equals the old one" old

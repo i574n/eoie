@@ -1,4 +1,5 @@
 packages:
+    |core-
     bootstrap_experiment_contract
     bootstrap_policy
     rust_std_env

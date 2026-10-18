@@ -1,4 +1,5 @@
 packages:
+    |core-
     eoie_dev_model-
     rust_std_string
 modules:

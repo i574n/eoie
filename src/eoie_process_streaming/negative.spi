@@ -21,8 +21,8 @@ inl main () : i32 =
     inl zero_limit = streaming_policy_export 2i32 0i32
     inl over_limit = streaming_policy_export 2i32 67108865i32
     inl non_unix = streaming_policy_export 0i32 0i32
-    if !!!!EQ(zero_limit,-1i32) then
-        if !!!!EQ(over_limit,-1i32) then
-            if !!!!EQ(non_unix,0i32) then 0i32 else -1i32
+    if zero_limit = (-1i32) then
+        if over_limit = (-1i32) then
+            if non_unix = 0i32 then 0i32 else -1i32
         else -1i32
     else -1i32

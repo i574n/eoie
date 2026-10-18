@@ -31,25 +31,25 @@ inl patch_preflight_public_plan () : patch_preflight_plan patch_preflight_raw pa
     ))
 
 let patch_preflight_witness_binding (expected : i32) (observed : i32) : i32 =
-    if !!!!LT(expected,1i32) then 0i32
-    elif !!!!LT(observed,1i32) then 0i32
-    elif !!!!LT(expected,observed) then 0i32
-    elif !!!!LT(observed,expected) then 0i32
+    if expected < 1i32 then 0i32
+    elif observed < 1i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
     else 1i32
 
 let patch_preflight_mode_binding (apply_mode : i32) (check_mode : i32) : i32 =
-    if !!!!LT(apply_mode,0i32) then 0i32
-    elif !!!!LT(check_mode,0i32) then 0i32
-    elif !!!!LT(1i32,apply_mode) then 0i32
-    elif !!!!LT(1i32,check_mode) then 0i32
-    elif !!!!LT(apply_mode,1i32) then
-        if !!!!LT(check_mode,1i32) then 0i32 else 1i32
+    if apply_mode < 0i32 then 0i32
+    elif check_mode < 0i32 then 0i32
+    elif 1i32 < apply_mode then 0i32
+    elif 1i32 < check_mode then 0i32
+    elif apply_mode < 1i32 then
+        if check_mode < 1i32 then 0i32 else 1i32
     else
-        if !!!!LT(check_mode,1i32) then 1i32 else 0i32
+        if check_mode < 1i32 then 1i32 else 0i32
 
 let patch_preflight_check_binding (unsafe_paths : i32) (mutations : i32) : i32 =
-    if !!!!LT(unsafe_paths,0i32) then 0i32
-    elif !!!!LT(mutations,0i32) then 0i32
-    elif !!!!LT(0i32,unsafe_paths) then 0i32
-    elif !!!!LT(0i32,mutations) then 0i32
+    if unsafe_paths < 0i32 then 0i32
+    elif mutations < 0i32 then 0i32
+    elif 0i32 < unsafe_paths then 0i32
+    elif 0i32 < mutations then 0i32
     else 1i32

@@ -62,7 +62,7 @@ let scenarios (root : string) : i32 =
         """
     write root "src/isolated/lib.rs" "#[test] fn independent() { assert_eq!(2+2,4); }\n"
     inl lock = host.cargo root (arg "generate-lockfile" "--offline") "" 60000u64
-    require (!!!!EQ(lock,0i32)) "fixture lock generation failed"
+    require (lock = 0i32) "fixture lock generation failed"
     selected root "eoie-coverage-prune" true "test result: ok"
     write root "src/cli/main.rs" "fn main() { println!(\"second\"); }\n"
     write root "src/client/expected.txt" "second"

@@ -83,37 +83,37 @@ inl secondary_fallback_plan () : secondary_route_plan secondary_idle secondary_h
     ))
 
 let patch_route_role_binding (expected_role : i32) (observed_role : i32) : i32 =
-    if !!!!LT(expected_role,0i32) then -1i32
-    elif !!!!LT(2i32,expected_role) then -1i32
-    elif !!!!LT(expected_role,observed_role) then -1i32
-    elif !!!!LT(observed_role,expected_role) then -1i32
+    if expected_role < 0i32 then -1i32
+    elif 2i32 < expected_role then -1i32
+    elif expected_role < observed_role then -1i32
+    elif observed_role < expected_role then -1i32
     else expected_role
 
 let patch_route_forward_binding (route_token : i32) (forward_outcome : i32) : i32 =
-    if !!!!LT(route_token,0i32) then -1i32
-    elif !!!!LT(2i32,route_token) then -1i32
-    elif !!!!LT(forward_outcome,1i32) then -1i32
-    elif !!!!LT(1i32,forward_outcome) then -1i32
+    if route_token < 0i32 then -1i32
+    elif 2i32 < route_token then -1i32
+    elif forward_outcome < 1i32 then -1i32
+    elif 1i32 < forward_outcome then -1i32
     else route_token
 
 let patch_route_restore_binding (route_token : i32) (restore_outcome : i32) : i32 =
     patch_route_forward_binding route_token restore_outcome
 
 let patch_route_hash_binding (before_hash : i32) (after_hash : i32) : i32 =
-    if !!!!LT(before_hash,after_hash) then 0i32
-    elif !!!!LT(after_hash,before_hash) then 0i32
+    if before_hash < after_hash then 0i32
+    elif after_hash < before_hash then 0i32
     else 1i32
 
 let patch_route_complete_binding (route_token : i32) (hash_agreed : i32) : i32 =
-    if !!!!LT(route_token,0i32) then 0i32
-    elif !!!!LT(2i32,route_token) then 0i32
-    elif !!!!LT(hash_agreed,1i32) then 0i32
-    elif !!!!LT(1i32,hash_agreed) then 0i32
+    if route_token < 0i32 then 0i32
+    elif 2i32 < route_token then 0i32
+    elif hash_agreed < 1i32 then 0i32
+    elif 1i32 < hash_agreed then 0i32
     else 1i32
 
 let patch_route_agreement_binding (left_complete : i32) (right_complete : i32) : i32 =
-    if !!!!LT(left_complete,1i32) then 0i32
-    elif !!!!LT(1i32,left_complete) then 0i32
-    elif !!!!LT(right_complete,1i32) then 0i32
-    elif !!!!LT(1i32,right_complete) then 0i32
+    if left_complete < 1i32 then 0i32
+    elif 1i32 < left_complete then 0i32
+    elif right_complete < 1i32 then 0i32
+    elif 1i32 < right_complete then 0i32
     else 1i32

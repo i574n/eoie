@@ -64,22 +64,22 @@ inl assignee_group () : rollup_group = { name = "assignee"; label = "assignee" }
 inl epic_group () : rollup_group = { name = "epic"; label = "epic+deps" }
 
 let rec print_group_rows (~text : string) (format : rollup_format) (group : rollup_group) (~values : string) (offset : i32) (first : bool) : i32 =
-    if i32_le (byte_len values) offset then 0i32
+    if byte_len values <= offset then 0i32
     else
         inl comma = byte_find_from values "," offset
-        inl stop = if i32_negative comma then byte_len values else comma
+        inl stop = if comma < 0i32 then byte_len values else comma
         inl value = byte_slice values offset stop
         inl _ = stdout_line (rollup_line format group value (tally_of text group.name value) first)
-        print_group_rows text format group values (i32_next stop) false
+        print_group_rows text format group values (stop + 1i32) false
 
-inl unquoted (~token : string) : string = byte_slice token 1i32 (i32_prev (byte_len token))
+inl unquoted (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
 
 inl joined (~list : string) (~item : string) : string =
     if rust_std_string.model.equals list "" then item else rust_std_string.model.concat5 list "," item "" ""
 
 let rec epic_ids_from (text : string) (offset : i32) (length : i32) (~epics : string) : string =
     inl found = byte_find_from text (task_marker ()) offset
-    if i32_negative found then epics
+    if found < 0i32 then epics
     else
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
         inl field = tuple_field text arguments length
@@ -129,8 +129,8 @@ inl rollup_format_of (~flag : string) : validation_result rollup_format =
 
 let planning_rollup_entry () : i32 =
     inl count = argument_count ()
-    if i32_eq count 2i32 then planning_rollup (argument_owned 1i32) RollupText
-    elif i32_eq count 3i32 then
+    if count = 2i32 then planning_rollup (argument_owned 1i32) RollupText
+    elif count = 3i32 then
         match rollup_format_of (argument_owned 2i32) with
         | Valid format => planning_rollup (argument_owned 1i32) format
         | Invalid => planning_rollup_failure "plan expects <root> [--json]"

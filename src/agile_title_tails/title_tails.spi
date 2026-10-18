@@ -15,20 +15,20 @@ inl ascii_space () : i32 = 32i32
 
 inl digit_at (text : string) (offset : i32) : bool =
     inl code = byte_at text offset
-    if i32_le (ascii_zero ()) code then i32_le code (ascii_nine ()) else false
+    if ascii_zero () <= code then code <= ascii_nine () else false
 
 let rec digits_in (text : string) (start : i32) (stop : i32) : bool =
-    if i32_le stop start then true
-    elif digit_at text start then digits_in text (i32_next start) stop
+    if stop <= start then true
+    elif digit_at text start then digits_in text (start + 1i32) stop
     else false
 
-inl byte_is (text : string) (offset : i32) (code : i32) : bool = i32_eq (byte_at text offset) code
+inl byte_is (text : string) (offset : i32) (code : i32) : bool = byte_at text offset = code
 
 inl word_ends_at (text : string) (offset : i32) : bool =
-    if i32_eq (byte_len text) offset then true else byte_is text offset (ascii_space ())
+    if byte_len text = offset then true else byte_is text offset (ascii_space ())
 
 let dated_clock (text : string) : bool =
-    if i32_le 16i32 (byte_len text) then
+    if 16i32 <= byte_len text then
         if digits_in text 0i32 4i32 then
             if byte_is text 4i32 (ascii_dash ()) then
                 if digits_in text 5i32 7i32 then
@@ -49,7 +49,7 @@ let dated_clock (text : string) : bool =
     else false
 
 let bare_clock (text : string) : bool =
-    if i32_le 5i32 (byte_len text) then
+    if 5i32 <= byte_len text then
         if digits_in text 0i32 2i32 then
             if byte_is text 2i32 (ascii_colon ()) then
                 if digits_in text 3i32 5i32 then word_ends_at text 5i32 else false
@@ -58,7 +58,7 @@ let bare_clock (text : string) : bool =
     else false
 
 let dated_day (text : string) : bool =
-    if i32_le 10i32 (byte_len text) then
+    if 10i32 <= byte_len text then
         if digits_in text 0i32 4i32 then
             if byte_is text 4i32 (ascii_dash ()) then
                 if digits_in text 5i32 7i32 then
@@ -79,11 +79,11 @@ inl stamp_window () : i32 = 17i32
 
 let rec stamped_separator_from (~title : string) (~offset : i32) : i32 =
     inl found = byte_find_from title (tail_separator ()) offset
-    if i32_negative found then found
+    if found < 0i32 then found
     else
         inl start = $"!found + 2" : i32
         inl window_end = $"!start + !(stamp_window ())" : i32
-        inl stop = if i32_le (byte_len title) window_end then byte_len title else window_end
+        inl stop = if byte_len title <= window_end then byte_len title else window_end
         if starts_with_stamp (byte_slice title start stop) then found
         else stamped_separator_from title start
 
@@ -114,11 +114,11 @@ type moved_notes =
     }
 
 let rec moved_from (~title : string) (~offset : i32) (~length : i32) (~id : string) (~seq : i32) (~day : string) (~previous : string) (~fallback : string) (~moved : moved_notes) : moved_notes =
-    if i32_le length offset then moved
+    if length <= offset then moved
     else
         inl found = stamped_separator_from title offset
-        inl stop = if i32_negative found then length else found
-        inl next = if i32_negative found then length else $"!found + 2" : i32
+        inl stop = if found < 0i32 then length else found
+        inl next = if found < 0i32 then length else $"!found + 2" : i32
         inl piece = rust_std_string.model.trim (byte_slice title offset stop)
         if rust_std_string.model.equals piece "" then moved_from title next length id seq day previous fallback moved
         else
@@ -126,11 +126,11 @@ let rec moved_from (~title : string) (~offset : i32) (~length : i32) (~id : stri
             inl body = if rust_std_string.model.equals stamp.body "" then piece else stamp.body
             inl row = note_row id seq { at = stamp.at; author = migrated_author (); text = body }
             inl joint = if rust_std_string.model.equals moved.rows "" then "" else "\n"
-            moved_from title next length id (i32_next seq) stamp.day stamp.at fallback { rows = rust_std_string.model.concat5 moved.rows joint row "" ""; moved = i32_next moved.moved }
+            moved_from title next length id (seq + 1i32) stamp.day stamp.at fallback { rows = rust_std_string.model.concat5 moved.rows joint row "" ""; moved = (moved.moved + 1i32) }
 
 let tail_rows (~title : string) (~id : string) (~seq : i32) (~fallback : string) : i32 * string =
     inl first = stamped_separator_from title 0i32
-    if i32_negative first then 0i32, ""
+    if first < 0i32 then 0i32, ""
     else
         inl moved = moved_from title ($"!first + 2" : i32) (byte_len title) id seq "" "" fallback { rows = ""; moved = 0i32 }
         moved.moved, moved.rows

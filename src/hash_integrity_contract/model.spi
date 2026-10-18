@@ -36,38 +36,38 @@ inl public_integrity_plan () : integrity_plan integrity_raw integrity_settled =
     ))
 
 let file_hash_binding (regular_file : i32) (symlink : i32) (known_vector_match : i32) : i32 =
-    if !!!!LT(regular_file,1i32) then 0i32
-    elif !!!!LT(1i32,regular_file) then 0i32
-    elif !!!!LT(symlink,0i32) then 0i32
-    elif !!!!LT(0i32,symlink) then 0i32
-    elif !!!!LT(known_vector_match,1i32) then 0i32
-    elif !!!!LT(1i32,known_vector_match) then 0i32
+    if regular_file < 1i32 then 0i32
+    elif 1i32 < regular_file then 0i32
+    elif symlink < 0i32 then 0i32
+    elif 0i32 < symlink then 0i32
+    elif known_vector_match < 1i32 then 0i32
+    elif 1i32 < known_vector_match then 0i32
     else 1i32
 
 let tree_request_binding (root_valid : i32) (relative_segments : i32) : i32 =
-    if !!!!EQ(root_valid,1i32) then
-        if !!!!LT(relative_segments,1i32) then 0i32 else 1i32
+    if root_valid = 1i32 then
+        if relative_segments < 1i32 then 0i32 else 1i32
     else 0i32
 
 let tree_parity_binding (source_entries : i32) (copy_entries : i32) (hash_equal : i32) : i32 =
-    if !!!!LT(source_entries,1i32) then 0i32
-    elif !!!!LT(copy_entries,1i32) then 0i32
-    elif !!!!EQ(source_entries,copy_entries) then
-        if !!!!EQ(hash_equal,1i32) then 1i32 else 0i32
+    if source_entries < 1i32 then 0i32
+    elif copy_entries < 1i32 then 0i32
+    elif source_entries = copy_entries then
+        if hash_equal = 1i32 then 1i32 else 0i32
     else 0i32
 
 let shadow_deletion_binding (before_entries : i32) (after_entries : i32) (hash_changed : i32) : i32 =
-    if !!!!LT(after_entries,0i32) then 0i32
-    elif !!!!LT(after_entries,before_entries) then
-        if !!!!EQ(hash_changed,1i32) then 1i32 else 0i32
+    if after_entries < 0i32 then 0i32
+    elif after_entries < before_entries then
+        if hash_changed = 1i32 then 1i32 else 0i32
     else 0i32
 
 let symlink_rejection_binding (symlink_present : i32) (hash_rejected : i32) : i32 =
-    if !!!!EQ(symlink_present,1i32) then
-        if !!!!EQ(hash_rejected,1i32) then 1i32 else 0i32
+    if symlink_present = 1i32 then
+        if hash_rejected = 1i32 then 1i32 else 0i32
     else 0i32
 
 let integrity_settlement_binding (file_ok : i32) (tree_ok : i32) (shadow_ok : i32) (symlink_ok : i32) : i32 =
-    inl gate0 = !!!!Mult(file_ok,tree_ok)
-    inl gate1 = !!!!Mult(gate0,shadow_ok)
-    !!!!Mult(gate1,symlink_ok)
+    inl gate0 = file_ok * tree_ok
+    inl gate1 = gate0 * shadow_ok
+    (gate1 * symlink_ok)

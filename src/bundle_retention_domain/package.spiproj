@@ -1,4 +1,5 @@
 packages:
+    |core-
     external_payload_contract
 modules:
     retention_plan-

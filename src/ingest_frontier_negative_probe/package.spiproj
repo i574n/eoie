@@ -1,4 +1,5 @@
 packages:
+    |core-
     ingest_frontier_contract
 modules:
     main

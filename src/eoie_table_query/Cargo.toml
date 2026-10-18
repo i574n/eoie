@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "table.spi"
+output = "table_query.rs"
+
+[package]
+name = "eoie-table-query"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_table_query"
+path = "table_query.rs"

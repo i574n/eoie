@@ -1,4 +1,6 @@
 packages:
+    |core-
     command_spec_domain
 modules:
+    argument_file
     model

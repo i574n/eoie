@@ -1,9 +1,11 @@
 packages:
+    |core-
     bundle_retention_domain
     rust_std_string
 modules:
     series
     receipt
+    receipt_read
     retention_terminal-
     retention_physical_negative
     retention_physical_probe

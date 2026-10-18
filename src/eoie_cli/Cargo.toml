@@ -14,6 +14,12 @@ name = "eoie"
 path = "eoie.rs"
 
 [dependencies]
+eoie-jobs = { path = "../eoie_jobs" }
+eoie-repo-state = { path = "../eoie_repo_state" }
+eoie-table-query = { path = "../eoie_table_query" }
+eoie-read-query = { path = "../eoie_read_query" }
+eoie-do = { path = "../eoie_do" }
+eoie-process-table = { path = "../eoie_process_table" }
 bootstrap-authority-status = { path = "../bootstrap_authority_status" }
 eoie-patch-mutation = { path = "../eoie_patch_mutation" }
 eoie-patch-rehearsal = { path = "../eoie_patch_rehearsal" }

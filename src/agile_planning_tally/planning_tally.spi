@@ -31,7 +31,7 @@ union rollup_bucket =
     | EpicBucket : string
     | UnknownBucket
 
-inl unquoted (~token : string) : string = byte_slice token 1i32 (i32_prev (byte_len token))
+inl unquoted (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
 
 let rollup_task_at (text : string) (arguments : i32) (length : i32) : rollup_task =
     inl field = tuple_field text arguments length
@@ -48,11 +48,11 @@ let tally_with (tally : planning_tally) (task : rollup_task) : planning_tally =
     inl minutes = planned_minutes task.plan.estimate
     inl unfinished = task_unfinished task
     {
-        tasks = i32_next tally.tasks
-        open_tasks = i32_sum tally.open_tasks (counted unfinished)
-        estimated = i32_sum tally.estimated (counted (estimate_known task.plan.estimate))
-        minutes = i32_sum tally.minutes minutes
-        open_minutes = i32_sum tally.open_minutes (counted_minutes unfinished minutes)
+        tasks = (tally.tasks + 1i32)
+        open_tasks = (tally.open_tasks + counted unfinished)
+        estimated = (tally.estimated + counted (estimate_known task.plan.estimate))
+        minutes = (tally.minutes + minutes)
+        open_minutes = (tally.open_minutes + counted_minutes unfinished minutes)
     }
 
 inl depends_on (~deps : string) (~id : string) : bool = rust_std_string.model.pipe_member (rust_std_string.model.replace deps "," "|") id
@@ -61,14 +61,14 @@ let bucket_holds (bucket : rollup_bucket) (task : rollup_task) : bool =
     match bucket with
     | EveryTask => true
     | StatusBucket status => rust_std_string.model.equals status task.status
-    | LoadBucket code => i32_eq code (planned_load_code task.plan.load)
-    | AssigneeBucket code => i32_eq code (planned_assignee_code task.plan.assignee)
+    | LoadBucket code => (code = planned_load_code task.plan.load)
+    | AssigneeBucket code => (code = planned_assignee_code task.plan.assignee)
     | EpicBucket epic => if rust_std_string.model.equals epic task.id then true else depends_on task.deps epic
     | UnknownBucket => false
 
 let rec tally_from (text : string) (offset : i32) (length : i32) (bucket : rollup_bucket) (tally : planning_tally) : planning_tally =
     inl found = byte_find_from text (task_marker ()) offset
-    if i32_negative found then tally
+    if found < 0i32 then tally
     else
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
         if declared_task text found then

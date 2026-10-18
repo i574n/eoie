@@ -1,0 +1,79 @@
+open rust_std_string.model
+open state
+
+nominal area_tally = $'std::rc::Rc<std::cell::RefCell<std::collections::BTreeMap<String, [u64; 4]>>>'
+
+inl new_tally () : area_tally = $'std::rc::Rc::new(std::cell::RefCell::new(std::collections::BTreeMap::new()))' : area_tally
+
+inl tallied (tally : area_tally) (~area : string) (counts : change_counts) : () =
+    inl staged = counts.staged
+    inl modified = counts.modified
+    inl untracked = counts.untracked
+    inl unmerged = counts.unmerged
+    $'{ let mut map = !tally.borrow_mut(); let entry = map.entry(!area.to_string()).or_insert([0; 4]); entry[0] += !staged; entry[1] += !modified; entry[2] += !untracked; entry[3] += !unmerged; }' : ()
+
+inl busiest_areas () : u64 = 12u64
+
+inl tally_lines (tally : area_tally) (~prefix : string) (~limit : u64) : string =
+    $'{ let map = !tally.borrow(); let mut areas = map.iter().collect::<Vec<_>>(); areas.sort_by(|left, right| right.1.iter().sum::<u64>().cmp(&left.1.iter().sum::<u64>()).then_with(|| left.0.cmp(right.0))); let shown = areas.iter().take(!limit as usize).map(|(area, counts)| format\!("{}area={} staged={} modified={} untracked={} unmerged={}", &*!prefix, area, counts[0], counts[1], counts[2], counts[3])).collect::<Vec<_>>(); let hidden = areas.len().saturating_sub(shown.len()); let mut text = shown.join("\n"); if hidden > 0 { text.push_str(&format\!("\n{}... {hidden} more areas (eoie table query or git status for the rest)", &*!prefix)); } std::rc::Rc::<str>::from(text) }' : string
+
+inl area_count (tally : area_tally) : u64 = $'!tally.borrow().len() as u64' : u64
+
+inl tally_total (tally : area_tally) (~index : u64) : u64 = $'!tally.borrow().values().map(|counts| counts[!index as usize]).sum::<u64>()' : u64
+
+let git_output (~root : string) (~arguments : string) : string =
+    $'std::rc::Rc::<str>::from(std::process::Command::new("git").arg("-C").arg(&*!root).args(!arguments.split(char::from(10u8))).output().ok().filter(|output| output.status.success()).map(|output| String::from_utf8_lossy(&output.stdout).into_owned()).unwrap_or_default())' : string
+
+inl header_value (~status : string) (~key : string) : string =
+    $'std::rc::Rc::<str>::from(!status.lines().find_map(|line| line.strip_prefix(&*!key)).unwrap_or("").trim())' : string
+
+inl line_at (~text : string) (~index : u64) : string = $'std::rc::Rc::<str>::from(!text.lines().nth(!index as usize).unwrap_or(""))' : string
+
+inl line_count (~text : string) : u64 = $'!text.lines().count() as u64' : u64
+
+let rec tally_status (tally : area_tally) (~status : string) (index : u64) (count : u64) (depth : u64) : () =
+    if index < count then
+        inl line = line_at status index
+        inl path = path_of line
+        if path <> "" then tallied tally (area_of path depth) (counts_of line)
+        tally_status tally status (index + 1u64) count depth
+
+inl argument (~index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(!index as usize).unwrap_or_default())' : string
+inl argument_count () : i32 = $'std::env::args().count() as i32' : i32
+inl decimal_text (~value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl is_repository (~root : string) : bool = $'std::path::Path::new(&*!root).join(".git").exists()' : bool
+
+let repo_state_of (~root : string) (depth : u64) : i32 =
+    if is_repository root then
+        inl status = git_output root "status\n--porcelain=v2\n--branch\n--untracked-files=all"
+        inl last = git_output root "log\n-1\n--format=%h %cI %s"
+        inl tally = new_tally ()
+        tally_status tally status 0u64 (line_count status) depth
+        inl branch = header_value status "# branch.head "
+        inl ab = header_value status "# branch.ab "
+        inl head = concat5 "eoie repo state ok root=" root " branch=" branch (concat5 " ab=" (if ab = "" then "none" else ab) "" "" "")
+        inl totals = concat5 " staged=" (decimal_text (tally_total tally 0u64)) " modified=" (decimal_text (tally_total tally 1u64)) (concat5 " untracked=" (decimal_text (tally_total tally 2u64)) " unmerged=" (decimal_text (tally_total tally 3u64)) "")
+        stdout_line (concat5 head totals (concat5 " areas=" (decimal_text (area_count tally)) "" "" "") " last=" (line_at last 0u64))
+        inl areas = tally_lines tally "  " (busiest_areas ())
+        if areas <> "" then stdout_line areas
+        0i32
+    else
+        stdout_line (concat5 "eoie repo state rejected root=" root " reason=not-a-git-repository" "" "")
+        2i32
+
+let rec states_from (index : i32) (count : i32) (depth : u64) (worst : i32) : i32 =
+    if index < count then
+        inl code = repo_state_of (argument index) depth
+        states_from (index + 1i32) count depth (if code > worst then code else worst)
+    else worst
+
+let repo_run () : i32 =
+    if argument 2i32 = "state" && argument_count () > 3i32 then states_from 3i32 (argument_count ()) 2u64 0i32
+    else
+        stdout_line "eoie error: repo usage: repo state <root> [<root>...]"
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_repo_run", ((fun () => repo_run ()) : () -> i32))
+    0i32

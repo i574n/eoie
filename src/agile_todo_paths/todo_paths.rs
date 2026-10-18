@@ -33,7 +33,7 @@ fn vendor_segment_from_2(mut v0: Rc<str>, mut v1: i32) -> bool {
     loop {
         let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
         let mut v3: i32 = v0.get(v1 as usize..).and_then(|rest| rest.find(&*v2)).map(|found| (found + v1 as usize) as i32).unwrap_or(-1);
-        let mut v4: bool = v3 < 0;
+        let mut v4: bool = v3 < 0i32;
         if v4 {
             return false;
         } else {
@@ -43,7 +43,7 @@ fn vendor_segment_from_2(mut v0: Rc<str>, mut v1: i32) -> bool {
             if v7 {
                 return true;
             } else {
-                let mut v8: i32 = v3 + 1;
+                let mut v8: i32 = v3.wrapping_add(1i32);
                 (v0, v1) = (v0.clone(), v8);
                 continue;
             }
@@ -60,11 +60,11 @@ fn last_offset_of_4(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> i
             let mut v6: i32 = v0.as_bytes().get(v2 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
             let mut v7: bool = v6 == v1;
             if v7 {
-                let mut v8: i32 = v2 + 1;
+                let mut v8: i32 = v2.wrapping_add(1i32);
                 (v0, v1, v2, v3) = (v0.clone(), v1, v8, v2);
                 continue;
             } else {
-                let mut v10: i32 = v2 + 1;
+                let mut v10: i32 = v2.wrapping_add(1i32);
                 (v0, v1, v2, v3) = (v0.clone(), v1, v10, v3);
                 continue;
             }
@@ -76,7 +76,7 @@ fn syntax_of_path_3(mut v0: Rc<str>) -> US2 {
     let mut v2: i32 = 0i32;
     let mut v3: i32 = -1i32;
     let mut v4: i32 = last_offset_of_4(v0.clone(), v1, v2, v3);
-    let mut v5: i32 = v4 + 1;
+    let mut v5: i32 = v4.wrapping_add(1i32);
     let mut v6: i32 = v0.len() as i32;
     let mut v7: Rc<str> = std::rc::Rc::<str>::from(v0.get(v5 as usize..v6 as usize).unwrap_or(""));
     let mut v8: Rc<str> = std::rc::Rc::<str>::from(v7.to_ascii_lowercase());
@@ -84,12 +84,12 @@ fn syntax_of_path_3(mut v0: Rc<str>) -> US2 {
     let mut v10: i32 = 0i32;
     let mut v11: i32 = -1i32;
     let mut v12: i32 = last_offset_of_4(v8.clone(), v9, v10, v11);
-    let mut v13: bool = v12 < 0;
+    let mut v13: bool = v12 < 0i32;
     let mut v18: Rc<str> = if v13 {
         let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
         v14.clone()
     } else {
-        let mut v15: i32 = v12 + 1;
+        let mut v15: i32 = v12.wrapping_add(1i32);
         let mut v16: i32 = v8.len() as i32;
         let mut v17: Rc<str> = std::rc::Rc::<str>::from(v8.get(v15 as usize..v16 as usize).unwrap_or(""));
         v17.clone()
@@ -231,7 +231,7 @@ fn path_verdict_1(mut v0: Rc<str>, mut v1: bool) -> US0 {
                     let mut v13: i32 = 0i32;
                     let mut v14: i32 = -1i32;
                     let mut v15: i32 = last_offset_of_4(v0.clone(), v12, v13, v14);
-                    let mut v16: i32 = v15 + 1;
+                    let mut v16: i32 = v15.wrapping_add(1i32);
                     let mut v17: i32 = v0.len() as i32;
                     let mut v18: Rc<str> = std::rc::Rc::<str>::from(v0.get(v16 as usize..v17 as usize).unwrap_or(""));
                     let mut v19: Rc<str> = std::rc::Rc::<str>::from(v18.to_ascii_lowercase());
@@ -239,12 +239,12 @@ fn path_verdict_1(mut v0: Rc<str>, mut v1: bool) -> US0 {
                     let mut v21: i32 = 0i32;
                     let mut v22: i32 = -1i32;
                     let mut v23: i32 = last_offset_of_4(v19.clone(), v20, v21, v22);
-                    let mut v24: bool = v23 < 0;
+                    let mut v24: bool = v23 < 0i32;
                     let mut v29: Rc<str> = if v24 {
                         let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                         v25.clone()
                     } else {
-                        let mut v26: i32 = v23 + 1;
+                        let mut v26: i32 = v23.wrapping_add(1i32);
                         let mut v27: i32 = v19.len() as i32;
                         let mut v28: Rc<str> = std::rc::Rc::<str>::from(v19.get(v26 as usize..v27 as usize).unwrap_or(""));
                         v28.clone()

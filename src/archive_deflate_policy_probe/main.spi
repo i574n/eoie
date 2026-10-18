@@ -14,13 +14,13 @@ inl main () : i32 =
     inl complete = archive_deflate_domain.archive_complete_binding 2i32 2i32
     inl tree = archive_deflate_domain.archive_tree_binding complete 1i32
     inl format = archive_deflate_domain.archive_format_binding (archive_deflate_domain.archive_format_code archive_deflate_domain.TarXzArchive) 1i32
-    if !!!!LT(preflight,1i32) then 1i32
-    elif !!!!LT(tar_symlink,1i32) then 1i32
-    elif !!!!LT(tar_hardlink,1i32) then 1i32
-    elif !!!!LT(tar_long_link,1i32) then 1i32
-    elif !!!!LT(tar_pax_path,1i32) then 1i32
-    elif !!!!LT(compression,1i32) then 1i32
-    elif !!!!LT(budget,1i32) then 1i32
-    elif !!!!LT(tree,1i32) then 1i32
-    elif !!!!LT(format,1i32) then 1i32
+    if preflight < 1i32 then 1i32
+    elif tar_symlink < 1i32 then 1i32
+    elif tar_hardlink < 1i32 then 1i32
+    elif tar_long_link < 1i32 then 1i32
+    elif tar_pax_path < 1i32 then 1i32
+    elif compression < 1i32 then 1i32
+    elif budget < 1i32 then 1i32
+    elif tree < 1i32 then 1i32
+    elif format < 1i32 then 1i32
     else 0i32

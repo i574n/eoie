@@ -90,7 +90,7 @@ let octal_field_error (~field_text : string) (~label : string) : string =
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
 
 inl classified_as (file_name : string) (code : i32) (label : string) : () =
-    expect !!!!EQ(archive_classification_code file_name, code) file_name
+    expect (archive_classification_code file_name = code) file_name
     expect (equals (archive_classification_label file_name) label) file_name
 
 ///> rust
@@ -119,7 +119,7 @@ test unknown_and_partial_extensions_are_unsupported =
 
 ///> rust
 test octal_fields_read_trimmed_base_eight_and_reject_garbage =
-    expect !!!!EQ(octal_field_value "0000644 ", 420u64) "mode"
-    expect !!!!EQ(octal_field_value "   ", 0u64) "blank field is zero"
+    expect (octal_field_value "0000644 " = 420u64) "mode"
+    expect (octal_field_value "   " = 0u64) "blank field is zero"
     expect (equals (octal_field_error "0000644" "mode") "") "valid has no error"
     expect (equals (octal_field_error " 12a9 " "size") "invalid tar size: 12a9") "garbage is named with its label"

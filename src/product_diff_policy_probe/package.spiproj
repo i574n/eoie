@@ -1,4 +1,5 @@
 packages:
+    |core-
     product_diff_contract
 modules:
     main

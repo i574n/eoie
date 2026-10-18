@@ -8,22 +8,22 @@ let check (text : string) : () =
     inl safe_expected = $'(!text.len() > 0) && !text.bytes().all(|byte| byte.is_ascii_alphanumeric() || [45u8,46,47,95].contains(&byte))' : bool
     inl hash_actual = evaluate (sha256_text ()) text
     inl safe_actual = evaluate (safe_receipt_text ()) text
-    require (!!!!EQ(hash_actual,hash_expected))
-    require (!!!!EQ(safe_actual,safe_expected))
+    require (hash_actual = hash_expected)
+    require (safe_actual = safe_expected)
     require ($'eoie_handoff::binary_install_hash_text(&*!text) == !hash_expected ' : bool)
     require ($'eoie_handoff::binary_install_safe_text(&*!text) == !safe_expected ' : bool)
 
 let differential () : i32 =
     let rec loop (byte : u64) : u64 =
-        if !!!!LT(byte,128u64) then
+        if byte < 128u64 then
             check (ascii_text byte 1u64)
             check (ascii_text byte 63u64)
             check (ascii_text byte 64u64)
             check (ascii_text byte 65u64)
-            loop (!!!!Add(byte,1u64))
+            loop (byte + 1u64)
         else byte
     inl count = loop 0u64
-    require (!!!!EQ(count,128u64))
+    require (count = 128u64)
     check ""
     check "aB09-._/"
     check "é"

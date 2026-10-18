@@ -29,7 +29,7 @@ inl copy_rooted (~root : string) (~source : string) (~target : string) (started 
 
 let file_copy_outcome (operands : i32) (~root : string) (~source : string) (~target : string) : copy_outcome =
     inl started = unix_ms ()
-    if i32_eq operands 4i32 then copy_rooted root source target started
+    if operands = 4i32 then copy_rooted root source target started
     else CopyRejected "fs-copy expects root, source, target"
 
 let file_copy_report (operands : i32) (~root : string) (~source : string) (~target : string) : i32 * string =

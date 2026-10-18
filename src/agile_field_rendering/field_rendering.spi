@@ -49,14 +49,14 @@ inl ascii_space () : i32 = 32i32
 
 inl caller_punctuated (~value : string) : bool =
     inl first = byte_at value 0i32
-    if i32_eq first (ascii_semicolon ()) then true
-    elif i32_eq first (ascii_comma ()) then true
-    elif i32_eq first (ascii_period ()) then true
-    elif i32_eq first (ascii_space ()) then true
+    if first = ascii_semicolon () then true
+    elif first = ascii_comma () then true
+    elif first = ascii_period () then true
+    elif first = ascii_space () then true
     else false
 
 inl title_continuation_of (~open_title : string) (~value : string) : title_continuation =
-    if i32_le (byte_len open_title) 1i32 then OpeningSentence
+    if byte_len open_title <= 1i32 then OpeningSentence
     elif caller_punctuated value then CallerPunctuated
     else FollowingSentence
 
@@ -79,7 +79,7 @@ inl rendered_field (field : agile_edit_field) (~current : string) (~value : stri
     | EditDeps => quoted_field_value value
     | EditTags => quoted_field_value value
     | AppendTitle =>
-        inl open_title = byte_slice current 0i32 (i32_prev (byte_len current))
+        inl open_title = byte_slice current 0i32 (byte_len current - 1i32)
         Valid (rust_std_string.model.concat5 open_title (title_joint (title_continuation_of open_title value)) (spi_escaped value) "\"" "")
     | EditKind => validated_text (parse_task_kind value) agile_case_text
     | EditPriority => validated_text (parse_priority value) agile_case_text

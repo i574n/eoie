@@ -188,7 +188,7 @@ fn edit_field_token_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> Rc<s
             let mut v173: US2 = match &v5 {
                 US1::US1_AppendTitle => {
                     let mut v9: i32 = v1.len() as i32;
-                    let mut v10: i32 = v9 - 1;
+                    let mut v10: i32 = v9.wrapping_sub(1i32);
                     let mut v11: Rc<str> = std::rc::Rc::<str>::from(v1.get(0i32 as usize..v10 as usize).unwrap_or(""));
                     let mut v12: i32 = v11.len() as i32;
                     let mut v13: bool = v12 <= 1i32;

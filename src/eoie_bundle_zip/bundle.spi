@@ -15,10 +15,10 @@ union bundle_profile =
 inl bundle_profile_model () : bundle_profile = AutoBundleProfile
 
 let bundle_profile_resolve_binding (requested : i32) (eoie_signature : i32) : i32 =
-    if !!!!EQ(requested,0i32) then
-        if !!!!EQ(eoie_signature,1i32) then 2i32 else 1i32
-    elif !!!!EQ(requested,1i32) then 1i32
-    elif !!!!EQ(requested,2i32) then 2i32
+    if requested = 0i32 then
+        if eoie_signature = 1i32 then 2i32 else 1i32
+    elif requested = 1i32 then 1i32
+    elif requested = 2i32 then 2i32
     else -1i32
 
 union bundle_op from to =
@@ -80,7 +80,7 @@ let bundle_manifest_authority_binding (manifest_parsed : i32) (members_bijective
     bundle_policy_domain.policy.bundle_manifest_mapping_binding manifest_parsed members_bijective
 
 let bundle_archive_root_shape_binding (binary_evidence_mask : i32) (source_state_mask : i32) : i32 =
-    if !!!!EQ(binary_evidence_mask,3i32) && !!!!EQ(source_state_mask,3i32) then 1i32 else 0i32
+    if binary_evidence_mask = 3i32 && source_state_mask = 3i32 then 1i32 else 0i32
 
 let rec bundle_workspace_members_loop
     (body : string) (at : i32) (body_len : i32) (seen : string) (out : string) : string =

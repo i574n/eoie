@@ -10,14 +10,14 @@ inl main () : i32 =
     inl bad_payload_shape = portable_toolchain_shape_binding 2i32 7i32 2i32
     inl bad_tool_shape = portable_toolchain_shape_binding 3i32 6i32 2i32
     inl bad_root_shape = portable_toolchain_shape_binding 3i32 7i32 1i32
-    if !!!!EQ(missing,0i32) then
-        if !!!!EQ(mismatch_payload,1i32) then
-            if !!!!EQ(mismatch_tools,1i32) then
-                if !!!!EQ(ready,2i32) then
-                    if !!!!EQ(good_shape,1i32) then
-                        if !!!!EQ(bad_payload_shape,0i32) then
-                            if !!!!EQ(bad_tool_shape,0i32) then
-                                if !!!!EQ(bad_root_shape,0i32) then 0i32 else 1i32
+    if missing = 0i32 then
+        if mismatch_payload = 1i32 then
+            if mismatch_tools = 1i32 then
+                if ready = 2i32 then
+                    if good_shape = 1i32 then
+                        if bad_payload_shape = 0i32 then
+                            if bad_tool_shape = 0i32 then
+                                if bad_root_shape = 0i32 then 0i32 else 1i32
                             else 1i32
                         else 1i32
                     else 1i32

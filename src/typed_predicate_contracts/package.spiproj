@@ -1,4 +1,5 @@
 packages:
+    |core-
     typed_predicate_contract
 modules:
     main

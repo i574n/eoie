@@ -29,29 +29,29 @@ inl next_scan_state (state : scan_state) (byte : i32) : scan_state =
     match state with
     | ScanEscaped => ScanQuoted
     | ScanQuoted =>
-        if i32_eq byte (backslash_byte ()) then ScanEscaped
-        elif i32_eq byte (quote_byte ()) then ScanPlain
+        if byte = backslash_byte () then ScanEscaped
+        elif byte = quote_byte () then ScanPlain
         else ScanQuoted
-    | ScanPlain => if i32_eq byte (quote_byte ()) then ScanQuoted else ScanPlain
+    | ScanPlain => if byte = quote_byte () then ScanQuoted else ScanPlain
 
 inl ends_field (state : scan_state) (byte : i32) : bool =
     match state with
-    | ScanPlain => if i32_eq byte (comma_byte ()) then true else i32_eq byte (close_paren_byte ())
+    | ScanPlain => if byte = comma_byte () then true else byte = close_paren_byte ()
     | _ => false
 
 let rec field_end (text : string) (offset : i32) (length : i32) (~state : scan_state) : i32 =
-    if i32_le length offset then length
+    if length <= offset then length
     else
         inl byte = byte_at text offset
         if ends_field state byte then offset
-        else field_end text (i32_next offset) length (next_scan_state state byte)
+        else field_end text (offset + 1i32) length (next_scan_state state byte)
 
 let rec skip_spaces (text : string) (offset : i32) : i32 =
-    if i32_eq (byte_at text offset) (space_byte ()) then skip_spaces text (i32_next offset) else offset
+    if byte_at text offset = space_byte () then skip_spaces text (offset + 1i32) else offset
 
 let rec field_start (text : string) (offset : i32) (length : i32) (position : i32) : i32 =
-    if i32_eq position 0i32 then offset
-    else field_start text (skip_spaces text (i32_next (field_end text offset length ScanPlain))) length (i32_prev position)
+    if position = 0i32 then offset
+    else field_start text (skip_spaces text (field_end text offset length ScanPlain + 1i32)) length (position - 1i32)
 
 inl spi_escaped (~value : string) : string =
     inl value = rust_std_string.model.replace value "\\" "\\\\"
@@ -72,17 +72,17 @@ inl declared_task (text : string) (found : i32) : bool =
 
 let rec top_level_field_count (text : string) (offset : i32) (length : i32) (counted : i32) : i32 =
     inl stop = field_end text offset length ScanPlain
-    if i32_le length stop then -1i32
-    elif i32_eq (byte_at text stop) (close_paren_byte ()) then i32_next counted
-    else top_level_field_count text (skip_spaces text (i32_next stop)) length (i32_next counted)
+    if length <= stop then -1i32
+    elif byte_at text stop = close_paren_byte () then counted + 1i32
+    else top_level_field_count text (skip_spaces text (stop + 1i32)) length (counted + 1i32)
 
 let rec first_malformed_task (text : string) (offset : i32) (length : i32) : i32 =
     inl found = byte_find_from text (task_marker ()) offset
-    if i32_negative found then -1i32
+    if found < 0i32 then -1i32
     else
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
         if declared_task text found then
-            if i32_eq (top_level_field_count text arguments length 0i32) (task_field_count ()) then first_malformed_task text arguments length
+            if top_level_field_count text arguments length 0i32 = task_field_count () then first_malformed_task text arguments length
             else found
         else first_malformed_task text arguments length
 inl tuple_field (text : string) (arguments : i32) (length : i32) (position : i32) : string =

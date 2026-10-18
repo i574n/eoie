@@ -35,11 +35,11 @@ inl proof (root : string) (binary : string) (digest : string) : () =
 
 inl render_counts (root : string) (wrapped : bool) : string =
     let rec loop (index : u64) : string =
-        if !!!!EQ(index,10u64) then ""
+        if index = 10u64 then ""
         else
-            inl value = if wrapped then !!!!Add((count_at root index),4294967296u64) else 2147483647u64
-            inl separator = if !!!!EQ(index,9u64) then "" else ", "
-            rust_std_string.model.concat5 (decimal value) "u32" separator (loop (!!!!Add(index,1u64))) ""
+            inl value = if wrapped then (count_at root index) + 4294967296u64 else 2147483647u64
+            inl separator = if index = 9u64 then "" else ", "
+            rust_std_string.model.concat5 (decimal value) "u32" separator (loop (index + 1u64)) ""
     loop 0u64
 
 let selection (root : string) : i32 =

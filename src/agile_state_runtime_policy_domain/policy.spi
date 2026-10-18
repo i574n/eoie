@@ -9,8 +9,8 @@ inl agile_state_mutation_target_decision_code = function
     | PermitPackageOwnedMutation => 2i32
 
 let agile_state_mutation_target_decision_binding (parent_is_state : i32) (package_owned : i32) : i32 =
-    if !!!!EQ(parent_is_state,1i32) then
-        if !!!!EQ(package_owned,1i32) then agile_state_mutation_target_decision_code PermitPackageOwnedMutation
+    if parent_is_state = 1i32 then
+        if package_owned = 1i32 then agile_state_mutation_target_decision_code PermitPackageOwnedMutation
         else agile_state_mutation_target_decision_code RejectNonPackageOwnedModule
     else agile_state_mutation_target_decision_code RejectEscapedStateRoot
 
@@ -23,14 +23,14 @@ inl agile_lease_budget_decision_code = function
     | PermitLeaseBudget => 1i32
 
 let agile_lease_budget_decision_binding (budget_positive : i32) (guard_less_than_budget : i32) : i32 =
-    if !!!!EQ(budget_positive,1i32) then
-        if !!!!EQ(guard_less_than_budget,1i32) then agile_lease_budget_decision_code PermitLeaseBudget
+    if budget_positive = 1i32 then
+        if guard_less_than_budget = 1i32 then agile_lease_budget_decision_code PermitLeaseBudget
         else agile_lease_budget_decision_code RejectLeaseBudget
     else agile_lease_budget_decision_code RejectLeaseBudget
 
 let agile_lease_readback_decision_binding (started_equal : i32) (deadline_equal : i32) : i32 =
-    if !!!!EQ(started_equal,1i32) then
-        if !!!!EQ(deadline_equal,1i32) then 1i32 else 0i32
+    if started_equal = 1i32 then
+        if deadline_equal = 1i32 then 1i32 else 0i32
     else 0i32
 
 union agile_prompt_title_class =
@@ -88,7 +88,7 @@ let agile_prompt_lease_marker_text (~code : string) : string =
     if rust_std_string.model.equals code "1" then "PromptLease (" else ""
 
 let agile_prompt_lease_shape_binding (field_count : i32) (active_status : i32) : i32 =
-    if !!!!EQ(field_count,7i32) then if !!!!EQ(active_status,1i32) then 1i32 else 0i32 else 0i32
+    if field_count = 7i32 then if active_status = 1i32 then 1i32 else 0i32 else 0i32
 
 union agile_lease_clock_phase =
     | LeaseClockWork
@@ -101,8 +101,8 @@ inl agile_lease_clock_phase_code = function
     | LeaseClockYield => 2i32
 
 let agile_lease_clock_phase_binding (at_or_after_wrap : i32) (at_or_after_deadline : i32) : i32 =
-    if !!!!EQ(at_or_after_deadline,1i32) then agile_lease_clock_phase_code LeaseClockYield
-    elif !!!!EQ(at_or_after_wrap,1i32) then agile_lease_clock_phase_code LeaseClockWrap
+    if at_or_after_deadline = 1i32 then agile_lease_clock_phase_code LeaseClockYield
+    elif at_or_after_wrap = 1i32 then agile_lease_clock_phase_code LeaseClockWrap
     else agile_lease_clock_phase_code LeaseClockWork
 
 union agile_lease_policy =
@@ -118,7 +118,7 @@ let agile_lease_policy_from_text (~value : string) : u64 =
     else agile_lease_policy_code BoundedLeasePolicy
 
 let agile_lease_effective_phase_binding (renewing : i32) (phase : i32) : i32 =
-    if !!!!EQ(renewing,1i32) then agile_lease_clock_phase_code LeaseClockWork
+    if renewing = 1i32 then agile_lease_clock_phase_code LeaseClockWork
     else phase
 let agile_status_text (~code : string) : string =
     union_reflection.cases.union_cases_fold

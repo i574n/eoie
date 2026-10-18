@@ -1,0 +1,64 @@
+union replace_count =
+    | Once
+    | Every
+    | Exactly : u64
+
+type rule =
+    {
+        anchor : string
+        replacement : string
+        count : replace_count
+    }
+
+union rec rule_list =
+    | NoRules
+    | Rule : rule * rule_list
+
+union expectation =
+    | Unchecked
+    | Expected : u64 * u64
+
+union write_mode =
+    | Apply
+    | Preview
+
+type edit_block =
+    {
+        target : string
+        mode : write_mode
+        expectation : expectation
+        rules : rule_list
+    }
+
+union query_verb =
+    | Search
+    | ReadAround
+    | ListFiles
+    | Head
+    | Tail
+    | Wait
+
+type query =
+    {
+        verb : query_verb
+        needle : string
+        literal : bool
+        target : string
+        before : u64
+        after : u64
+        first : u64
+        include : string
+        exclude : string
+        paths_only : bool
+        count : u64
+        timeout_ms : u64
+    }
+
+union step =
+    | EditStep : edit_block
+    | ShowStep : string
+    | QueryStep : string * string
+
+union rec steps =
+    | Done
+    | Step : step * steps

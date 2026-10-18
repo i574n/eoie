@@ -28,11 +28,11 @@ enum US3 {
 fn note_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_note ="); } LIT.with(|lit| lit.clone()) };
     let mut v2: i32 = v0.find(&*v1).map(|offset| offset as i32).unwrap_or(-1);
-    let mut v3: bool = v2 < 0;
+    let mut v3: bool = v2 < 0i32;
     if v3 {
         let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-> task_planning"); } LIT.with(|lit| lit.clone()) };
         let mut v5: i32 = v0.find(&*v4).map(|offset| offset as i32).unwrap_or(-1);
-        let mut v6: bool = v5 < 0;
+        let mut v6: bool = v5 < 0i32;
         let mut v9: i32 = if v6 {
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-> agile_item"); } LIT.with(|lit| lit.clone()) };
             let mut v8: i32 = v0.find(&*v7).map(|offset| offset as i32).unwrap_or(-1);
@@ -40,7 +40,7 @@ fn note_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
         } else {
             v5
         };
-        let mut v10: bool = v9 < 0;
+        let mut v10: bool = v9 < 0i32;
         if v10 {
             let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_note =\n    | Note :: string * u32 * string * string * string -> task_note"); } LIT.with(|lit| lit.clone()) };
             let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n\n"); } LIT.with(|lit| lit.clone()) };
@@ -50,7 +50,7 @@ fn note_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
         } else {
             let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
             let mut v16: i32 = v0.get(v9 as usize..).and_then(|rest| rest.find(&*v15)).map(|found| (found + v9 as usize) as i32).unwrap_or(-1);
-            let mut v17: bool = v16 < 0;
+            let mut v17: bool = v16 < 0i32;
             let mut v19: i32 = if v17 {
                 let mut v18: i32 = v0.len() as i32;
                 v18
@@ -74,7 +74,7 @@ fn note_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
 fn declared_from_3(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
     loop {
         let mut v3: i32 = v0.get(v2 as usize..).and_then(|rest| rest.find(&*v1)).map(|found| (found + v2 as usize) as i32).unwrap_or(-1);
-        let mut v4: bool = v3 < 0;
+        let mut v4: bool = v3 < 0i32;
         if v4 {
             return v3;
         } else {
@@ -85,7 +85,7 @@ fn declared_from_3(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
             if v8 {
                 return v3;
             } else {
-                let mut v9: i32 = v3 + 1;
+                let mut v9: i32 = v3.wrapping_add(1i32);
                 (v0, v1, v2) = (v0.clone(), v1.clone(), v9);
                 continue;
             }
@@ -116,7 +116,7 @@ fn field_end_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US0) -> i32 {
             if v9 {
                 return v1;
             } else {
-                let mut v10: i32 = v1 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
                 let mut v25: US0 = match &v3 {
                     US0::US0_ScanEscaped => {
                         US0::US0_ScanQuoted
@@ -154,7 +154,7 @@ fn skip_spaces_6(mut v0: Rc<str>, mut v1: i32) -> i32 {
         let mut v2: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
         let mut v3: bool = v2 == 32i32;
         if v3 {
-            let mut v4: i32 = v1 + 1;
+            let mut v4: i32 = v1.wrapping_add(1i32);
             (v0, v1) = (v0.clone(), v4);
             continue;
         } else {
@@ -170,9 +170,9 @@ fn field_start_4(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 
         } else {
             let mut v5: US0 = US0::US0_ScanPlain;
             let mut v6: i32 = field_end_5(v0.clone(), v1, v2, v5.clone());
-            let mut v7: i32 = v6 + 1;
+            let mut v7: i32 = v6.wrapping_add(1i32);
             let mut v8: i32 = skip_spaces_6(v0.clone(), v7);
-            let mut v9: i32 = v3 - 1;
+            let mut v9: i32 = v3.wrapping_sub(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v8, v2, v9);
             continue;
         }
@@ -190,12 +190,12 @@ fn unescaped_from_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) 
             let mut v8: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
             let mut v9: bool = v8 == 92i32;
             if v9 {
-                let mut v10: i32 = v1 + 1;
-                let mut v11: i32 = v10 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
+                let mut v11: i32 = v10.wrapping_add(1i32);
                 let mut v12: Rc<str> = std::rc::Rc::<str>::from(v0.get(v1 as usize..v1 as usize).unwrap_or(""));
                 let mut v13: i32 = v0.as_bytes().get(v10 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
                 let mut v14: bool = v13 == 110i32;
-                let mut v24: Rc<str> = if v14 {
+                let mut v23: Rc<str> = if v14 {
                     let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                     v15.clone()
                 } else {
@@ -209,19 +209,18 @@ fn unescaped_from_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) 
                             let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
                             v19.clone()
                         } else {
-                            let mut v20: i32 = v10 + 1;
-                            let mut v21: Rc<str> = std::rc::Rc::<str>::from(v0.get(v10 as usize..v20 as usize).unwrap_or(""));
-                            v21.clone()
+                            let mut v20: Rc<str> = std::rc::Rc::<str>::from(v0.get(v10 as usize..v11 as usize).unwrap_or(""));
+                            v20.clone()
                         }
                     }
                 };
-                let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                let mut v26: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v12, &*v24, &*v25, &*v25].concat());
-                (v0, v1, v2, v3) = (v0.clone(), v11, v2, v26.clone());
+                let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                let mut v25: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v12, &*v23, &*v24, &*v24].concat());
+                (v0, v1, v2, v3) = (v0.clone(), v11, v2, v25.clone());
                 continue;
             } else {
-                let mut v28: i32 = v1 + 1;
-                return unescaped_from_8(v0.clone(), v28, v1, v2, v3.clone());
+                let mut v27: i32 = v1.wrapping_add(1i32);
+                return unescaped_from_8(v0.clone(), v27, v1, v2, v3.clone());
             }
         }
     }
@@ -238,12 +237,12 @@ fn unescaped_from_8(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut 
             let mut v9: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
             let mut v10: bool = v9 == 92i32;
             if v10 {
-                let mut v11: i32 = v1 + 1;
-                let mut v12: i32 = v11 + 1;
+                let mut v11: i32 = v1.wrapping_add(1i32);
+                let mut v12: i32 = v11.wrapping_add(1i32);
                 let mut v13: Rc<str> = std::rc::Rc::<str>::from(v0.get(v2 as usize..v1 as usize).unwrap_or(""));
                 let mut v14: i32 = v0.as_bytes().get(v11 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
                 let mut v15: bool = v14 == 110i32;
-                let mut v25: Rc<str> = if v15 {
+                let mut v24: Rc<str> = if v15 {
                     let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                     v16.clone()
                 } else {
@@ -257,18 +256,17 @@ fn unescaped_from_8(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut 
                             let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
                             v20.clone()
                         } else {
-                            let mut v21: i32 = v11 + 1;
-                            let mut v22: Rc<str> = std::rc::Rc::<str>::from(v0.get(v11 as usize..v21 as usize).unwrap_or(""));
-                            v22.clone()
+                            let mut v21: Rc<str> = std::rc::Rc::<str>::from(v0.get(v11 as usize..v12 as usize).unwrap_or(""));
+                            v21.clone()
                         }
                     }
                 };
-                let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v4, &*v13, &*v25, &*v26, &*v26].concat());
-                return unescaped_from_9(v0.clone(), v12, v3, v27.clone());
+                let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                let mut v26: Rc<str> = std::rc::Rc::<str>::from([&*v4, &*v13, &*v24, &*v25, &*v25].concat());
+                return unescaped_from_9(v0.clone(), v12, v3, v26.clone());
             } else {
-                let mut v29: i32 = v1 + 1;
-                (v0, v1, v2, v3, v4) = (v0.clone(), v29, v2, v3, v4.clone());
+                let mut v28: i32 = v1.wrapping_add(1i32);
+                (v0, v1, v2, v3, v4) = (v0.clone(), v28, v2, v3, v4.clone());
                 continue;
             }
         }
@@ -276,7 +274,7 @@ fn unescaped_from_8(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut 
 }
 fn unquoted_7(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: i32 = v0.len() as i32;
-    let mut v2: i32 = v1 - 1;
+    let mut v2: i32 = v1.wrapping_sub(1i32);
     let mut v3: Rc<str> = std::rc::Rc::<str>::from(v0.get(1i32 as usize..v2 as usize).unwrap_or(""));
     let mut v4: i32 = 0i32;
     let mut v5: i32 = 0i32;
@@ -287,68 +285,68 @@ fn unquoted_7(mut v0: Rc<str>) -> Rc<str> {
 fn declared_count_10(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32) -> i32 {
     loop {
         let mut v4: i32 = declared_from_3(v0.clone(), v1.clone(), v2);
-        let mut v5: bool = v4 < 0;
+        let mut v5: bool = v4 < 0i32;
         if v5 {
             return v3;
         } else {
-            let mut v6: i32 = v4 + 1;
-            let mut v7: i32 = v3 + 1;
+            let mut v6: i32 = v4.wrapping_add(1i32);
+            let mut v7: i32 = v3.wrapping_add(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v1.clone(), v6, v7);
             continue;
         }
     }
 }
 fn civil_of_days_12(mut v0: u64) -> (u64, u64, u64) {
-    let mut v1: u64 = v0 + 719468u64;
-    let mut v2: u64 = v1 / 146097u64;
-    let mut v3: u64 = v2 * 146097u64;
-    let mut v4: u64 = v1 - v3;
-    let mut v5: u64 = v4 / 1460u64;
-    let mut v6: u64 = v4 - v5;
-    let mut v7: u64 = v4 / 36524u64;
-    let mut v8: u64 = v6 + v7;
-    let mut v9: u64 = v4 / 146096u64;
-    let mut v10: u64 = v8 - v9;
-    let mut v11: u64 = v10 / 365u64;
-    let mut v12: u64 = 365u64 * v11;
-    let mut v13: u64 = v11 / 4u64;
-    let mut v14: u64 = v12 + v13;
-    let mut v15: u64 = v11 / 100u64;
-    let mut v16: u64 = v14 - v15;
-    let mut v17: u64 = v4 - v16;
-    let mut v18: u64 = 5u64 * v17;
-    let mut v19: u64 = v18 + 2u64;
-    let mut v20: u64 = v19 / 153u64;
-    let mut v21: u64 = 153u64 * v20;
-    let mut v22: u64 = v21 + 2u64;
-    let mut v23: u64 = v22 / 5u64;
-    let mut v24: u64 = v17 - v23;
-    let mut v25: u64 = v24 + 1u64;
+    let mut v1: u64 = v0.wrapping_add(719468u64);
+    let mut v2: u64 = v1.wrapping_div(146097u64);
+    let mut v3: u64 = v2.wrapping_mul(146097u64);
+    let mut v4: u64 = v1.wrapping_sub(v3);
+    let mut v5: u64 = v4.wrapping_div(1460u64);
+    let mut v6: u64 = v4.wrapping_sub(v5);
+    let mut v7: u64 = v4.wrapping_div(36524u64);
+    let mut v8: u64 = v6.wrapping_add(v7);
+    let mut v9: u64 = v4.wrapping_div(146096u64);
+    let mut v10: u64 = v8.wrapping_sub(v9);
+    let mut v11: u64 = v10.wrapping_div(365u64);
+    let mut v12: u64 = 365u64.wrapping_mul(v11);
+    let mut v13: u64 = v11.wrapping_div(4u64);
+    let mut v14: u64 = v12.wrapping_add(v13);
+    let mut v15: u64 = v11.wrapping_div(100u64);
+    let mut v16: u64 = v14.wrapping_sub(v15);
+    let mut v17: u64 = v4.wrapping_sub(v16);
+    let mut v18: u64 = 5u64.wrapping_mul(v17);
+    let mut v19: u64 = v18.wrapping_add(2u64);
+    let mut v20: u64 = v19.wrapping_div(153u64);
+    let mut v21: u64 = 153u64.wrapping_mul(v20);
+    let mut v22: u64 = v21.wrapping_add(2u64);
+    let mut v23: u64 = v22.wrapping_div(5u64);
+    let mut v24: u64 = v17.wrapping_sub(v23);
+    let mut v25: u64 = v24.wrapping_add(1u64);
     let mut v26: bool = v20 < 10u64;
     let mut v29: u64 = if v26 {
-        let mut v27: u64 = v20 + 3u64;
+        let mut v27: u64 = v20.wrapping_add(3u64);
         v27
     } else {
-        let mut v28: u64 = v20 - 9u64;
+        let mut v28: u64 = v20.wrapping_sub(9u64);
         v28
     };
-    let mut v30: u64 = v2 * 400u64;
-    let mut v31: u64 = v11 + v30;
+    let mut v30: u64 = v2.wrapping_mul(400u64);
+    let mut v31: u64 = v11.wrapping_add(v30);
     let mut v32: bool = v29 < 3u64;
     let mut v33: u64 = if v32 {
         1u64
     } else {
         0u64
     };
-    let mut v34: u64 = v31 + v33;
+    let mut v34: u64 = v31.wrapping_add(v33);
     (v34, v29, v25)
 }
 fn utc_stamp_11(mut v0: u64) -> Rc<str> {
-    let mut v1: u64 = v0 / 1000u64;
-    let mut v2: u64 = v1 / 86400u64;
+    let mut v1: u64 = v0.wrapping_div(1000u64);
+    let mut v2: u64 = v1.wrapping_div(86400u64);
     let (mut v3, mut v4, mut v5): (u64, u64, u64) = civil_of_days_12(v2);
-    let mut v6: u64 = v1 % 86400u64;
-    let mut v7: u64 = v6 / 60u64;
+    let mut v6: u64 = v1.wrapping_rem(86400u64);
+    let mut v7: u64 = v6.wrapping_div(60u64);
     let mut v8: Rc<str> = std::rc::Rc::<str>::from((v3).to_string());
     let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
     let mut v10: bool = v4 < 10u64;
@@ -374,7 +372,7 @@ fn utc_stamp_11(mut v0: u64) -> Rc<str> {
         v22.clone()
     };
     let mut v24: Rc<str> = std::rc::Rc::<str>::from([&*v8, &*v9, &*v16, &*v9, &*v23].concat());
-    let mut v25: u64 = v7 / 60u64;
+    let mut v25: u64 = v7.wrapping_div(60u64);
     let mut v26: bool = v25 < 10u64;
     let mut v32: Rc<str> = if v26 {
         let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("0"); } LIT.with(|lit| lit.clone()) };
@@ -387,7 +385,7 @@ fn utc_stamp_11(mut v0: u64) -> Rc<str> {
         v31.clone()
     };
     let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(":"); } LIT.with(|lit| lit.clone()) };
-    let mut v34: u64 = v7 % 60u64;
+    let mut v34: u64 = v7.wrapping_rem(60u64);
     let mut v35: bool = v34 < 10u64;
     let mut v41: Rc<str> = if v35 {
         let mut v36: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("0"); } LIT.with(|lit| lit.clone()) };
@@ -409,11 +407,11 @@ fn utc_stamp_11(mut v0: u64) -> Rc<str> {
 fn last_declared_15(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: i32) -> i32 {
     loop {
         let mut v4: i32 = declared_from_3(v0.clone(), v1.clone(), v2);
-        let mut v5: bool = v4 < 0;
+        let mut v5: bool = v4 < 0i32;
         if v5 {
             return v3;
         } else {
-            let mut v6: i32 = v4 + 1;
+            let mut v6: i32 = v4.wrapping_add(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v1.clone(), v6, v4);
             continue;
         }
@@ -450,7 +448,7 @@ fn notes_insertion_14(mut v0: Rc<str>, mut v1: Rc<str>) -> i32 {
     };
     let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
     let mut v23: i32 = v0.get(v21 as usize..).and_then(|rest| rest.find(&*v22)).map(|found| (found + v21 as usize) as i32).unwrap_or(-1);
-    let mut v24: bool = v23 < 0;
+    let mut v24: bool = v23 < 0i32;
     if v24 {
         let mut v25: i32 = v0.len() as i32;
         v25
@@ -540,7 +538,7 @@ fn title_moved_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: u64)
     let mut v19: Rc<str> = std::rc::Rc::<str>::from(v4.get(v16 as usize..v18 as usize).unwrap_or(""));
     let mut v20: Rc<str> = unquoted_7(v19.clone());
     let mut v21: i32 = agile_title_tails::eoie_agile_title_kept_end(&*v20);
-    let mut v22: bool = v21 < 0;
+    let mut v22: bool = v21 < 0i32;
     if v22 {
         let mut v23: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("the title has no \"; \" tail starting with a date or time to move"); } LIT.with(|lit| lit.clone()) };
         let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("agile notes from-title "); } LIT.with(|lit| lit.clone()) };
@@ -557,7 +555,7 @@ fn title_moved_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: u64)
         let mut v32: i32 = 0i32;
         let mut v33: i32 = 0i32;
         let mut v34: i32 = declared_count_10(v4.clone(), v31.clone(), v32, v33);
-        let mut v35: i32 = v34 + 1;
+        let mut v35: i32 = v34.wrapping_add(1i32);
         let mut v36: Rc<str> = utc_stamp_11(v3);
         let (mut v37, mut v38): (i32, Rc<str>) = agile_title_tails::eoie_agile_title_tail_rows(&*v20, &*v1, v35, &*v36);
         let mut v39: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\\"); } LIT.with(|lit| lit.clone()) };
@@ -675,7 +673,7 @@ fn from_title_entry_0() -> i32 {
                     let mut v29: Rc<str> = std::rc::Rc::<str>::from([&*v26, &*v27, &*v1, &*v28, &*v12].concat());
                     let mut v30: i32 = 0i32;
                     let mut v31: i32 = declared_from_3(v25.clone(), v29.clone(), v30);
-                    let mut v32: bool = v31 < 0;
+                    let mut v32: bool = v31 < 0i32;
                     let mut v33: bool = v32 == false;
                     if v33 {
                         title_moved_1(v13.clone(), v1.clone(), v25.clone(), v8)

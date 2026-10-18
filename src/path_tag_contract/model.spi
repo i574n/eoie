@@ -53,46 +53,46 @@ inl path_tag_indices adjective landmark artifact : path_tag_indices = {
 }
 
 let path_tag_relative_binding (is_absolute : i32) (has_parent : i32) (segments : i32) : i32 =
-    if !!!!LT(0i32,is_absolute) then 0i32
-    elif !!!!LT(0i32,has_parent) then 0i32
-    elif !!!!LT(segments,1i32) then 0i32
+    if 0i32 < is_absolute then 0i32
+    elif 0i32 < has_parent then 0i32
+    elif segments < 1i32 then 0i32
     else 1i32
 
 let path_tag_indices_binding (adjective : i32) (landmark : i32) (artifact : i32) : i32 =
-    if !!!!LT(adjective,0i32) then 0i32
-    elif !!!!LT(63i32,adjective) then 0i32
-    elif !!!!LT(landmark,0i32) then 0i32
-    elif !!!!LT(63i32,landmark) then 0i32
-    elif !!!!LT(artifact,0i32) then 0i32
-    elif !!!!LT(63i32,artifact) then 0i32
+    if adjective < 0i32 then 0i32
+    elif 63i32 < adjective then 0i32
+    elif landmark < 0i32 then 0i32
+    elif 63i32 < landmark then 0i32
+    elif artifact < 0i32 then 0i32
+    elif 63i32 < artifact then 0i32
     else 1i32
 
 let path_tag_relative_packed_binding (flags : i32) (segments : i32) : i32 =
-    if !!!!LT(flags,0i32) then 0i32
-    elif !!!!LT(0i32,flags) then 0i32
-    elif !!!!LT(segments,1i32) then 0i32
+    if flags < 0i32 then 0i32
+    elif 0i32 < flags then 0i32
+    elif segments < 1i32 then 0i32
     else 1i32
 
 let path_tag_packed_indices_binding (packed : i32) (bank_size : i32) : i32 =
-    if !!!!LT(packed,0i32) then 0i32
-    elif !!!!LT(262143i32,packed) then 0i32
-    elif !!!!LT(bank_size,64i32) then 0i32
-    elif !!!!LT(64i32,bank_size) then 0i32
+    if packed < 0i32 then 0i32
+    elif 262143i32 < packed then 0i32
+    elif bank_size < 64i32 then 0i32
+    elif 64i32 < bank_size then 0i32
     else 1i32
 
 let path_tag_shape_binding (words : i32) (separators : i32) : i32 =
-    if !!!!LT(words,3i32) then 0i32
-    elif !!!!LT(3i32,words) then 0i32
-    elif !!!!LT(separators,2i32) then 0i32
-    elif !!!!LT(2i32,separators) then 0i32
+    if words < 3i32 then 0i32
+    elif 3i32 < words then 0i32
+    elif separators < 2i32 then 0i32
+    elif 2i32 < separators then 0i32
     else 1i32
 
 let path_tag_determinism_binding (same_normalized_path : i32) (same_tag : i32) : i32 =
-    if !!!!LT(same_normalized_path,1i32) then 0i32
-    elif !!!!LT(same_tag,1i32) then 0i32
+    if same_normalized_path < 1i32 then 0i32
+    elif same_tag < 1i32 then 0i32
     else 1i32
 
 let path_tag_collision_binding (same_tag : i32) (same_normalized_path : i32) : i32 =
-    if !!!!LT(same_tag,1i32) then 1i32
-    elif !!!!LT(same_normalized_path,1i32) then 0i32
+    if same_tag < 1i32 then 1i32
+    elif same_normalized_path < 1i32 then 0i32
     else 1i32

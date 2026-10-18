@@ -40,11 +40,11 @@ inl native_patch_orchestration_plan () : patch_orchestration_plan patch_orchestr
 let orchestration_witness_binding (validated : i32) (parsed : i32) : i32 =
     inl control = patch_control_domain.patch_witness_authorized validated parsed
     inl result = patch_driver_domain.patch_driver_witness_binding control parsed
-    if !!!!LT(result,0i32) then -1i32 else result
+    if result < 0i32 then -1i32 else result
 
 let orchestration_operation_binding (cursor : i32) (observed : i32) : i32 =
     inl authorized = patch_control_domain.patch_operation_authorized cursor observed
-    if !!!!LT(authorized,1i32) then -1i32
+    if authorized < 1i32 then -1i32
     else patch_driver_domain.patch_driver_operation_binding cursor observed
 
 let orchestration_guard_identity (operation : i32) (path_slot : i32) : i32 =
@@ -57,7 +57,7 @@ let orchestration_guard_match_binding (identity : i32) (observed_matches : i32) 
     inl effect_identity = patch_effect_domain.patch_guard_match_binding identity observed_matches
     inl control_authorized = patch_control_domain.patch_match_authorized observed_matches 1i32
     inl result = patch_effect_domain.patch_guard_operation_binding effect_identity control_authorized
-    if !!!!LT(result,0i32) then -1i32 else result
+    if result < 0i32 then -1i32 else result
 
 let orchestration_stage_binding (expected : i32) (observed : i32) : i32 =
     patch_driver_domain.patch_driver_stage_count_binding expected observed
@@ -68,8 +68,8 @@ let orchestration_promotion_binding (cursor : i32) (observed : i32) : i32 =
 let orchestration_complete_binding (expected : i32) (observed : i32) : i32 =
     inl driver = patch_driver_domain.patch_driver_complete_binding expected observed
     inl control = patch_control_domain.patch_commit_authorized expected observed
-    if !!!!LT(driver,1i32) then 0i32
-    elif !!!!LT(control,1i32) then 0i32
+    if driver < 1i32 then 0i32
+    elif control < 1i32 then 0i32
     else 1i32
 
 

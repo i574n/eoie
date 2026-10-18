@@ -41,30 +41,30 @@ let note_row (~id : string) (seq : i32) (note : task_note) : string =
 
 let rec declared_from (text : string) (~needle : string) (offset : i32) : i32 =
     inl found = byte_find_from text needle offset
-    if i32_negative found then found
+    if found < 0i32 then found
     elif declared_task text found then found
-    else declared_from text needle (i32_next found)
+    else declared_from text needle (found + 1i32)
 
 let rec declared_count (text : string) (~needle : string) (offset : i32) (counted : i32) : i32 =
     inl found = declared_from text needle offset
-    if i32_negative found then counted else declared_count text needle (i32_next found) (i32_next counted)
+    if found < 0i32 then counted else declared_count text needle (found + 1i32) (counted + 1i32)
 
 let rec last_declared (text : string) (~needle : string) (offset : i32) (latest : i32) : i32 =
     inl found = declared_from text needle offset
-    if i32_negative found then latest else last_declared text needle (i32_next found) found
+    if found < 0i32 then latest else last_declared text needle (found + 1i32) found
 
 inl item_offset (text : string) (kind : item_kind) (~id : string) : i32 = declared_from text (item_anchor kind id) 0i32
-inl task_declared (text : string) (~id : string) : bool = if i32_negative (item_offset text TaskItem id) then false else true
+inl task_declared (text : string) (~id : string) : bool = if item_offset text TaskItem id < 0i32 then false else true
 inl note_count (text : string) (~id : string) : i32 = declared_count text (item_anchor NoteItem id) 0i32 0i32
 
 inl line_end_after (text : string) (offset : i32) : i32 =
     inl found = byte_find_from text "\n" offset
-    if i32_negative found then byte_len text else found
+    if found < 0i32 then byte_len text else found
 
 inl spliced (text : string) (start : i32) (stop : i32) (~middle : string) : string =
     rust_std_string.model.concat5 (byte_slice text 0i32 start) middle (byte_slice text stop (byte_len text)) "" ""
 
-inl later (a : i32) (b : i32) : i32 = if i32_le a b then b else a
+inl later (a : i32) (b : i32) : i32 = if a <= b then b else a
 
 let notes_insertion (text : string) (~id : string) : i32 =
     inl task = item_offset text TaskItem id
@@ -73,10 +73,10 @@ let notes_insertion (text : string) (~id : string) : i32 =
     line_end_after text (later task (later planning note))
 
 let note_schema_ensured (text : string) : string =
-    if i32_negative (byte_find text (note_schema_marker ())) then
+    if byte_find text (note_schema_marker ()) < 0i32 then
         inl planning = byte_find text (planning_union_marker ())
-        inl anchor = if i32_negative planning then byte_find text (agile_item_marker ()) else planning
-        if i32_negative anchor then rust_std_string.model.concat5 (note_schema ()) """
+        inl anchor = if planning < 0i32 then byte_find text (agile_item_marker ()) else planning
+        if anchor < 0i32 then rust_std_string.model.concat5 (note_schema ()) """
 
 
 
@@ -100,20 +100,20 @@ inl ascii_t () : i32 = 116i32
 
 inl escape_target (text : string) (escaped : i32) : string =
     inl code = byte_at text escaped
-    if i32_eq code (ascii_n ()) then "\n"
-    elif i32_eq code (ascii_r ()) then "\r"
-    elif i32_eq code (ascii_t ()) then "\t"
-    else byte_slice text escaped (i32_next escaped)
+    if code = ascii_n () then "\n"
+    elif code = ascii_r () then "\r"
+    elif code = ascii_t () then "\t"
+    else byte_slice text escaped (escaped + 1i32)
 
 let rec unescaped_from (~text : string) (~offset : i32) (~run_start : i32) (~length : i32) (~decoded : string) : string =
-    if i32_le length offset then rust_std_string.model.concat5 decoded (byte_slice text run_start length) "" "" ""
-    elif i32_eq (byte_at text offset) (backslash_byte ()) then
-        inl escaped = i32_next offset
-        inl resumed = i32_next escaped
+    if length <= offset then rust_std_string.model.concat5 decoded (byte_slice text run_start length) "" "" ""
+    elif byte_at text offset = backslash_byte () then
+        inl escaped = offset + 1i32
+        inl resumed = escaped + 1i32
         unescaped_from text resumed resumed length (rust_std_string.model.concat5 decoded (byte_slice text run_start offset) (escape_target text escaped) "" "")
-    else unescaped_from text (i32_next offset) run_start length decoded
+    else unescaped_from text (offset + 1i32) run_start length decoded
 
-inl quote_stripped (~token : string) : string = byte_slice token 1i32 (i32_prev (byte_len token))
+inl quote_stripped (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
 
 let unquoted (~token : string) : string =
     inl inner = quote_stripped token
@@ -134,17 +134,17 @@ let note_json_at (text : string) (found : i32) : string =
 
 let rec note_lines_from (text : string) (~needle : string) (offset : i32) (~lines : string) : string =
     inl found = declared_from text needle offset
-    if i32_negative found then lines
-    else note_lines_from text needle (i32_next found) (rust_std_string.model.concat5 lines "\n" (note_line (note_at text found)) "" "")
+    if found < 0i32 then lines
+    else note_lines_from text needle (found + 1i32) (rust_std_string.model.concat5 lines "\n" (note_line (note_at text found)) "" "")
 
 let rec note_json_from (text : string) (~needle : string) (offset : i32) (~items : string) (~joint : string) : string =
     inl found = declared_from text needle offset
-    if i32_negative found then items
-    else note_json_from text needle (i32_next found) (rust_std_string.model.concat5 items joint (note_json_at text found) "" "") ","
+    if found < 0i32 then items
+    else note_json_from text needle (found + 1i32) (rust_std_string.model.concat5 items joint (note_json_at text found) "" "") ","
 
 let notes_text (text : string) (~id : string) : string =
     inl count = note_count text id
-    if i32_eq count 0i32 then ""
+    if count = 0i32 then ""
     else note_lines_from text (item_anchor NoteItem id) 0i32 (rust_std_string.model.concat5 "notes (" (i32_text count) ")" "" "")
 
 let notes_json (text : string) (~id : string) : string =
@@ -157,7 +157,7 @@ inl u64_sub (a : u64) (b : u64) : u64 = $"!a - !b"
 inl u64_mul (a : u64) (b : u64) : u64 = $"!a * !b"
 inl u64_lt (a : u64) (b : u64) : bool = $"!a < !b"
 
-inl two_digits (value : u64) : string = if u64_lt value 10u64 then rust_std_string.model.concat5 "0" (u64_text value) "" "" "" else u64_text value
+inl two_digits (value : u64) : string = if value < 10u64 then rust_std_string.model.concat5 "0" (u64_text value) "" "" "" else u64_text value
 
 type civil_date =
     {
@@ -167,23 +167,23 @@ type civil_date =
     }
 
 let civil_of_days (days : u64) : civil_date =
-    inl z = u64_add days 719468u64
-    inl era = u64_div z 146097u64
-    inl doe = u64_sub z (u64_mul era 146097u64)
-    inl yoe = u64_div (u64_sub (u64_add (u64_sub doe (u64_div doe 1460u64)) (u64_div doe 36524u64)) (u64_div doe 146096u64)) 365u64
-    inl doy = u64_sub doe (u64_sub (u64_add (u64_mul 365u64 yoe) (u64_div yoe 4u64)) (u64_div yoe 100u64))
-    inl mp = u64_div (u64_add (u64_mul 5u64 doy) 2u64) 153u64
-    inl day = u64_add (u64_sub doy (u64_div (u64_add (u64_mul 153u64 mp) 2u64) 5u64)) 1u64
-    inl month = if u64_lt mp 10u64 then u64_add mp 3u64 else u64_sub mp 9u64
-    inl year = u64_add (u64_add yoe (u64_mul era 400u64)) (if u64_lt month 3u64 then 1u64 else 0u64)
+    inl z = days + 719468u64
+    inl era = z / 146097u64
+    inl doe = z - (era * 146097u64)
+    inl yoe = (((doe - (doe / 1460u64)) + (doe / 36524u64)) - (doe / 146096u64)) / 365u64
+    inl doy = doe - (((365u64 * yoe) + (yoe / 4u64)) - (yoe / 100u64))
+    inl mp = ((5u64 * doy) + 2u64) / 153u64
+    inl day = (doy - (((153u64 * mp) + 2u64) / 5u64)) + 1u64
+    inl month = if mp < 10u64 then mp + 3u64 else mp - 9u64
+    inl year = (yoe + (era * 400u64)) + (if month < 3u64 then 1u64 else 0u64)
     { year = year; month = month; day = day }
 
 let utc_stamp (unix_ms : u64) : string =
-    inl seconds = u64_div unix_ms 1000u64
-    inl date = civil_of_days (u64_div seconds 86400u64)
-    inl minute_of_day = u64_div (u64_rem seconds 86400u64) 60u64
+    inl seconds = unix_ms / 1000u64
+    inl date = civil_of_days (seconds / 86400u64)
+    inl minute_of_day = (seconds % 86400u64) / 60u64
     inl head = rust_std_string.model.concat5 (u64_text date.year) "-" (two_digits date.month) "-" (two_digits date.day)
-    inl clock = rust_std_string.model.concat5 (two_digits (u64_div minute_of_day 60u64)) ":" (two_digits (u64_rem minute_of_day 60u64)) "Z" ""
+    inl clock = rust_std_string.model.concat5 (two_digits (minute_of_day / 60u64)) ":" (two_digits (minute_of_day % 60u64)) "Z" ""
     rust_std_string.model.concat5 head "T" clock "" ""
 
 union state_write =

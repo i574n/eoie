@@ -1,4 +1,4 @@
-inl eq_i32 (a : i32) (b : i32) : bool = !!!!EQ(a,b)
+inl eq_i32 (a : i32) (b : i32) : bool = a = b
 
 inl positive_ok () : bool =
     inl _ = product_diff_contract.model.product_diff_public_plan ()

@@ -18,11 +18,11 @@ type rename_tally =
 inl listed (~list : string) (~id : string) : string = if rust_std_string.model.equals list "" then id else rust_std_string.model.concat5 list "," id "" ""
 
 let rec deps_renamed (~deps : string) (~offset : i32) (~length : i32) (~old : string) (~new : string) (~kept : string) (~changed : bool) : string * bool =
-    if i32_le length offset then kept, changed
+    if length <= offset then kept, changed
     else
         inl found = byte_find_from deps "," offset
-        inl stop = if i32_negative found then length else found
-        inl next = if i32_negative found then length else i32_next found
+        inl stop = if found < 0i32 then length else found
+        inl next = if found < 0i32 then length else found + 1i32
         inl entry = rust_std_string.model.trim (byte_slice deps offset stop)
         inl hit = rust_std_string.model.equals entry old
         inl written = if hit then new else entry
@@ -37,13 +37,13 @@ let dependent_line (~line : string) (found : i32) (~old : string) (~new : string
     inl id_start, id_stop = task_field_bounds line found 0i32
     inl owner = unquoted (byte_slice line id_start id_stop)
     inl title_start, title_stop = task_field_bounds line found 1i32
-    inl mentions = if i32_negative (byte_find (byte_slice line title_start title_stop) old) then false else true
-    inl tally = if mentions then { tally with title_tasks = listed tally.title_tasks owner; title_count = i32_next tally.title_count } else tally
+    inl mentions = if byte_find (byte_slice line title_start title_stop) old < 0i32 then false else true
+    inl tally = if mentions then { tally with title_tasks = listed tally.title_tasks owner; title_count = (tally.title_count + 1i32) } else tally
     inl deps_start, deps_stop = task_field_bounds line found 7i32
     inl deps = unquoted (byte_slice line deps_start deps_stop)
     inl renamed, changed = deps_renamed deps 0i32 (byte_len deps) old new "" false
     if changed then
-        spliced line deps_start deps_stop (spi_quoted renamed), { tally with deps_tasks = listed tally.deps_tasks owner; deps_count = i32_next tally.deps_count }
+        spliced line deps_start deps_stop (spi_quoted renamed), { tally with deps_tasks = listed tally.deps_tasks owner; deps_count = (tally.deps_count + 1i32) }
     else line, tally
 
 inl rebound (~line : string) (found : i32) (kind : item_kind) (~binding : string) (~old : string) (~new : string) : string =
@@ -57,25 +57,25 @@ let renamed_line (~line : string) (~old : string) (~new : string) (~tally : rena
         inl task = byte_find line (item_anchor TaskItem old)
         inl planning = byte_find line (item_anchor PlanningItem old)
         inl note = byte_find line (item_anchor NoteItem old)
-        inl counted = { tally with items = i32_next tally.items }
-        if negated (i32_negative task) then rebound line task TaskItem (item_binding new) old new, counted
-        elif negated (i32_negative planning) then rebound line planning PlanningItem (planning_binding new) old new, counted
-        elif negated (i32_negative note) then
+        inl counted = { tally with items = (tally.items + 1i32) }
+        if negated (task < 0i32) then rebound line task TaskItem (item_binding new) old new, counted
+        elif negated (planning < 0i32) then rebound line planning PlanningItem (planning_binding new) old new, counted
+        elif negated (note < 0i32) then
             inl binding = rust_std_string.model.concat5 "note_of_" (item_binding new) "_" (note_sequence line note) ""
             rebound line note NoteItem binding old new, counted
         else
             inl other = byte_find line (task_marker ())
-            if i32_negative other then line, tally else dependent_line line other old new tally
+            if other < 0i32 then line, tally else dependent_line line other old new tally
     else line, tally
 
 let rec renamed_from (~text : string) (~offset : i32) (~length : i32) (~old : string) (~new : string) (~written : string) (~tally : rename_tally) : string * rename_tally =
-    if i32_le length offset then written, tally
+    if length <= offset then written, tally
     else
         inl found = byte_find_from text "\n" offset
-        inl stop = if i32_negative found then length else found
+        inl stop = if found < 0i32 then length else found
         inl line, tally = renamed_line (byte_slice text offset stop) old new tally
-        inl ending = if i32_negative found then "" else "\n"
-        renamed_from text (i32_next stop) length old new (rust_std_string.model.concat5 written line ending "" "") tally
+        inl ending = if found < 0i32 then "" else "\n"
+        renamed_from text (stop + 1i32) length old new (rust_std_string.model.concat5 written line ending "" "") tally
 
 inl empty_tally () : rename_tally = { items = 0i32; deps_tasks = ""; deps_count = 0i32; title_tasks = ""; title_count = 0i32 }
 

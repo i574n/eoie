@@ -1,0 +1,197 @@
+open rust_std_string.model
+open model
+open host
+
+let job_directory (~id : string) : string = joined (jobs_root ()) id
+let job_file (~id : string) (~name : string) : string = joined (job_directory id) name
+
+let job_record_of (~id : string) : job_record =
+    record_at
+        (text_or_empty (job_file id "exit"))
+        (decimal_u64 (text_or_empty (job_file id "heartbeat_ms")))
+        (decimal_u64 (text_or_empty (job_file id "started_ms")))
+        (now_ms ())
+
+let job_state_now (~id : string) : job_state = job_state_of (job_record_of id)
+
+let elapsed_of (~id : string) : u64 =
+    inl record = job_record_of id
+    inl exit_text = record.exit_text
+    inl ended = if exit_text = "" then record.now_ms else decimal_u64 ($'std::rc::Rc::<str>::from(!exit_text.split(char::from(9u8)).nth(1).unwrap_or("0"))' : string)
+    if ended > record.started_ms then ended - record.started_ms else 0u64
+
+let job_summary (~verb : string) (~id : string) : string =
+    inl state = job_state_now id
+    inl head = concat5 "eoie job " verb " ok id=" id " state="
+    inl codes = concat5 (state_word state) " exit=" ($'std::rc::Rc::<str>::from((!(state_exit state)).to_string())' : string) " elapsed_ms=" (decimal_text (elapsed_of id))
+    inl sizes = concat5 " stdout_bytes=" (decimal_text (file_bytes (job_file id "stdout.log"))) " stderr_bytes=" (decimal_text (file_bytes (job_file id "stderr.log"))) ""
+    inl label = concat5 " label=" (text_or_empty (job_file id "label")) "" "" ""
+    concat5 head codes sizes label ""
+
+let rejected (~message : string) : i32 =
+    stderr_line (concat5 "eoie error: job " message "" "" "")
+    2i32
+
+inl new_job_id (~label : string) : string = concat5 "job-" (decimal_text (now_ms ())) "-" (label_safe label) ""
+
+union start_shape =
+    | PlainStart
+    | HeavyStart
+
+inl start_shape_of (~flag : string) : start_shape = if flag = "--heavy" then HeavyStart else PlainStart
+
+inl shape_offset = function
+    | PlainStart => 0i32
+    | HeavyStart => 1i32
+
+inl shape_word = function
+    | PlainStart => "plain"
+    | HeavyStart => "heavy"
+
+inl heavy_wrapper (~gate : string) (~inner : string) (~label : string) (~id : string) : string =
+    concat5
+        (concat5 "$argv = @(Get-Content -LiteralPath '" inner "')\n. '" gate "'\n")
+        """
+        Invoke-Heavy -Label '
+        """
+        (concat5 label " (eoie job " id ")' { & $argv[0] @($argv | Select-Object -Skip 1) }\n" "")
+        "exit $LASTEXITCODE\n"
+        ""
+
+inl heavy_argv (~wrapper : string) : string = concat5 "pwsh\n-NoProfile\n-File\n" wrapper "" "" ""
+
+let job_argv (shape : start_shape) (~id : string) (~label : string) (~inner : string) : string =
+    match shape with
+    | PlainStart => inner
+    | HeavyStart =>
+        inl gate = heavy_gate_script ()
+        if gate = "" then ""
+        else
+            inl _ = text_written (job_file id "argv.inner") inner
+            inl wrapper = job_file id "heavy-wrapper.ps1"
+            inl _ = text_written wrapper (heavy_wrapper gate (job_file id "argv.inner") label id)
+            heavy_argv wrapper
+
+let job_started () : i32 =
+    inl shape = start_shape_of (argument 3i32)
+    inl first = 3i32 + shape_offset shape
+    if argument_count () < first + 3i32 then rejected (job_usage ())
+    else
+        inl label = argument first
+        inl timeout = decimal_u64 (argument (first + 1i32))
+        if timeout = 0u64 then rejected "timeout-ms must be a positive integer"
+        else
+            inl id = new_job_id label
+            inl problem = directory_created (job_directory id)
+            if problem <> "" then rejected problem
+            else
+                inl argv = job_argv shape id label (arguments_from (first + 2i32))
+                if argv = "" then rejected "--heavy needs spiral's scripts/heavy.ps1: set EOIE_HEAVY_GATE or run from inside a tree that has a spiral checkout"
+                else
+                    inl writes =
+                        concat5
+                            (text_written (job_file id "label") label)
+                            (text_written (job_file id "timeout_ms") (decimal_text timeout))
+                            (text_written (job_file id "cwd") (current_directory ()))
+                            (text_written (job_file id "argv") argv)
+                            (text_written (job_file id "started_ms") (decimal_text (now_ms ())))
+                    if writes <> "" then rejected writes
+                    else
+                        inl supervisor = supervisor_launched id
+                        if starts_with supervisor "error:" then rejected supervisor
+                        else
+                            stdout_line (concat5 "eoie job start ok id=" id " supervisor_pid=" supervisor (concat5 " timeout_ms=" (decimal_text timeout) " gate=" (shape_word shape) (concat5 " label=" label "" "" "")))
+                            0i32
+
+let rec supervised (child : child_process) (~id : string) (deadline : u64) (beat : u64) : i32 =
+    inl code = child_exit_or_running child
+    if code <> -1i64 then
+        inl exit = $'!code as i32' : i32
+        inl _ = text_written (job_file id "exit") (exit_line exit (now_ms ()) (JobFinished exit) "")
+        exit
+    elif now_ms () > deadline then
+        child_killed child
+        inl _ = text_written (job_file id "exit") (exit_line 124i32 (now_ms ()) JobTimedOut "wall-clock timeout")
+        124i32
+    else
+        inl now = now_ms ()
+        inl next_beat = if now > beat + 1000u64 then
+                            inl _ = text_written (job_file id "heartbeat_ms") (decimal_text now)
+                            now
+                        else beat
+        sleep_ms 200u64
+        supervised child id deadline next_beat
+
+let job_supervised () : i32 =
+    inl id = argument 3i32
+    inl outcome = logged_spawn (text_or_empty (job_file id "argv")) (text_or_empty (job_file id "cwd")) (job_file id "stdout.log") (job_file id "stderr.log")
+    if spawned outcome then
+        inl child = spawned_child outcome
+        inl _ = text_written (job_file id "pid") (decimal_text (child_pid child))
+        inl _ = text_written (job_file id "heartbeat_ms") (decimal_text (now_ms ()))
+        supervised child id (now_ms () + decimal_u64 (text_or_empty (job_file id "timeout_ms"))) (now_ms ())
+    else
+        inl _ = text_written (job_file id "exit") (exit_line 125i32 (now_ms ()) (JobSpawnFailed "") (spawn_error outcome))
+        125i32
+
+inl known_job (~id : string) : bool = starts_with id "job-" && directory_exists (job_directory id)
+
+let job_status () : i32 =
+    inl id = argument 3i32
+    if known_job id then
+        stdout_line (job_summary "status" id)
+        0i32
+    else rejected (concat5 "status: unknown job id " id "" "" "")
+
+let rec waited (~id : string) (deadline : u64) : job_state =
+    inl state = job_state_now id
+    if state_settled state || now_ms () > deadline then state
+    else
+        sleep_ms 250u64
+        waited id deadline
+
+let job_waited () : i32 =
+    inl id = argument 3i32
+    inl copy = supervisor_executable (jobs_root ())
+    if copy <> "" && already_relaunched () = false && running_from copy = false then relaunched_as copy
+    elif known_job id then
+        inl state = waited id (now_ms () + decimal_u64 (argument 4i32))
+        stdout_line (job_summary "wait" id)
+        state_exit state
+    else rejected (concat5 "wait: unknown job id " id "" "" "")
+
+let rec listed (~names : string) : () =
+    if names <> "" then
+        inl first = $'std::rc::Rc::<str>::from(!names.lines().next().unwrap_or(""))' : string
+        inl rest = $'std::rc::Rc::<str>::from(!names.lines().skip(1).collect::<Vec<_>>().join("\n"))' : string
+        stdout_line (job_summary "list" first)
+        listed rest
+
+let job_listed () : i32 =
+    inl count = if argument_count () > 3i32 then decimal_u64 (argument 3i32) else 20u64
+    listed (newest_directories (jobs_root ()) count)
+    0i32
+
+let job_tailed () : i32 =
+    inl id = argument 3i32
+    if known_job id then
+        inl lines = if argument_count () > 4i32 then decimal_u64 (argument 4i32) else 20u64
+        stdout_line (job_summary "tail" id)
+        stdout_line (concat5 "--- stdout (last " (decimal_text lines) " lines)\n" (last_lines (job_file id "stdout.log") lines) "")
+        stdout_line (concat5 "--- stderr (last " (decimal_text lines) " lines)\n" (last_lines (job_file id "stderr.log") lines) "")
+        0i32
+    else rejected (concat5 "tail: unknown job id " id "" "" "")
+
+let job_run () : i32 =
+    match job_command_of (argument 2i32) with
+    | JobStart => job_started ()
+    | JobSupervise => job_supervised ()
+    | JobStatus => job_status ()
+    | JobWait => job_waited ()
+    | JobList => job_listed ()
+    | JobTail => job_tailed ()
+    | JobUnknown => rejected (job_usage ())
+
+inl main () : i32 =
+    !!!!Export("eoie_job_run", ((fun () => job_run ()) : () -> i32))
+    0i32

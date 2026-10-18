@@ -1,4 +1,5 @@
 packages:
+    |core-
     bundle_output_contract
 modules:
     model

@@ -26,11 +26,11 @@ enum US3 {
 fn planning_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_planning ="); } LIT.with(|lit| lit.clone()) };
     let mut v2: i32 = v0.find(&*v1).map(|offset| offset as i32).unwrap_or(-1);
-    let mut v3: bool = v2 < 0;
+    let mut v3: bool = v2 < 0i32;
     if v3 {
         let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-> agile_item"); } LIT.with(|lit| lit.clone()) };
         let mut v5: i32 = v0.find(&*v4).map(|offset| offset as i32).unwrap_or(-1);
-        let mut v6: bool = v5 < 0;
+        let mut v6: bool = v5 < 0i32;
         if v6 {
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union task_load =\n    | "); } LIT.with(|lit| lit.clone()) };
             let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Light :: task_load | Medium :: task_load | Heavy :: task_load"); } LIT.with(|lit| lit.clone()) };
@@ -49,7 +49,7 @@ fn planning_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
         } else {
             let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
             let mut v21: i32 = v0.get(v5 as usize..).and_then(|rest| rest.find(&*v20)).map(|found| (found + v5 as usize) as i32).unwrap_or(-1);
-            let mut v22: bool = v21 < 0;
+            let mut v22: bool = v21 < 0i32;
             let mut v24: i32 = if v22 {
                 let mut v23: i32 = v0.len() as i32;
                 v23
@@ -82,7 +82,7 @@ fn planning_schema_ensured_2(mut v0: Rc<str>) -> Rc<str> {
 fn declared_from_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
     loop {
         let mut v3: i32 = v0.get(v2 as usize..).and_then(|rest| rest.find(&*v1)).map(|found| (found + v2 as usize) as i32).unwrap_or(-1);
-        let mut v4: bool = v3 < 0;
+        let mut v4: bool = v3 < 0i32;
         if v4 {
             return v3;
         } else {
@@ -93,7 +93,7 @@ fn declared_from_4(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32) -> i32 {
             if v8 {
                 return v3;
             } else {
-                let mut v9: i32 = v3 + 1;
+                let mut v9: i32 = v3.wrapping_add(1i32);
                 (v0, v1, v2) = (v0.clone(), v1.clone(), v9);
                 continue;
             }
@@ -124,7 +124,7 @@ fn field_end_6(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US1) -> i32 {
             if v9 {
                 return v1;
             } else {
-                let mut v10: i32 = v1 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
                 let mut v25: US1 = match &v3 {
                     US1::US1_ScanEscaped => {
                         US1::US1_ScanQuoted
@@ -162,7 +162,7 @@ fn skip_spaces_7(mut v0: Rc<str>, mut v1: i32) -> i32 {
         let mut v2: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
         let mut v3: bool = v2 == 32i32;
         if v3 {
-            let mut v4: i32 = v1 + 1;
+            let mut v4: i32 = v1.wrapping_add(1i32);
             (v0, v1) = (v0.clone(), v4);
             continue;
         } else {
@@ -178,9 +178,9 @@ fn field_start_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 
         } else {
             let mut v5: US1 = US1::US1_ScanPlain;
             let mut v6: i32 = field_end_6(v0.clone(), v1, v2, v5.clone());
-            let mut v7: i32 = v6 + 1;
+            let mut v7: i32 = v6.wrapping_add(1i32);
             let mut v8: i32 = skip_spaces_7(v0.clone(), v7);
-            let mut v9: i32 = v3 - 1;
+            let mut v9: i32 = v3.wrapping_sub(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v8, v2, v9);
             continue;
         }
@@ -193,7 +193,7 @@ fn planning_tokens_of_3(mut v0: Rc<str>, mut v1: Rc<str>) -> (Rc<str>, Rc<str>, 
     let mut v5: Rc<str> = std::rc::Rc::<str>::from([&*v2, &*v1, &*v3, &*v4, &*v4].concat());
     let mut v6: i32 = 0i32;
     let mut v7: i32 = declared_from_4(v0.clone(), v5.clone(), v6);
-    let mut v8: bool = v7 < 0;
+    let mut v8: bool = v7 < 0i32;
     let (mut v29, mut v30, mut v31): (Rc<str>, Rc<str>, Rc<str>) = if v8 {
         let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Unestimated"); } LIT.with(|lit| lit.clone()) };
         let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("LoadUnset"); } LIT.with(|lit| lit.clone()) };
@@ -260,7 +260,7 @@ fn planning_upserted_8(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3
     let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     let mut v8: Rc<str> = std::rc::Rc::<str>::from([&*v5, &*v1, &*v6, &*v7, &*v7].concat());
     let mut v9: i32 = v0.find(&*v8).map(|offset| offset as i32).unwrap_or(-1);
-    let mut v10: bool = v9 < 0;
+    let mut v10: bool = v9 < 0i32;
     if v10 {
         US2::US2_Invalid
     } else {
@@ -268,11 +268,11 @@ fn planning_upserted_8(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3
         let mut v13: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v1, &*v6, &*v7, &*v7].concat());
         let mut v14: i32 = 0i32;
         let mut v15: i32 = declared_from_4(v0.clone(), v13.clone(), v14);
-        let mut v16: bool = v15 < 0;
+        let mut v16: bool = v15 < 0i32;
         if v16 {
             let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
             let mut v18: i32 = v0.get(v9 as usize..).and_then(|rest| rest.find(&*v17)).map(|found| (found + v9 as usize) as i32).unwrap_or(-1);
-            let mut v19: bool = v18 < 0;
+            let mut v19: bool = v18 < 0i32;
             let mut v21: i32 = if v19 {
                 let mut v20: i32 = v0.len() as i32;
                 v20
@@ -290,7 +290,7 @@ fn planning_upserted_8(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3
             let mut v29: i32 = v0.get(..v15 as usize).and_then(|head| head.rfind(char::from(10u8))).map(|newline| newline as i32 + 1).unwrap_or(0);
             let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
             let mut v31: i32 = v0.get(v15 as usize..).and_then(|rest| rest.find(&*v30)).map(|found| (found + v15 as usize) as i32).unwrap_or(-1);
-            let mut v32: bool = v31 < 0;
+            let mut v32: bool = v31 < 0i32;
             let mut v34: i32 = if v32 {
                 let mut v33: i32 = v0.len() as i32;
                 v33

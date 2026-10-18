@@ -5,7 +5,7 @@ union agile_record_catalog =
     | RecordCatalogPartial : string
 
 inl agile_record_catalog_of (present : i32) (required : i32) (~missing : string) : agile_record_catalog =
-    if !!!!EQ(present,required) then RecordCatalogComplete else RecordCatalogPartial missing
+    if present = required then RecordCatalogComplete else RecordCatalogPartial missing
 
 inl agile_record_catalog_line (~counted : string) (catalog : agile_record_catalog) : string =
     match catalog with

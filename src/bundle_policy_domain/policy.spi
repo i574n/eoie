@@ -42,7 +42,7 @@ inl bundle_manifest_authority_plan () : bundle_manifest_mapping_plan bundle_mani
     ManifestMappingThen (exists (ManifestMappingStep ObserveWorkspaceMembers, ManifestMappingStep VerifyWorkspaceBijection))
 
 let bundle_manifest_mapping_binding (manifest_parsed : i32) (members_bijective : i32) : i32 =
-    if !!!!EQ(manifest_parsed,1i32) && !!!!EQ(members_bijective,1i32) then 1i32 else 0i32
+    if manifest_parsed = 1i32 && members_bijective = 1i32 then 1i32 else 0i32
 
 union bundle_state_required_file =
     | StateRequiredPackageProject

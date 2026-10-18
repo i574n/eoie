@@ -37,32 +37,32 @@ inl current_plus_two_plan () : retention_plan retention_idle retention_complete 
     ))
 
 let retention_window_binding (candidate_count : i32) (keep_count : i32) : i32 =
-    if !!!!LT(candidate_count,1i32) then -1i32
-    elif !!!!LT(keep_count,3i32) then -1i32
-    elif !!!!LT(3i32,keep_count) then -1i32
-    elif !!!!LT(candidate_count,keep_count) then 0i32
-    else !!!!Sub(candidate_count,keep_count)
+    if candidate_count < 1i32 then -1i32
+    elif keep_count < 3i32 then -1i32
+    elif 3i32 < keep_count then -1i32
+    elif candidate_count < keep_count then 0i32
+    else candidate_count - keep_count
 
 let retention_current_binding (current_is_latest : i32) (series_matches : i32) : i32 =
-    if !!!!LT(current_is_latest,1i32) then 0i32
-    elif !!!!LT(1i32,current_is_latest) then 0i32
-    elif !!!!LT(series_matches,1i32) then 0i32
-    elif !!!!LT(1i32,series_matches) then 0i32
+    if current_is_latest < 1i32 then 0i32
+    elif 1i32 < current_is_latest then 0i32
+    elif series_matches < 1i32 then 0i32
+    elif 1i32 < series_matches then 0i32
     else 1i32
 
 let retention_dry_run_binding (planned_deletes : i32) (observed_deletes : i32) : i32 =
-    if !!!!LT(planned_deletes,0i32) then 0i32
-    elif !!!!LT(observed_deletes,0i32) then 0i32
-    elif !!!!LT(planned_deletes,observed_deletes) then 0i32
-    elif !!!!LT(observed_deletes,planned_deletes) then 0i32
+    if planned_deletes < 0i32 then 0i32
+    elif observed_deletes < 0i32 then 0i32
+    elif planned_deletes < observed_deletes then 0i32
+    elif observed_deletes < planned_deletes then 0i32
     else 1i32
 
 let retention_apply_binding (dry_run_verified : i32) (explicit_apply : i32) : i32 =
     retention_current_binding dry_run_verified explicit_apply
 
 let retention_complete_binding (expected_remaining : i32) (observed_remaining : i32) : i32 =
-    if !!!!LT(expected_remaining,1i32) then 0i32
-    elif !!!!LT(observed_remaining,1i32) then 0i32
-    elif !!!!LT(expected_remaining,observed_remaining) then 0i32
-    elif !!!!LT(observed_remaining,expected_remaining) then 0i32
+    if expected_remaining < 1i32 then 0i32
+    elif observed_remaining < 1i32 then 0i32
+    elif expected_remaining < observed_remaining then 0i32
+    elif observed_remaining < expected_remaining then 0i32
     else 1i32

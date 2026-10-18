@@ -631,10 +631,10 @@ inl emit_archive_extract_runtime () : () =
 inl emit_long_name_tests () : () = ()
 
 let bundle_portable_mode_binding (executable : i32) (readonly : i32) : i32 =
-    if !!!!EQ(executable,1i32) then
-        if !!!!EQ(readonly,1i32) then 365i32 else 493i32
+    if executable = 1i32 then
+        if readonly = 1i32 then 365i32 else 493i32
     else
-        if !!!!EQ(readonly,1i32) then 292i32 else 420i32
+        if readonly = 1i32 then 292i32 else 420i32
 
 inl main () : i32 =
     inl _ = deterministic_plan ()

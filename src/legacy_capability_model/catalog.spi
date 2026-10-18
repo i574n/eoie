@@ -95,16 +95,16 @@ inl legacy_disposition_code = function
     | Quarantined => 0i32
 
 let legacy_surface_status_binding (family_code : i32) (status_code : i32) : i32 =
-    if !!!!LT(family_code,0i32) then 0i32
-    elif !!!!LT(9i32,family_code) then 0i32
-    elif !!!!EQ(family_code,9i32) then
-        if !!!!EQ(status_code,0i32) then 1i32 else 0i32
+    if family_code < 0i32 then 0i32
+    elif 9i32 < family_code then 0i32
+    elif family_code = 9i32 then
+        if status_code = 0i32 then 1i32 else 0i32
     else
-        if !!!!EQ(status_code,2i32) then 1i32 else 0i32
+        if status_code = 2i32 then 1i32 else 0i32
 
 let legacy_surface_summary_binding (equivalent_families : i32) (fallback_required : i32) : i32 =
-    if !!!!EQ(equivalent_families,9i32) then
-        if !!!!EQ(fallback_required,0i32) then 1i32 else 0i32
+    if equivalent_families = 9i32 then
+        if fallback_required = 0i32 then 1i32 else 0i32
     else 0i32
 
 inl legacy_surface_model_witness () : i32 =

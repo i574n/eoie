@@ -32,20 +32,20 @@ inl public_differential_plan () : differential_plan differential_raw differentia
     ))
 
 let normalization_binding (canonical_lines : i32) (nonexpanding : i32) : i32 =
-    if !!!!EQ(canonical_lines,1i32) then
-        if !!!!EQ(nonexpanding,1i32) then 1i32 else 0i32
+    if canonical_lines = 1i32 then
+        if nonexpanding = 1i32 then 1i32 else 0i32
     else 0i32
 
 let comparison_binding (equal : i32) (mismatch_valid : i32) : i32 =
-    if !!!!EQ(mismatch_valid,1i32) then
-        if !!!!EQ(equal,1i32) then 1i32 else 2i32
+    if mismatch_valid = 1i32 then
+        if equal = 1i32 then 1i32 else 2i32
     else 0i32
 
 let receipt_binding (comparison_code : i32) (receipt_shape_valid : i32) : i32 =
-    if !!!!EQ(comparison_code,1i32) then
-        if !!!!EQ(receipt_shape_valid,1i32) then 1i32 else 0i32
+    if comparison_code = 1i32 then
+        if receipt_shape_valid = 1i32 then 1i32 else 0i32
     else 0i32
 
 let settlement_binding (normalization_ok : i32) (comparison_ok : i32) (receipt_ok : i32) : i32 =
-    inl gate = !!!!Mult(normalization_ok,comparison_ok)
-    !!!!Mult(gate,receipt_ok)
+    inl gate = normalization_ok * comparison_ok
+    (gate * receipt_ok)

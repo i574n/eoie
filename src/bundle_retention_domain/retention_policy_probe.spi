@@ -8,10 +8,10 @@ inl main () : i32 =
     inl dry_run_ok = retention_dry_run_binding 2i32 deletes
     inl apply_ok = retention_apply_binding dry_run_ok 1i32
     inl complete_ok = retention_complete_binding 3i32 3i32
-    if !!!!LT(deletes,2i32) then 1i32
-    elif !!!!LT(2i32,deletes) then 1i32
-    elif !!!!LT(current_ok,1i32) then 1i32
-    elif !!!!LT(dry_run_ok,1i32) then 1i32
-    elif !!!!LT(apply_ok,1i32) then 1i32
-    elif !!!!LT(complete_ok,1i32) then 1i32
+    if deletes < 2i32 then 1i32
+    elif 2i32 < deletes then 1i32
+    elif current_ok < 1i32 then 1i32
+    elif dry_run_ok < 1i32 then 1i32
+    elif apply_ok < 1i32 then 1i32
+    elif complete_ok < 1i32 then 1i32
     else 0i32

@@ -1,4 +1,5 @@
 packages:
+    |core-
     archive_deflate_domain
 modules:
     main

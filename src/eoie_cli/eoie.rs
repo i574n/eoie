@@ -303,145 +303,247 @@ fn EoieUnknownRejected() -> i32 { let verb = std::env::args().nth(1).unwrap_or_d
 
 #[derive(Clone)]
 enum US0 {
-    US0_StatusHandler,
-    US0_PatchHandler,
-    US0_AgileHandler,
-    US0_BundleHandler,
-    US0_ProxyHandler,
-    US0_HelpHandler,
-    US0_UnknownHandler,
-    US0_LeaseDeniedHandler,
+    US0_DirectArguments,
+    US0_FileArguments(Rc<str>),
+    US0_StdinArguments,
 }
-fn spiral_main() -> i32 {
-    let mut v0: i32 = eoie_legacy_operations::dogfood_shim_argv0_code();
-    let mut v1: bool = 0i32 == v0;
-    let mut v70: i32 = if v1 {
-        let mut v2: i32 = EoieProcessVerbCode();
-        let mut v3: bool = 0i32 == v2;
-        let mut v24: US0 = if v3 {
-            US0::US0_StatusHandler
+#[derive(Clone)]
+enum US1 {
+    US1_StatusHandler,
+    US1_PatchHandler,
+    US1_AgileHandler,
+    US1_BundleHandler,
+    US1_ProxyHandler,
+    US1_HelpHandler,
+    US1_UnknownHandler,
+    US1_LeaseDeniedHandler,
+}
+fn argument_source_0() -> US0 {
+    let mut v0: i32 = 1i32;
+    let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v0 as usize).unwrap_or_default());
+    let mut v2: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--args-from"); } LIT.with(|lit| lit.clone()) };
+    if v2 {
+        let mut v3: i32 = 2i32;
+        let mut v4: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v3 as usize).unwrap_or_default());
+        let mut v5: bool = v4.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
+        if v5 {
+            US0::US0_StdinArguments
         } else {
-            let mut v5: bool = 1i32 == v2;
-            if v5 {
-                US0::US0_PatchHandler
-            } else {
-                let mut v7: bool = 2i32 == v2;
-                if v7 {
-                    US0::US0_AgileHandler
-                } else {
-                    let mut v9: bool = 3i32 == v2;
-                    if v9 {
-                        US0::US0_BundleHandler
-                    } else {
-                        let mut v11: bool = 4i32 == v2;
-                        if v11 {
-                            US0::US0_ProxyHandler
-                        } else {
-                            let mut v13: bool = 5i32 == v2;
-                            if v13 {
-                                US0::US0_HelpHandler
-                            } else {
-                                let mut v15: bool = 7i32 == v2;
-                                if v15 {
-                                    US0::US0_LeaseDeniedHandler
-                                } else {
-                                    US0::US0_UnknownHandler
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        };
-        match &v24 {
-            US0::US0_AgileHandler => {
-                let mut v56: i32 = EoieAgileAdapter();
-                v56
-            }
-            US0::US0_BundleHandler => {
-                let mut v57: i32 = EoieBundleAdapter();
-                v57
-            }
-            US0::US0_HelpHandler => {
-                let mut v59: i32 = EoieHelpRejected();
-                v59
-            }
-            US0::US0_LeaseDeniedHandler => {
-                2i32
-            }
-            US0::US0_PatchHandler => {
-                let mut v55: i32 = EoiePatchAdapter();
-                v55
-            }
-            US0::US0_ProxyHandler => {
-                let mut v58: i32 = EoieProxyAdapter();
-                v58
-            }
-            US0::US0_StatusHandler => {
-                let mut v25: i32 = std::env::args().skip(2).count() as i32;
-                let mut v26: bool = 0i32 == v25;
-                if v26 {
-                    let mut v27: i32 = bootstrap_authority_status::eoie_bootstrap_workspace_state_status();
-                    let mut v28: bool = 1i32 == v27;
-                    if v28 {
-                        let mut v29: i32 = bootstrap_authority_status::eoie_bootstrap_compiler_session_status();
-                        let mut v30: bool = 1i32 == v29;
-                        if v30 {
-                            let mut v31: i32 = bootstrap_authority_status::eoie_bootstrap_legacy_bundle_writer_status();
-                            let mut v32: bool = 1i32 == v31;
-                            if v32 {
-                                let mut v33: i32 = bootstrap_authority_status::eoie_bootstrap_ingest_frontier_status();
-                                let mut v34: bool = 1i32 == v33;
-                                if v34 {
-                                    let mut v35: i32 = process_batch_plan_domain::eoie_batch_matrix_auto_chain_budget(60000, 16000);
-                                    let mut v36: bool = 1i32 == v35;
-                                    if v36 {
-                                        let mut v37: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
-                                        let mut v38: i32 = EoieStatusOk(v37);
-                                        v38
-                                    } else {
-                                        let mut v39: i32 = EoieStatusAuthorityError();
-                                        v39
-                                    }
-                                } else {
-                                    let mut v41: i32 = EoieStatusAuthorityError();
-                                    v41
-                                }
-                            } else {
-                                let mut v43: i32 = EoieStatusAuthorityError();
-                                v43
-                            }
-                        } else {
-                            let mut v45: i32 = EoieStatusAuthorityError();
-                            v45
-                        }
-                    } else {
-                        let mut v47: i32 = EoieStatusAuthorityError();
-                        v47
-                    }
-                } else {
-                    let mut v49: bool = 1i32 == v25;
-                    if v49 {
-                        let mut v50: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
-                        let mut v51: i32 = EoieStatusLive(v50);
-                        v51
-                    } else {
-                        let mut v52: i32 = EoieStatusArityError();
-                        v52
-                    }
-                }
-            }
-            US0::US0_UnknownHandler => {
-                let mut v60: i32 = EoieUnknownRejected();
-                v60
-            }
+            US0::US0_FileArguments(v4.clone())
         }
     } else {
-        let mut v69: i32 = eoie_legacy_operations::dogfood_shim_dispatch();
-        v69
-    };
-    let mut v71: i32 = eoie_coverage_prune::coverage_finish(v70);
-    v71
+        US0::US0_DirectArguments
+    }
+}
+fn closure0() -> Rc<dyn Fn() -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
+        let mut v0: i32 = 1i32;
+        let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v0 as usize).unwrap_or_default());
+        let mut v2: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("job"); } LIT.with(|lit| lit.clone()) };
+        if v2 {
+            let mut v3: i32 = eoie_jobs::eoie_job_run();
+            v3
+        } else {
+            let mut v4: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("repo"); } LIT.with(|lit| lit.clone()) };
+            if v4 {
+                let mut v5: i32 = eoie_repo_state::eoie_repo_run();
+                v5
+            } else {
+                let mut v6: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("table"); } LIT.with(|lit| lit.clone()) };
+                if v6 {
+                    let mut v7: i32 = eoie_table_query::eoie_table_run();
+                    v7
+                } else {
+                    let mut v8: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("read"); } LIT.with(|lit| lit.clone()) };
+                    let mut v10: bool = if v8 {
+                        true
+                    } else {
+                        let mut v9: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("lines"); } LIT.with(|lit| lit.clone()) };
+                        v9
+                    };
+                    let mut v12: bool = if v10 {
+                        true
+                    } else {
+                        let mut v11: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("grep"); } LIT.with(|lit| lit.clone()) };
+                        v11
+                    };
+                    if v12 {
+                        let mut v13: i32 = eoie_read_query::eoie_read_run();
+                        v13
+                    } else {
+                        let mut v14: i32 = eoie_legacy_operations::dogfood_shim_argv0_code();
+                        let mut v15: bool = 0i32 == v14;
+                        if v15 {
+                            let mut v16: i32 = EoieProcessVerbCode();
+                            let mut v17: bool = 0i32 == v16;
+                            let mut v38: US1 = if v17 {
+                                US1::US1_StatusHandler
+                            } else {
+                                let mut v19: bool = 1i32 == v16;
+                                if v19 {
+                                    US1::US1_PatchHandler
+                                } else {
+                                    let mut v21: bool = 2i32 == v16;
+                                    if v21 {
+                                        US1::US1_AgileHandler
+                                    } else {
+                                        let mut v23: bool = 3i32 == v16;
+                                        if v23 {
+                                            US1::US1_BundleHandler
+                                        } else {
+                                            let mut v25: bool = 4i32 == v16;
+                                            if v25 {
+                                                US1::US1_ProxyHandler
+                                            } else {
+                                                let mut v27: bool = 5i32 == v16;
+                                                if v27 {
+                                                    US1::US1_HelpHandler
+                                                } else {
+                                                    let mut v29: bool = 7i32 == v16;
+                                                    if v29 {
+                                                        US1::US1_LeaseDeniedHandler
+                                                    } else {
+                                                        US1::US1_UnknownHandler
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                            match &v38 {
+                                US1::US1_AgileHandler => {
+                                    let mut v70: i32 = EoieAgileAdapter();
+                                    v70
+                                }
+                                US1::US1_BundleHandler => {
+                                    let mut v71: i32 = EoieBundleAdapter();
+                                    v71
+                                }
+                                US1::US1_HelpHandler => {
+                                    let mut v73: i32 = EoieHelpRejected();
+                                    v73
+                                }
+                                US1::US1_LeaseDeniedHandler => {
+                                    2i32
+                                }
+                                US1::US1_PatchHandler => {
+                                    let mut v69: i32 = EoiePatchAdapter();
+                                    v69
+                                }
+                                US1::US1_ProxyHandler => {
+                                    let mut v72: i32 = EoieProxyAdapter();
+                                    v72
+                                }
+                                US1::US1_StatusHandler => {
+                                    let mut v39: i32 = std::env::args().skip(2).count() as i32;
+                                    let mut v40: bool = 0i32 == v39;
+                                    if v40 {
+                                        let mut v41: i32 = bootstrap_authority_status::eoie_bootstrap_workspace_state_status();
+                                        let mut v42: bool = 1i32 == v41;
+                                        if v42 {
+                                            let mut v43: i32 = bootstrap_authority_status::eoie_bootstrap_compiler_session_status();
+                                            let mut v44: bool = 1i32 == v43;
+                                            if v44 {
+                                                let mut v45: i32 = bootstrap_authority_status::eoie_bootstrap_legacy_bundle_writer_status();
+                                                let mut v46: bool = 1i32 == v45;
+                                                if v46 {
+                                                    let mut v47: i32 = bootstrap_authority_status::eoie_bootstrap_ingest_frontier_status();
+                                                    let mut v48: bool = 1i32 == v47;
+                                                    if v48 {
+                                                        let mut v49: i32 = process_batch_plan_domain::eoie_batch_matrix_auto_chain_budget(60000, 16000);
+                                                        let mut v50: bool = 1i32 == v49;
+                                                        if v50 {
+                                                            let mut v51: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
+                                                            let mut v52: i32 = EoieStatusOk(v51);
+                                                            v52
+                                                        } else {
+                                                            let mut v53: i32 = EoieStatusAuthorityError();
+                                                            v53
+                                                        }
+                                                    } else {
+                                                        let mut v55: i32 = EoieStatusAuthorityError();
+                                                        v55
+                                                    }
+                                                } else {
+                                                    let mut v57: i32 = EoieStatusAuthorityError();
+                                                    v57
+                                                }
+                                            } else {
+                                                let mut v59: i32 = EoieStatusAuthorityError();
+                                                v59
+                                            }
+                                        } else {
+                                            let mut v61: i32 = EoieStatusAuthorityError();
+                                            v61
+                                        }
+                                    } else {
+                                        let mut v63: bool = 1i32 == v39;
+                                        if v63 {
+                                            let mut v64: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
+                                            let mut v65: i32 = EoieStatusLive(v64);
+                                            v65
+                                        } else {
+                                            let mut v66: i32 = EoieStatusArityError();
+                                            v66
+                                        }
+                                    }
+                                }
+                                US1::US1_UnknownHandler => {
+                                    let mut v74: i32 = EoieUnknownRejected();
+                                    v74
+                                }
+                            }
+                        } else {
+                            let mut v83: i32 = eoie_legacy_operations::dogfood_shim_dispatch();
+                            v83
+                        }
+                    }
+                }
+            }
+        }
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn run_from_1(mut v0: US0, mut v1: Rc<dyn Fn() -> i32>) -> i32 {
+    match &v0 {
+        US0::US0_DirectArguments => {
+            v1()
+        }
+        US0::US0_FileArguments(v3) => {
+            let mut v3: Rc<str> = v3.clone();
+            let mut v4: Result<std::rc::Rc<str>, std::rc::Rc<str>> = std::fs::read_to_string(&*v3).map(std::rc::Rc::<str>::from).map_err(|error| std::rc::Rc::<str>::from(format!("--args-from {}: {error}", &*v3)));
+            let mut v5: bool = v4.is_ok();
+            if v5 {
+                let mut v6: Rc<str> = v4.clone().unwrap_or_else(|error| error);
+                let mut v7: i32 = { let arguments = v6.lines().map(|line| line.trim_end_matches(char::from(13u8)).to_owned()).chain(std::env::args().skip(3)).collect::<Vec<_>>(); match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).args(&arguments).status()) { Ok(status) => status.code().unwrap_or(1), Err(error) => { eprintln!("eoie error: --args-from relaunch: {error}"); 2 } } };
+                v7
+            } else {
+                let mut v8: Rc<str> = v4.clone().unwrap_or_else(|error| error);
+                let mut v9: i32 = { eprintln!("eoie error: {}", &*v8); 2 };
+                v9
+            }
+        }
+        US0::US0_StdinArguments => {
+            let mut v11: Result<std::rc::Rc<str>, std::rc::Rc<str>> = { let mut text = String::new(); std::io::Read::read_to_string(&mut std::io::stdin(), &mut text).map(|_| std::rc::Rc::<str>::from(text)).map_err(|error| std::rc::Rc::<str>::from(format!("--args-from -: {error}"))) };
+            let mut v12: bool = v11.is_ok();
+            if v12 {
+                let mut v13: Rc<str> = v11.clone().unwrap_or_else(|error| error);
+                let mut v14: i32 = { let arguments = v13.lines().map(|line| line.trim_end_matches(char::from(13u8)).to_owned()).chain(std::env::args().skip(3)).collect::<Vec<_>>(); match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).args(&arguments).status()) { Ok(status) => status.code().unwrap_or(1), Err(error) => { eprintln!("eoie error: --args-from relaunch: {error}"); 2 } } };
+                v14
+            } else {
+                let mut v15: Rc<str> = v11.clone().unwrap_or_else(|error| error);
+                let mut v16: i32 = { eprintln!("eoie error: {}", &*v15); 2 };
+                v16
+            }
+        }
+    }
+}
+fn spiral_main() -> i32 {
+    let mut v0: US0 = argument_source_0();
+    let mut v1: Rc<dyn Fn() -> i32> = closure0();
+    let mut v2: i32 = run_from_1(v0.clone(), v1.clone());
+    let mut v3: i32 = eoie_coverage_prune::coverage_finish(v2);
+    v3
 }
 fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();

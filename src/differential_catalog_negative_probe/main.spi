@@ -9,6 +9,6 @@ inl main () : i32 =
     inl bad_settlement = differential_catalog_settlement_binding 10i32 8i32 31i32
     inl bad_catalog = differential_catalog_legacy_binding 36i32 35i32 1i32
     inl bad_shape = differential_catalog_shape_binding 7i32 3i32
-    if !!!!EQ(good_settlement,1i32) && !!!!EQ(good_catalog,1i32) && !!!!EQ(good_shape,1i32) then
-        if !!!!EQ(bad_settlement,0i32) && !!!!EQ(bad_catalog,0i32) && !!!!EQ(bad_shape,0i32) then 0i32 else 1i32
+    if good_settlement = 1i32 && good_catalog = 1i32 && good_shape = 1i32 then
+        if bad_settlement = 0i32 && bad_catalog = 0i32 && bad_shape = 0i32 then 0i32 else 1i32
     else 1i32

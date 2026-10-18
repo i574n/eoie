@@ -1,4 +1,5 @@
 packages:
+    |core-
     portable_toolchain_contract
 modules:
     main

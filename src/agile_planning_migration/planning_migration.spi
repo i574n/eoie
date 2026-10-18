@@ -19,7 +19,7 @@ union planning_step =
     | StepText : string
     | StepRejected : string
 
-inl step_from (code, detail) : planning_step = if i32_eq code 0i32 then StepText detail else StepRejected detail
+inl step_from (code, detail) : planning_step = if code = 0i32 then StepText detail else StepRejected detail
 
 let value_token (~field_name : string) (~value : string) : planning_step =
     step_from ($'agile_planning_values::eoie_agile_planning_value_token(&*!field_name, &*!value)' : i32 * string)
@@ -58,11 +58,11 @@ let fresh_tag_pass (~text : string) : tag_pass = { text = text; kept = ""; moved
 
 inl tag_kept (pass : tag_pass) (~tag : string) : tag_pass = { pass with kept = joined pass.kept tag }
 inl tag_rejected (pass : tag_pass) (~tag : string) : tag_pass =
-    { pass with kept = joined pass.kept tag; rejected = joined pass.rejected tag; rejections = i32_next pass.rejections }
+    { pass with kept = joined pass.kept tag; rejected = joined pass.rejected tag; rejections = (pass.rejections + 1i32) }
 
 let tag_moved (pass : tag_pass) (~id : string) (~tag : string) (~field_name : string) (~token : string) : tag_pass =
     match rewritten pass.text id field_name token with
-    | StepText updated => { pass with text = updated; moved = i32_next pass.moved }
+    | StepText updated => { pass with text = updated; moved = (pass.moved + 1i32) }
     | StepRejected _ => tag_rejected pass tag
 
 let tag_applied (pass : tag_pass) (~id : string) (~tag : string) : tag_pass =
@@ -74,15 +74,15 @@ let tag_applied (pass : tag_pass) (~id : string) (~tag : string) : tag_pass =
         | StepRejected _ => tag_rejected pass tag
 
 let rec tags_applied (pass : tag_pass) (~id : string) (~tags : string) (offset : i32) : tag_pass =
-    if i32_le (byte_len tags) offset then pass
+    if byte_len tags <= offset then pass
     else
         inl comma = byte_find_from tags "," offset
-        inl stop = if i32_negative comma then byte_len tags else comma
+        inl stop = if comma < 0i32 then byte_len tags else comma
         inl tag = byte_slice tags offset stop
-        inl continued = if i32_eq (byte_len tag) 0i32 then pass else tag_applied pass id tag
-        tags_applied continued id tags (i32_next stop)
+        inl continued = if byte_len tag = 0i32 then pass else tag_applied pass id tag
+        tags_applied continued id tags (stop + 1i32)
 
-inl unquoted (~token : string) : string = byte_slice token 1i32 (i32_prev (byte_len token))
+inl unquoted (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
 inl tags_position () : i32 = 8i32
 inl task_anchor (~id : string) : string = rust_std_string.model.concat5 "Task (\"" id "\"," "" ""
 
@@ -95,7 +95,7 @@ let tags_replaced (~text : string) (~id : string) (~tags : string) : string =
 
 inl task_line_end (~text : string) (~id : string) : i32 =
     inl found = byte_find_from text "\n" (byte_find text (task_anchor id))
-    if i32_negative found then byte_len text else found
+    if found < 0i32 then byte_len text else found
 
 type migration_pass =
     {
@@ -108,7 +108,7 @@ type migration_pass =
 let fresh_migration (~text : string) : migration_pass = { state = text; tasks = 0i32; moved = 0i32; rejections = 0i32 }
 
 inl rejection_note (pass : tag_pass) : string =
-    if i32_eq pass.rejections 0i32 then "" else rust_std_string.model.concat5 " rejected=" pass.rejected "" "" ""
+    if pass.rejections = 0i32 then "" else rust_std_string.model.concat5 " rejected=" pass.rejected "" "" ""
 
 let task_report (~id : string) (pass : tag_pass) : i32 =
     inl head = rust_std_string.model.concat5 id " moved=" (i32_text pass.moved) " " (planning_summary pass.text id)
@@ -117,27 +117,27 @@ let task_report (~id : string) (pass : tag_pass) : i32 =
 let task_migrated (migration : migration_pass) (~id : string) (pass : tag_pass) : migration_pass =
     inl updated = tags_replaced pass.text id pass.kept
     inl _ = task_report id { pass with text = updated }
-    { state = updated; tasks = i32_next migration.tasks; moved = i32_sum migration.moved pass.moved; rejections = i32_sum migration.rejections pass.rejections }
+    { state = updated; tasks = (migration.tasks + 1i32); moved = (migration.moved + pass.moved); rejections = (migration.rejections + pass.rejections) }
 
 let task_with_rejections (migration : migration_pass) (~id : string) (pass : tag_pass) : migration_pass =
     inl _ = task_report id pass
-    { migration with rejections = i32_sum migration.rejections pass.rejections }
+    { migration with rejections = (migration.rejections + pass.rejections) }
 
 let rec migrated_from (migration : migration_pass) (offset : i32) : migration_pass =
     inl text = migration.state
     inl length = byte_len text
     inl found = byte_find_from text (task_marker ()) offset
-    if i32_negative found then migration
+    if found < 0i32 then migration
     else
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
         if declared_task text found then
             inl field = tuple_field text arguments length
             inl id = unquoted (field 0i32)
             inl pass = tags_applied (fresh_tag_pass text) id (unquoted (field 8i32)) 0i32
-            if i32_le 1i32 pass.moved then
+            if 1i32 <= pass.moved then
                 inl next = task_migrated migration id pass
                 migrated_from next (task_line_end next.state id)
-            elif i32_le 1i32 pass.rejections then migrated_from (task_with_rejections migration id pass) arguments
+            elif 1i32 <= pass.rejections then migrated_from (task_with_rejections migration id pass) arguments
             else migrated_from migration arguments
         else migrated_from migration arguments
 
@@ -152,7 +152,7 @@ let migration_receipt (~verdict : string) (migration : migration_pass) (~origina
 inl migration_failure (~reason : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile migrate-tags rejected: " reason "" "" "")
 
 let migration_written (~path : string) (migration : migration_pass) (~original : string) (started : u64) : i32 =
-    if i32_eq migration.tasks 0i32 then migration_receipt "ok unchanged" migration original started
+    if migration.tasks = 0i32 then migration_receipt "ok unchanged" migration original started
     else
         match replace_file_checked path migration.state with
         | Replaced => migration_receipt "ok" migration original started
@@ -165,7 +165,7 @@ let tags_migration (~root : string) (mode : migration_mode) : i32 =
     | FileMissing _ => migration_failure "state/agile.spi is missing"
     | FileReadable file =>
         inl original = loaded_string (read_text file)
-        if i32_negative (first_malformed_task original 0i32 (byte_len original)) then
+        if first_malformed_task original 0i32 (byte_len original) < 0i32 then
             inl migration = migrated_from (fresh_migration original) 0i32
             match mode with
             | MigrationDryRun => migration_receipt "preview" migration original started
@@ -178,7 +178,7 @@ inl migration_mode_of (~mode : string) : validation_result migration_mode =
     else Invalid
 
 let tags_migration_entry () : i32 =
-    if i32_eq (argument_count ()) 3i32 then
+    if argument_count () = 3i32 then
         match migration_mode_of (argument_owned 1i32) with
         | Valid mode => tags_migration (argument_owned 2i32) mode
         | Invalid => migration_failure "migrate-tags expects preview <root> or apply <root>"

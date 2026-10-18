@@ -79,48 +79,48 @@ inl source_map_public_plan () : source_map_plan source_map_idle source_map_compa
     ))
 
 let topology_limit_binding (rust_file_max : i32) (cargo_crate_max : i32) : i32 =
-    if !!!!LT(1000i32,rust_file_max) then 0i32
-    elif !!!!LT(1000i32,cargo_crate_max) then 0i32
+    if 1000i32 < rust_file_max then 0i32
+    elif 1000i32 < cargo_crate_max then 0i32
     else 1i32
 
 let topology_package_only_binding (expected_package_only : i32) (observed_package_only : i32) : i32 =
-    if !!!!LT(expected_package_only,0i32) then 0i32
-    elif !!!!LT(observed_package_only,0i32) then 0i32
-    elif !!!!LT(expected_package_only,observed_package_only) then 0i32
-    elif !!!!LT(observed_package_only,expected_package_only) then 0i32
+    if expected_package_only < 0i32 then 0i32
+    elif observed_package_only < 0i32 then 0i32
+    elif expected_package_only < observed_package_only then 0i32
+    elif observed_package_only < expected_package_only then 0i32
     else 1i32
 
 let source_surface_binding (vendor : i32) (generated : i32) : i32 =
-    if !!!!LT(vendor,0i32) then -1i32
-    elif !!!!LT(1i32,vendor) then -1i32
-    elif !!!!LT(generated,0i32) then -1i32
-    elif !!!!LT(1i32,generated) then -1i32
-    elif !!!!EQ(vendor,1i32) then 2i32
-    elif !!!!EQ(generated,1i32) then 1i32
+    if vendor < 0i32 then -1i32
+    elif 1i32 < vendor then -1i32
+    elif generated < 0i32 then -1i32
+    elif 1i32 < generated then -1i32
+    elif vendor = 1i32 then 2i32
+    elif generated = 1i32 then 1i32
     else 0i32
 
 let source_map_files_binding (spi_files : i32) (main_files : i32) : i32 =
-    if !!!!LT(spi_files,0i32) then 0i32
-    elif !!!!LT(main_files,0i32) then 0i32
-    elif !!!!LT(spi_files,main_files) then 0i32
+    if spi_files < 0i32 then 0i32
+    elif main_files < 0i32 then 0i32
+    elif spi_files < main_files then 0i32
     else 1i32
 
 let source_map_edges_binding (rust_files : i32) (imports : i32) : i32 =
-    if !!!!LT(rust_files,0i32) then 0i32
-    elif !!!!LT(imports,0i32) then 0i32
+    if rust_files < 0i32 then 0i32
+    elif imports < 0i32 then 0i32
     else 1i32
 
 let source_diff_record_binding (changed : i32) (total : i32) : i32 =
-    if !!!!LT(changed,0i32) then 0i32
-    elif !!!!LT(total,0i32) then 0i32
-    elif !!!!LT(total,changed) then 0i32
+    if changed < 0i32 then 0i32
+    elif total < 0i32 then 0i32
+    elif total < changed then 0i32
     else 1i32
 
 let source_rebuild_count_binding (expected : i32) (observed : i32) : i32 =
-    if !!!!LT(expected,0i32) then 0i32
-    elif !!!!LT(observed,0i32) then 0i32
-    elif !!!!LT(expected,observed) then 0i32
-    elif !!!!LT(observed,expected) then 0i32
+    if expected < 0i32 then 0i32
+    elif observed < 0i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
     else 1i32
 
 union build_cache_evidence =
@@ -131,15 +131,15 @@ union build_cache_evidence =
 
 inl build_cache_evidence_of (kind : u64) (cachedir_tag : bool) (beside_manifest : bool) : build_cache_evidence =
     if cachedir_tag then CacheDirTagged
-    elif !!!!EQ(kind, source_directory_code BuildCacheDirectory) && beside_manifest then TargetBesideCargoManifest
-    elif !!!!EQ(kind, source_directory_code MixBuildDirectory) then MixBuildOutput
+    elif kind = source_directory_code BuildCacheDirectory && beside_manifest then TargetBesideCargoManifest
+    elif kind = source_directory_code MixBuildDirectory then MixBuildOutput
     else NoBuildCacheEvidence
 
 let build_cache_binding (kind : u64) (cachedir_tag : i32) (beside_manifest : i32) : i32 =
-    match build_cache_evidence_of kind (!!!!EQ(cachedir_tag,1i32)) (!!!!EQ(beside_manifest,1i32)) with
+    match build_cache_evidence_of kind (cachedir_tag = 1i32) (beside_manifest = 1i32) with
     | NoBuildCacheEvidence => 0i32
     | _ => 1i32
 
 inl cargo_crate_line_limit () : i32 = 1000i32
 
-let crate_headroom_binding (lines : i32) : i32 = !!!!Sub(cargo_crate_line_limit (), lines)
+let crate_headroom_binding (lines : i32) : i32 = cargo_crate_line_limit () - lines

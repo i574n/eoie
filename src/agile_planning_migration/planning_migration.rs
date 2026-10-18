@@ -146,7 +146,7 @@ fn field_end_6(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: US3) -> i32 {
             if v9 {
                 return v1;
             } else {
-                let mut v10: i32 = v1 + 1;
+                let mut v10: i32 = v1.wrapping_add(1i32);
                 let mut v25: US3 = match &v3 {
                     US3::US3_ScanEscaped => {
                         US3::US3_ScanQuoted
@@ -184,7 +184,7 @@ fn skip_spaces_7(mut v0: Rc<str>, mut v1: i32) -> i32 {
         let mut v2: i32 = v0.as_bytes().get(v1 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
         let mut v3: bool = v2 == 32i32;
         if v3 {
-            let mut v4: i32 = v1 + 1;
+            let mut v4: i32 = v1.wrapping_add(1i32);
             (v0, v1) = (v0.clone(), v4);
             continue;
         } else {
@@ -203,12 +203,12 @@ fn top_level_field_count_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i3
             let mut v7: i32 = v0.as_bytes().get(v5 as usize).map(|byte| i32::from(*byte)).unwrap_or(-1);
             let mut v8: bool = v7 == 41i32;
             if v8 {
-                let mut v9: i32 = v3 + 1;
+                let mut v9: i32 = v3.wrapping_add(1i32);
                 return v9;
             } else {
-                let mut v10: i32 = v5 + 1;
+                let mut v10: i32 = v5.wrapping_add(1i32);
                 let mut v11: i32 = skip_spaces_7(v0.clone(), v10);
-                let mut v12: i32 = v3 + 1;
+                let mut v12: i32 = v3.wrapping_add(1i32);
                 (v0, v1, v2, v3) = (v0.clone(), v11, v2, v12);
                 continue;
             }
@@ -219,7 +219,7 @@ fn first_malformed_task_4(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
     loop {
         let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Task (\""); } LIT.with(|lit| lit.clone()) };
         let mut v4: i32 = v0.get(v1 as usize..).and_then(|rest| rest.find(&*v3)).map(|found| (found + v1 as usize) as i32).unwrap_or(-1);
-        let mut v5: bool = v4 < 0;
+        let mut v5: bool = v4 < 0i32;
         if v5 {
             return -1i32;
         } else {
@@ -256,9 +256,9 @@ fn field_start_10(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> i32
         } else {
             let mut v5: US3 = US3::US3_ScanPlain;
             let mut v6: i32 = field_end_6(v0.clone(), v1, v2, v5.clone());
-            let mut v7: i32 = v6 + 1;
+            let mut v7: i32 = v6.wrapping_add(1i32);
             let mut v8: i32 = skip_spaces_7(v0.clone(), v7);
-            let mut v9: i32 = v3 - 1;
+            let mut v9: i32 = v3.wrapping_sub(1i32);
             (v0, v1, v2, v3) = (v0.clone(), v8, v2, v9);
             continue;
         }
@@ -325,7 +325,7 @@ fn tag_moved_16(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: Rc<str>, 
     let (mut v28, mut v29, mut v30, mut v31, mut v32): (Rc<str>, Rc<str>, i32, Rc<str>, i32) = match &v9 {
         US5::US5_StepText(v10) => {
             let mut v10: Rc<str> = v10.clone();
-            let mut v11: i32 = v2 + 1;
+            let mut v11: i32 = v2.wrapping_add(1i32);
             (v10.clone(), v1.clone(), v11, v3.clone(), v4)
         }
         _ => {
@@ -349,7 +349,7 @@ fn tag_moved_16(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: Rc<str>, 
                         let mut v20: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v19, &*v6, &*v13, &*v13].concat());
                         v20.clone()
                     };
-                    let mut v22: i32 = v4 + 1;
+                    let mut v22: i32 = v4.wrapping_add(1i32);
                     (v0.clone(), v17.clone(), v2, v21.clone(), v22)
                 }
                 _ => unreachable!(),
@@ -406,7 +406,7 @@ fn tag_applied_13(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: Rc<str>
                                         let mut v30: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v29, &*v6, &*v23, &*v23].concat());
                                         v30.clone()
                                     };
-                                    let mut v32: i32 = v4 + 1;
+                                    let mut v32: i32 = v4.wrapping_add(1i32);
                                     (v0.clone(), v27.clone(), v2, v31.clone(), v32)
                                 }
                                 _ => unreachable!(),
@@ -430,7 +430,7 @@ fn tags_applied_12(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: Rc<str
     } else {
         let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(","); } LIT.with(|lit| lit.clone()) };
         let mut v11: i32 = v6.get(v7 as usize..).and_then(|rest| rest.find(&*v10)).map(|found| (found + v7 as usize) as i32).unwrap_or(-1);
-        let mut v12: bool = v11 < 0;
+        let mut v12: bool = v11 < 0i32;
         let mut v14: i32 = if v12 {
             let mut v13: i32 = v6.len() as i32;
             v13
@@ -446,7 +446,7 @@ fn tags_applied_12(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: i32, mut v3: Rc<str
             let (mut v18, mut v19, mut v20, mut v21, mut v22): (Rc<str>, Rc<str>, i32, Rc<str>, i32) = tag_applied_13(v0.clone(), v1.clone(), v2, v3.clone(), v4, v5.clone(), v15.clone());
             (v18.clone(), v19.clone(), v20, v21.clone(), v22)
         };
-        let mut v28: i32 = v14 + 1;
+        let mut v28: i32 = v14.wrapping_add(1i32);
         let (mut v29, mut v30, mut v31, mut v32, mut v33): (Rc<str>, Rc<str>, i32, Rc<str>, i32) = tags_applied_12(v23.clone(), v24.clone(), v25, v26.clone(), v27, v5.clone(), v6.clone(), v28);
         (v29.clone(), v30.clone(), v31, v32.clone(), v33)
     };
@@ -511,21 +511,21 @@ fn task_report_20(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32
 fn task_migrated_18(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: i32, mut v8: Rc<str>, mut v9: i32) -> (Rc<str>, i32, i32, i32) {
     let mut v10: Rc<str> = tags_replaced_19(v5.clone(), v4.clone(), v6.clone());
     let mut v11: i32 = task_report_20(v4.clone(), v10.clone(), v6.clone(), v7, v8.clone(), v9);
-    let mut v12: i32 = v1 + 1;
-    let mut v13: i32 = v2 + v7;
-    let mut v14: i32 = v3 + v9;
+    let mut v12: i32 = v1.wrapping_add(1i32);
+    let mut v13: i32 = v2.wrapping_add(v7);
+    let mut v14: i32 = v3.wrapping_add(v9);
     (v10.clone(), v12, v13, v14)
 }
 fn task_with_rejections_21(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: Rc<str>, mut v5: Rc<str>, mut v6: Rc<str>, mut v7: i32, mut v8: Rc<str>, mut v9: i32) -> (Rc<str>, i32, i32, i32) {
     let mut v10: i32 = task_report_20(v4.clone(), v5.clone(), v6.clone(), v7, v8.clone(), v9);
-    let mut v11: i32 = v3 + v9;
+    let mut v11: i32 = v3.wrapping_add(v9);
     (v0.clone(), v1, v2, v11)
 }
 fn migrated_from_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i32) -> (Rc<str>, i32, i32, i32) {
     let mut v5: i32 = v0.len() as i32;
     let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Task (\""); } LIT.with(|lit| lit.clone()) };
     let mut v7: i32 = v0.get(v4 as usize..).and_then(|rest| rest.find(&*v6)).map(|found| (found + v4 as usize) as i32).unwrap_or(-1);
-    let mut v8: bool = v7 < 0;
+    let mut v8: bool = v7 < 0i32;
     let (mut v88, mut v89, mut v90, mut v91): (Rc<str>, i32, i32, i32) = if v8 {
         (v0.clone(), v1, v2, v3)
     } else {
@@ -541,7 +541,7 @@ fn migrated_from_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v
             let mut v17: i32 = field_end_6(v0.clone(), v15, v5, v16.clone());
             let mut v18: Rc<str> = std::rc::Rc::<str>::from(v0.get(v15 as usize..v17 as usize).unwrap_or(""));
             let mut v19: i32 = v18.len() as i32;
-            let mut v20: i32 = v19 - 1;
+            let mut v20: i32 = v19.wrapping_sub(1i32);
             let mut v21: Rc<str> = std::rc::Rc::<str>::from(v18.get(1i32 as usize..v20 as usize).unwrap_or(""));
             let (mut v22, mut v23, mut v24, mut v25, mut v26): (Rc<str>, Rc<str>, i32, Rc<str>, i32) = fresh_tag_pass_11(v0.clone());
             let mut v27: i32 = 8i32;
@@ -550,7 +550,7 @@ fn migrated_from_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v
             let mut v30: i32 = field_end_6(v0.clone(), v28, v5, v29.clone());
             let mut v31: Rc<str> = std::rc::Rc::<str>::from(v0.get(v28 as usize..v30 as usize).unwrap_or(""));
             let mut v32: i32 = v31.len() as i32;
-            let mut v33: i32 = v32 - 1;
+            let mut v33: i32 = v32.wrapping_sub(1i32);
             let mut v34: Rc<str> = std::rc::Rc::<str>::from(v31.get(1i32 as usize..v33 as usize).unwrap_or(""));
             let mut v35: i32 = 0i32;
             let (mut v36, mut v37, mut v38, mut v39, mut v40): (Rc<str>, Rc<str>, i32, Rc<str>, i32) = tags_applied_12(v22.clone(), v23.clone(), v24, v25.clone(), v26, v21.clone(), v34.clone(), v35);
@@ -563,7 +563,7 @@ fn migrated_from_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32, mut v
                 let mut v49: i32 = v42.find(&*v48).map(|offset| offset as i32).unwrap_or(-1);
                 let mut v50: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
                 let mut v51: i32 = v42.get(v49 as usize..).and_then(|rest| rest.find(&*v50)).map(|found| (found + v49 as usize) as i32).unwrap_or(-1);
-                let mut v52: bool = v51 < 0;
+                let mut v52: bool = v51 < 0i32;
                 let mut v54: i32 = if v52 {
                     let mut v53: i32 = v42.len() as i32;
                     v53
@@ -620,7 +620,7 @@ fn tags_migration_1(mut v0: Rc<str>, mut v1: US0) -> i32 {
             let mut v17: i32 = 0i32;
             let mut v18: i32 = v16.len() as i32;
             let mut v19: i32 = first_malformed_task_4(v16.clone(), v17, v18);
-            let mut v20: bool = v19 < 0;
+            let mut v20: bool = v19 < 0i32;
             if v20 {
                 let (mut v21, mut v22, mut v23, mut v24): (Rc<str>, i32, i32, i32) = fresh_migration_8(v16.clone());
                 let mut v25: i32 = 0i32;

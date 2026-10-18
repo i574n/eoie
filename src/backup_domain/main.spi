@@ -36,41 +36,41 @@ union capture_decision =
     | CaptureDenied
 
 inl plan_capture (observed_content_length observed) (capture_limit limit) : capture_decision =
-    if !!!!LT(observed,0i32) then CaptureDenied
-    elif !!!!LT(limit,0i32) then CaptureDenied
-    elif !!!!LT(limit,observed) then CaptureDenied
+    if observed < 0i32 then CaptureDenied
+    elif limit < 0i32 then CaptureDenied
+    elif limit < observed then CaptureDenied
     else CaptureAuthorized
 
 let capture_authorized (observed : i32) (limit : i32) : i32 =
-    if !!!!LT(observed,0i32) then 0i32
-    elif !!!!LT(limit,0i32) then 0i32
-    elif !!!!LT(limit,observed) then 0i32
+    if observed < 0i32 then 0i32
+    elif limit < 0i32 then 0i32
+    elif limit < observed then 0i32
     else 1i32
 
 let capture_binding_slot (slot : i32) (authorized : i32) : i32 =
-    if !!!!LT(slot,0i32) then -1i32
-    elif !!!!LT(authorized,1i32) then -1i32
-    elif !!!!LT(1i32,authorized) then -1i32
+    if slot < 0i32 then -1i32
+    elif authorized < 1i32 then -1i32
+    elif 1i32 < authorized then -1i32
     else slot
 
 inl plan_temporary_write (expected_temporary_length expected) (observed_temporary_length observed) : temporary_write_decision =
-    if !!!!LT(expected,0i32) then TemporaryWriteDenied
-    elif !!!!LT(observed,0i32) then TemporaryWriteDenied
-    elif !!!!LT(expected,observed) then TemporaryWriteDenied
-    elif !!!!LT(observed,expected) then TemporaryWriteDenied
+    if expected < 0i32 then TemporaryWriteDenied
+    elif observed < 0i32 then TemporaryWriteDenied
+    elif expected < observed then TemporaryWriteDenied
+    elif observed < expected then TemporaryWriteDenied
     else TemporaryWriteAuthorized
 
 let temporary_write_authorized (expected : i32) (observed : i32) : i32 =
-    if !!!!LT(expected,0i32) then 0i32
-    elif !!!!LT(observed,0i32) then 0i32
-    elif !!!!LT(expected,observed) then 0i32
-    elif !!!!LT(observed,expected) then 0i32
+    if expected < 0i32 then 0i32
+    elif observed < 0i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
     else 1i32
 
 let temporary_write_binding_slot (slot : i32) (authorized : i32) : i32 =
-    if !!!!LT(slot,0i32) then -1i32
-    elif !!!!LT(authorized,1i32) then -1i32
-    elif !!!!LT(1i32,authorized) then -1i32
+    if slot < 0i32 then -1i32
+    elif authorized < 1i32 then -1i32
+    elif 1i32 < authorized then -1i32
     else slot
 
 inl plan_promotion
@@ -79,47 +79,47 @@ inl plan_promotion
     (expected_promotion_slot expected_slot)
     (observed_promotion_slot observed_slot)
     : promotion_decision =
-    if !!!!LT(expected_stage,0i32) then PromotionDenied
-    elif !!!!LT(observed_stage,0i32) then PromotionDenied
-    elif !!!!LT(expected_stage,observed_stage) then PromotionDenied
-    elif !!!!LT(observed_stage,expected_stage) then PromotionDenied
-    elif !!!!LT(expected_slot,0i32) then PromotionDenied
-    elif !!!!LT(observed_slot,0i32) then PromotionDenied
-    elif !!!!LT(expected_slot,observed_slot) then PromotionDenied
-    elif !!!!LT(observed_slot,expected_slot) then PromotionDenied
+    if expected_stage < 0i32 then PromotionDenied
+    elif observed_stage < 0i32 then PromotionDenied
+    elif expected_stage < observed_stage then PromotionDenied
+    elif observed_stage < expected_stage then PromotionDenied
+    elif expected_slot < 0i32 then PromotionDenied
+    elif observed_slot < 0i32 then PromotionDenied
+    elif expected_slot < observed_slot then PromotionDenied
+    elif observed_slot < expected_slot then PromotionDenied
     else PromotionAuthorized
 
 let promotion_stage_authorized (expected : i32) (observed : i32) : i32 =
-    if !!!!LT(expected,0i32) then 0i32
-    elif !!!!LT(observed,0i32) then 0i32
-    elif !!!!LT(expected,observed) then 0i32
-    elif !!!!LT(observed,expected) then 0i32
+    if expected < 0i32 then 0i32
+    elif observed < 0i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
     else 1i32
 
 let promotion_slot_authorized (expected : i32) (observed : i32) : i32 =
-    if !!!!LT(expected,0i32) then 0i32
-    elif !!!!LT(observed,0i32) then 0i32
-    elif !!!!LT(expected,observed) then 0i32
-    elif !!!!LT(observed,expected) then 0i32
+    if expected < 0i32 then 0i32
+    elif observed < 0i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
     else 1i32
 
 let promotion_authorized (stage_authorized : i32) (slot_authorized : i32) : i32 =
-    if !!!!LT(stage_authorized,1i32) then 0i32
-    elif !!!!LT(1i32,stage_authorized) then 0i32
-    elif !!!!LT(slot_authorized,1i32) then 0i32
-    elif !!!!LT(1i32,slot_authorized) then 0i32
+    if stage_authorized < 1i32 then 0i32
+    elif 1i32 < stage_authorized then 0i32
+    elif slot_authorized < 1i32 then 0i32
+    elif 1i32 < slot_authorized then 0i32
     else 1i32
 
 let promotion_binding_slot (slot : i32) (authorized : i32) : i32 =
-    if !!!!LT(slot,0i32) then -1i32
-    elif !!!!LT(authorized,1i32) then -1i32
-    elif !!!!LT(1i32,authorized) then -1i32
+    if slot < 0i32 then -1i32
+    elif authorized < 1i32 then -1i32
+    elif 1i32 < authorized then -1i32
     else slot
 
 inl capture_original_slot (backup_slot slot) (validated_stage_index stage) : captured_original_slot =
     captured_original_slot (
-        if !!!!LT(slot,0i32) then -1i32
-        elif !!!!LT(stage,0i32) then -1i32
+        if slot < 0i32 then -1i32
+        elif stage < 0i32 then -1i32
         else slot
     )
 
@@ -139,17 +139,17 @@ union backup_collection =
     | ReuseBackup
 
 inl collect_backup (existing_backup_slot existing) (next_backup_slot next) : backup_collection =
-    if !!!!LT(existing,0i32) then CaptureBackup else ReuseBackup
+    if existing < 0i32 then CaptureBackup else ReuseBackup
 
 let backup_slot_for (existing : i32) (next : i32) : i32 =
-    if !!!!LT(existing,0i32) then next else existing
+    if existing < 0i32 then next else existing
 
 let backup_next_count (existing : i32) (next : i32) : i32 =
-    if !!!!LT(existing,0i32) then !!!!Add(next,1i32) else next
+    if existing < 0i32 then next + 1i32 else next
 
 let backup_should_capture (existing : i32) (next : i32) : i32 =
-    if !!!!LT(next,0i32) then 0i32
-    elif !!!!LT(existing,0i32) then 1i32
+    if next < 0i32 then 0i32
+    elif existing < 0i32 then 1i32
     else 0i32
 
 nominal committed_prefix = i32
@@ -158,9 +158,9 @@ nominal rollback_index = i32
 
 inl next_rollback (committed_prefix committed) (rollback_cursor cursor) : rollback_index =
     rollback_index (
-        if !!!!LT(cursor,committed)
-        then !!!!Sub(!!!!Sub(committed,cursor),1i32)
-        else !!!!Neg(1i32)
+        if cursor < committed
+        then (committed - cursor) - 1i32
+        else (-(1i32))
     )
 
 let rollback_next (committed : i32) (cursor : i32) : i32 =
@@ -176,17 +176,17 @@ let restoration_select (committed : i32) (cursor : i32) : i32 =
     rollback_next committed cursor
 
 let restoration_bind (selected : i32) (observed : i32) : i32 =
-    if !!!!LT(selected,0i32) then -1i32
-    elif !!!!LT(observed,0i32) then -1i32
-    elif !!!!LT(selected,observed) then -1i32
-    elif !!!!LT(observed,selected) then -1i32
+    if selected < 0i32 then -1i32
+    elif observed < 0i32 then -1i32
+    elif selected < observed then -1i32
+    elif observed < selected then -1i32
     else selected
 
 let restoration_complete (expected : i32) (observed : i32) : i32 =
-    if !!!!LT(expected,0i32) then 0i32
-    elif !!!!LT(observed,0i32) then 0i32
-    elif !!!!LT(expected,observed) then 0i32
-    elif !!!!LT(observed,expected) then 0i32
+    if expected < 0i32 then 0i32
+    elif observed < 0i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
     else 1i32
 
 nominal restoration_expected_attempts = i32
@@ -206,30 +206,30 @@ union restoration_accumulator_step from to =
     | FinishRestorationWithFailures :: restoration_accumulator_step restoration_accumulator_open restoration_accumulator_partial_failure
 
 let restoration_attempt_count (successes : i32) (failures : i32) : i32 =
-    if !!!!LT(successes,0i32) then -1i32
-    elif !!!!LT(failures,0i32) then -1i32
-    elif !!!!LT(!!!!Sub(2147483647i32,successes),failures) then -1i32
-    else !!!!Add(successes,failures)
+    if successes < 0i32 then -1i32
+    elif failures < 0i32 then -1i32
+    elif 2147483647i32 - successes < failures then -1i32
+    else successes + failures
 
 let restoration_attempt_authorized (expected : i32) (attempted : i32) : i32 =
-    if !!!!LT(expected,0i32) then 0i32
-    elif !!!!LT(attempted,0i32) then 0i32
-    elif !!!!LT(attempted,expected) then 1i32
+    if expected < 0i32 then 0i32
+    elif attempted < 0i32 then 0i32
+    elif attempted < expected then 1i32
     else 0i32
 
 let restoration_counter_next (current : i32) (authorized : i32) : i32 =
-    if !!!!LT(current,0i32) then -1i32
-    elif !!!!LT(authorized,1i32) then -1i32
-    elif !!!!LT(1i32,authorized) then -1i32
-    elif !!!!LT(current,2147483647i32) then !!!!Add(current,1i32)
+    if current < 0i32 then -1i32
+    elif authorized < 1i32 then -1i32
+    elif 1i32 < authorized then -1i32
+    elif current < 2147483647i32 then current + 1i32
     else -1i32
 
 let restoration_accumulator_outcome (complete : i32) (failures : i32) : i32 =
-    if !!!!LT(failures,0i32) then -1i32
-    elif !!!!LT(complete,0i32) then -1i32
-    elif !!!!LT(1i32,complete) then -1i32
-    elif !!!!LT(complete,1i32) then 0i32
-    elif !!!!LT(failures,1i32) then 1i32
+    if failures < 0i32 then -1i32
+    elif complete < 0i32 then -1i32
+    elif 1i32 < complete then -1i32
+    elif complete < 1i32 then 0i32
+    elif failures < 1i32 then 1i32
     else 2i32
 
 inl export_backup_slot () : () =

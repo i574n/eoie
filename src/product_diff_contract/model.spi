@@ -36,12 +36,12 @@ inl product_diff_public_plan () : product_diff_plan product_diff_raw product_dif
     ))
 
 let product_diff_request_binding (left_valid : i32) (right_valid : i32) : i32 =
-    if !!!!EQ(left_valid,1i32) then
-        if !!!!EQ(right_valid,1i32) then 1i32 else 0i32
+    if left_valid = 1i32 then
+        if right_valid = 1i32 then 1i32 else 0i32
     else 0i32
 
 let product_diff_summary_binding (changed_entries : i32) (total_entries : i32) : i32 =
-    if !!!!LT(changed_entries,0i32) then 0i32
-    elif !!!!LT(total_entries,0i32) then 0i32
-    elif !!!!LT(total_entries,changed_entries) then 0i32
+    if changed_entries < 0i32 then 0i32
+    elif total_entries < 0i32 then 0i32
+    elif total_entries < changed_entries then 0i32
     else 1i32

@@ -84,5 +84,5 @@ inl rec terminal forall from to. (plan : check_plan from to) : i32 =
         inl exists middle. _, right = payload
         terminal right
 
-inl full_probe_ok () : bool = i32_eq (terminal (full_plan ())) 0i32
-inl resume_probe_ok () : bool = i32_eq (terminal (resumed_plan ())) 0i32
+inl full_probe_ok () : bool = terminal (full_plan ()) = 0i32
+inl resume_probe_ok () : bool = terminal (resumed_plan ()) = 0i32

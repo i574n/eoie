@@ -9,9 +9,9 @@ inl toolchain_cwd_code = function
     | NestedCargoRoot => 1i32
 
 let toolchain_cwd_binding (action : i32) (manifest_code : i32) : i32 =
-    if !!!!LT(manifest_code,0i32) || !!!!LT(3i32,manifest_code) then -1i32
-    elif !!!!EQ(action,7i32) || !!!!EQ(manifest_code,1i32) || !!!!EQ(manifest_code,3i32) then toolchain_cwd_code RequestedCargoRoot
-    elif !!!!EQ(manifest_code,2i32) then toolchain_cwd_code NestedCargoRoot
+    if manifest_code < 0i32 || 3i32 < manifest_code then -1i32
+    elif action = 7i32 || manifest_code = 1i32 || manifest_code = 3i32 then toolchain_cwd_code RequestedCargoRoot
+    elif manifest_code = 2i32 then toolchain_cwd_code NestedCargoRoot
     else -1i32
 
 inl toolchain_u64_decimal_normalize (input : string) : string =
