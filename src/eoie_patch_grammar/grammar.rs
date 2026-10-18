@@ -7,54 +7,15 @@ enum US0 {
     US0_QuotedOk(i32),
     US0_QuotedError,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_QuotedOk(..) => 0,
-            US0::US0_QuotedError => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_QuotedOk(<i32>::default())
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_ParsedPatch(i32),
     US1_InvalidPatch,
 }
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_ParsedPatch(..) => 0,
-            US1::US1_InvalidPatch => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_ParsedPatch(<i32>::default())
-    }
-}
 #[derive(Clone)]
 enum US2 {
     US2_SeparatorOk(i32),
     US2_SeparatorError,
-}
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_SeparatorOk(..) => 0,
-            US2::US2_SeparatorError => 1,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_SeparatorOk(<i32>::default())
-    }
 }
 fn skip_spaces_0(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
     loop {
@@ -478,5 +439,5 @@ fn spiral_main() -> i32 {
 }
 fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 1 });
 }

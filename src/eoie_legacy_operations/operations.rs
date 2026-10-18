@@ -416,22 +416,6 @@ enum US0 {
     US0_RejectEmptyTarget,
     US0_RejectPreconditionsOnMissingFile,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_CreateMissingFile => 0,
-            US0::US0_ReplaceExistingFile => 1,
-            US0::US0_RejectOverwriteWithoutFlag => 2,
-            US0::US0_RejectEmptyTarget => 3,
-            US0::US0_RejectPreconditionsOnMissingFile => 4,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_CreateMissingFile
-    }
-}
 fn shim_decision_binding_2(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
     let mut v4: bool = v0 < 0i32;
     if v4 {

@@ -15,38 +15,11 @@ enum US0 {
     US0_Rejected(Rc<str>),
     US0_Candidate(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_Rejected(..) => 0,
-            US0::US0_Candidate(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_Rejected({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_Sha256,
     US1_ReceiptText,
     US1_Unsupported,
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_Sha256 => 0,
-            US1::US1_ReceiptText => 1,
-            US1::US1_Unsupported => 2,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_Sha256
-    }
 }
 fn method3() -> Rc<str> {
     let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };

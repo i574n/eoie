@@ -6,36 +6,10 @@ enum US0 {
     US0_ListingShown(Rc<str>),
     US0_ListingRejected(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_ListingShown(..) => 0,
-            US0::US0_ListingRejected(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_ListingShown({ thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) })
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_WholeRoot,
     US1_RootedDirectory(Rc<str>),
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_WholeRoot => 0,
-            US1::US1_RootedDirectory(..) => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_WholeRoot
-    }
 }
 fn directory_listing_outcome_1() -> US0 {
     let mut v0: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);

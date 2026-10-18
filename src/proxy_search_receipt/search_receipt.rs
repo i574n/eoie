@@ -6,36 +6,10 @@ enum US0 {
     US0_AllHitsShown,
     US0_HitsTruncated,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_AllHitsShown => 0,
-            US0::US0_HitsTruncated => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_AllHitsShown
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_SliceFilled,
     US1_SliceReachedEnd,
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_SliceFilled => 0,
-            US1::US1_SliceReachedEnd => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_SliceFilled
-    }
 }
 fn search_clock_ms_0() -> u64 {
     let mut v0: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);

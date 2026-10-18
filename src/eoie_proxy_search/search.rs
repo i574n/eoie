@@ -288,39 +288,10 @@ enum US0 {
     US0_PackageInstallDirectory,
     US0_SymlinkEntry,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_SourceDirectory => 0,
-            US0::US0_BuildOutputDirectory => 1,
-            US0::US0_VersionControlDirectory => 2,
-            US0::US0_PackageInstallDirectory => 3,
-            US0::US0_SymlinkEntry => 4,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_SourceDirectory
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_SearchWholeRoot,
     US1_SearchRootedEntry,
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_SearchWholeRoot => 0,
-            US1::US1_SearchRootedEntry => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_SearchWholeRoot
-    }
 }
 fn path_tag_relative_packed_binding_1(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 0i32;

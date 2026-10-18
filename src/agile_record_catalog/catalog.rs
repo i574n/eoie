@@ -6,19 +6,6 @@ enum US0 {
     US0_RecordCatalogComplete,
     US0_RecordCatalogPartial(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_RecordCatalogComplete => 0,
-            US0::US0_RecordCatalogPartial(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_RecordCatalogComplete
-    }
-}
 fn agile_record_catalog_text_0(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: Rc<str>) -> Rc<str> {
     let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie agile records catalog="); } LIT.with(|lit| lit.clone()) };
     let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" present="); } LIT.with(|lit| lit.clone()) };

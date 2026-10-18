@@ -15,28 +15,6 @@ enum US1 {
     US1_PascalFamily,
     US1_BatchFamily,
 }
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_CFamily => 0,
-            US1::US1_HashFamily => 1,
-            US1::US1_DashFamily => 2,
-            US1::US1_HaskellFamily => 3,
-            US1::US1_LeanFamily => 4,
-            US1::US1_LispFamily => 5,
-            US1::US1_ErlangFamily => 6,
-            US1::US1_MarkupFamily => 7,
-            US1::US1_MlFamily => 8,
-            US1::US1_PascalFamily => 9,
-            US1::US1_BatchFamily => 10,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_CFamily
-    }
-}
 #[derive(Clone)]
 enum US0 {
     US0_ScanPath(US1),
@@ -46,40 +24,10 @@ enum US0 {
     US0_SkipGeneratedOutput,
     US0_SkipLinkedEntry,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_ScanPath(..) => 0,
-            US0::US0_SkipNestedRepository => 1,
-            US0::US0_SkipVendorDirectory => 2,
-            US0::US0_SkipUnknownSyntax => 3,
-            US0::US0_SkipGeneratedOutput => 4,
-            US0::US0_SkipLinkedEntry => 5,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_ScanPath(<US1>::default())
-    }
-}
 #[derive(Clone)]
 enum US2 {
     US2_KnownSyntax(US1),
     US2_UnknownSyntax,
-}
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_KnownSyntax(..) => 0,
-            US2::US2_UnknownSyntax => 1,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_KnownSyntax(<US1>::default())
-    }
 }
 fn vendor_segment_from_2(mut v0: Rc<str>, mut v1: i32) -> bool {
     loop {

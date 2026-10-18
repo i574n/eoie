@@ -6,108 +6,30 @@ enum US0 {
     US0_ReadShown(i32),
     US0_ReadRejected(Rc<str>),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_ReadShown(..) => 0,
-            US0::US0_ReadRejected(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_ReadShown(<i32>::default())
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_Streamed(u64),
     US1_StreamFailed,
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_Streamed(..) => 0,
-            US1::US1_StreamFailed => 1,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_Streamed(<u64>::default())
-    }
 }
 #[derive(Clone)]
 enum US2 {
     US2_WholeFileShown,
     US2_LeadingBytesShown,
 }
-impl US2 {
-    fn tag(&self) -> i32 {
-        match self {
-            US2::US2_WholeFileShown => 0,
-            US2::US2_LeadingBytesShown => 1,
-        }
-    }
-}
-impl Default for US2 {
-    fn default() -> Self {
-        US2::US2_WholeFileShown
-    }
-}
 #[derive(Clone)]
 enum US3 {
     US3_ContentClosed,
     US3_ContentOpen,
-}
-impl US3 {
-    fn tag(&self) -> i32 {
-        match self {
-            US3::US3_ContentClosed => 0,
-            US3::US3_ContentOpen => 1,
-        }
-    }
-}
-impl Default for US3 {
-    fn default() -> Self {
-        US3::US3_ContentClosed
-    }
 }
 #[derive(Clone)]
 enum US5 {
     US5_WholeFile,
     US5_LeadingBytes(u64),
 }
-impl US5 {
-    fn tag(&self) -> i32 {
-        match self {
-            US5::US5_WholeFile => 0,
-            US5::US5_LeadingBytes(..) => 1,
-        }
-    }
-}
-impl Default for US5 {
-    fn default() -> Self {
-        US5::US5_WholeFile
-    }
-}
 #[derive(Clone)]
 enum US4 {
     US4_Valid(US5),
     US4_Invalid,
-}
-impl US4 {
-    fn tag(&self) -> i32 {
-        match self {
-            US4::US4_Valid(..) => 0,
-            US4::US4_Invalid => 1,
-        }
-    }
-}
-impl Default for US4 {
-    fn default() -> Self {
-        US4::US4_Valid(<US5>::default())
-    }
 }
 fn read_receipt_text_2(mut v0: Rc<str>, mut v1: u64, mut v2: i32, mut v3: u64) -> Rc<str> {
     let mut v4: u64 = eoie_rust_std_fs::rooted_regular_size(std::path::Path::new(&*v0)).unwrap_or(0);

@@ -7,20 +7,6 @@ enum US0 {
     US0_LeaseWrapping,
     US0_LeaseExpired,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_LeaseRunning => 0,
-            US0::US0_LeaseWrapping => 1,
-            US0::US0_LeaseExpired => 2,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_LeaseRunning
-    }
-}
 fn lease_effect_entry_0() -> i32 {
     let mut v0: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(1i32 as usize).unwrap_or_default());
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(":"); } LIT.with(|lit| lit.clone()) };

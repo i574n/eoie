@@ -312,25 +312,6 @@ enum US0 {
     US0_UnknownHandler,
     US0_LeaseDeniedHandler,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_StatusHandler => 0,
-            US0::US0_PatchHandler => 1,
-            US0::US0_AgileHandler => 2,
-            US0::US0_BundleHandler => 3,
-            US0::US0_ProxyHandler => 4,
-            US0::US0_HelpHandler => 5,
-            US0::US0_UnknownHandler => 6,
-            US0::US0_LeaseDeniedHandler => 7,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_StatusHandler
-    }
-}
 fn spiral_main() -> i32 {
     let mut v0: i32 = eoie_legacy_operations::dogfood_shim_argv0_code();
     let mut v1: bool = 0i32 == v0;
@@ -464,5 +445,5 @@ fn spiral_main() -> i32 {
 }
 fn main() { #[cfg(target_arch = "wasm32")] { spiral_main(); return; }
     let main = std::thread::Builder::new().stack_size(1 << 30).spawn(spiral_main).unwrap();
-    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 101 });
+    std::process::exit(match main.join() { Ok(code) => code, Err(_) => 1 });
 }

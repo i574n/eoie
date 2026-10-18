@@ -6,38 +6,11 @@ enum US0 {
     US0_ArgumentFailure,
     US0_ChildProcessFailure(i32),
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_ArgumentFailure => 0,
-            US0::US0_ChildProcessFailure(..) => 1,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_ArgumentFailure
-    }
-}
 #[derive(Clone)]
 enum US1 {
     US1_AddCreateOrReplace,
     US1_ExpectObservedMatches(u64),
     US1_NoRepair,
-}
-impl US1 {
-    fn tag(&self) -> i32 {
-        match self {
-            US1::US1_AddCreateOrReplace => 0,
-            US1::US1_ExpectObservedMatches(..) => 1,
-            US1::US1_NoRepair => 2,
-        }
-    }
-}
-impl Default for US1 {
-    fn default() -> Self {
-        US1::US1_AddCreateOrReplace
-    }
 }
 fn proxy_child_exit_code_0(mut v0: Rc<str>) -> i32 {
     let mut v1: i32 = v0.find("failed: exit code: ").and_then(|at| v0[at + 19..].split(|c: char| c.is_ascii_digit() == false).next().and_then(|digits| digits.parse::<i32>().ok())).unwrap_or(0);

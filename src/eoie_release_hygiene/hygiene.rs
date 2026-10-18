@@ -167,21 +167,6 @@ enum US0 {
     US0_HygieneRootTransientFile,
     US0_HygieneRootTransientDirectory,
 }
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_HygieneKeep => 0,
-            US0::US0_HygieneCompilerSidecar => 1,
-            US0::US0_HygieneRootTransientFile => 2,
-            US0::US0_HygieneRootTransientDirectory => 3,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_HygieneKeep
-    }
-}
 fn incident_recovery_leaf_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = v0 < 1i32;
     if v2 {

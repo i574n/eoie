@@ -93,7 +93,7 @@ fn topology_generic_crate_lines(path: &Path) -> Result<usize, String> {
         for child in topology_entries(path)? { total += topology_generic_crate_lines(&child)?; }
         return Ok(total);
     }
-    if metadata.is_file() && matches!(path.extension().and_then(|value| value.to_str()), Some("rs" | "spi" | "spir")) { topology_lines(path) } else { Ok(0) }
+    if metadata.is_file() && matches!(path.extension().and_then(|value| value.to_str()), Some("rs")) { topology_lines(path) } else { Ok(0) }
 }
 
 fn topology_generic_walk(root: &Path, path: &Path, inherited_vendor: bool, stats: &mut SourceTopology, surfaces: &mut GenericSurfaceStats) -> Result<(), String> {
@@ -178,7 +178,7 @@ fn topology_crate_lines(path: &Path) -> Result<usize, String> {
         for child in topology_entries(path)? { total += topology_crate_lines(&child)?; }
         return Ok(total);
     }
-    if metadata.is_file() && matches!(path.extension().and_then(|value| value.to_str()), Some("rs" | "spi" | "spir")) { topology_lines(path) } else { Ok(0) }
+    if metadata.is_file() && matches!(path.extension().and_then(|value| value.to_str()), Some("rs")) { topology_lines(path) } else { Ok(0) }
 }
 
 fn topology_generic_packages(root: &Path, path: &Path, inherited_vendor: bool, stats: &mut SourceTopology, surfaces: &mut GenericSurfaceStats) -> Result<(), String> {
@@ -347,20 +347,6 @@ enum US0 {
     US0_CacheDirTagged,
     US0_TargetBesideCargoManifest,
     US0_NoBuildCacheEvidence,
-}
-impl US0 {
-    fn tag(&self) -> i32 {
-        match self {
-            US0::US0_CacheDirTagged => 0,
-            US0::US0_TargetBesideCargoManifest => 1,
-            US0::US0_NoBuildCacheEvidence => 2,
-        }
-    }
-}
-impl Default for US0 {
-    fn default() -> Self {
-        US0::US0_CacheDirTagged
-    }
 }
 fn topology_limit_binding_0(mut v0: i32, mut v1: i32) -> i32 {
     let mut v2: bool = 1000i32 < v0;
