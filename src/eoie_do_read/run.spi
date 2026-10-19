@@ -101,6 +101,19 @@ let read_run (~root : string) (~encoded : string) : i32 =
         receipt_line Failed "files 0" started
         2i32
 
+let report_text (~root : string) (~encoded : string) : string =
+    inl records = records_of encoded
+    inl state = queries_run root (touched_new ()) records 1i32 (empty_query_tally ())
+    inl mark = $'std::rc::Rc::<str>::from(char::from(30u8).to_string())' : string
+    concat5 state.report mark (if state.failed then "1" else "0") "" ""
+
+let matching_text (~root : string) (~target : string) : string =
+    inl paths = files_matching root target "" ""
+    $'std::rc::Rc::<str>::from(!paths.iter().map(|path| path.to_string()).collect::<Vec<_>>().join("\n"))' : string
+
 inl main () : i32 =
     !!!!Export("eoie_do_read_run", ((fun (root, encoded) => read_run root encoded) : string * string -> i32))
+    !!!!Export("eoie_do_read_matching", ((fun (root, target) => matching_text root target) : string * string -> string))
+    !!!!Export("eoie_do_read_rejection", ((fun encoded => first_rejection (records_of encoded) 1i32) : string -> string))
+    !!!!Export("eoie_do_read_report", ((fun (root, encoded) => report_text root encoded) : string * string -> string))
     0i32

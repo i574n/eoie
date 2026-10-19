@@ -15,5 +15,8 @@ path = "do_run.rs"
 
 [dependencies]
 eoie-do-program = { path = "../eoie_do_program" }
+eoie-do-edit = { path = "../eoie_do_edit" }
+eoie-do-facts = { path = "../eoie_do_facts" }
+eoie-do-process = { path = "../eoie_do_process" }
 eoie-do-read = { path = "../eoie_do_read" }
-sha2 = "0.11.1"
+eoie-do-write = { path = "../eoie_do_write" }

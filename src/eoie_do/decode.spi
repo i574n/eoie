@@ -1,5 +1,3 @@
-open eoie_do_model.model
-
 nominal record_list = $'std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>'
 
 let compiled_text (~text : string) : string = $'eoie_do_program::eoie_do_program_compiled(&*!text)' : string
@@ -7,43 +5,31 @@ let compiled_text (~text : string) : string = $'eoie_do_program::eoie_do_program
 let records_of (~encoded : string) : record_list =
     $'std::rc::Rc::new((&*!encoded).split(char::from(30u8)).map(|record| record.split(char::from(31u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
 
-inl record_count (~records : record_list) : i32 = $'!records.len() as i32' : i32
 let field_at (~records : record_list) (~record : i32) (~field : i32) : string =
     $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).cloned().unwrap_or_default()' : string
 inl has_query (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false))' : bool
-inl decimal_of (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+inl has_fact (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| ["hash", "env", "exists", "nearest", "json", "lines", "table", "dirs", "tag", "count", "diff"].contains(&&**verb) || (&**verb == "files" && fields.iter().any(|word| &**word == "wcount"))).unwrap_or(false))' : bool
+inl has_run (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| ["run", "errors", "processes", "stop"].contains(&&**verb)).unwrap_or(false))' : bool
+inl has_write (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "append" || &**verb == "copy").unwrap_or(false))' : bool
+inl has_edit (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "edit").unwrap_or(false))' : bool
+
+union program_family =
+    | Edits
+    | Reads
+    | Facts
+    | Runs
+    | Writes
 
 union compiled_program =
-    | Compiled : steps
     | CompileRejected : string
-    | QueryProgram : string
-
-let count_of (~kind : string) (~wanted : string) : replace_count =
-    if kind = "once" then Once elif kind = "all" then Every else Exactly (decimal_of wanted)
-
-let rec rules_decoded (~records : record_list) (~index : i32) : rule_list * i32 =
-    if index < record_count records && field_at records index 0i32 = "replace" then
-        inl rule = { anchor = field_at records index 3i32; replacement = field_at records index 4i32; count = count_of (field_at records index 1i32) (field_at records index 2i32) }
-        inl rest, next = rules_decoded records (index + 1i32)
-        (Rule (rule, rest), next)
-    else (NoRules, index)
-
-let rec steps_decoded (~records : record_list) (~index : i32) : steps =
-    if index < record_count records then
-        inl kind = field_at records index 0i32
-        if kind = "edit" then
-            inl files = field_at records index 3i32
-            inl expectation = if files = "-" then Unchecked else Expected (decimal_of files, decimal_of (field_at records index 4i32))
-            inl mode = if field_at records index 2i32 = "preview" then Preview else Apply
-            inl rules, next = rules_decoded records (index + 1i32)
-            Step (EditStep { target = field_at records index 1i32; mode = mode; expectation = expectation; rules = rules }, steps_decoded records next)
-        elif kind = "show" then Step (ShowStep (field_at records index 1i32), steps_decoded records (index + 1i32))
-        else steps_decoded records (index + 1i32)
-    else Done
+    | Delegated : program_family * string
 
 let program_decoded (~text : string) : compiled_program =
     inl encoded = compiled_text text
     inl records = records_of encoded
     if field_at records 0i32 0i32 = "ok" then
-        if has_query records then QueryProgram encoded else Compiled (steps_decoded records 1i32)
+        if has_run records then Delegated ((if has_edit records then Edits else Runs), encoded)
+        elif has_write records then Delegated (Writes, encoded)
+        elif has_fact records then Delegated (Facts, encoded)
+        elif has_query records then Delegated (Reads, encoded) else Delegated (Edits, encoded)
     else CompileRejected (field_at records 1i32 0i32)

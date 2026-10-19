@@ -25,8 +25,10 @@ let job_summary (~verb : string) (~id : string) : string =
     inl head = concat5 "eoie job " verb " ok id=" id " state="
     inl codes = concat5 (state_word state) " exit=" ($'std::rc::Rc::<str>::from((!(state_exit state)).to_string())' : string) " elapsed_ms=" (decimal_text (elapsed_of id))
     inl sizes = concat5 " stdout_bytes=" (decimal_text (file_bytes (job_file id "stdout.log"))) " stderr_bytes=" (decimal_text (file_bytes (job_file id "stderr.log"))) ""
+    inl detail = exit_detail (text_or_empty (job_file id "exit"))
+    inl detail_text = if detail = "" then "" else concat5 " detail=\"" detail "\"" "" ""
     inl label = concat5 " label=" (text_or_empty (job_file id "label")) "" "" ""
-    concat5 head codes sizes label ""
+    concat5 head codes sizes detail_text label
 
 let rejected (~message : string) : i32 =
     stderr_line (concat5 "eoie error: job " message "" "" "")
@@ -110,8 +112,8 @@ let rec supervised (child : child_process) (~id : string) (deadline : u64) (beat
         inl _ = text_written (job_file id "exit") (exit_line exit (now_ms ()) (JobFinished exit) "")
         exit
     elif now_ms () > deadline then
-        child_killed child
-        inl _ = text_written (job_file id "exit") (exit_line 124i32 (now_ms ()) JobTimedOut "wall-clock timeout")
+        inl stop = tree_stop_of (child_tree_stopped child)
+        inl _ = text_written (job_file id "exit") (exit_line 124i32 (now_ms ()) JobTimedOut (timeout_detail stop))
         124i32
     else
         inl now = now_ms ()

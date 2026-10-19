@@ -85,6 +85,16 @@ inl exit_line (code : i32) (ended : u64) (state : job_state) (~detail : string) 
     inl ended_text = $'std::rc::Rc::<str>::from((!ended).to_string())' : string
     concat5 code_text "\t" ended_text "\t" (concat5 (state_word state) "\t" detail "\n" "")
 
+union tree_stop =
+    | TreeStopped
+    | SurvivorsLeft : u64
+
+inl tree_stop_of (~survivors : u64) : tree_stop = if survivors = 0u64 then TreeStopped else SurvivorsLeft survivors
+
+inl timeout_detail = function
+    | TreeStopped => "wall-clock timeout; process tree stopped"
+    | SurvivorsLeft count => concat5 "wall-clock timeout; " ($'std::rc::Rc::<str>::from((!count).to_string())' : string) " processes left alive" "" ""
+
 inl label_safe (~label : string) : string =
     $'std::rc::Rc::<str>::from(!label.chars().map(|c| if c.is_ascii_alphanumeric() || c == char::from(45u8) { c } else { char::from(95u8) }).take(40).collect::<String>())' : string
 
@@ -107,3 +117,9 @@ test job_states_follow_the_registry_records =
 test labels_become_safe_directory_names =
     expect (label_safe "eoie regen: batch 1/7" = "eoie_regen__batch_1_7") "unsafe characters"
     expect (job_command_of "wait" <> JobUnknown) "known verb"
+
+///> rust
+test a_timeout_names_what_survived_the_tree_stop =
+    expect (timeout_detail (tree_stop_of 0u64) = "wall-clock timeout; process tree stopped") "clean stop"
+    expect (timeout_detail (tree_stop_of 2u64) = "wall-clock timeout; 2 processes left alive") "survivors counted"
+    expect (exit_detail (exit_line 124i32 9u64 JobTimedOut (timeout_detail (tree_stop_of 2u64))) = "wall-clock timeout; 2 processes left alive") "detail round trip"

@@ -593,9 +593,39 @@ dependencies = [
 name = "eoie-do"
 version = "0.0.0"
 dependencies = [
+ "eoie-do-edit",
+ "eoie-do-facts",
+ "eoie-do-process",
  "eoie-do-program",
  "eoie-do-read",
+ "eoie-do-write",
+]
+
+[[package]]
+name = "eoie-do-edit"
+version = "0.0.0"
+dependencies = [
+ "eoie-do-process",
  "sha2",
+]
+
+[[package]]
+name = "eoie-do-facts"
+version = "0.0.0"
+dependencies = [
+ "eoie-do-read",
+ "eoie-do-tables",
+ "regex",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
+name = "eoie-do-process"
+version = "0.0.0"
+dependencies = [
+ "regex",
+ "sysinfo",
 ]
 
 [[package]]
@@ -607,6 +637,18 @@ name = "eoie-do-read"
 version = "0.0.0"
 dependencies = [
  "rayon",
+ "regex",
+]
+
+[[package]]
+name = "eoie-do-tables"
+version = "0.0.0"
+
+[[package]]
+name = "eoie-do-write"
+version = "0.0.0"
+dependencies = [
+ "eoie-do-read",
  "regex",
 ]
 

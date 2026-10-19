@@ -1,0 +1,130 @@
+///- --package .
+test grammar static =
+    open rust_std_string.model
+    open host
+
+open rust_std_string.model
+open host
+
+union process_step =
+    | RunForeground : string * u64
+    | RunUntil : string * string * u64
+    | RunBackground : string * string
+    | TailOutput : u64
+    | SearchOutput : string
+    | ErrorsBy : string
+    | ProcessesMatching : string
+    | StopNamed : string
+
+union step_parse =
+    | StepParsed : process_step
+    | StepRejected : string
+
+union run_end =
+    | Exited : i64
+    | TimedOut
+    | Matched
+    | NoMatch
+    | ExitedBeforeMatch : i64
+    | BadPattern
+
+inl run_end_of (~kind : u8) (~value : i64) : run_end =
+    if kind = 1u8 then Exited value
+    elif kind = 2u8 then TimedOut
+    elif kind = 3u8 then Matched
+    elif kind = 4u8 then NoMatch
+    elif kind = 5u8 then ExitedBeforeMatch value
+    else BadPattern
+
+inl run_end_failed = function
+    | Exited code => code <> 0i64
+    | Matched => false
+    | _ => true
+
+let run_end_text (~command : string) (~needle : string) (~timeout_ms : u64) (~elapsed_ms : u64) (~lines : u64) (finish : run_end) : string =
+    inl head = concat5 "run " command "  " "" ""
+    inl lines_text = concat5 "  lines " ($'std::rc::Rc::<str>::from((!lines).to_string())' : string) "" "" ""
+    inl quoted = concat5 "\"" needle "\"" "" ""
+    match finish with
+    | Exited code => concat5 head "exit " (signed_text code) lines_text (concat5 "  " (duration_text elapsed_ms) "" "" "")
+    | TimedOut => concat5 head "timed out after " (timeout_text timeout_ms) "  stopped (tree)" lines_text
+    | Matched => concat5 head "matched " quoted " after " (concat5 (duration_text elapsed_ms) "  stopped (tree)  exit killed" "" "" "")
+    | NoMatch => concat5 head "no match for " quoted (concat5 " in " (timeout_text timeout_ms) "  stopped (tree)" "" "") lines_text
+    | ExitedBeforeMatch code => concat5 head "exited " (signed_text code) (concat5 " before matching " quoted "" "" "") lines_text
+    | BadPattern => concat5 head "invalid pattern " quoted "  stopped (tree)" ""
+
+inl in_output (~records : record_list) (~record : i32) : bool = body_at records record (field_index records record "in" + 1i32) = "output"
+
+let run_parsed (~records : record_list) (~record : i32) : step_parse =
+    inl command = command_words records record
+    inl timeout_at = field_index records record "timeout"
+    inl timeout = if timeout_at < 0i32 then 600000u64 else duration_ms (body_at records record (timeout_at + 1i32))
+    inl background_at = field_index records record "background"
+    if command = "" then StepRejected "run: expected a command"
+    elif timeout = 0u64 then StepRejected "timeout: expected a duration like 20s"
+    elif background_at >= 0i32 then
+        inl name = body_at records record (field_index records record "as" + 1i32)
+        if name = "" then StepRejected "background: expected as <name>" else StepParsed (RunBackground (command, name))
+    elif field_index records record "until" >= 0i32 then
+        inl needle = first_of_kind records record 113u8
+        if needle = "" then StepRejected "until: expected output ~ \"<regex>\"" else StepParsed (RunUntil (command, needle, timeout))
+    else StepParsed (RunForeground (command, timeout))
+
+let step_parsed (~records : record_list) (~record : i32) : step_parse =
+    inl verb = field_at records record 1i32
+    inl needle = first_of_kind records record 113u8
+    if verb = "run" then run_parsed records record
+    elif verb = "tail" then
+        if first_of_kind records record 119u8 <> "output" then StepRejected "tail: a run program reads its own output: tail output <n>"
+        else
+            inl count = decimal_of (body_at records record 3i32)
+            StepParsed (TailOutput (if count = 0u64 then 10u64 else count))
+    elif verb = "search" then
+        if needle = "" then StepRejected "search: expected a quoted pattern"
+        elif in_output records record then StepParsed (SearchOutput needle)
+        else StepRejected "search: a run program searches its own output: search \"<regex>\" in output"
+    elif verb = "errors" then
+        if needle = "" || field_index records record "by" < 0i32 then StepRejected "errors: expected errors in output by \"<regex>\"" else StepParsed (ErrorsBy needle)
+    elif verb = "processes" then
+        if needle = "" then StepRejected "processes: expected where command ~ \"<regex>\"" else StepParsed (ProcessesMatching needle)
+    elif verb = "stop" then
+        inl name = first_of_kind records record 119u8
+        if name = "" then StepRejected "stop: expected a run name" else StepParsed (StopNamed name)
+    else StepRejected (concat5 verb " cannot share one program with run yet; run it as its own call" "" "" "")
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl records_from_bars (~text : string) : record_list =
+    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
+
+inl rejection_at (~records : record_list) (~record : i32) : string =
+    match step_parsed records record with
+    | StepRejected message => message
+    | StepParsed _ => ""
+
+///> rust
+test run_statements_parse_into_steps =
+    inl records = records_from_bars "ok\nquery|run|wserver.cmd|wuntil|woutput|w~|qserver online|wtimeout|w20s|wthen|wstop\nquery|tail|woutput|w2\nquery|run|wsleeper.cmd|wbackground|was|ws1\nquery|errors|win|woutput|wby|qerror (FS[0-9]+)\nquery|run|wcargo|wbuild|w-p|weoie"
+    match step_parsed records 1i32 with
+    | StepParsed (RunUntil (command, needle, timeout)) => expect (command = "server.cmd" && needle = "server online" && timeout = 20000u64) "run until"
+    | _ => expect false "run until"
+    match step_parsed records 2i32 with
+    | StepParsed (TailOutput count) => expect (count = 2u64) "tail output"
+    | _ => expect false "tail output"
+    match step_parsed records 3i32 with
+    | StepParsed (RunBackground (command, name)) => expect (command = "sleeper.cmd" && name = "s1") "background"
+    | _ => expect false "background"
+    match step_parsed records 4i32 with
+    | StepParsed (ErrorsBy needle) => expect (needle = "error (FS[0-9]+)") "errors by"
+    | _ => expect false "errors"
+    match step_parsed records 5i32 with
+    | StepParsed (RunForeground (command, timeout)) => expect (command = "cargo build -p eoie" && timeout = 600000u64) "multi-word command"
+    | _ => expect false "foreground"
+
+///> rust
+test run_endings_read_as_one_line_each =
+    expect (run_end_text "build.cmd" "" 600000u64 42u64 4u64 (run_end_of 1u8 1i64) = "run build.cmd  exit 1  lines 4  42ms") "exited"
+    expect (run_end_failed (run_end_of 1u8 1i64)) "nonzero exit fails"
+    expect (run_end_failed (run_end_of 3u8 0i64) = false) "a match is a success"
+    expect (run_end_text "s.cmd" "online" 20000u64 900u64 2u64 (run_end_of 4u8 0i64) = "run s.cmd  no match for \"online\" in 20s  stopped (tree)  lines 2") "no match"
+    expect (rejection_at (records_from_bars "ok\nquery|tail|wlogs/a.log|w2") 1i32 = "tail: a run program reads its own output: tail output <n>") "foreign tail"

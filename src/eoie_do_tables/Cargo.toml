@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "do_tables.rs"
+
+[package]
+name = "eoie-do-tables"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do_tables"
+path = "do_tables.rs"

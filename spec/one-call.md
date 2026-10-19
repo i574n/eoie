@@ -160,12 +160,12 @@ eoie do . 'diff a.tsv b.tsv by id,backend on compile,exit,residual'
 ```
 
 ```expected
-key       column    a      b
-s2|C      residual  bb     cc
-s3|Rust   compile   error  ok
-s3|Rust   exit             3
-s3|Rust   residual         dd
-added     s4|C
+key      column    a      b
+s2|C     residual  bb     cc
+s3|Rust  compile   error  ok
+s3|Rust  exit             3
+s3|Rust  residual         dd
+added    s4|C
 ok  rows a 3  b 4  changed 2  added 1  removed 0  <elapsed>  <clock>
 ```
 
@@ -416,8 +416,8 @@ eoie do . 'run sleeper.cmd background as s1; processes where command ~ "sleeper.
 
 ```expected
 run sleeper.cmd  background as s1  pid <pid>
-pid    started  command
-<pid>  <HH:mm>  cmd.exe /c sleeper.cmd
+pid      started  command
+<pid>    <HH:mm>  cmd.exe /c sleeper.cmd
 stop s1  stopped (tree)
 ok  runs 1  processes 1  stopped 1  <elapsed>  <clock>
 ```

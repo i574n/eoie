@@ -1,0 +1,84 @@
+///- --package .
+test grammar static =
+    open rust_std_string.model
+    open host
+
+open rust_std_string.model
+open host
+
+union write_step =
+    | AppendLine : string * string
+    | CopyTree : string * string * string
+    | ReadAfter
+    | Blank
+
+union write_parse =
+    | WriteParsed : write_step
+    | WriteRejected : string
+
+let append_parsed (~records : record_list) (~record : i32) : write_parse =
+    inl path = body_at records record 2i32
+    if path = "" || quoted_at records record 2i32 then WriteRejected "append: expected a file, then the quoted line"
+    elif quoted_at records record 3i32 = false then WriteRejected "append: expected the quoted line after the file"
+    else WriteParsed (AppendLine (path, body_at records record 3i32))
+
+let copy_parsed (~records : record_list) (~record : i32) : write_parse =
+    inl source = body_at records record 2i32
+    inl to_at = field_index records record "to"
+    inl except_at = field_index records record "except"
+    if source = "" || source = "to" then WriteRejected "copy: expected copy <glob> to <folder> [except <glob,...>]"
+    elif to_at < 0i32 then WriteRejected "copy: expected to <folder>"
+    else
+        inl destination = body_at records record (to_at + 1i32)
+        inl excluded = if except_at < 0i32 then "" else items_span records record (except_at + 1i32)
+        if destination = "" || destination = "except" then WriteRejected "to: expected a folder after it"
+        elif except_at > 0i32 && excluded = "" then WriteRejected "except: expected a glob after it"
+        else WriteParsed (CopyTree (source, destination, excluded))
+
+let write_parsed (~records : record_list) (~record : i32) : write_parse =
+    inl kind = field_at records record 0i32
+    inl verb = field_at records record 1i32
+    if kind = "" then WriteParsed Blank
+    elif kind <> "query" then WriteRejected "edit and write statements cannot share one program yet; run them as two calls"
+    elif verb = "append" then append_parsed records record
+    elif verb = "copy" then copy_parsed records record
+    elif pipe_member "search|read|files|head|tail|wait" verb then WriteParsed ReadAfter
+    else WriteRejected (concat5 verb " cannot share one program with append or copy yet; run it as its own call" "" "" "")
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl records_from_bars (~text : string) : record_list =
+    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
+
+inl rejection_at (~records : record_list) (~record : i32) : string =
+    match write_parsed records record with
+    | WriteRejected message => message
+    | WriteParsed _ => ""
+
+///> rust
+test write_statements_parse_into_one_domain =
+    inl records = records_from_bars "ok\nquery|append|wBOARD.md|q- {clock:HH:mm} lane 3: done\nquery|copy|wsrc/**|wto|wbackup|wexcept|w*.tmp,|w*.log\nquery|tail|wBOARD.md|w2"
+    match write_parsed records 1i32 with
+    | WriteParsed (AppendLine (path, text)) => expect (path = "BOARD.md" && text = "- {clock:HH:mm} lane 3: done") "append parts"
+    | _ => expect false "append"
+    match write_parsed records 2i32 with
+    | WriteParsed (CopyTree (source, destination, excluded)) => expect (source = "src/**" && destination = "backup" && excluded = "*.tmp\n*.log") "copy parts"
+    | _ => expect false "copy"
+    expect (rejection_at records 3i32 = "") "a read after the writes"
+
+///> rust
+test incomplete_write_statements_are_rejected =
+    inl records = records_from_bars "ok\nquery|append|wBOARD.md\nquery|copy|wsrc/**|wbackup\nquery|hash|wa,|wb\nedit|a.txt|apply|-|-"
+    expect (rejection_at records 1i32 = "append: expected the quoted line after the file") "append without a line"
+    expect (rejection_at records 2i32 = "copy: expected to <folder>") "copy without to"
+    expect (rejection_at records 3i32 = "hash cannot share one program with append or copy yet; run it as its own call") "foreign family"
+    expect (rejection_at records 4i32 = "edit and write statements cannot share one program yet; run them as two calls") "edits"
+
+///> rust
+test globs_name_their_base_and_exclusions =
+    expect (glob_base "src/**" = "src") "base before the wildcard"
+    expect (glob_base "proj/sub/*.spi" = "proj/sub") "nested base"
+    expect (relative_under "src" "src/sub/c.spi" = "sub/c.spi") "relative path"
+    expect (excluded_by "*.tmp" "src/x.tmp") "excluded by name"
+    expect (excluded_by "*.tmp" "src/a.spi" = false) "kept"
+    expect (excluded_by "src/sub/**" "src/sub/c.spi") "excluded by path"

@@ -1,7 +1,7 @@
 inl rust_global (x : string) : () = !!!!Global(x)
 
 inl emit_runtime () : () = rust_global """
-    use command_spec_domain::{eoie_agile_subcommand_known, eoie_command_code, eoie_command_count, eoie_command_descriptor, eoie_command_descriptor_json, eoie_command_schema_witness, eoie_command_proxy_usage, eoie_proxy_route_code, eoie_proxy_route_witness, eoie_help_flag_code, eoie_help_flag_witness};
+    use command_spec_domain::{eoie_agile_subcommand_known, eoie_command_code, eoie_command_count, eoie_command_more_usages, eoie_command_descriptor, eoie_command_descriptor_json, eoie_command_schema_witness, eoie_command_proxy_usage, eoie_proxy_route_code, eoie_proxy_route_witness, eoie_help_flag_code, eoie_help_flag_witness};
     use canonical_plan_ir_domain::{eoie_plan_ir_count, eoie_plan_ir_decode_code, eoie_plan_ir_descriptor, eoie_plan_ir_index_valid, eoie_plan_ir_projection_witness, eoie_plan_ir_schema, eoie_plan_ir_stage_witness};
     use eoie_agile_lease::lease_authority_code;
 
@@ -294,6 +294,7 @@ inl emit_runtime () : () = rust_global """
         }
         println!("usage: eoie <status|patch|agile|bundle|proxy|help> ...");
         for index in 0..count { let descriptor = eoie_command_descriptor(&index.to_string()); println!("{}", descriptor.2); }
+        println!("{}", eoie_command_more_usages());
         println!("deployment: runtime operations are compilerless; source-author and prune-uncovered are build-authoring operations requiring EOIE_SPIRAL_COMPILE");
         0
     }

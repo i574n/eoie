@@ -2,7 +2,6 @@ packages:
     |core-
     rust_std_string
     eoie_receipt
-    eoie_do_model
 modules:
     host
     decode

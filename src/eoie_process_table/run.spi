@@ -16,19 +16,25 @@ let list_run (~started : u64) : i32 =
     receipt_line Succeeded (concat5 "processes " (decimal_text (listing_count listing)) "" "" "") started
     0i32
 
-let rec stops_from (~index : i32) (~count : i32) (~tree : bool) (~own : u64) (~ancestors : string) (~stopped : u64) (~refused : u64) : u64 * u64 =
+let stop_once (~word : string) (~pid : u64) (~tree : bool) : bool =
+    inl tally = process_stopped pid tree
+    inl result = stop_result_of (tally_stopped tally) (tally_total tally)
+    stdout_line (stop_text word result)
+    stop_complete result
+
+let rec stops_from (~index : i32) (~count : i32) (~tree : bool) (~own : u64) (~ancestors : string) (~stopped : u64) (~failed : u64) : u64 * u64 =
     if index < count then
         inl word = argument index
-        if word = "--tree" then stops_from (index + 1i32) count tree own ancestors stopped refused
+        if word = "--tree" then stops_from (index + 1i32) count tree own ancestors stopped failed
         else
             match stop_refusal_of word own ancestors with
             | Allowed pid =>
-                stdout_line (process_stopped pid tree)
-                stops_from (index + 1i32) count tree own ancestors (stopped + 1u64) refused
+                if stop_once word pid tree then stops_from (index + 1i32) count tree own ancestors (stopped + 1u64) failed
+                else stops_from (index + 1i32) count tree own ancestors stopped (failed + 1u64)
             | refusal =>
                 stdout_line (refusal_text word refusal)
-                stops_from (index + 1i32) count tree own ancestors stopped (refused + 1u64)
-    else (stopped, refused)
+                stops_from (index + 1i32) count tree own ancestors stopped (failed + 1u64)
+    else (stopped, failed)
 
 let stop_run (~started : u64) : i32 =
     inl count = argument_count ()
@@ -36,9 +42,9 @@ let stop_run (~started : u64) : i32 =
         stdout_line (concat5 "usage: eoie " (process_usage ()) "" "" "")
         2i32
     else
-        inl stopped, refused = stops_from 2i32 count (flag_present "--tree" 2i32 count) (own_pid ()) (ancestor_pids ()) 0u64 0u64
-        inl counts = concat5 "stopped " (decimal_text stopped) "  refused " (decimal_text refused) ""
-        if refused = 0u64 then
+        inl stopped, failed = stops_from 2i32 count (flag_present "--tree" 2i32 count) (own_pid ()) (ancestor_pids ()) 0u64 0u64
+        inl counts = concat5 "stopped " (decimal_text stopped) "  failed " (decimal_text failed) ""
+        if failed = 0u64 then
             receipt_line Succeeded counts started
             0i32
         else

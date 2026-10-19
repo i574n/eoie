@@ -118,14 +118,18 @@ inl command_usages () : string =
 
         bundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>
         proxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew
+        help [verb|--completion|--json|--schema] | proxy <capability>
         repo: state <root> [<root>...]
         read <path>[:from-to]... [--max-lines n] | lines <path|glob>... | grep <root> <needle> [--glob pattern] [--context n] [--max n] [--ignore-case]
         table: query <file> [--where col=value]... [--cols a,b] [--group col] [--limit n] | diff <left> <right> --key a,b [--cols x,y] [--limit n]
-        do <root> '<program>' | do <root> - (stdin); edit <path|glob> [dry-run] [expect files n replacements n] / replace once|all|<n> times "old" with "new" / show <path>; search [literal] "re" in <glob> [include a,b] [exclude glob] [context n[,m]] [first n per file] [paths] / read <path> around "text" [context n[,m]] / files <glob> / head <glob> n / tail <glob> n / wait <file> ~ "re" [timeout 5s]
+        do <root> '<program>' | do <root> - (stdin); edit <path|glob> [dry-run] [expect files n replacements n] / replace once|all|<n> times "old" with "new" / show <path>; search [literal] "re" in <glob> [include a,b] [exclude glob] [context n[,m]] [first n per file] [paths] / read <path> around "text" [context n[,m]] / files <glob> / head <glob> n / tail <glob> n / wait <file> ~ "re" [timeout 5s]; hash <a,b,...> / env <A,B> / exists <a,b> / nearest "re" before lines n,m in <file> / json <file> get a.b,c.length / lines <file> count by "(re)" / files <glob> count by extension / table <file.tsv> [where col = "v"|col <> "v"] count by a,b / dirs <dir/*> having a and b + tag <name> = <file> ~ "re" [and|or|not ...] + count by <name> / diff <a.tsv> <b.tsv> by k1,k2 [on c1,c2]; run <cmd> [timeout 10s] [until output ~ "re" then stop] [background as name] / tail output n / search "re" in output / errors in output by "(re)" / processes where command ~ "re" / stop <name>; append <file> "line {clock:HH:mm}" / copy <glob> to <dir> [except *.tmp,...], then read statements
         ps [regex] [--tree] | kill <pid>... [--tree] (never this eoie or its calling shells)
         job: start [--heavy] <label> <timeout-ms> <program> [args...] | status <id> | wait <id> <max-ms> | list [count] | tail <id> [lines]
-        help [verb|--completion|--json|--schema] | proxy <capability>
         """))
+
+let command_more_usages () : string =
+    inl usages = command_usages ()
+    $'std::rc::Rc::<str>::from(!usages.lines().skip(6).collect::<Vec<_>>().join("\n"))' : string
 
 let command_descriptor_by_index (~input : string) : string * string * string * string * string =
     inl keys = "0|1|2|3|4|5"

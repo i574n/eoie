@@ -1,0 +1,147 @@
+///- --package .
+test grammar static =
+    open rust_std_string.model
+    open host
+
+open rust_std_string.model
+open host
+
+union fact =
+    | HashFiles : string
+    | EnvValues : string
+    | PathsExist : string
+    | NearestMarker : string * string * string
+    | JsonFields : string * string
+    | LinesCounted : string * string
+    | FilesCounted : string
+    | TableCounted : string * string * bool * string * string
+    | DirsClassified : i32
+    | DirsDetail
+
+union fact_parse =
+    | FactParsed : fact
+    | FactRejected : string
+
+let listed_fact (~verb : string) (~items : string) : fact_parse =
+    if items = "" then FactRejected (concat5 verb ": expected a list of names" "" "" "")
+    elif verb = "hash" then FactParsed (HashFiles items)
+    elif verb = "env" then FactParsed (EnvValues items)
+    else FactParsed (PathsExist items)
+
+let nearest_fact (~records : record_list) (~record : i32) : fact_parse =
+    inl pattern = first_of_kind records record 113u8
+    inl lines_at = field_index records record "lines"
+    inl in_at = field_index records record "in"
+    if pattern = "" then FactRejected "nearest: expected a quoted pattern"
+    elif lines_at < 0i32 then FactRejected "nearest: expected before lines <n,...>"
+    elif in_at < lines_at then FactRejected "nearest: expected in <file> after the lines"
+    else
+        inl path = body_at records record (in_at + 1i32)
+        if path = "" then FactRejected "in: expected a value after it"
+        else FactParsed (NearestMarker (pattern, items_span records record (lines_at + 1i32) in_at, path))
+
+let json_fact (~records : record_list) (~record : i32) : fact_parse =
+    inl path = first_of_kind records record 119u8
+    inl get_at = field_index records record "get"
+    if path = "" || path = "get" then FactRejected "json: expected a file"
+    elif get_at < 0i32 then FactRejected "json: expected get <field,...>"
+    else
+        inl fields = items_span records record (get_at + 1i32) (-1i32)
+        if fields = "" then FactRejected "get: expected a value after it" else FactParsed (JsonFields (path, fields))
+
+let counted_fact (~records : record_list) (~record : i32) (~verb : string) : fact_parse =
+    inl target = first_of_kind records record 119u8
+    inl by_at = field_index records record "by"
+    if target = "" || target = "count" then FactRejected (concat5 verb ": expected a path" "" "" "")
+    elif field_index records record "count" < 0i32 || by_at < 0i32 then FactRejected (concat5 verb ": expected count by ..." "" "" "")
+    elif verb = "files" then
+        if body_at records record (by_at + 1i32) = "extension" then FactParsed (FilesCounted target)
+        else FactRejected "files count by: only extension is supported"
+    else
+        inl pattern = first_of_kind records record 113u8
+        if pattern = "" then FactRejected "lines count by: expected a quoted regex" else FactParsed (LinesCounted (target, pattern))
+
+let table_fact (~records : record_list) (~record : i32) : fact_parse =
+    inl path = first_of_kind records record 119u8
+    inl where_at = field_index records record "where"
+    inl by_at = field_index records record "by"
+    inl operator = if where_at < 0i32 then "=" else body_at records record (where_at + 2i32)
+    if path = "" || path = "where" || path = "count" then FactRejected "table: expected a file"
+    elif by_at < 0i32 then FactRejected "table: expected count by <column,...>"
+    elif operator <> "=" && operator <> "<>" then FactRejected "where: expected <column> = \"value\" or <column> <> \"value\""
+    else
+        inl groups = items_span records record (by_at + 1i32) (-1i32)
+        inl column = if where_at < 0i32 then "" else body_at records record (where_at + 1i32)
+        if groups = "" then FactRejected "by: expected a value after it" else FactParsed (TableCounted (path, column, operator = "=", body_at records record (where_at + 3i32), groups))
+
+let rec dirs_above (~records : record_list) (~record : i32) : bool =
+    if record < 1i32 then false
+    else
+        inl verb = field_at records record 1i32
+        if verb = "dirs" then true elif verb = "tag" || verb = "count" then dirs_above records (record - 1i32) else false
+
+let dirs_fact (~records : record_list) (~record : i32) : fact_parse =
+    inl target = first_of_kind records record 119u8
+    if target = "" || target = "having" then FactRejected "dirs: expected a folder or folder/*"
+    elif field_index records record "having" < 0i32 then FactRejected "dirs: expected having <file> [and <file>...]"
+    else FactParsed (DirsClassified record)
+
+let fact_parsed (~records : record_list) (~record : i32) : fact_parse =
+    inl verb = field_at records record 1i32
+    if verb = "hash" || verb = "env" || verb = "exists" then listed_fact verb (items_span records record 2i32 (-1i32))
+    elif verb = "nearest" then nearest_fact records record
+    elif verb = "json" then json_fact records record
+    elif verb = "lines" || verb = "files" then counted_fact records record verb
+    elif verb = "table" then table_fact records record
+    elif verb = "dirs" then dirs_fact records record
+    elif verb = "tag" || verb = "count" then (if dirs_above records (record - 1i32) then FactParsed DirsDetail else FactRejected (concat5 verb ": needs a dirs line above it" "" "" ""))
+    else FactRejected (concat5 verb " cannot share one program with hash, env, exists, nearest, json, table, dirs or count by yet; run it as its own call" "" "" "")
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl records_from_bars (~text : string) : record_list =
+    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
+
+inl rejection_at (~records : record_list) (~record : i32) : string =
+    match fact_parsed records record with
+    | FactRejected message => message
+    | FactParsed _ => ""
+
+///> rust
+test fact_statements_parse_into_one_domain =
+    inl records = records_from_bars "ok\nquery|hash|wa.bin,|wb.bin,|wc.bin\nquery|nearest|q^/// ## |wbefore|wlines|w3,6|win|wbig.fs\nquery|json|wpackage.json|wget|wname,|wscripts.build\nquery|lines|wapp.log|wcount|wby|q^(\\w+)\nquery|files|wproj/**|wcount|wby|wextension"
+    match fact_parsed records 1i32 with
+    | FactParsed (HashFiles items) => expect (items = "a.bin\nb.bin\nc.bin") "hash list"
+    | _ => expect false "hash"
+    match fact_parsed records 2i32 with
+    | FactParsed (NearestMarker (pattern, lines, path)) => expect (pattern = "^/// ## " && lines = "3\n6" && path = "big.fs") "nearest parts"
+    | _ => expect false "nearest"
+    match fact_parsed records 3i32 with
+    | FactParsed (JsonFields (path, fields)) => expect (path = "package.json" && fields = "name\nscripts.build") "json parts"
+    | _ => expect false "json"
+    match fact_parsed records 4i32 with
+    | FactParsed (LinesCounted (path, _)) => expect (path = "app.log") "lines count"
+    | _ => expect false "lines"
+    match fact_parsed records 5i32 with
+    | FactParsed (FilesCounted target) => expect (target = "proj/**") "files count"
+    | _ => expect false "files"
+    match fact_parsed (records_from_bars "ok\nquery|table|wresults.tsv|wwhere|wstatus|w<>|qok|wcount|wby|wbackend,|wstatus") 1i32 with
+    | FactParsed (TableCounted (path, column, keep_equal, value, groups)) => expect (path = "results.tsv" && column = "status" && keep_equal = false && value = "ok" && groups = "backend\nstatus") "table parts"
+    | _ => expect false "table"
+
+///> rust
+test incomplete_fact_statements_are_rejected =
+    inl records = records_from_bars "ok\nquery|hash\nquery|nearest|q^x|win|wbig.fs\nquery|files|wproj|wcount|wby|wsize\nquery|search|qx|win|wsrc"
+    expect (rejection_at records 1i32 = "hash: expected a list of names") "empty hash"
+    expect (rejection_at records 2i32 = "nearest: expected before lines <n,...>") "nearest without lines"
+    expect (rejection_at records 3i32 = "files count by: only extension is supported") "unknown grouping"
+    expect (rejection_at records 4i32 = "search cannot share one program with hash, env, exists, nearest, json, table, dirs or count by yet; run it as its own call") "mixed families"
+
+///> rust
+test dirs_lines_own_their_tag_and_count_lines =
+    inl records = records_from_bars "ok\nquery|dirs|wsamples/*|whaving|wmain.spi|wand|wmain.c\nquery|tag|wx|w=|wmain.spi|w~|qBackendSwitch\nquery|count|wby|wx\nquery|tag|wy|w=|wa|w~|qb"
+    match fact_parsed records 1i32 with
+    | FactParsed (DirsClassified record) => expect (record = 1i32) "dirs record"
+    | _ => expect false "dirs"
+    expect (rejection_at records 3i32 = "") "count under dirs"
+    expect (rejection_at (records_from_bars "ok\nquery|tag|wy|w=|wa|w~|qb") 1i32 = "tag: needs a dirs line above it") "orphan tag"

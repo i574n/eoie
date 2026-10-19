@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "do_write.rs"
+
+[package]
+name = "eoie-do-write"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do_write"
+path = "do_write.rs"
+
+[dependencies]
+eoie-do-read = { path = "../eoie_do_read" }
+regex = "1.13.1"

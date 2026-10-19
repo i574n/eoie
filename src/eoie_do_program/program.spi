@@ -9,7 +9,7 @@ open eoie_do_model.model
 nominal token_list = $'std::rc::Rc<Vec<(i32, std::rc::Rc<str>)>>'
 
 let tokens_of (~program : string) : token_list =
-    $'{ let newline = char::from(10u8); let semicolon = char::from(59u8); let quote = char::from(34u8); let backslash = char::from(92u8); let mut found: Vec<(i32, std::rc::Rc<str>)> = Vec::new(); let mut characters = (&*!program).chars().peekable(); while let Some(character) = characters.next() { if character == newline || character == semicolon { found.push((2, std::rc::Rc::from(""))); } else if character.is_whitespace() { } else if character == quote { let mut text = String::new(); let mut closed = false; while let Some(inner) = characters.next() { if inner == backslash { match characters.next() { Some(escaped) if escaped == char::from(110u8) => text.push(newline), Some(escaped) if escaped == char::from(116u8) => text.push(char::from(9u8)), Some(escaped) => text.push(escaped), None => {} } } else if inner == quote { closed = true; break; } else { text.push(inner); } } found.push((if closed { 1 } else { 3 }, std::rc::Rc::from(text))); } else { let mut text = String::from(character); while let Some(&next) = characters.peek() { if next.is_whitespace() || next == semicolon || next == quote { break; } text.push(next); characters.next(); } found.push((0, std::rc::Rc::from(text))); } } std::rc::Rc::new(found) }' : token_list
+    $'{ let newline = char::from(10u8); let semicolon = char::from(59u8); let quote = char::from(34u8); let backslash = char::from(92u8); let mut found: Vec<(i32, std::rc::Rc<str>)> = Vec::new(); let mut characters = (&*!program).chars().peekable(); while let Some(character) = characters.next() { if character == newline || character == semicolon { found.push((2, std::rc::Rc::from(""))); } else if character.is_whitespace() { } else if character == quote { let mut text = String::new(); let mut closed = false; while let Some(inner) = characters.next() { if inner == backslash { match characters.next() { Some(escaped) if escaped == char::from(110u8) => text.push(newline), Some(escaped) if escaped == char::from(116u8) => text.push(char::from(9u8)), Some(escaped) if escaped == quote || escaped == backslash => text.push(escaped), Some(escaped) => { text.push(backslash); text.push(escaped); } None => {} } } else if inner == quote { closed = true; break; } else { text.push(inner); } } found.push((if closed { 1 } else { 3 }, std::rc::Rc::from(text))); } else { let mut text = String::from(character); while let Some(&next) = characters.peek() { if next.is_whitespace() || next == semicolon || next == quote { break; } text.push(next); characters.next(); } found.push((0, std::rc::Rc::from(text))); } } std::rc::Rc::new(found) }' : token_list
 
 inl token_count (~tokens : token_list) : i32 = $'!tokens.len() as i32' : i32
 inl token_kind (~tokens : token_list) (~index : i32) : i32 = $'!tokens[!index as usize].0' : i32
@@ -145,17 +145,15 @@ let query_at (~tokens : token_list) (~index : i32) (~verb : string) : parsed ste
     | Rejected message => Rejected message
     | Parsed (words, next) => Parsed (QueryStep (verb, words), next)
 
+inl query_verb_known (~word : string) : bool =
+    pipe_member "search|read|files|head|tail|wait|hash|env|exists|nearest|json|lines|table|dirs|diff|tag|count|run|errors|processes|stop|append|copy" word
+
 let step_at (~tokens : token_list) (~index : i32) : parsed step =
     match token_at tokens index with
     | Word word =>
         if word = "edit" then edit_at tokens index
         elif word = "show" then show_at tokens index
-        elif word = "search" then query_at tokens index "search"
-        elif word = "read" then query_at tokens index "read"
-        elif word = "files" then query_at tokens index "files"
-        elif word = "head" then query_at tokens index "head"
-        elif word = "tail" then query_at tokens index "tail"
-        elif word = "wait" then query_at tokens index "wait"
+        elif query_verb_known word then query_at tokens index word
         elif word = "replace" then Rejected "replace: needs an edit line above it"
         else Rejected (concat5 "unsupported statement: " word "" "" "")
     | Unterminated text => Rejected (quoted_problem "unterminated string" text)
@@ -212,6 +210,12 @@ test malformed_programs_are_rejected_with_a_reason =
     expect (rejection_of (program_of "replace once \"a\" with \"b\"") = "replace: needs an edit line above it") "orphan replace"
     expect (rejection_of (program_of "edit a.txt") = "edit a.txt: no replace lines under it") "empty edit"
     expect (rejection_of (program_of "edit a.txt\n replace once \"a\" with \"b") = "unterminated string: \"b\"") "unterminated"
-    expect (rejection_of (program_of "run build.cmd") = "unsupported statement: run") "unsupported"
+    expect (rejection_of (program_of "deploy build.cmd") = "unsupported statement: deploy") "unsupported"
     expect (rejection_of (program_of "edit a.txt\n replace twice \"a\" with \"b\"") = "replace: expected once, all or <n> times") "bad count"
 
+///> rust
+test regex_escapes_survive_the_tokenizer =
+    inl tokens = tokens_of "lines app.log count by \"^(\\w+)\\.\" \"q\\\"t\""
+    match token_at tokens 4i32, token_at tokens 5i32 with
+    | Quoted pattern, Quoted quoted => expect (pattern = "^(\\w+)\\." && quoted = "q\"t") "unknown escapes keep their backslash"
+    | _ => expect false "two quoted tokens"

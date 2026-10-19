@@ -80,21 +80,41 @@ fn closure0() -> Rc<dyn Fn(Rc<str>, Rc<str>, Rc<str>, Rc<str>, bool, u64) -> i32
         let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_bundle_retention/receipt_read.spi"); } LIT.with(|lit| lit.clone()) };
         let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-read-query"); } LIT.with(|lit| lit.clone()) };
         let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_read_query/model.spi"); } LIT.with(|lit| lit.clone()) };
-        let mut v29: Rc<UH0> = { thread_local!{ static CASE: Rc<UH0> = Rc::new(UH0::UH0_NoMoreNotebooks); } CASE.with(|case| case.clone()) };
-        let mut v30: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v27.clone(), v28.clone(), v29.clone()));
-        let mut v31: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v13.clone(), v26.clone(), v30.clone()));
-        let mut v32: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v24.clone(), v25.clone(), v31.clone()));
-        let mut v33: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v22.clone(), v23.clone(), v32.clone()));
-        let mut v34: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v20.clone(), v21.clone(), v33.clone()));
-        let mut v35: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v18.clone(), v19.clone(), v34.clone()));
-        let mut v36: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v16.clone(), v17.clone(), v35.clone()));
-        let mut v37: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v13.clone(), v15.clone(), v36.clone()));
-        let mut v38: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v13.clone(), v14.clone(), v37.clone()));
-        let mut v39: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v11.clone(), v12.clone(), v38.clone()));
-        let mut v40: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v8.clone(), v10.clone(), v39.clone()));
-        let mut v41: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v8.clone(), v9.clone(), v40.clone()));
-        let mut v42: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v6.clone(), v7.clone(), v41.clone()));
-        run_all_0(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4, v5, v42.clone())
+        let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_receipt/receipt.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-do-program"); } LIT.with(|lit| lit.clone()) };
+        let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_do_program/program.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-do-read"); } LIT.with(|lit| lit.clone()) };
+        let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_do_read/grammar.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-process-table"); } LIT.with(|lit| lit.clone()) };
+        let mut v35: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_process_table/model.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v36: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-do-facts"); } LIT.with(|lit| lit.clone()) };
+        let mut v37: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_do_facts/grammar.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-do-process"); } LIT.with(|lit| lit.clone()) };
+        let mut v39: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_do_process/grammar.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v40: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie-do-tables"); } LIT.with(|lit| lit.clone()) };
+        let mut v41: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("src/eoie_do_tables/grammar.spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v42: Rc<UH0> = { thread_local!{ static CASE: Rc<UH0> = Rc::new(UH0::UH0_NoMoreNotebooks); } CASE.with(|case| case.clone()) };
+        let mut v43: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v40.clone(), v41.clone(), v42.clone()));
+        let mut v44: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v38.clone(), v39.clone(), v43.clone()));
+        let mut v45: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v36.clone(), v37.clone(), v44.clone()));
+        let mut v46: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v34.clone(), v35.clone(), v45.clone()));
+        let mut v47: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v32.clone(), v33.clone(), v46.clone()));
+        let mut v48: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v30.clone(), v31.clone(), v47.clone()));
+        let mut v49: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v27.clone(), v29.clone(), v48.clone()));
+        let mut v50: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v27.clone(), v28.clone(), v49.clone()));
+        let mut v51: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v13.clone(), v26.clone(), v50.clone()));
+        let mut v52: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v24.clone(), v25.clone(), v51.clone()));
+        let mut v53: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v22.clone(), v23.clone(), v52.clone()));
+        let mut v54: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v20.clone(), v21.clone(), v53.clone()));
+        let mut v55: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v18.clone(), v19.clone(), v54.clone()));
+        let mut v56: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v16.clone(), v17.clone(), v55.clone()));
+        let mut v57: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v13.clone(), v15.clone(), v56.clone()));
+        let mut v58: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v13.clone(), v14.clone(), v57.clone()));
+        let mut v59: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v11.clone(), v12.clone(), v58.clone()));
+        let mut v60: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v8.clone(), v10.clone(), v59.clone()));
+        let mut v61: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v8.clone(), v9.clone(), v60.clone()));
+        let mut v62: Rc<UH0> = Rc::new(UH0::UH0_SpiralTestNotebook(v6.clone(), v7.clone(), v61.clone()));
+        run_all_0(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4, v5, v62.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_dev_spiral_tests_run(v0: &str, v1: &str, v2: &str, v3: &str, v4: bool, v5: u64) -> i32 {
