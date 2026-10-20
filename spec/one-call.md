@@ -340,8 +340,7 @@ inl a = 1
 eoie do . '
 git init repo
 git commit repo all "first" at 2026-10-01T10:00:00Z
-edit repo/lib.spi
-  append line "inl b = 2"
+append repo/lib.spi "inl b = 2"
 git commit repo all "add b" at 2026-10-02T10:00:00Z'
 ```
 
@@ -619,7 +618,7 @@ git init a; git commit a all "init" at 2026-10-01T10:00:00Z
 git init b; git commit b all "init" at 2026-10-01T10:00:00Z
 edit a/lib.spi
   replace once "x" with "y"
-write a/new.txt "n"'
+append a/new.txt "n"'
 ```
 
 ```command
@@ -789,10 +788,10 @@ eoie do . 'copy src/** to backup except *.tmp; files backup/**'
 
 ```expected
 copy src -> backup  3 files  31 bytes  1 skipped (*.tmp)
-path               bytes  lines
-backup/a.spi       10     1
-backup/b.spi       11     1
-backup/sub/c.spi   10     1
+path              bytes  lines
+backup/a.spi      10     1
+backup/b.spi      11     1
+backup/sub/c.spi  10     1
 ok  files 3 copied  bytes 31  skipped 1  <elapsed>  <clock>
 ```
 
@@ -837,9 +836,9 @@ repo/a.txt
 eoie do . '
 git init repo
 git commit repo all "one" at 2026-10-01T10:00:00Z
-write repo/a.txt "2"
+append repo/a.txt "2"
 git commit repo all "two" at 2026-10-02T09:00:00Z
-write repo/a.txt "3"
+append repo/a.txt "3"
 git commit repo all "three" at 2026-10-02T11:00:00Z'
 ```
 
@@ -927,6 +926,7 @@ lab/convo-in-spiral/bench.fsx
 ```
 
 ```setup
+agile init backlog
 agile add backlog CONVO-IN-SPIRAL Epic P2 D6 "Convo in Spiral" spiral; agile set backlog CONVO-IN-SPIRAL 20 Paused
 agile add backlog PACK-NIGHT Story P0 D3 "Night pack" compiler; agile set backlog PACK-NIGHT 100 Done
 ```
@@ -936,10 +936,10 @@ eoie do . 'lab audit lab against backlog'
 ```
 
 ```expected
-lab                   item             status  progress  verdict
-lab/convo-in-spiral   CONVO-IN-SPIRAL  Paused  20        keep
-lab/old-probe         -                -       -         orphan: no backlog item OLD-PROBE
-lab/pack-night        PACK-NIGHT       Done    100       done: promote or delete
+lab                  item             status  progress  verdict
+lab/convo-in-spiral  CONVO-IN-SPIRAL  Paused  20        keep
+lab/old-probe        -                -       -         orphan: no backlog item OLD-PROBE
+lab/pack-night       PACK-NIGHT       Done    100       done: promote or delete
 lab/convo-in-spiral/bench.fsx:1  non-portable path C:\Users\someone\.nuget\packages\hopac\0.5.1\lib\netstandard2.0\Hopac.dll
 failed  labs 3  keep 1  orphan 1  done 1  stale 0  non-portable 1  <elapsed>  <clock>
 ```

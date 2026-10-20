@@ -4,6 +4,4 @@ inl main () : i32 =
     coverage_export.emit_coverage_export ()
     coverage_union.emit_coverage_union ()
     !!!!Export("eoie_coverage_jobs", ((fun (requested, available) => model.coverage_jobs_binding requested available) : i32 * i32 -> i32))
-    !!!!Export("eoie_lcov_error", ((fun text => lcov.lcov_error text) : string -> string))
-    !!!!Export("eoie_lcov_rows", ((fun text => lcov.lcov_rows text) : string -> string))
     0i32

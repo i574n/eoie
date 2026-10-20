@@ -1,0 +1,48 @@
+nominal record_list = $'std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>'
+
+let records_of (~encoded : string) : record_list =
+    $'std::rc::Rc::new((&*!encoded).split(char::from(30u8)).map(|record| record.split(char::from(31u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
+
+inl record_count (~records : record_list) : i32 = $'!records.len() as i32' : i32
+
+let field_at (~records : record_list) (~record : i32) (~field : i32) : string =
+    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).cloned().unwrap_or_default()' : string
+
+let field_index (~records : record_list) (~record : i32) (~word : string) : i32 =
+    $'!records.get(!record as usize).and_then(|fields| fields.iter().position(|field| field.len() > 1 && field.starts_with(char::from(119u8)) && &field[1..] == &*!word)).map(|index| index as i32).unwrap_or(-1)' : i32
+
+let body_at (~records : record_list) (~record : i32) (~field : i32) : string =
+    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).filter(|field| \!field.is_empty()).map(|field| std::rc::Rc::<str>::from(&field[1..])).unwrap_or_default()' : string
+
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+
+inl column () : string = $'std::rc::Rc::<str>::from(char::from(31u8).to_string())' : string
+
+let line_count (~text : string) : u64 = $'(!text).lines().filter(|line| \!line.is_empty()).count() as u64' : u64
+
+let line_at (~text : string) (~index : u64) : string = $'std::rc::Rc::<str>::from((!text).lines().filter(|line| \!line.is_empty()).nth(!index as usize).unwrap_or(""))' : string
+
+let tab_part (~text : string) (~index : i32) : string = $'std::rc::Rc::<str>::from((!text).split(char::from(9u8)).nth(!index as usize).unwrap_or(""))' : string
+
+let lab_directories (~root : string) (~folder : string) : string =
+    $'{ let mut names = std::fs::read_dir(std::path::Path::new(&*!root).join(&*!folder)).into_iter().flatten().flatten().filter(|entry| entry.path().is_dir()).map(|entry| entry.file_name().to_string_lossy().into_owned()).collect::<Vec<_>>(); names.sort(); std::rc::Rc::<str>::from(names.join("\n")) }' : string
+
+let backlog_items (~root : string) (~backlog : string) : string =
+    $'{ let listed = std::env::current_exe().and_then(|program| std::process::Command::new(program).current_dir(&*!root).args(["agile", "list", &*!backlog, "all", "--json"]).stdin(std::process::Stdio::null()).output()); std::rc::Rc::<str>::from(match listed { Ok(output) if output.status.success() => serde_json::from_slice::<serde_json::Value>(&output.stdout).ok().and_then(|value| value.get("tasks").and_then(|tasks| tasks.as_array()).map(|tasks| tasks.iter().map(|task| format\!("{}{tab}{}{tab}{}{tab}{}", task["id"].as_str().unwrap_or(""), task["status"].as_str().unwrap_or(""), task["progress"].as_u64().unwrap_or(0), task["last_note"].as_str().unwrap_or(""), tab = char::from(9u8))).collect::<Vec<_>>().join("\n"))).unwrap_or_else(|| String::from("error: agile list printed no tasks")), Ok(output) => format\!("error: {}", String::from_utf8_lossy(&output.stderr).trim().trim_start_matches("eoie error: ")), Err(error) => format\!("error: agile list: {error}") }) }' : string
+
+let item_of (~items : string) (~id : string) : string =
+    $'std::rc::Rc::<str>::from((!items).lines().find(|line| line.split(char::from(9u8)).next() == Some(&*!id)).unwrap_or(""))' : string
+
+let item_id_of (~name : string) : string = $'std::rc::Rc::<str>::from((!name).to_uppercase().replace(char::from(95u8), "-"))' : string
+
+let note_age_days (~stamp : string) : u64 =
+    $'{ let stamp = (&*!stamp).trim(); let digits = |from: usize, to: usize| stamp.get(from..to).and_then(|part| part.parse::<i64>().ok()); match (digits(0, 4), digits(5, 7), digits(8, 10)) { (Some(year), Some(month), Some(day)) => { let shifted = if month <= 2 { year - 1 } else { year }; let era = shifted.div_euclid(400); let of_era = shifted - era * 400; let of_year = (153 * (if month > 2 { month - 3 } else { month + 9 }) + 2) / 5 + day - 1; let days = era * 146097 + of_era * 365 + of_era / 4 - of_era / 100 + of_year - 719468; let today = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_secs() as i64 / 86400).unwrap_or(0); (today - days).max(0) as u64 } _ => 0 } }' : u64
+
+let non_portable (~root : string) (~folder : string) : string =
+    $'{ let (b, q, a) = (char::from(92u8), char::from(34u8), char::from(39u8)); let pattern = regex::Regex::new(&format\!("[A-Za-z]:[{b}{b}/]Users[{b}{b}/][^{b}s{q}{a}<>|]+|(?:^|[{b}s{q}{a}=(])/home/[a-z_][a-z0-9_-]*/[^{b}s{q}{a}<>|]+")).unwrap(); fn files(path: &std::path::Path, found: &mut Vec<std::path::PathBuf>) { if path.is_dir() { let mut entries = std::fs::read_dir(path).into_iter().flatten().flatten().map(|entry| entry.path()).collect::<Vec<_>>(); entries.sort(); for entry in entries { files(&entry, found); } } else { found.push(path.to_path_buf()); } } let root = std::path::Path::new(&*!root); let mut found = Vec::new(); files(&root.join(&*!folder), &mut found); let mut rows = Vec::new(); for path in found { let text = String::from_utf8_lossy(&std::fs::read(&path).unwrap_or_default()).into_owned(); let shown = path.strip_prefix(root).unwrap_or(&path).to_string_lossy().replace(b, "/"); for (index, line) in text.lines().enumerate() { for hit in pattern.find_iter(line) { let text = hit.as_str(); let text = if text.get(1..2) == Some(":") { text } else { text.trim_start_matches(|c: char| c \!= char::from(47u8)) }; rows.push(format\!("{}:{}  non-portable path {}", shown, index + 1, text)); } } } std::rc::Rc::<str>::from(rows.join("\n")) }' : string
+
+let ignored_paths (~root : string) (~folder : string) : string =
+    $'{ let marker = format\!("{0}{0} ", char::from(33u8)); let listed = std::process::Command::new("git").current_dir(&*!root).args(["status", "--porcelain", "--ignored=matching", "--untracked-files=all", "--"]).arg(&*!folder).stdin(std::process::Stdio::null()).output(); std::rc::Rc::<str>::from(match listed { Ok(output) if output.status.success() => String::from_utf8_lossy(&output.stdout).lines().filter_map(|line| line.strip_prefix(marker.as_str())).map(|path| path.trim_matches(char::from(34u8)).trim_end_matches(char::from(47u8)).to_owned()).filter(|path| \!path.split(char::from(47u8)).any(|part| part == ".runs")).map(|path| format\!("{path}  ignored by .gitignore (run output outside .runs)")).collect::<Vec<_>>().join("\n"), _ => String::new() }) }' : string
+
+let aligned (~report : string) : string =
+    $'{ let separator = char::from(31u8); let rows = (&*!report).lines().collect::<Vec<_>>(); let mut widths: Vec<usize> = Vec::new(); for row in &rows { if row.contains(separator) { let cells = row.split(separator).collect::<Vec<_>>(); for (index, cell) in cells[..cells.len() - 1].iter().enumerate() { let length = cell.chars().count(); if widths.len() <= index { widths.push(length); } else if widths[index] < length { widths[index] = length; } } } } let shown = rows.iter().map(|row| if row.contains(separator) { let cells = row.split(separator).collect::<Vec<_>>(); let last = cells.len() - 1; cells.iter().enumerate().map(|(index, cell)| if index == last { cell.to_string() } else { format\!("{:<width$}  ", cell, width = widths[index]) }).collect::<String>() } else { row.to_string() }).collect::<Vec<_>>(); std::rc::Rc::<str>::from(shown.join("\n")) }' : string

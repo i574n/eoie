@@ -11,9 +11,9 @@ inl main () : i32 =
     inl diffed = model.source_diff_record_binding 3i32 10i32
     if limits < 1i32 then 1i32
     elif classes < 1i32 then 1i32
-    elif !!!!NEQ(own_surface,0i32) then 1i32
-    elif !!!!NEQ(generated_surface,1i32) then 1i32
-    elif !!!!NEQ(vendor_surface,2i32) then 1i32
+    elif own_surface <> 0i32 then 1i32
+    elif generated_surface <> 1i32 then 1i32
+    elif vendor_surface <> 2i32 then 1i32
     elif mapped_files < 1i32 then 1i32
     elif mapped_edges < 1i32 then 1i32
     elif diffed < 1i32 then 1i32

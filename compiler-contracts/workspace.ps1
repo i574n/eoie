@@ -164,7 +164,14 @@ function Publish-EoieBinary {
         $currentHash = if ([IO.File]::Exists($Destination)) { (Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash } else { $null }
         if ($currentHash -cne $priorHash) { throw 'Installed EOIE changed during candidate validation.' }
         if ($currentHash -ceq $sourceHash) { return $false }
-        [IO.File]::Move($temporary, $Destination, $true)
+        if ($IsWindows -and [IO.File]::Exists($Destination)) {
+            $retiredRoot = Join-Path $env:LOCALAPPDATA 'eoie\retired'
+            [void][IO.Directory]::CreateDirectory($retiredRoot)
+            Get-ChildItem -LiteralPath $retiredRoot -File | ForEach-Object { try { $_.Delete() } catch { } }
+            $retired = Join-Path $retiredRoot "$([IO.Path]::GetFileNameWithoutExtension($Destination))-$(Get-Date -Format yyyyMMddHHmmssfff)$([IO.Path]::GetExtension($Destination))"
+            [IO.File]::Move($Destination, $retired)
+            try { [IO.File]::Move($temporary, $Destination) } catch { [IO.File]::Move($retired, $Destination); throw }
+        } else { [IO.File]::Move($temporary, $Destination, $true) }
         return $true
     } finally {
         if ([IO.File]::Exists($temporary)) { [IO.File]::Delete($temporary) }

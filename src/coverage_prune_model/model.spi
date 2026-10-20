@@ -69,3 +69,15 @@ inl instrumented_workspace_plan () : coverage_run_plan coverage_run_idle coverag
             ))
         ))
     ))
+
+///> rust
+test coverage_jobs_default_is_bounded_and_explicit_jobs_are_validated =
+    inl jobs_are (requested : i32) (available : i32) (expected : i32) : () =
+        if coverage_jobs_binding requested available = expected then () else failwith "coverage_jobs_binding returned an unexpected job count"
+    jobs_are 0i32 1i32 1i32
+    jobs_are 0i32 64i32 2i32
+    jobs_are 1i32 64i32 1i32
+    jobs_are 56i32 64i32 56i32
+    jobs_are 256i32 64i32 256i32
+    jobs_are 257i32 64i32 -1i32
+    jobs_are -1i32 64i32 -1i32

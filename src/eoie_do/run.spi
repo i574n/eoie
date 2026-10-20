@@ -10,6 +10,9 @@ let delegated_run (family : program_family) (~root : string) (~encoded : string)
     | Facts => $'eoie_do_facts::eoie_do_facts_run(&*!root, &*!encoded)' : i32
     | Runs => $'eoie_do_process::eoie_do_process_run(&*!root, &*!encoded)' : i32
     | Writes => $'eoie_do_write::eoie_do_write_run(&*!root, &*!encoded)' : i32
+    | Git => $'eoie_do_git::eoie_do_git_run(&*!root, &*!encoded)' : i32
+    | Jobs => $'eoie_do_jobs::eoie_do_jobs_run(&*!root, &*!encoded)' : i32
+    | Labs => $'eoie_do_lab::eoie_do_lab_run(&*!root, &*!encoded)' : i32
 
 let program_run (~root : string) (~text : string) : i32 =
     inl started = now_ms ()

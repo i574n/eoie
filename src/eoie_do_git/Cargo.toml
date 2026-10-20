@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "do_git.rs"
+
+[package]
+name = "eoie-do-git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do_git"
+path = "do_git.rs"

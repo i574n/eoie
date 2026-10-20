@@ -142,7 +142,7 @@ fn scan_quoted_4(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> US1 {
         }
     }
 }
-fn safe_path_loop_6(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> bool {
+fn safe_path_loop_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> bool {
     loop {
         let mut v4: bool = v1 < v2;
         if v4 {
@@ -228,91 +228,6 @@ fn safe_path_loop_6(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> b
             } else {
                 return false;
             }
-        }
-    }
-}
-fn safe_path_loop_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> bool {
-    let mut v3: bool = v1 < v2;
-    if v3 {
-        let mut v4: i32 = usize::try_from(v1).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
-        let mut v5: bool = v4 == 92i32;
-        if v5 {
-            false
-        } else {
-            let mut v6: bool = v4 == 47i32;
-            if v6 {
-                let mut v7: i32 = v1 - v1;
-                let mut v8: bool = 0 < v7;
-                let mut v23: bool = if v8 {
-                    let mut v9: bool = v7 == 1i32;
-                    if v9 {
-                        let mut v10: i32 = usize::try_from(v1).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
-                        let mut v11: bool = v10 == 46i32;
-                        let mut v12: bool = v11 == false;
-                        v12
-                    } else {
-                        let mut v13: bool = v7 == 2i32;
-                        if v13 {
-                            let mut v14: i32 = usize::try_from(v1).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
-                            let mut v15: bool = v14 == 46i32;
-                            if v15 {
-                                let mut v16: i32 = v1 + 1i32;
-                                let mut v17: i32 = usize::try_from(v16).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
-                                let mut v18: bool = v17 == 46i32;
-                                let mut v19: bool = v18 == false;
-                                v19
-                            } else {
-                                true
-                            }
-                        } else {
-                            true
-                        }
-                    }
-                } else {
-                    false
-                };
-                if v23 {
-                    let mut v24: i32 = v1 + 1i32;
-                    let mut v25: i32 = v1 + 1i32;
-                    safe_path_loop_6(v0.clone(), v24, v2, v25)
-                } else {
-                    false
-                }
-            } else {
-                let mut v28: i32 = v1 + 1i32;
-                safe_path_loop_6(v0.clone(), v28, v2, v1)
-            }
-        }
-    } else {
-        let mut v32: i32 = v2 - v1;
-        let mut v33: bool = 0 < v32;
-        if v33 {
-            let mut v34: bool = v32 == 1i32;
-            if v34 {
-                let mut v35: i32 = usize::try_from(v1).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
-                let mut v36: bool = v35 == 46i32;
-                let mut v37: bool = v36 == false;
-                v37
-            } else {
-                let mut v38: bool = v32 == 2i32;
-                if v38 {
-                    let mut v39: i32 = usize::try_from(v1).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
-                    let mut v40: bool = v39 == 46i32;
-                    if v40 {
-                        let mut v41: i32 = v1 + 1i32;
-                        let mut v42: i32 = usize::try_from(v41).ok().and_then(|index| v0.as_bytes().get(index).copied()).map_or(-1, i32::from);
-                        let mut v43: bool = v42 == 46i32;
-                        let mut v44: bool = v43 == false;
-                        v44
-                    } else {
-                        true
-                    }
-                } else {
-                    true
-                }
-            }
-        } else {
-            false
         }
     }
 }
@@ -437,7 +352,7 @@ fn scan_plan_2(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: i32) -> US0 {
                                 if v70 {
                                     false
                                 } else {
-                                    safe_path_loop_5(v0.clone(), v64, v65)
+                                    safe_path_loop_5(v0.clone(), v64, v65, v64)
                                 }
                             }
                         } else {
@@ -667,7 +582,7 @@ fn closure0() -> Rc<dyn Fn() -> i32> {
         patch_gated_entry_public_0()
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn patch_rehearse_entry_8() -> i32 {
+fn patch_rehearse_entry_7() -> i32 {
     let mut v0: i32 = 3i32;
     let mut v1: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v0 ;
     if v1 {
@@ -746,12 +661,12 @@ fn patch_rehearse_entry_8() -> i32 {
         v42
     }
 }
-fn patch_rehearsal_entry_public_7() -> i32 {
-    patch_rehearse_entry_8()
+fn patch_rehearsal_entry_public_6() -> i32 {
+    patch_rehearse_entry_7()
 }
 fn closure1() -> Rc<dyn Fn() -> i32> {
     thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
-        patch_rehearsal_entry_public_7()
+        patch_rehearsal_entry_public_6()
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_patch_gated_run() -> i32 {

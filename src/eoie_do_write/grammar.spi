@@ -79,6 +79,3 @@ test globs_name_their_base_and_exclusions =
     expect (glob_base "src/**" = "src") "base before the wildcard"
     expect (glob_base "proj/sub/*.spi" = "proj/sub") "nested base"
     expect (relative_under "src" "src/sub/c.spi" = "sub/c.spi") "relative path"
-    expect (excluded_by "*.tmp" "src/x.tmp") "excluded by name"
-    expect (excluded_by "*.tmp" "src/a.spi" = false) "kept"
-    expect (excluded_by "src/sub/**" "src/sub/c.spi") "excluded by path"

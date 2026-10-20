@@ -4,10 +4,10 @@ inl emit_coverage_union () : () =
     rust_global """
         fn coverage_union_records(path: &Path) -> Result<BTreeMap<String, BTreeMap<u32, u64>>, String> {
             let text = coverage_read_regular_text_limited(path, 64 * 1024 * 1024).map_err(|error| format!("read {}: {error}", path.display()))?;
-            let error = eoie_lcov_error(&text);
+            let error = eoie_lcov::eoie_lcov_error(&text);
             if !error.is_empty() { return Err(error.to_string()); }
             let mut records: BTreeMap<String, BTreeMap<u32, u64>> = BTreeMap::new();
-            for row in eoie_lcov_rows(&text).lines() {
+            for row in eoie_lcov::eoie_lcov_rows(&text).lines() {
                 let mut fields = row.split('\t');
                 let source = fields.next().unwrap_or_default().to_owned();
                 let lines = records.entry(source).or_default();

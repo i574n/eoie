@@ -385,7 +385,7 @@ fn agile_entry_0() -> i32 {
                     let mut v212: i32 = 5i32;
                     let mut v213: bool = i32::try_from(std::env::args().skip(2).count()).unwrap_or(i32::MAX) == v212 ;
                     if v213 {
-                        let mut v214: i32 = agile_task_notes::eoie_agile_note_edit_run();
+                        let mut v214: i32 = agile_note_edit::eoie_agile_note_edit_run();
                         v214
                     } else {
                         agile_usage_error_1()

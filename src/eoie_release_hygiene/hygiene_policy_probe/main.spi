@@ -58,13 +58,13 @@ inl main () : i32 =
     elif root_directory_cold < 1i32 then 1i32
     elif root_directory_cargo < 1i32 then 1i32
     elif 0i32 < root_directory_keep then 1i32
-    elif !!!!NEQ(class_spiral_entry,1u64) then 1i32
-    elif !!!!NEQ(class_typecheck,1u64) then 1i32
-    elif !!!!NEQ(class_typecheck_tmp,1u64) then 1i32
-    elif !!!!NEQ(class_receipt,2u64) then 1i32
-    elif !!!!NEQ(class_candidate,2u64) then 1i32
-    elif !!!!NEQ(class_probe,2u64) then 1i32
-    elif !!!!NEQ(class_cold,3u64) then 1i32
-    elif !!!!NEQ(class_cargo,3u64) then 1i32
-    elif !!!!NEQ(class_keep,0u64) then 1i32
+    elif class_spiral_entry <> 1u64 then 1i32
+    elif class_typecheck <> 1u64 then 1i32
+    elif class_typecheck_tmp <> 1u64 then 1i32
+    elif class_receipt <> 2u64 then 1i32
+    elif class_candidate <> 2u64 then 1i32
+    elif class_probe <> 2u64 then 1i32
+    elif class_cold <> 3u64 then 1i32
+    elif class_cargo <> 3u64 then 1i32
+    elif class_keep <> 0u64 then 1i32
     else 0i32

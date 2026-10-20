@@ -127,7 +127,7 @@ inl agile_route (subcommand : agile_subcommand) : i32 =
     | AgilePlan => agile_with_root fun () => $"agile_planning_rollup::eoie_agile_planning_rollup_run()"
     | AgileMigrateTags => agile_with_root fun () => $"agile_planning_migration::eoie_agile_migrate_tags_run()"
     | AgileNote => agile_arity_route (agile_either_arity 4i32 6i32) fun () => $"agile_task_notes::eoie_agile_note_run()"
-    | AgileNoteEdit => agile_arity_route (args_len_is 5i32) fun () => $"agile_task_notes::eoie_agile_note_edit_run()"
+    | AgileNoteEdit => agile_arity_route (args_len_is 5i32) fun () => $"agile_note_edit::eoie_agile_note_edit_run()"
     | AgileNotes => agile_arity_route (args_len_is 4i32) fun () => $"agile_title_notes::eoie_agile_notes_from_title_run()"
     | AgileRename => agile_arity_route (args_len_is 4i32) fun () => $"agile_task_rename::eoie_agile_rename_run()"
     | AgileTodos => agile_with_root fun () => $"agile_todo_scan::eoie_agile_todos_run()"

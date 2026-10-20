@@ -1,0 +1,117 @@
+open rust_std_string.model
+open eoie_receipt.receipt
+open host
+open grammar
+
+type lab_tally =
+    {
+        report : string
+        failed : bool
+        labs : u64
+        keep : u64
+        orphan : u64
+        retired : u64
+        stale : u64
+        portability : u64
+        ignored : u64
+    }
+
+let empty_lab_tally () : lab_tally = { report = ""; failed = false; labs = 0u64; keep = 0u64; orphan = 0u64; retired = 0u64; stale = 0u64; portability = 0u64; ignored = 0u64 }
+
+let lines_joined (~left : string) (~right : string) : string =
+    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+
+let row (~cells : string) (~next : string) : string = concat5 cells (column ()) next "" ""
+
+union lab_verdict =
+    | Keep
+    | Orphan : string
+    | DoneItem
+    | Stale : u64
+
+let verdict_of (~item : string) (~id : string) (~days : u64) : lab_verdict =
+    if item = "" then Orphan id
+    elif tab_part item 1i32 = "Done" then DoneItem
+    elif days > 14u64 then Stale days
+    else Keep
+
+let verdict_text (verdict : lab_verdict) : string =
+    match verdict with
+    | Keep => "keep"
+    | Orphan id => concat5 "orphan: no backlog item " id "" "" ""
+    | DoneItem => "done: promote or delete"
+    | Stale days => concat5 "stale: no note for " (decimal_text days) " days" "" ""
+
+let counted (~state : lab_tally) (verdict : lab_verdict) : lab_tally =
+    match verdict with
+    | Keep => { state with labs = state.labs + 1u64; keep = state.keep + 1u64 }
+    | Orphan _ => { state with labs = state.labs + 1u64; orphan = state.orphan + 1u64 }
+    | DoneItem => { state with labs = state.labs + 1u64; retired = state.retired + 1u64 }
+    | Stale _ => { state with labs = state.labs + 1u64; stale = state.stale + 1u64 }
+
+let rec labs_rows (~root : string) (~folder : string) (~items : string) (~names : string) (~index : u64) (~rows : string) (~state : lab_tally) : lab_tally =
+    if index < line_count names then
+        inl name = line_at names index
+        inl path = concat5 folder "/" name "" ""
+        inl id = item_id_of name
+        inl item = item_of items id
+        inl verdict = verdict_of item id (note_age_days (tab_part item 3i32))
+        inl shown = if item = "" then row path (row "-" (row "-" (row "-" (verdict_text verdict)))) else row path (row id (row (tab_part item 1i32) (row (tab_part item 2i32) (verdict_text verdict))))
+        labs_rows root folder items names (index + 1u64) (lines_joined rows shown) (counted state verdict)
+    else { state with report = lines_joined state.report (aligned rows) }
+
+let audit_run (~root : string) (~folder : string) (~backlog : string) (~state : lab_tally) : lab_tally =
+    inl items = backlog_items root backlog
+    if starts_with items "error: " then { state with report = lines_joined state.report (concat5 "lab audit: " items "" "" ""); failed = true }
+    else
+        inl audited = labs_rows root folder items (lab_directories root folder) 0u64 (row "lab" (row "item" (row "status" (row "progress" "verdict")))) state
+        inl portability = non_portable root folder
+        inl ignored = ignored_paths root folder
+        { audited with report = lines_joined (lines_joined audited.report portability) ignored; portability = audited.portability + line_count portability; ignored = audited.ignored + line_count ignored }
+
+let step_run (~root : string) (step : lab_step) (~state : lab_tally) : lab_tally =
+    match step with
+    | LabAudit (folder, backlog) => audit_run root folder backlog state
+    | Blank => state
+
+let rec labs_run (~root : string) (~records : record_list) (~index : i32) (~state : lab_tally) : lab_tally =
+    if index < record_count records then
+        match lab_parsed records index with
+        | LabParsed step => labs_run root records (index + 1i32) (step_run root step state)
+        | LabRejected _ => labs_run root records (index + 1i32) state
+    else state
+
+let rec first_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        match lab_parsed records index with
+        | LabRejected message => message
+        | LabParsed _ => first_rejection records (index + 1i32)
+    else ""
+
+let receipt_counts (~state : lab_tally) : string =
+    inl verdicts = concat5 "labs " (decimal_text state.labs) "  keep " (decimal_text state.keep) (concat5 "  orphan " (decimal_text state.orphan) "  done " (decimal_text state.retired) "")
+    inl findings = concat5 verdicts "  stale " (decimal_text state.stale) "  non-portable " (decimal_text state.portability)
+    if state.ignored = 0u64 then findings else concat5 findings "  ignored " (decimal_text state.ignored) "" ""
+
+let lab_program_run (~root : string) (~encoded : string) : i32 =
+    inl started = now_ms ()
+    inl records = records_of encoded
+    inl rejection = first_rejection records 1i32
+    if rejection = "" then
+        inl state = labs_run root records 1i32 (empty_lab_tally ())
+        inl report = state.report
+        if report = "" then () else stdout_line report
+        if state.failed || state.orphan + state.retired + state.stale + state.portability + state.ignored > 0u64 then
+            receipt_line Failed (receipt_counts state) started
+            1i32
+        else
+            receipt_line Succeeded (receipt_counts state) started
+            0i32
+    else
+        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        receipt_line Failed "labs 0" started
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_do_lab_run", ((fun (root, encoded) => lab_program_run root encoded) : string * string -> i32))
+    0i32

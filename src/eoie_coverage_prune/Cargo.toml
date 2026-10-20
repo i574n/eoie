@@ -17,6 +17,7 @@ name = "eoie_coverage_prune"
 path = "coverage.rs"
 
 [dependencies]
+eoie-lcov = { path = "../eoie_lcov" }
 eoie-process = { path = "../eoie_process" }
 eoie-process-observation = { path = "../eoie_process_observation" }
 eoie-coverage-smoke = { path = "../eoie_coverage_smoke" }

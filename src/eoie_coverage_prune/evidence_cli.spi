@@ -1,0 +1,99 @@
+///- --package ../eoie_cli_harness
+open cli
+
+inl renewing (root : fixture_root) : cli_args = Arg ("EOIE_LEASE_POLICY=renewing", Arg (cat "EOIE_CONFIG_HOME=" (fixture_text_of root), NoArgs))
+inl lease_drops () : cli_args = Arg ("EOIE_LEASE_ROOT", Arg ("EOIE_CONTROL_READ_ONLY", NoArgs))
+inl proxy (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) (renewing root) (lease_drops ()) (Arg ("proxy", args))
+
+inl assessed (root : fixture_root) (~text : string) (~floor : string) : cli_run =
+    fixture_write root "test.lcov" text
+    inl file = fixture_path root "test.lcov"
+    proxy root (Arg ("coverage-assess", Arg (file, Arg (file, Arg (floor, Arg (floor, Arg (floor, NoArgs)))))))
+
+inl malformed_refused (root : fixture_root) (~text : string) : () =
+    expect ((assessed root text "0").code <> 0i32) (cat "accepted malformed coverage: " text)
+
+///> rust
+test coverage_assessment_rejects_malformed_and_ambiguous_evidence =
+    inl root = fixture_root_create "coverage ü"
+    malformed_refused root ""
+    malformed_refused root "SF:x.rs\nend_of_record\n"
+    malformed_refused root "DA:1,0\nend_of_record\n"
+    malformed_refused root "SF:\nDA:1,0\nend_of_record\n"
+    malformed_refused root "SF:x.rs\nDA:1,0\n"
+    malformed_refused root "SF:x.rs\nDA:1,0\nSF:y.rs\nDA:1,0\nend_of_record\n"
+    malformed_refused root "SF:x.rs\nDA:1,bad\nend_of_record\n"
+    malformed_refused root "SF:x.rs\nDA:0,0\nend_of_record\n"
+    malformed_refused root "SF:x.rs\nDA:1,-1\nend_of_record\n"
+    malformed_refused root "SF:x.rs\nDA:1,18446744073709551616\nend_of_record\n"
+    malformed_refused root "SF:x.rs\nDA:4294967296,0\nend_of_record\n"
+    malformed_refused root "SF:x.rs\nDA:1,0,a,b\nend_of_record\n"
+    malformed_refused root "SF:/one/src/a.rs\nDA:1,0\nend_of_record\nSF:/two/src/a.rs\nDA:1,1\nend_of_record\n"
+    fixture_root_remove root
+
+///> rust
+test coverage_assessment_merges_duplicate_hits_and_checks_floor_bounds =
+    inl root = fixture_root_create "coverage ü"
+    inl text = "TN:one\nSF:src/a.rs\nDA:1,0\nDA:2,0\nend_of_record\nTN:two\nSF:src/a.rs\nDA:1,2\nend_of_record\n"
+    inl _ = succeeded (assessed root text "500")
+    expect ((assessed root text "501").code <> 0i32) "a floor above the merged coverage was accepted"
+    failed_with (assessed root text "1001") "0..=1000"
+    fixture_root_remove root
+
+inl prune_refused_before_validation (root : fixture_root) (~text : string) : () =
+    fixture_write root "test.lcov" text
+    inl profile = fixture_path root "test.lcov"
+    inl run = proxy root (Arg ("prune-uncovered", Arg (fixture_text_of root, Arg ("nested/candidate.rs", Arg (profile, Arg (profile, Arg ("--", Arg ("eoie-nonexistent-validation-command", NoArgs))))))))
+    expect (run.code <> 0i32) (cat "pruning accepted: " text)
+    hides run.stderr "validation failed"
+    same (fixture_read root "nested/candidate.rs") "keep this source"
+
+///> rust
+test pruning_requires_line_evidence_for_the_exact_rooted_file =
+    inl root = fixture_root_create "coverage ü"
+    fixture_write root "candidate.rs" "other file"
+    fixture_write root "nested/candidate.rs" "keep this source"
+    prune_refused_before_validation root "SF:candidate.rs\nDA:1,0\nend_of_record\n"
+    prune_refused_before_validation root "SF:nested/candidate.rs\nend_of_record\nSF:candidate.rs\nDA:1,0\nend_of_record\n"
+    prune_refused_before_validation root "SF:nested/candidate.rs\nDA:1,bad\nend_of_record\n"
+    fixture_root_remove root
+
+inl fake_grcov_source () : string =
+    """
+    fn main() {
+        let args = std::env::args().collect::<Vec<_>>();
+        let mode = std::fs::read_to_string(std::path::Path::new(&args[1]).join("mode")).unwrap();
+        let out = &args[args.iter().position(|arg| arg == "-o").unwrap() + 1];
+        let newline = char::from(10u8);
+        std::fs::write(out, if mode == "valid" { format!("SF:src/a.rs{newline}DA:1,2{newline}end_of_record{newline}") } else { format!("SF:src/a.rs{newline}DA:1,bad{newline}end_of_record{newline}") }).unwrap();
+        if mode == "failed" { std::process::exit(7); }
+        if mode == "timeout" { std::thread::sleep(std::time::Duration::from_secs(5)); }
+    }
+    """
+
+inl exported (root : fixture_root) (~helper : string) (~mode : string) (~timeout : string) : cli_run =
+    fixture_write root "profiles/mode" mode
+    inl base = fixture_text_of root
+    proxy root (Arg ("coverage-export", Arg (fixture_path root "profiles", Arg (helper, Arg (helper, Arg (base, Arg (base, Arg (fixture_path root "output.lcov", Arg (timeout, NoArgs)))))))))
+
+inl export_refused (root : fixture_root) (~helper : string) (~mode : string) (~timeout : string) : () =
+    expect ((exported root helper mode timeout).code <> 0i32) (cat "export accepted mode " mode)
+    same (fixture_read root "output.lcov") "previous evidence"
+    same (fixture_read root "output.lcov.receipt") "previous receipt"
+    hides (fixture_entries root "") ".eoie-coverage-"
+
+///> rust
+test export_preserves_previous_evidence_until_a_valid_candidate_exists =
+    inl root = fixture_root_create "coverage ü"
+    inl helper = rustc_program root "fake-grcov" (fake_grcov_source ())
+    fixture_write root "profiles/one.profraw" "profile"
+    fixture_write root "output.lcov" "previous evidence"
+    fixture_write root "output.lcov.receipt" "previous receipt"
+    export_refused root helper "failed" "5000"
+    export_refused root helper "malformed" "5000"
+    export_refused root helper "timeout" "100"
+    inl _ = succeeded (exported root helper "valid" "5000")
+    shows (fixture_read root "output.lcov") "DA:1,2"
+    shows (fixture_read root "output.lcov.receipt") "covered_permille=1000"
+    hides (fixture_entries root "") ".eoie-coverage-"
+    fixture_root_remove root

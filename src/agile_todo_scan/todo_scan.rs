@@ -333,7 +333,7 @@ fn scanned_file_3(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32, mut v4: i3
                 US1::US1_ScanPath(v44) => {
                     let mut v44: US2 = v44.clone();
                     let mut v45: u64 = std::fs::metadata(&*v17).map(|metadata| metadata.len()).unwrap_or(0);
-                    let mut v46: bool = v45 > 1048576u64;
+                    let mut v46: bool = v45 > 33554432u64;
                     let mut v49: US3 = if v46 {
                         US3::US3_SkipLarge
                     } else {

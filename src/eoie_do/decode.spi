@@ -11,6 +11,9 @@ inl has_query (~records : record_list) : bool = $'!records.iter().skip(1).any(|f
 inl has_fact (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| ["hash", "env", "exists", "nearest", "json", "lines", "table", "dirs", "tag", "count", "diff"].contains(&&**verb) || (&**verb == "files" && fields.iter().any(|word| &**word == "wcount"))).unwrap_or(false))' : bool
 inl has_run (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| ["run", "errors", "processes", "stop"].contains(&&**verb)).unwrap_or(false))' : bool
 inl has_write (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "append" || &**verb == "copy").unwrap_or(false))' : bool
+inl has_git (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "git").unwrap_or(false))' : bool
+inl has_job (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "job").unwrap_or(false))' : bool
+inl has_lab (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "lab").unwrap_or(false))' : bool
 inl has_edit (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "edit").unwrap_or(false))' : bool
 
 union program_family =
@@ -19,6 +22,9 @@ union program_family =
     | Facts
     | Runs
     | Writes
+    | Git
+    | Jobs
+    | Labs
 
 union compiled_program =
     | CompileRejected : string
@@ -29,6 +35,9 @@ let program_decoded (~text : string) : compiled_program =
     inl records = records_of encoded
     if field_at records 0i32 0i32 = "ok" then
         if has_run records then Delegated ((if has_edit records then Edits else Runs), encoded)
+        elif has_job records then Delegated (Jobs, encoded)
+        elif has_lab records then Delegated (Labs, encoded)
+        elif has_git records then Delegated (Git, encoded)
         elif has_write records then Delegated (Writes, encoded)
         elif has_fact records then Delegated (Facts, encoded)
         elif has_query records then Delegated (Reads, encoded) else Delegated (Edits, encoded)

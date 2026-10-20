@@ -146,7 +146,7 @@ let query_at (~tokens : token_list) (~index : i32) (~verb : string) : parsed ste
     | Parsed (words, next) => Parsed (QueryStep (verb, words), next)
 
 inl query_verb_known (~word : string) : bool =
-    pipe_member "search|read|files|head|tail|wait|hash|env|exists|nearest|json|lines|table|dirs|diff|tag|count|run|errors|processes|stop|append|copy" word
+    pipe_member "search|read|files|head|tail|wait|hash|env|exists|nearest|json|lines|table|dirs|diff|tag|count|run|errors|processes|stop|append|copy|git|job|lab" word
 
 let step_at (~tokens : token_list) (~index : i32) : parsed step =
     match token_at tokens index with

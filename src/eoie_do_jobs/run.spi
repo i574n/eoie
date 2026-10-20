@@ -1,0 +1,119 @@
+open rust_std_string.model
+open eoie_receipt.receipt
+open host
+open grammar
+
+type job_tally =
+    {
+        report : string
+        failed : bool
+        jobs : u64
+        finished : u64
+        timed_out : u64
+        notifications : u64
+        started : string
+        notified : string
+        exit : i32
+    }
+
+let empty_job_tally () : job_tally = { report = ""; failed = false; jobs = 0u64; finished = 0u64; timed_out = 0u64; notifications = 0u64; started = ""; notified = ""; exit = 0i32 }
+
+let lines_joined (~left : string) (~right : string) : string =
+    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+
+let decimal_of (~text : string) : u64 = $'(!text).trim().parse::<u64>().unwrap_or(0)' : u64
+
+let code_text (~code : i32) : string = $'std::rc::Rc::<str>::from((!code).to_string())' : string
+
+let start_run (~root : string) (~name : string) (~command : string) (~timeout : string) (~notify : bool) (~state : job_tally) : job_tally =
+    inl outcome = launched name (duration_ms timeout) (shell_argv command) (current_directory_of root)
+    if starts_with outcome "error: " then { state with report = lines_joined state.report (concat5 "job " name "  " outcome ""); failed = true; exit = 1i32 }
+    else
+        inl pid = started_pid (part_at outcome 0i32)
+        inl row = concat5 "job " name "  started " command (concat5 "  pid " pid "  timeout " timeout "")
+        { state with report = lines_joined state.report row; jobs = state.jobs + 1u64; started = lines_joined state.started name; notified = if notify then lines_joined state.notified name else state.notified }
+
+let settled_line (~name : string) (~summary : string) (~wait_ms : u64) : string =
+    inl word = summary_field summary "state"
+    inl detail = summary_field summary "detail"
+    inl head = concat5 "job " name "  " "" ""
+    if word = "finished" then concat5 head "finished after " (duration_text (decimal_of (summary_field summary "elapsed_ms"))) "  exit " (summary_field summary "exit")
+    elif word = "timed-out" then concat5 head "timed out after " (duration_text (decimal_of (summary_field summary "timeout_ms"))) (if contains detail "process tree stopped" then "  stopped (tree)" else concat5 "  " (replace detail "wall-clock timeout; " "") "" "" "") "  exit killed"
+    elif word = "running" || word = "pending" then concat5 head "still running after " (duration_text wait_ms) "" ""
+    else concat5 head word "  " detail ""
+
+let notice_of (~name : string) (~word : string) (~code : string) : string =
+    inl what = if word = "finished" then concat5 "finished (exit " code ")" "" "" elif word = "timed-out" then "timed out" else word
+    concat5 "notify  " name " " what ""
+
+let output_block (~name : string) (~id : string) : string =
+    inl output = trim_end_matches (output_tail id 10u64) "\n"
+    inl lines = line_count output
+    if lines = 0u64 then concat5 name " output (no lines)" "" "" ""
+    else lines_joined (concat5 name " output (last " (decimal_text lines) (if lines = 1u64 then " line)" else " lines)") "") output
+
+let wait_run (~name : string) (~wait_ms : u64) (~state : job_tally) : job_tally =
+    inl id = labeled name
+    inl counted = if name_listed state.started name then state.jobs else state.jobs + 1u64
+    if id = "" then { state with report = lines_joined state.report (concat5 "job wait: no job named " name "" "" ""); failed = true; jobs = counted; exit = 1i32 }
+    else
+        inl summary = settled id (if wait_ms = 0u64 then 86400000u64 else wait_ms)
+        inl word = summary_field summary "state"
+        inl code = summary_field summary "exit"
+        inl notice = if name_listed state.notified name then notice_of name word code else ""
+        inl outcome = if word = "timed-out" || word = "running" || word = "pending" then 3i32 elif word = "finished" && code = "0" then 0i32 else 1i32
+        inl report = lines_joined (lines_joined (lines_joined state.report (settled_line name summary wait_ms)) notice) (output_block name id)
+        inl finished = if word = "finished" then 1u64 else 0u64
+        inl timed_out = if word = "timed-out" then 1u64 else 0u64
+        inl noticed = if notice = "" then 0u64 else 1u64
+        { state with report = report; failed = state.failed || outcome <> 0i32; jobs = counted; finished = state.finished + finished; timed_out = state.timed_out + timed_out; notifications = state.notifications + noticed; exit = if outcome > state.exit then outcome else state.exit }
+
+let step_run (~root : string) (step : job_step) (~state : job_tally) : job_tally =
+    match step with
+    | JobStart (name, command, timeout, notify) => start_run root name command timeout notify state
+    | JobWait (name, wait_ms) => wait_run name wait_ms state
+    | Blank => state
+
+let rec jobs_run (~root : string) (~records : record_list) (~index : i32) (~state : job_tally) : job_tally =
+    if index < record_count records then
+        match job_parsed records index with
+        | JobParsed step => jobs_run root records (index + 1i32) (step_run root step state)
+        | JobRejected _ => jobs_run root records (index + 1i32) state
+    else state
+
+let rec first_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        match job_parsed records index with
+        | JobRejected message => message
+        | JobParsed _ => first_rejection records (index + 1i32)
+    else ""
+
+let receipt_counts (~state : job_tally) : string =
+    inl base = concat5 "jobs " (decimal_text state.jobs) "" "" ""
+    inl finished = if state.finished > 0u64 then concat5 base "  finished " (decimal_text state.finished) "" "" else base
+    inl timed = if state.timed_out > 0u64 then concat5 finished "  timed out " (decimal_text state.timed_out) "" "" else finished
+    inl notes = if state.notified <> "" then concat5 timed "  notifications " (decimal_text state.notifications) "" "" else timed
+    if state.exit = 0i32 then notes else concat5 notes "  exit " (code_text state.exit) "" ""
+
+let job_program_run (~root : string) (~encoded : string) : i32 =
+    inl started = now_ms ()
+    inl records = records_of encoded
+    inl rejection = first_rejection records 1i32
+    if rejection = "" then
+        inl state = jobs_run root records 1i32 (empty_job_tally ())
+        inl report = state.report
+        if report = "" then () else stdout_line report
+        if state.failed then
+            receipt_line Failed (receipt_counts state) started
+            state.exit
+        else
+            receipt_line Succeeded (receipt_counts state) started
+            0i32
+    else
+        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        receipt_line Failed "jobs 0" started
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_do_jobs_run", ((fun (root, encoded) => job_program_run root encoded) : string * string -> i32))
+    0i32

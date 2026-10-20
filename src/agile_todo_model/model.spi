@@ -56,7 +56,7 @@ type scan_tally =
     }
 
 inl todo_marker () : string = rust_std_string.model.concat5 "TO" "DO" "" "" ""
-inl largest_scanned_bytes () : u64 = 1048576u64
+inl largest_scanned_bytes () : u64 = 33554432u64
 
 inl c_family_extensions () : string = "spi|spir|fs|fsx|fsi|rs|c|h|cc|cpp|cxx|hpp|hh|cs|js|mjs|cjs|ts|tsx|jsx|go|java|kt|kts|swift|zig|gleam|scala|dart|wgsl|glsl|hlsl|proto|jsonc|css|scss|less|php|sv|v"
 inl hash_family_extensions () : string = "ps1|psm1|psd1|py|pyi|sh|bash|zsh|fish|rb|toml|yml|yaml|ex|exs|r|pl|pm|cmake|nix|conf|cfg|mk|tf|jl|nu|ini|gitignore|gitattributes|editorconfig|dockerignore"
@@ -472,7 +472,7 @@ test paths_skip_vendor_generated_and_unknown_files =
     labelled (path_label (path_verdict "src/rust_std_fs/portable.rs" false)) "scan c"
     labelled (path_label (path_verdict "assets/logo.png" false)) "syntax"
     labelled (path_label (path_verdict "scripts/Makefile" false)) "scan hash"
-    labelled (content_label (size_verdict 2000000u64)) "large"
+    labelled (content_label (size_verdict 40000000u64)) "large"
     labelled (content_label (bytes_verdict true)) "binary"
 
 ///> rust
@@ -526,3 +526,10 @@ test verdicts_survive_the_crate_boundary_as_codes =
     labelled (path_label (path_verdict_of_code (path_verdict_code SkipLinkedEntry))) "link"
     labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "deps/x/" false)))) "nested"
     expect (syntax_code (syntax_of_code 11i32) = 11i32) "batch syntax code"
+
+///> rust
+test files_up_to_32_mib_are_scanned_and_larger_ones_are_skipped =
+    inl compiler_sized = counted_content (empty_tally ()) (size_verdict 11534336u64)
+    expect (rust_std_string.model.contains (tally_skips compiler_sized) "large:0") (tally_skips compiler_sized)
+    inl oversized = counted_content (empty_tally ()) (size_verdict 33554433u64)
+    expect (rust_std_string.model.contains (tally_skips oversized) "large:1") (tally_skips oversized)

@@ -24,6 +24,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "agile-note-edit"
+version = "0.0.0"
+
+[[package]]
 name = "agile-note-listing"
 version = "0.0.0"
 
@@ -363,6 +367,7 @@ name = "eoie-agile-mutation"
 version = "0.0.0"
 dependencies = [
  "agile-backlog-scaffold",
+ "agile-note-edit",
  "agile-planning-migration",
  "agile-planning-revision",
  "agile-planning-rollup",
@@ -557,6 +562,7 @@ name = "eoie-coverage-prune"
 version = "0.0.0"
 dependencies = [
  "eoie-coverage-smoke",
+ "eoie-lcov",
  "eoie-process",
  "eoie-process-observation",
  "eoie-proxy-search",
@@ -595,6 +601,9 @@ version = "0.0.0"
 dependencies = [
  "eoie-do-edit",
  "eoie-do-facts",
+ "eoie-do-git",
+ "eoie-do-jobs",
+ "eoie-do-lab",
  "eoie-do-process",
  "eoie-do-program",
  "eoie-do-read",
@@ -618,6 +627,25 @@ dependencies = [
  "regex",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "eoie-do-git"
+version = "0.0.0"
+
+[[package]]
+name = "eoie-do-jobs"
+version = "0.0.0"
+dependencies = [
+ "eoie-jobs",
+]
+
+[[package]]
+name = "eoie-do-lab"
+version = "0.0.0"
+dependencies = [
+ "regex",
+ "serde_json",
 ]
 
 [[package]]
@@ -692,6 +720,10 @@ version = "0.1.0"
 
 [[package]]
 name = "eoie-jobs"
+version = "0.0.0"
+
+[[package]]
+name = "eoie-lcov"
 version = "0.0.0"
 
 [[package]]

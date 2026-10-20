@@ -182,7 +182,7 @@ fn argument_5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> (i32, i32, i32, Rc<s
         }
     }
 }
-fn function_end_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: bool) -> i32 {
+fn function_end_8(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: bool) -> i32 {
     loop {
         let (mut v4, mut v5, mut v6, mut v7): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v1);
         let mut v8: bool = v7 == false ;
@@ -240,7 +240,7 @@ fn function_end_9(mut v0: Rc<str>, mut v1: i32, mut v2: i32, mut v3: bool) -> i3
         }
     }
 }
-fn closure_name_10(mut v0: Rc<str>, mut v1: i32) -> Rc<str> {
+fn closure_name_9(mut v0: Rc<str>, mut v1: i32) -> Rc<str> {
     loop {
         let (mut v2, mut v3, mut v4, mut v5): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v1);
         let mut v6: bool = v5 == false ;
@@ -267,7 +267,7 @@ fn closure_name_10(mut v0: Rc<str>, mut v1: i32) -> Rc<str> {
         }
     }
 }
-fn expected_11(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>) -> Rc<str> {
+fn expected_10(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>) -> Rc<str> {
     let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("sha256"); } LIT.with(|lit| lit.clone()) };
     let mut v5: bool = v0 == v4 ;
     let mut v12: US1 = if v5 {
@@ -326,180 +326,6 @@ fn expected_11(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str
         v43.clone()
     }
 }
-fn rust_loop_8(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32, mut v4: i32, mut v5: bool, mut v6: Rc<str>, mut v7: i32) -> (Rc<str>, i32, bool) {
-    loop {
-        let (mut v8, mut v9, mut v10, mut v11): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v3);
-        let mut v12: bool = v11 == false ;
-        if v12 {
-            let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            return (v13.clone(), v7, false);
-        } else {
-            let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            let mut v15: bool = v10 == v14 ;
-            if v15 {
-                let mut v16: i32 = (v0.clone().len() as i32);
-                let mut v17: bool = v3 == v16 ;
-                let mut v21: Rc<str> = if v17 {
-                    codec_empty_2()
-                } else {
-                    let mut v19: i32 = v16 - 1i32 ;
-                    let mut v20: Rc<str> = string_slice(&v0.clone(), v3 as i64, v19 as i64);
-                    v20.clone()
-                };
-                let mut v22: Rc<str> = Rc::<str>::from(format!("{}{}", v6.clone(), v21.clone()));
-                let mut v23: bool = v4 == 0i32 ;
-                return (v22.clone(), v7, v23);
-            } else {
-                let mut v24: bool = v4 == 0i32 ;
-                let mut v27: bool = if v24 {
-                    let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fn"); } LIT.with(|lit| lit.clone()) };
-                    let mut v26: bool = v10 == v25 ;
-                    v26
-                } else {
-                    false
-                };
-                if v27 {
-                    let (mut v28, mut v29, mut v30, mut v31): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v9);
-                    let mut v32: bool = v30 == v1 ;
-                    if v32 {
-                        let mut v33: i32 = 0i32;
-                        let mut v34: bool = false;
-                        let mut v35: i32 = function_end_9(v0.clone(), v9, v33, v34);
-                        let mut v36: bool = v35 < 0i32;
-                        let mut v38: bool = if v36 {
-                            true
-                        } else {
-                            let mut v37: bool = v5 == false ;
-                            v37
-                        };
-                        if v38 {
-                            return (v14.clone(), v7, false);
-                        } else {
-                            let mut v39: bool = v8 == v35 ;
-                            let mut v43: Rc<str> = if v39 {
-                                codec_empty_2()
-                            } else {
-                                let mut v41: i32 = v35 - 1i32 ;
-                                let mut v42: Rc<str> = string_slice(&v0.clone(), v8 as i64, v41 as i64);
-                                v42.clone()
-                            };
-                            let (mut v44, mut v45, mut v46, mut v47): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v43,0i32);
-                            let (mut v48, mut v49, mut v50, mut v51): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v43,v45);
-                            let (mut v52, mut v53, mut v54, mut v55): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v43,v49);
-                            let (mut v56, mut v57, mut v58, mut v59): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v43,v53);
-                            let mut v60: Rc<str> = closure_name_10(v43.clone(), v57);
-                            let mut v61: Rc<str> = expected_11(v2.clone(), v1.clone(), v58.clone(), v60.clone());
-                            let (mut v62, mut v63): (Rc<str>, bool) = predicate_lex_domain::eoie_predicate_canonical(&*v61);
-                            let (mut v64, mut v65): (Rc<str>, bool) = predicate_lex_domain::eoie_predicate_canonical(&*v43);
-                            let mut v66: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("("); } LIT.with(|lit| lit.clone()) };
-                            let mut v67: bool = v54 == v66 ;
-                            let mut v68: bool = v67 && v63;
-                            let mut v69: bool = v68 && v65;
-                            let mut v71: bool = if v69 {
-                                let mut v70: bool = v62 == v64 ;
-                                v70
-                            } else {
-                                false
-                            };
-                            let mut v74: bool = if v71 {
-                                let mut v72: i32 = (v61.clone().len() as i32);
-                                let mut v73: bool = 0i32 < v72;
-                                v73
-                            } else {
-                                false
-                            };
-                            if v74 {
-                                let mut v75: i32 = 0i32;
-                                let mut v76: bool = true;
-                                let mut v77: bool = v3 == v8 ;
-                                let mut v81: Rc<str> = if v77 {
-                                    codec_empty_2()
-                                } else {
-                                    let mut v79: i32 = v8 - 1i32 ;
-                                    let mut v80: Rc<str> = string_slice(&v0.clone(), v3 as i64, v79 as i64);
-                                    v80.clone()
-                                };
-                                let mut v82: Rc<str> = Rc::<str>::from(format!("{}{}", v6.clone(), v81.clone()));
-                                let mut v83: i32 = v7 + 1i32 ;
-                                (v0, v1, v2, v3, v4, v5, v6, v7) = (v0.clone(), v1.clone(), v2.clone(), v35, v75, v76, v82.clone(), v83);
-                                continue;
-                            } else {
-                                return (v14.clone(), v7, false);
-                            }
-                        }
-                    } else {
-                        let mut v93: bool = false;
-                        return rust_loop_7(v0.clone(), v1.clone(), v2.clone(), v9, v4, v93, v3, v6.clone(), v7);
-                    }
-                } else {
-                    let mut v100: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("("); } LIT.with(|lit| lit.clone()) };
-                    let mut v101: bool = v10 == v100 ;
-                    let mut v104: bool = if v101 {
-                        true
-                    } else {
-                        let mut v102: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("["); } LIT.with(|lit| lit.clone()) };
-                        let mut v103: bool = v10 == v102 ;
-                        v103
-                    };
-                    let mut v107: bool = if v104 {
-                        true
-                    } else {
-                        let mut v105: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("{"); } LIT.with(|lit| lit.clone()) };
-                        let mut v106: bool = v10 == v105 ;
-                        v106
-                    };
-                    let mut v119: i32 = if v107 {
-                        let mut v108: i32 = v4 + 1i32 ;
-                        v108
-                    } else {
-                        let mut v109: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(")"); } LIT.with(|lit| lit.clone()) };
-                        let mut v110: bool = v10 == v109 ;
-                        let mut v113: bool = if v110 {
-                            true
-                        } else {
-                            let mut v111: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("]"); } LIT.with(|lit| lit.clone()) };
-                            let mut v112: bool = v10 == v111 ;
-                            v112
-                        };
-                        let mut v116: bool = if v113 {
-                            true
-                        } else {
-                            let mut v114: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("}"); } LIT.with(|lit| lit.clone()) };
-                            let mut v115: bool = v10 == v114 ;
-                            v115
-                        };
-                        if v116 {
-                            let mut v117: i32 = v4 - 1i32 ;
-                            v117
-                        } else {
-                            v4
-                        }
-                    };
-                    let mut v120: bool = v119 == 0i32 ;
-                    let mut v126: bool = if v120 {
-                        let mut v121: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(";"); } LIT.with(|lit| lit.clone()) };
-                        let mut v122: bool = v10 == v121 ;
-                        if v122 {
-                            true
-                        } else {
-                            let mut v123: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("}"); } LIT.with(|lit| lit.clone()) };
-                            let mut v124: bool = v10 == v123 ;
-                            v124
-                        }
-                    } else {
-                        false
-                    };
-                    let mut v127: bool = v119 < 0i32;
-                    if v127 {
-                        return (v14.clone(), v7, false);
-                    } else {
-                        return rust_loop_7(v0.clone(), v1.clone(), v2.clone(), v9, v119, v126, v3, v6.clone(), v7);
-                    }
-                }
-            }
-        }
-    }
-}
 fn rust_loop_7(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32, mut v4: i32, mut v5: bool, mut v6: i32, mut v7: Rc<str>, mut v8: i32) -> (Rc<str>, i32, bool) {
     loop {
         let (mut v9, mut v10, mut v11, mut v12): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v0,v3);
@@ -538,7 +364,7 @@ fn rust_loop_7(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32, m
                     if v33 {
                         let mut v34: i32 = 0i32;
                         let mut v35: bool = false;
-                        let mut v36: i32 = function_end_9(v0.clone(), v10, v34, v35);
+                        let mut v36: i32 = function_end_8(v0.clone(), v10, v34, v35);
                         let mut v37: bool = v36 < 0i32;
                         let mut v39: bool = if v37 {
                             true
@@ -561,8 +387,8 @@ fn rust_loop_7(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32, m
                             let (mut v49, mut v50, mut v51, mut v52): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v44,v46);
                             let (mut v53, mut v54, mut v55, mut v56): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v44,v50);
                             let (mut v57, mut v58, mut v59, mut v60): (i32, i32, Rc<str>, bool) = predicate_lex_domain::eoie_predicate_token(&*v44,v54);
-                            let mut v61: Rc<str> = closure_name_10(v44.clone(), v58);
-                            let mut v62: Rc<str> = expected_11(v2.clone(), v1.clone(), v59.clone(), v61.clone());
+                            let mut v61: Rc<str> = closure_name_9(v44.clone(), v58);
+                            let mut v62: Rc<str> = expected_10(v2.clone(), v1.clone(), v59.clone(), v61.clone());
                             let (mut v63, mut v64): (Rc<str>, bool) = predicate_lex_domain::eoie_predicate_canonical(&*v62);
                             let (mut v65, mut v66): (Rc<str>, bool) = predicate_lex_domain::eoie_predicate_canonical(&*v44);
                             let mut v67: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("("); } LIT.with(|lit| lit.clone()) };
@@ -595,7 +421,8 @@ fn rust_loop_7(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32, m
                                 };
                                 let mut v83: Rc<str> = Rc::<str>::from(format!("{}{}", v7.clone(), v82.clone()));
                                 let mut v84: i32 = v8 + 1i32 ;
-                                return rust_loop_8(v0.clone(), v1.clone(), v2.clone(), v36, v76, v77, v83.clone(), v84);
+                                (v0, v1, v2, v3, v4, v5, v6, v7, v8) = (v0.clone(), v1.clone(), v2.clone(), v36, v76, v77, v36, v83.clone(), v84);
+                                continue;
                             } else {
                                 return (v15.clone(), v8, false);
                             }
@@ -675,7 +502,7 @@ fn rust_loop_7(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32, m
         }
     }
 }
-fn wrapper_12(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> Rc<str> {
+fn wrapper_11(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> Rc<str> {
     let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("sha256"); } LIT.with(|lit| lit.clone()) };
     let mut v4: bool = v0 == v3 ;
     let mut v11: US1 = if v4 {
@@ -795,7 +622,7 @@ fn source_loop_1(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32,
                                             continue;
                                         } else {
                                             let mut v68: Rc<str> = predicate_literal_domain::eoie_predicate_encode(&*v60);
-                                            let mut v69: Rc<str> = wrapper_12(v2.clone(), v1.clone(), v68.clone());
+                                            let mut v69: Rc<str> = wrapper_11(v2.clone(), v1.clone(), v68.clone());
                                             let mut v70: bool = v4 == v48 ;
                                             let mut v74: Rc<str> = if v70 {
                                                 codec_empty_2()

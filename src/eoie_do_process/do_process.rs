@@ -137,93 +137,92 @@ fn step_parsed_3(mut v0: std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>, mut v1: i32) -
         if v8 {
             let mut v9: u8 = 119u8;
             let mut v10: Rc<str> = first_of_kind_9(v0.clone(), v1, v9);
-            let mut v11: bool = v10.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("output"); } LIT.with(|lit| lit.clone()) };
-            let mut v12: bool = v11 != true;
-            if v12 {
-                let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tail: a run program reads its own output: tail output <n>"); } LIT.with(|lit| lit.clone()) };
-                US0::US0_StepRejected(v13.clone())
+            let mut v11: bool = v10.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("output"); } LIT.with(|lit| lit.clone()) };
+            if v11 {
+                let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tail: a run program reads its own output: tail output <n>"); } LIT.with(|lit| lit.clone()) };
+                US0::US0_StepRejected(v12.clone())
             } else {
-                let mut v15: i32 = 3i32;
-                let mut v16: Rc<str> = body_at_7(v0.clone(), v1, v15);
-                let mut v17: u64 = decimal_of_10(v16.clone());
-                let mut v18: bool = v17 == 0u64;
-                let mut v19: u64 = if v18 {
+                let mut v14: i32 = 3i32;
+                let mut v15: Rc<str> = body_at_7(v0.clone(), v1, v14);
+                let mut v16: u64 = decimal_of_10(v15.clone());
+                let mut v17: bool = v16 == 0u64;
+                let mut v18: u64 = if v17 {
                     10u64
                 } else {
-                    v17
+                    v16
                 };
-                let mut v20: US1 = US1::US1_TailOutput(v19);
-                US0::US0_StepParsed(v20.clone())
+                let mut v19: US1 = US1::US1_TailOutput(v18);
+                US0::US0_StepParsed(v19.clone())
             }
         } else {
-            let mut v23: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("search"); } LIT.with(|lit| lit.clone()) };
-            if v23 {
-                let mut v24: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                if v24 {
-                    let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("search: expected a quoted pattern"); } LIT.with(|lit| lit.clone()) };
-                    US0::US0_StepRejected(v25.clone())
+            let mut v22: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("search"); } LIT.with(|lit| lit.clone()) };
+            if v22 {
+                let mut v23: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                if v23 {
+                    let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("search: expected a quoted pattern"); } LIT.with(|lit| lit.clone()) };
+                    US0::US0_StepRejected(v24.clone())
                 } else {
-                    let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("in"); } LIT.with(|lit| lit.clone()) };
-                    let mut v28: i32 = field_index_6(v0.clone(), v1, v27.clone());
-                    let mut v29: i32 = v28.wrapping_add(1i32);
-                    let mut v30: Rc<str> = body_at_7(v0.clone(), v1, v29);
-                    let mut v31: bool = v30.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("output"); } LIT.with(|lit| lit.clone()) };
-                    if v31 {
-                        let mut v32: US1 = US1::US1_SearchOutput(v5.clone());
-                        US0::US0_StepParsed(v32.clone())
+                    let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("in"); } LIT.with(|lit| lit.clone()) };
+                    let mut v27: i32 = field_index_6(v0.clone(), v1, v26.clone());
+                    let mut v28: i32 = v27.wrapping_add(1i32);
+                    let mut v29: Rc<str> = body_at_7(v0.clone(), v1, v28);
+                    let mut v30: bool = v29.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("output"); } LIT.with(|lit| lit.clone()) };
+                    if v30 {
+                        let mut v31: US1 = US1::US1_SearchOutput(v5.clone());
+                        US0::US0_StepParsed(v31.clone())
                     } else {
-                        let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("search: a run program searches its own output: search \"<regex>\" in output"); } LIT.with(|lit| lit.clone()) };
-                        US0::US0_StepRejected(v34.clone())
+                        let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("search: a run program searches its own output: search \"<regex>\" in output"); } LIT.with(|lit| lit.clone()) };
+                        US0::US0_StepRejected(v33.clone())
                     }
                 }
             } else {
-                let mut v38: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("errors"); } LIT.with(|lit| lit.clone()) };
-                if v38 {
-                    let mut v39: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                    let mut v43: bool = if v39 {
+                let mut v37: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("errors"); } LIT.with(|lit| lit.clone()) };
+                if v37 {
+                    let mut v38: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                    let mut v42: bool = if v38 {
                         true
                     } else {
-                        let mut v40: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("by"); } LIT.with(|lit| lit.clone()) };
-                        let mut v41: i32 = field_index_6(v0.clone(), v1, v40.clone());
-                        let mut v42: bool = v41 < 0i32;
-                        v42
+                        let mut v39: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("by"); } LIT.with(|lit| lit.clone()) };
+                        let mut v40: i32 = field_index_6(v0.clone(), v1, v39.clone());
+                        let mut v41: bool = v40 < 0i32;
+                        v41
                     };
-                    if v43 {
-                        let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("errors: expected errors in output by \"<regex>\""); } LIT.with(|lit| lit.clone()) };
-                        US0::US0_StepRejected(v44.clone())
+                    if v42 {
+                        let mut v43: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("errors: expected errors in output by \"<regex>\""); } LIT.with(|lit| lit.clone()) };
+                        US0::US0_StepRejected(v43.clone())
                     } else {
-                        let mut v46: US1 = US1::US1_ErrorsBy(v5.clone());
-                        US0::US0_StepParsed(v46.clone())
+                        let mut v45: US1 = US1::US1_ErrorsBy(v5.clone());
+                        US0::US0_StepParsed(v45.clone())
                     }
                 } else {
-                    let mut v49: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("processes"); } LIT.with(|lit| lit.clone()) };
-                    if v49 {
-                        let mut v50: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        if v50 {
-                            let mut v51: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("processes: expected where command ~ \"<regex>\""); } LIT.with(|lit| lit.clone()) };
-                            US0::US0_StepRejected(v51.clone())
+                    let mut v48: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("processes"); } LIT.with(|lit| lit.clone()) };
+                    if v48 {
+                        let mut v49: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                        if v49 {
+                            let mut v50: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("processes: expected where command ~ \"<regex>\""); } LIT.with(|lit| lit.clone()) };
+                            US0::US0_StepRejected(v50.clone())
                         } else {
-                            let mut v53: US1 = US1::US1_ProcessesMatching(v5.clone());
-                            US0::US0_StepParsed(v53.clone())
+                            let mut v52: US1 = US1::US1_ProcessesMatching(v5.clone());
+                            US0::US0_StepParsed(v52.clone())
                         }
                     } else {
-                        let mut v56: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop"); } LIT.with(|lit| lit.clone()) };
-                        if v56 {
-                            let mut v57: u8 = 119u8;
-                            let mut v58: Rc<str> = first_of_kind_9(v0.clone(), v1, v57);
-                            let mut v59: bool = v58.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                            if v59 {
-                                let mut v60: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop: expected a run name"); } LIT.with(|lit| lit.clone()) };
-                                US0::US0_StepRejected(v60.clone())
+                        let mut v55: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop"); } LIT.with(|lit| lit.clone()) };
+                        if v55 {
+                            let mut v56: u8 = 119u8;
+                            let mut v57: Rc<str> = first_of_kind_9(v0.clone(), v1, v56);
+                            let mut v58: bool = v57.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                            if v58 {
+                                let mut v59: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop: expected a run name"); } LIT.with(|lit| lit.clone()) };
+                                US0::US0_StepRejected(v59.clone())
                             } else {
-                                let mut v62: US1 = US1::US1_StopNamed(v58.clone());
-                                US0::US0_StepParsed(v62.clone())
+                                let mut v61: US1 = US1::US1_StopNamed(v57.clone());
+                                US0::US0_StepParsed(v61.clone())
                             }
                         } else {
-                            let mut v65: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" cannot share one program with run yet; run it as its own call"); } LIT.with(|lit| lit.clone()) };
-                            let mut v66: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                            let mut v67: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v65, &*v66, &*v66, &*v66].concat());
-                            US0::US0_StepRejected(v67.clone())
+                            let mut v64: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" cannot share one program with run yet; run it as its own call"); } LIT.with(|lit| lit.clone()) };
+                            let mut v65: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                            let mut v66: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v64, &*v65, &*v65, &*v65].concat());
+                            US0::US0_StepRejected(v66.clone())
                         }
                     }
                 }
@@ -238,30 +237,29 @@ fn query_rejection_1(mut v0: std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>, mut v1: i3
         if v3 {
             let mut v4: i32 = 0i32;
             let mut v5: Rc<str> = field_at_2(v0.clone(), v1, v4);
-            let mut v6: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("query"); } LIT.with(|lit| lit.clone()) };
-            let mut v7: bool = v6 != true;
-            if v7 {
-                let mut v8: i32 = v1.wrapping_add(1i32);
-                (v0, v1) = (v0.clone(), v8);
+            let mut v6: bool = v5.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("query"); } LIT.with(|lit| lit.clone()) };
+            if v6 {
+                let mut v7: i32 = v1.wrapping_add(1i32);
+                (v0, v1) = (v0.clone(), v7);
                 continue;
             } else {
-                let mut v10: US0 = step_parsed_3(v0.clone(), v1);
-                match &v10 {
-                    US0::US0_StepParsed(v12) => {
-                        let mut v12: US1 = v12.clone();
-                        let mut v13: i32 = v1.wrapping_add(1i32);
-                        (v0, v1) = (v0.clone(), v13);
+                let mut v9: US0 = step_parsed_3(v0.clone(), v1);
+                match &v9 {
+                    US0::US0_StepParsed(v11) => {
+                        let mut v11: US1 = v11.clone();
+                        let mut v12: i32 = v1.wrapping_add(1i32);
+                        (v0, v1) = (v0.clone(), v12);
                         continue;
                     }
-                    US0::US0_StepRejected(v11) => {
-                        let mut v11: Rc<str> = v11.clone();
-                        return v11.clone();
+                    US0::US0_StepRejected(v10) => {
+                        let mut v10: Rc<str> = v10.clone();
+                        return v10.clone();
                     }
                 }
             }
         } else {
-            let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            return v18.clone();
+            let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            return v17.clone();
         }
     }
 }
@@ -438,12 +436,11 @@ fn foreground_run_17(mut v0: std::rc::Rc<std::cell::RefCell<(String, Vec<(String
             v40.clone()
         }
     };
-    let mut v53: bool = match &v37 {
+    let mut v52: bool = match &v37 {
         US2::US2_Exited(v49) => {
             let mut v49: i64 = *v49;
-            let mut v50: bool = v49 == 0i64;
-            let mut v51: bool = v50 != true;
-            v51
+            let mut v50: bool = v49 != 0i64;
+            v50
         }
         US2::US2_Matched => {
             false
@@ -452,18 +449,18 @@ fn foreground_run_17(mut v0: std::rc::Rc<std::cell::RefCell<(String, Vec<(String
             true
         }
     };
-    let (mut v54, mut v55, mut v56, mut v57, mut v58, mut v59, mut v60, mut v61, mut v62, mut v63, mut v64, mut v65, mut v66): (Rc<str>, bool, u64, bool, i64, u64, u64, u64, u64, u64, u64, u64, u64) = reported_25(v1.clone(), v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v48.clone(), v53);
-    let mut v67: u64 = v3.wrapping_add(1u64);
-    let (mut v69, mut v70, mut v71, mut v72, mut v73, mut v74, mut v75, mut v76, mut v77, mut v78, mut v79, mut v80, mut v81): (Rc<str>, bool, u64, bool, i64, u64, u64, u64, u64, u64, u64, u64, u64) = match &v37 {
-        US2::US2_Exited(v68) => {
-            let mut v68: i64 = *v68;
-            (v54.clone(), v55, v67, true, v68, v59, v60, v61, v62, v63, v64, v65, v66)
+    let (mut v53, mut v54, mut v55, mut v56, mut v57, mut v58, mut v59, mut v60, mut v61, mut v62, mut v63, mut v64, mut v65): (Rc<str>, bool, u64, bool, i64, u64, u64, u64, u64, u64, u64, u64, u64) = reported_25(v1.clone(), v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v48.clone(), v52);
+    let mut v66: u64 = v3.wrapping_add(1u64);
+    let (mut v68, mut v69, mut v70, mut v71, mut v72, mut v73, mut v74, mut v75, mut v76, mut v77, mut v78, mut v79, mut v80): (Rc<str>, bool, u64, bool, i64, u64, u64, u64, u64, u64, u64, u64, u64) = match &v37 {
+        US2::US2_Exited(v67) => {
+            let mut v67: i64 = *v67;
+            (v53.clone(), v54, v66, true, v67, v58, v59, v60, v61, v62, v63, v64, v65)
         }
         _ => {
-            (v54.clone(), v55, v67, v57, v58, v59, v60, v61, v62, v63, v64, v65, v66)
+            (v53.clone(), v54, v66, v56, v57, v58, v59, v60, v61, v62, v63, v64, v65)
         }
     };
-    (v69.clone(), v70, v71, v72, v73, v74, v75, v76, v77, v78, v79, v80, v81)
+    (v68.clone(), v69, v70, v71, v72, v73, v74, v75, v76, v77, v78, v79, v80)
 }
 fn background_pid_26(mut v0: std::rc::Rc<std::cell::RefCell<(String, Vec<(String, std::process::Child, u64)>)>>) -> u64 {
     let mut v1: u64 = v0.borrow().1.last().map(|entry| entry.1.id() as u64).unwrap_or(0);
@@ -563,7 +560,7 @@ fn step_run_15(mut v0: Rc<str>, mut v1: std::rc::Rc<std::cell::RefCell<(String, 
                                 let mut v132: Rc<str> = std::rc::Rc::<str>::from([&*v129, &*v117, &*v130, &*v119, &*v131].concat());
                                 v132.clone()
                             };
-                            let mut v134: bool = v120 != true;
+                            let mut v134: bool = v119.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
                             let (mut v135, mut v136, mut v137, mut v138, mut v139, mut v140, mut v141, mut v142, mut v143, mut v144, mut v145, mut v146, mut v147): (Rc<str>, bool, u64, bool, i64, u64, u64, u64, u64, u64, u64, u64, u64) = reported_25(v4.clone(), v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15, v16, v133.clone(), v134);
                             let mut v148: u64 = v6.wrapping_add(1u64);
                             (v135.clone(), v136, v148, v138, v139, v140, v141, v142, v143, v144, v145, v146, v147)
@@ -784,29 +781,28 @@ fn first_rejection_38(mut v0: std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>, mut v1: i
         if v3 {
             let mut v4: i32 = 0i32;
             let mut v5: Rc<str> = field_at_2(v0.clone(), v1, v4);
-            let mut v6: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("query"); } LIT.with(|lit| lit.clone()) };
-            let mut v7: bool = v6 != true;
-            if v7 {
-                let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("edit and run statements cannot share one program yet; run them as two calls"); } LIT.with(|lit| lit.clone()) };
-                return v8.clone();
+            let mut v6: bool = v5.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("query"); } LIT.with(|lit| lit.clone()) };
+            if v6 {
+                let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("edit and run statements cannot share one program yet; run them as two calls"); } LIT.with(|lit| lit.clone()) };
+                return v7.clone();
             } else {
-                let mut v9: US0 = step_parsed_3(v0.clone(), v1);
-                match &v9 {
-                    US0::US0_StepParsed(v11) => {
-                        let mut v11: US1 = v11.clone();
-                        let mut v12: i32 = v1.wrapping_add(1i32);
-                        (v0, v1) = (v0.clone(), v12);
+                let mut v8: US0 = step_parsed_3(v0.clone(), v1);
+                match &v8 {
+                    US0::US0_StepParsed(v10) => {
+                        let mut v10: US1 = v10.clone();
+                        let mut v11: i32 = v1.wrapping_add(1i32);
+                        (v0, v1) = (v0.clone(), v11);
                         continue;
                     }
-                    US0::US0_StepRejected(v10) => {
-                        let mut v10: Rc<str> = v10.clone();
-                        return v10.clone();
+                    US0::US0_StepRejected(v9) => {
+                        let mut v9: Rc<str> = v9.clone();
+                        return v9.clone();
                     }
                 }
             }
         } else {
-            let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            return v17.clone();
+            let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            return v16.clone();
         }
     }
 }

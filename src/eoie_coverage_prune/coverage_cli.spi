@@ -1,0 +1,93 @@
+///- --package ../eoie_cli_harness
+open cli
+
+inl fake_cargo_source () : string =
+    """
+    use std::{env,fs,path::Path};
+    fn main() {
+        let args = env::args().collect::<Vec<_>>();
+        if args[1] == "help" {
+            if Path::new("skip-profile").exists() { return; }
+            let pattern = env::var("LLVM_PROFILE_FILE").unwrap();
+            fs::write(Path::new(&pattern).parent().unwrap().join("current.profraw"), "new profile").unwrap();
+            return;
+        }
+        let target = env::var("CARGO_TARGET_DIR").unwrap();
+        for key in ["CARGO_TARGET_DIR", "EOIE_SPIRAL_COMPILE", "EOIE_BIN_UNDER_TEST", "LLVM_PROFILE_FILE"] {
+            assert!(Path::new(&env::var(key).unwrap()).is_absolute(), "relative environment: {key}");
+        }
+        assert!(env::var_os("CARGO_ENCODED_RUSTFLAGS").is_none());
+        assert_eq!(env::var("RUSTFLAGS").unwrap(), "-C instrument-coverage --cfg eoie_coverage");
+        let jobs = &args[args.iter().position(|arg| arg == "--jobs").unwrap()+1];
+        assert_eq!(&env::var("CARGO_BUILD_JOBS").unwrap(), jobs);
+        assert_eq!(&env::var("RUST_TEST_THREADS").unwrap(), jobs);
+        let release = Path::new(&target).join("release");
+        fs::create_dir_all(&release).unwrap();
+        if args[1] == "build" {
+            fs::copy(env::current_exe().unwrap(), release.join(format!("eoie{}", env::consts::EXE_SUFFIX))).unwrap();
+        } else {
+            assert_eq!(args[1], "test");
+            let pattern = env::var("LLVM_PROFILE_FILE").unwrap();
+            fs::write(Path::new(&pattern).parent().unwrap().join("current.profraw"), "new profile").unwrap();
+            fs::write(Path::new(&target).join("observed.txt"), format!("jobs={jobs}{}cwd={}{}", char::from(10u8), env::current_dir().unwrap().display(), char::from(10u8))).unwrap();
+        }
+    }
+    """
+
+inl coverage_fixture () : fixture_root =
+    inl root = fixture_root_create "coverage paths ü"
+    fixture_write root "project/src/Cargo.toml" "[workspace]\n"
+    fixture_write root "tools/compiler.dll" "unused fake compiler"
+    fixture_write root "profiles ü/previous.profraw" "previous profile"
+    inl _ = rustc_program root "tools/fake-cargo" (fake_cargo_source ())
+    root
+
+inl coverage_run (root : fixture_root) (~jobs : string) (~scope : string) : cli_run =
+    eoie_run (fixture_text_of root)
+        (Arg (cat "EOIE_COVERAGE_JOBS=" jobs, Arg ("CARGO_ENCODED_RUSTFLAGS=must-not-override-coverage", NoArgs)))
+        (Arg ("EOIE_COVERAGE_JOBS", Arg ("CARGO_BUILD_JOBS", Arg ("RUST_TEST_THREADS", Arg ("EOIE_COVERAGE_SMOKE_CHILD", NoArgs)))))
+        (Arg ("proxy", Arg ("coverage-run", Arg ("project", Arg (cat "tools/fake-cargo" (exe_suffix ()), Arg ("tools/compiler.dll", Arg ("output with spaces", Arg ("profiles ü", Arg (scope, Arg ("5000", NoArgs))))))))))
+
+inl profiles_untouched (root : fixture_root) : () =
+    same (fixture_read root "profiles ü/previous.profraw") "previous profile"
+    expect (path_exists (fixture_path root "output with spaces") = false) "the output directory was created"
+
+///> rust
+test native_coverage_resolves_relative_paths_before_changing_directory =
+    inl root = coverage_fixture ()
+    inl _ = succeeded (coverage_run root "2" "workspace")
+    expect (path_exists (fixture_path root "profiles ü/current.profraw")) "no current profile"
+    expect (path_exists (fixture_path root "profiles ü/preflight/current.profraw")) "no preflight profile"
+    expect (path_exists (fixture_path root "profiles ü/previous.profraw") = false) "the previous profile survived"
+    expect (path_exists (fixture_path root "project/src/output with spaces") = false) "the output was resolved after changing directory"
+    expect (starts (fixture_read root "output with spaces/observed.txt") "jobs=2\n") "the test step saw other jobs"
+    fixture_root_remove root
+
+inl rejected_config (root : fixture_root) (~jobs : string) (~scope : string) : () =
+    expect ((coverage_run root jobs scope).code <> 0i32) (cat (cat (cat "accepted jobs=" jobs) " scope=") scope)
+    profiles_untouched root
+
+///> rust
+test native_coverage_rejects_bad_configuration_before_clearing_profiles =
+    inl root = coverage_fixture ()
+    rejected_config root "0" "workspace"
+    rejected_config root "-1" "workspace"
+    rejected_config root "257" "workspace"
+    rejected_config root "many" "workspace"
+    rejected_config root "2" "invalid-scope"
+    fixture_root_remove root
+
+///> rust
+test native_coverage_rejects_a_binary_that_does_not_write_profiles =
+    inl root = coverage_fixture ()
+    fixture_write root "project/skip-profile" "simulate missing instrumentation"
+    failed_with (coverage_run root "2" "workspace") "no nonempty profile"
+    expect (path_exists (fixture_path root "output with spaces/observed.txt") = false) "observed.txt was written"
+    fixture_root_remove root
+
+///> rust
+test native_smoke_rejects_uncertified_sources_before_mutating_outputs =
+    inl root = coverage_fixture ()
+    failed_with (coverage_run root "2" "smoke") "valid strict EOIE release"
+    profiles_untouched root
+    fixture_root_remove root

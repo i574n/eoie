@@ -1,0 +1,78 @@
+///- --package ../eoie_cli_harness
+open cli
+
+inl hygiene_fixture () : fixture_root = fixture_root_create "hygiene ü"
+inl renewing (root : fixture_root) : cli_args = Arg ("EOIE_LEASE_POLICY=renewing", Arg (cat "EOIE_CONFIG_HOME=" (fixture_text_of root), NoArgs))
+inl lease_drops () : cli_args = Arg ("EOIE_LEASE_ROOT", Arg ("EOIE_CONTROL_READ_ONLY", NoArgs))
+
+inl pruned_at (root : fixture_root) (~verb : string) (~target : string) (dry : bool) : cli_run =
+    inl tail = if dry then Arg ("--dry-run", NoArgs) else NoArgs
+    eoie_run (temp_directory ()) (renewing root) (lease_drops ()) (Arg ("proxy", Arg (verb, Arg (target, tail))))
+
+inl pruned (root : fixture_root) (~verb : string) (dry : bool) : cli_run = pruned_at root verb (fixture_text_of root) dry
+inl refused (run : cli_run) (~detail : string) : () =
+    expect (run.code <> 0i32) (cat detail (run_text run))
+    hides run.stderr "unknown proxy operation"
+
+inl kept (root : fixture_root) (~relative : string) (~text : string) : () = same (fixture_read root relative) text
+inl gone (root : fixture_root) (~relative : string) : () = expect (path_exists (fixture_path root relative) = false) (cat "still present: " relative)
+inl present (root : fixture_root) (~relative : string) : () = expect (path_exists (fixture_path root relative)) (cat "removed: " relative)
+
+///> rust
+test sidecar_cleanup_preserves_sources_and_ignored_caches =
+    if on_windows () || on_linux () then
+        inl root = hygiene_fixture ()
+        fixture_write root "src/owner/main.spi" "source"
+        fixture_write root "src/owner/main.rs" "source"
+        fixture_write root "src/owner/adapter.rs" "source"
+        fixture_write root "src/owner/standalone.c" "source"
+        fixture_write root "src/owner/main.c" "sidecar"
+        fixture_write root "src/owner/main.spiral-entry" "sidecar"
+        fixture_write root "state/.eoie-typecheck-7.rs" "sidecar"
+        fixture_write root "src/target/keep.spiral-entry" "cache"
+        fixture_write root "src/vendor/keep.spiral-entry" "cache"
+        fixture_write root "src/.cache/keep.spiral-entry" "cache"
+        fixture_write root "src/.git/keep.spiral-entry" "cache"
+        inl _ = succeeded (pruned root "prune-compiler-sidecars" true)
+        present root "src/owner/main.c"
+        present root "src/owner/main.spiral-entry"
+        present root "state/.eoie-typecheck-7.rs"
+        inl _ = succeeded (pruned root "prune-compiler-sidecars" false)
+        gone root "src/owner/main.c"
+        gone root "src/owner/main.spiral-entry"
+        gone root "state/.eoie-typecheck-7.rs"
+        kept root "src/owner/main.spi" "source"
+        kept root "src/owner/main.rs" "source"
+        kept root "src/owner/adapter.rs" "source"
+        kept root "src/owner/standalone.c" "source"
+        kept root "src/target/keep.spiral-entry" "cache"
+        kept root "src/vendor/keep.spiral-entry" "cache"
+        kept root "src/.cache/keep.spiral-entry" "cache"
+        kept root "src/.git/keep.spiral-entry" "cache"
+        fixture_root_remove root
+    else ()
+
+///> rust
+test sidecar_cleanup_rejects_linked_roots_scopes_and_nested_directories =
+    if on_windows () || on_linux () then
+        inl outside = hygiene_fixture ()
+        fixture_write outside "keep.spiral-entry" "outside"
+        fixture_write outside "src/keep.spiral-entry" "outside"
+        inl root = hygiene_fixture ()
+        fixture_link_directory root (fixture_text_of outside) "root-link"
+        refused (pruned_at root "prune-compiler-sidecars" (fixture_path root "root-link") true) "a linked root was accepted (dry run), "
+        refused (pruned_at root "prune-compiler-sidecars" (fixture_path root "root-link") false) "a linked root was accepted, "
+        fixture_link_directory root (fixture_text_of outside) "src"
+        refused (pruned root "prune-compiler-sidecars" true) "a linked src scope was accepted (dry run), "
+        refused (pruned root "prune-compiler-sidecars" false) "a linked src scope was accepted, "
+        inl nested = hygiene_fixture ()
+        fixture_write nested "src/first.spiral-entry" "inside"
+        fixture_link_directory nested (fixture_text_of outside) "src/link"
+        refused (pruned nested "prune-compiler-sidecars" false) "a nested link was accepted, "
+        kept nested "src/first.spiral-entry" "inside"
+        fixture_root_remove root
+        fixture_root_remove nested
+        kept outside "keep.spiral-entry" "outside"
+        kept outside "src/keep.spiral-entry" "outside"
+        fixture_root_remove outside
+    else ()

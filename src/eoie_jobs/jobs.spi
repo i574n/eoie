@@ -74,6 +74,30 @@ let job_argv (shape : start_shape) (~id : string) (~label : string) (~inner : st
             inl _ = text_written wrapper (heavy_wrapper gate (job_file id "argv.inner") label id)
             heavy_argv wrapper
 
+union launch =
+    | Launched : string * string
+    | LaunchRefused : string
+
+let job_launched (shape : start_shape) (~label : string) (~timeout : u64) (~inner : string) (~cwd : string) : launch =
+    inl id = new_job_id label
+    inl problem = directory_created (job_directory id)
+    if problem <> "" then LaunchRefused problem
+    else
+        inl argv = job_argv shape id label inner
+        if argv = "" then LaunchRefused "--heavy needs spiral's scripts/heavy.ps1: set EOIE_HEAVY_GATE or run from inside a tree that has a spiral checkout"
+        else
+            inl writes =
+                concat5
+                    (text_written (job_file id "label") label)
+                    (text_written (job_file id "timeout_ms") (decimal_text timeout))
+                    (text_written (job_file id "cwd") cwd)
+                    (text_written (job_file id "argv") argv)
+                    (text_written (job_file id "started_ms") (decimal_text (now_ms ())))
+            if writes <> "" then LaunchRefused writes
+            else
+                inl supervisor = supervisor_launched id
+                if starts_with supervisor "error:" then LaunchRefused supervisor else Launched (id, supervisor)
+
 let job_started () : i32 =
     inl shape = start_shape_of (argument 3i32)
     inl first = 3i32 + shape_offset shape
@@ -83,27 +107,11 @@ let job_started () : i32 =
         inl timeout = decimal_u64 (argument (first + 1i32))
         if timeout = 0u64 then rejected "timeout-ms must be a positive integer"
         else
-            inl id = new_job_id label
-            inl problem = directory_created (job_directory id)
-            if problem <> "" then rejected problem
-            else
-                inl argv = job_argv shape id label (arguments_from (first + 2i32))
-                if argv = "" then rejected "--heavy needs spiral's scripts/heavy.ps1: set EOIE_HEAVY_GATE or run from inside a tree that has a spiral checkout"
-                else
-                    inl writes =
-                        concat5
-                            (text_written (job_file id "label") label)
-                            (text_written (job_file id "timeout_ms") (decimal_text timeout))
-                            (text_written (job_file id "cwd") (current_directory ()))
-                            (text_written (job_file id "argv") argv)
-                            (text_written (job_file id "started_ms") (decimal_text (now_ms ())))
-                    if writes <> "" then rejected writes
-                    else
-                        inl supervisor = supervisor_launched id
-                        if starts_with supervisor "error:" then rejected supervisor
-                        else
-                            stdout_line (concat5 "eoie job start ok id=" id " supervisor_pid=" supervisor (concat5 " timeout_ms=" (decimal_text timeout) " gate=" (shape_word shape) (concat5 " label=" label "" "" "")))
-                            0i32
+            match job_launched shape label timeout (arguments_from (first + 2i32)) (current_directory ()) with
+            | LaunchRefused problem => rejected problem
+            | Launched (id, supervisor) =>
+                stdout_line (concat5 "eoie job start ok id=" id " supervisor_pid=" supervisor (concat5 " timeout_ms=" (decimal_text timeout) " gate=" (shape_word shape) (concat5 " label=" label "" "" "")))
+                0i32
 
 let rec supervised (child : child_process) (~id : string) (deadline : u64) (beat : u64) : i32 =
     inl code = child_exit_or_running child
@@ -145,19 +153,23 @@ let job_status () : i32 =
         0i32
     else rejected (concat5 "status: unknown job id " id "" "" "")
 
-let rec waited (~id : string) (deadline : u64) : job_state =
+let rec waited (~id : string) (deadline : u64) (~watch : u64) : job_state =
     inl state = job_state_now id
-    if state_settled state || now_ms () > deadline then state
+    if state_settled state || now_ms () > deadline || process_alive watch = false then state
     else
         sleep_ms 250u64
-        waited id deadline
+        waited id deadline watch
+
+let watched_caller () : u64 =
+    inl inherited = $'std::env::var("EOIE_JOB_WATCH").ok().and_then(|value| value.parse::<u64>().ok()).unwrap_or(0)' : u64
+    if inherited = 0u64 then parent_pid () else inherited
 
 let job_waited () : i32 =
     inl id = argument 3i32
     inl copy = supervisor_executable (jobs_root ())
-    if copy <> "" && already_relaunched () = false && running_from copy = false then relaunched_as copy
+    if copy <> "" && already_relaunched () = false && running_from copy = false then relaunched_as copy (parent_pid ())
     elif known_job id then
-        inl state = waited id (now_ms () + decimal_u64 (argument 4i32))
+        inl state = waited id (now_ms () + decimal_u64 (argument 4i32)) (watched_caller ())
         stdout_line (job_summary "wait" id)
         state_exit state
     else rejected (concat5 "wait: unknown job id " id "" "" "")
@@ -194,6 +206,25 @@ let job_run () : i32 =
     | JobTail => job_tailed ()
     | JobUnknown => rejected (job_usage ())
 
+inl record_mark () : string = $'std::rc::Rc::<str>::from(char::from(30u8).to_string())' : string
+
+let launched_text (~label : string) (~timeout : u64) (~inner : string) (~cwd : string) : string =
+    match job_launched PlainStart label timeout inner cwd with
+    | Launched (id, supervisor) => concat5 id (record_mark ()) supervisor "" ""
+    | LaunchRefused problem => concat5 "error: " problem "" "" ""
+
+let settled_text (~id : string) (~wait_ms : u64) : string =
+    inl _ = waited id (now_ms () + wait_ms) (watched_caller ())
+    concat5 (job_summary "wait" id) " pid=" (text_or_empty (job_file id "pid")) " timeout_ms=" (text_or_empty (job_file id "timeout_ms"))
+
+let newest_labeled (~label : string) : string =
+    inl root = jobs_root ()
+    $'std::rc::Rc::<str>::from(std::fs::read_dir(&*!root).into_iter().flatten().flatten().filter(|entry| std::fs::read_to_string(entry.path().join("label")).map(|text| text.trim() == &*!label).unwrap_or(false)).map(|entry| entry.file_name().to_string_lossy().into_owned()).max_by_key(|name| name.split(char::from(45u8)).nth(1).and_then(|stamp| stamp.parse::<u64>().ok()).unwrap_or(0)).unwrap_or_default())' : string
+
 inl main () : i32 =
     !!!!Export("eoie_job_run", ((fun () => job_run ()) : () -> i32))
+    !!!!Export("eoie_job_launched", ((fun (label, timeout, inner, cwd) => launched_text label timeout inner cwd) : string * u64 * string * string -> string))
+    !!!!Export("eoie_job_settled", ((fun (id, wait_ms) => settled_text id wait_ms) : string * u64 -> string))
+    !!!!Export("eoie_job_output", ((fun (id, count) => last_lines (job_file id "stdout.log") count) : string * u64 -> string))
+    !!!!Export("eoie_job_labeled", ((fun label => newest_labeled label) : string -> string))
     0i32

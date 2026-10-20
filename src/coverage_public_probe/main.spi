@@ -60,10 +60,10 @@ inl main () : i32 =
             if assess_ok = 0i32 then
                 inl _ : coverage_public_probe probe_assess_ok probe_assess_floor = RejectCoverageFloor
                 inl assess_floor = status_code7 eoie "proxy" "coverage-assess" first second "1000" "1000" "1000"
-                if !!!!NEQ(assess_floor,0i32) then
+                if assess_floor <> 0i32 then
                     inl _ : coverage_public_probe probe_assess_floor probe_assess_parse = RejectCoverageParse
                     inl assess_parse = status_code7 eoie "proxy" "coverage-assess" first second "bad" "500" "500"
-                    if !!!!NEQ(assess_parse,0i32) then
+                    if assess_parse <> 0i32 then
                         inl _ : coverage_public_probe probe_assess_parse probe_done = FinishCoverageProbe
                         inl _ = cleanup_tree base
                         0i32

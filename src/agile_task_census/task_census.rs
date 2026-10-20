@@ -262,15 +262,6 @@ fn closure2() -> Rc<dyn Fn(Rc<str>, Rc<str>) -> Rc<str>> {
         task_status_of_10(v0.clone(), v1.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn task_status_of_12(mut v0: Rc<str>) -> Rc<str> {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Task (\""); } LIT.with(|lit| lit.clone()) };
-    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\","); } LIT.with(|lit| lit.clone()) };
-    let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v4: Rc<str> = std::rc::Rc::<str>::from([&*v1, &*v0, &*v2, &*v3, &*v3].concat());
-    let mut v5: i32 = 0i32;
-    let mut v6: i32 = v0.len() as i32;
-    status_of_id_11(v0.clone(), v4.clone(), v5, v6)
-}
 pub fn eoie_agile_status_counts(v0: &str) -> Rc<str> {
     closure0()(Rc::<str>::from(v0))
 }

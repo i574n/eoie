@@ -191,16 +191,15 @@ fn tally_status_4(mut v0: std::rc::Rc<std::cell::RefCell<std::collections::BTree
         if v5 {
             let mut v6: Rc<str> = std::rc::Rc::<str>::from(v1.lines().nth(v2 as usize).unwrap_or(""));
             let mut v7: Rc<str> = path_of_5(v6.clone());
-            let mut v8: bool = v7.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            let mut v9: bool = v8 != true;
-            if v9 {
-                let mut v10: Rc<str> = { let parts = v7.split(char::from(47u8)).collect::<Vec<_>>(); let keep = (v4 as usize).min(parts.len().saturating_sub(1)).max(1).min(parts.len()); std::rc::Rc::<str>::from(parts[..keep].join("/")) };
-                let (mut v11, mut v12, mut v13, mut v14): (u64, u64, u64, u64) = counts_of_6(v6.clone());
-                { let mut map = v0.borrow_mut(); let entry = map.entry(v10.to_string()).or_insert([0; 4]); entry[0] += v11; entry[1] += v12; entry[2] += v13; entry[3] += v14; };
+            let mut v8: bool = v7.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            if v8 {
+                let mut v9: Rc<str> = { let parts = v7.split(char::from(47u8)).collect::<Vec<_>>(); let keep = (v4 as usize).min(parts.len().saturating_sub(1)).max(1).min(parts.len()); std::rc::Rc::<str>::from(parts[..keep].join("/")) };
+                let (mut v10, mut v11, mut v12, mut v13): (u64, u64, u64, u64) = counts_of_6(v6.clone());
+                { let mut map = v0.borrow_mut(); let entry = map.entry(v9.to_string()).or_insert([0; 4]); entry[0] += v10; entry[1] += v11; entry[2] += v12; entry[3] += v13; };
                 ()
             };
-            let mut v15: u64 = v2.wrapping_add(1u64);
-            (v0, v1, v2, v3, v4) = (v0.clone(), v1.clone(), v15, v3, v4);
+            let mut v14: u64 = v2.wrapping_add(1u64);
+            (v0, v1, v2, v3, v4) = (v0.clone(), v1.clone(), v14, v3, v4);
             continue;
         }
         return ();
@@ -266,19 +265,18 @@ fn repo_state_of_2(mut v0: Rc<str>, mut v1: u64) -> i32 {
         let mut v51: Rc<str> = { let map = v7.borrow(); let mut areas = map.iter().collect::<Vec<_>>(); areas.sort_by(|left, right| right.1.iter().sum::<u64>().cmp(&left.1.iter().sum::<u64>()).then_with(|| left.0.cmp(right.0))); let shown = areas.iter().take(v50 as usize).map(|(area, counts)| format!("{}area={} staged={} modified={} untracked={} unmerged={}", &*v49, area, counts[0], counts[1], counts[2], counts[3])).collect::<Vec<_>>(); let hidden = areas.len().saturating_sub(shown.len()); let mut text = shown.join("
 "); if hidden > 0 { text.push_str(&format!("
 {}... {hidden} more areas (eoie table query or git status for the rest)", &*v49)); } std::rc::Rc::<str>::from(text) };
-        let mut v52: bool = v51.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        let mut v53: bool = v52 != true;
-        if v53 {
+        let mut v52: bool = v51.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        if v52 {
             println!("{}", &*v51);
             ()
         };
         0i32
     } else {
-        let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie repo state rejected root="); } LIT.with(|lit| lit.clone()) };
-        let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" reason=not-a-git-repository"); } LIT.with(|lit| lit.clone()) };
-        let mut v56: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        let mut v57: Rc<str> = std::rc::Rc::<str>::from([&*v54, &*v0, &*v55, &*v56, &*v56].concat());
-        println!("{}", &*v57);
+        let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie repo state rejected root="); } LIT.with(|lit| lit.clone()) };
+        let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" reason=not-a-git-repository"); } LIT.with(|lit| lit.clone()) };
+        let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        let mut v56: Rc<str> = std::rc::Rc::<str>::from([&*v53, &*v0, &*v54, &*v55, &*v55].concat());
+        println!("{}", &*v56);
         2i32
     }
 }

@@ -165,7 +165,7 @@ fn stop_once_14(mut v0: Rc<str>, mut v1: u64, mut v2: bool) -> bool {
     } else {
         US2::US2_StoppedOf(v4, v5)
     };
-    let mut v40: Rc<str> = match &v9 {
+    let mut v39: Rc<str> = match &v9 {
         US2::US2_NoSuchProcess => {
             let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop "); } LIT.with(|lit| lit.clone()) };
             let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  not found"); } LIT.with(|lit| lit.clone()) };
@@ -176,48 +176,47 @@ fn stop_once_14(mut v0: Rc<str>, mut v1: u64, mut v2: bool) -> bool {
         US2::US2_StoppedOf(v14, v15) => {
             let mut v14: u64 = *v14;
             let mut v15: u64 = *v15;
-            let mut v16: bool = v14 == v15;
-            let mut v17: bool = v16 != true;
-            if v17 {
-                let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop "); } LIT.with(|lit| lit.clone()) };
-                let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  stopped "); } LIT.with(|lit| lit.clone()) };
-                let mut v20: Rc<str> = std::rc::Rc::<str>::from((v14).to_string());
-                let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" of "); } LIT.with(|lit| lit.clone()) };
-                let mut v22: Rc<str> = std::rc::Rc::<str>::from((v15).to_string());
-                let mut v23: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" processes"); } LIT.with(|lit| lit.clone()) };
-                let mut v24: Rc<str> = std::rc::Rc::<str>::from([&*v19, &*v20, &*v21, &*v22, &*v23].concat());
-                let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                let mut v26: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v0, &*v24, &*v25, &*v25].concat());
-                v26.clone()
+            let mut v16: bool = v14 != v15;
+            if v16 {
+                let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop "); } LIT.with(|lit| lit.clone()) };
+                let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  stopped "); } LIT.with(|lit| lit.clone()) };
+                let mut v19: Rc<str> = std::rc::Rc::<str>::from((v14).to_string());
+                let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" of "); } LIT.with(|lit| lit.clone()) };
+                let mut v21: Rc<str> = std::rc::Rc::<str>::from((v15).to_string());
+                let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" processes"); } LIT.with(|lit| lit.clone()) };
+                let mut v23: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v19, &*v20, &*v21, &*v22].concat());
+                let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                let mut v25: Rc<str> = std::rc::Rc::<str>::from([&*v17, &*v0, &*v23, &*v24, &*v24].concat());
+                v25.clone()
             } else {
-                let mut v27: bool = v15 == 1u64;
-                if v27 {
-                    let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop "); } LIT.with(|lit| lit.clone()) };
-                    let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  stopped"); } LIT.with(|lit| lit.clone()) };
-                    let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                    let mut v31: Rc<str> = std::rc::Rc::<str>::from([&*v28, &*v0, &*v29, &*v30, &*v30].concat());
-                    v31.clone()
+                let mut v26: bool = v15 == 1u64;
+                if v26 {
+                    let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop "); } LIT.with(|lit| lit.clone()) };
+                    let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  stopped"); } LIT.with(|lit| lit.clone()) };
+                    let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                    let mut v30: Rc<str> = std::rc::Rc::<str>::from([&*v27, &*v0, &*v28, &*v29, &*v29].concat());
+                    v30.clone()
                 } else {
-                    let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop "); } LIT.with(|lit| lit.clone()) };
-                    let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  stopped (tree: "); } LIT.with(|lit| lit.clone()) };
-                    let mut v34: Rc<str> = std::rc::Rc::<str>::from((v15).to_string());
-                    let mut v35: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" processes)"); } LIT.with(|lit| lit.clone()) };
-                    let mut v36: Rc<str> = std::rc::Rc::<str>::from([&*v32, &*v0, &*v33, &*v34, &*v35].concat());
-                    v36.clone()
+                    let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop "); } LIT.with(|lit| lit.clone()) };
+                    let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  stopped (tree: "); } LIT.with(|lit| lit.clone()) };
+                    let mut v33: Rc<str> = std::rc::Rc::<str>::from((v15).to_string());
+                    let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" processes)"); } LIT.with(|lit| lit.clone()) };
+                    let mut v35: Rc<str> = std::rc::Rc::<str>::from([&*v31, &*v0, &*v32, &*v33, &*v34].concat());
+                    v35.clone()
                 }
             }
         }
     };
-    println!("{}", &*v40);
+    println!("{}", &*v39);
     match &v9 {
         US2::US2_NoSuchProcess => {
             false
         }
-        US2::US2_StoppedOf(v41, v42) => {
+        US2::US2_StoppedOf(v40, v41) => {
+            let mut v40: u64 = *v40;
             let mut v41: u64 = *v41;
-            let mut v42: u64 = *v42;
-            let mut v43: bool = v41 == v42;
-            v43
+            let mut v42: bool = v40 == v41;
+            v42
         }
     }
 }

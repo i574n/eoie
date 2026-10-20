@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "do_jobs.rs"
+
+[package]
+name = "eoie-do-jobs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do_jobs"
+path = "do_jobs.rs"
+
+[dependencies]
+eoie-jobs = { path = "../eoie_jobs" }

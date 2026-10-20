@@ -218,48 +218,47 @@ fn field_applied_7(mut v0: US3, mut v1: US3, mut v2: US3, mut v3: US3, mut v4: U
                     };
                     if v24 {
                         let mut v25: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().err().map(|error| error.to_string()).unwrap_or_default());
-                        let mut v26: bool = v25.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        let mut v27: bool = v26 != true;
-                        if v27 {
+                        let mut v26: bool = v25.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                        if v26 {
                             US4::US4_FieldRejected(v25.clone())
                         } else {
                             if v20 {
-                                let mut v29: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
-                                let mut v30: US3 = US3::US3_Present(v29.clone());
-                                US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v30.clone(), v4.clone(), v5.clone(), v6.clone())
+                                let mut v28: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
+                                let mut v29: US3 = US3::US3_Present(v28.clone());
+                                US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v29.clone(), v4.clone(), v5.clone(), v6.clone())
                             } else {
-                                let mut v32: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deletes"); } LIT.with(|lit| lit.clone()) };
-                                if v32 {
-                                    let mut v33: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
-                                    let mut v34: US3 = US3::US3_Present(v33.clone());
-                                    US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v34.clone(), v5.clone(), v6.clone())
+                                let mut v31: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("deletes"); } LIT.with(|lit| lit.clone()) };
+                                if v31 {
+                                    let mut v32: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
+                                    let mut v33: US3 = US3::US3_Present(v32.clone());
+                                    US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v33.clone(), v5.clone(), v6.clone())
                                 } else {
-                                    let mut v36: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
-                                    let mut v37: US3 = US3::US3_Present(v36.clone());
-                                    US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v37.clone(), v6.clone())
+                                    let mut v35: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<usize>().map(|count| count.to_string()).unwrap_or_default());
+                                    let mut v36: US3 = US3::US3_Present(v35.clone());
+                                    US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v36.clone(), v6.clone())
                                 }
                             }
                         }
                     } else {
-                        let mut v42: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status"); } LIT.with(|lit| lit.clone()) };
-                        if v42 {
-                            let mut v43: US3 = US3::US3_Present(v10.clone());
-                            US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v43.clone())
+                        let mut v41: bool = v9.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status"); } LIT.with(|lit| lit.clone()) };
+                        if v41 {
+                            let mut v42: US3 = US3::US3_Present(v10.clone());
+                            US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v42.clone())
                         } else {
-                            let mut v45: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unknown retention receipt field: "); } LIT.with(|lit| lit.clone()) };
-                            let mut v46: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                            let mut v47: Rc<str> = std::rc::Rc::<str>::from([&*v45, &*v9, &*v46, &*v46, &*v46].concat());
-                            US4::US4_FieldRejected(v47.clone())
+                            let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unknown retention receipt field: "); } LIT.with(|lit| lit.clone()) };
+                            let mut v45: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                            let mut v46: Rc<str> = std::rc::Rc::<str>::from([&*v44, &*v9, &*v45, &*v45, &*v45].concat());
+                            US4::US4_FieldRejected(v46.clone())
                         }
                     }
                 }
             }
         }
     } else {
-        let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid retention receipt field: "); } LIT.with(|lit| lit.clone()) };
-        let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        let mut v56: Rc<str> = std::rc::Rc::<str>::from([&*v54, &*v7, &*v55, &*v55, &*v55].concat());
-        US4::US4_FieldRejected(v56.clone())
+        let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid retention receipt field: "); } LIT.with(|lit| lit.clone()) };
+        let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        let mut v55: Rc<str> = std::rc::Rc::<str>::from([&*v53, &*v7, &*v54, &*v54, &*v54].concat());
+        US4::US4_FieldRejected(v55.clone())
     }
 }
 fn fields_from_6(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: US3, mut v4: US3, mut v5: US3, mut v6: US3, mut v7: US3, mut v8: US3, mut v9: US3) -> US4 {

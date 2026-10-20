@@ -1,0 +1,50 @@
+nominal record_list = $'std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>'
+
+let records_of (~encoded : string) : record_list =
+    $'std::rc::Rc::new((&*!encoded).split(char::from(30u8)).map(|record| record.split(char::from(31u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
+
+inl record_count (~records : record_list) : i32 = $'!records.len() as i32' : i32
+
+let field_at (~records : record_list) (~record : i32) (~field : i32) : string =
+    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).cloned().unwrap_or_default()' : string
+
+let field_index (~records : record_list) (~record : i32) (~word : string) : i32 =
+    $'!records.get(!record as usize).and_then(|fields| fields.iter().position(|field| field.len() > 1 && field.starts_with(char::from(119u8)) && &field[1..] == &*!word)).map(|index| index as i32).unwrap_or(-1)' : i32
+
+let body_at (~records : record_list) (~record : i32) (~field : i32) : string =
+    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).filter(|field| \!field.is_empty()).map(|field| std::rc::Rc::<str>::from(&field[1..])).unwrap_or_default()' : string
+
+let quoted_at (~records : record_list) (~record : i32) (~field : i32) : bool =
+    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).map(|field| field.starts_with(char::from(113u8))).unwrap_or(false)' : bool
+
+let items_span (~records : record_list) (~record : i32) (~from : i32) (~until : i32) : string =
+    $'{ let fields = !records.get(!record as usize).cloned().unwrap_or_default(); let until = if !until < 0 { fields.len() } else { (!until as usize).min(fields.len()) }; std::rc::Rc::<str>::from(fields.iter().take(until).skip(!from as usize).filter(|raw| raw.len() > 1).flat_map(|raw| raw[1..].split(|c: char| c == char::from(44u8) || c.is_whitespace()).filter(|item| \!item.is_empty()).map(str::to_owned).collect::<Vec<_>>()).collect::<Vec<_>>().join("\n")) }' : string
+
+let part_at (~text : string) (~index : i32) : string = $'std::rc::Rc::<str>::from(!text.split(char::from(30u8)).nth(!index as usize).unwrap_or(""))' : string
+
+let line_count (~text : string) : u64 = $'(!text).lines().filter(|line| \!line.is_empty()).count() as u64' : u64
+
+let line_at (~text : string) (~index : u64) : string = $'std::rc::Rc::<str>::from((!text).lines().filter(|line| \!line.is_empty()).nth(!index as usize).unwrap_or(""))' : string
+
+let tab_part (~text : string) (~index : i32) : string = $'std::rc::Rc::<str>::from((!text).split(char::from(9u8)).nth(!index as usize).unwrap_or(""))' : string
+
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+
+inl column () : string = $'std::rc::Rc::<str>::from(char::from(31u8).to_string())' : string
+
+let git_run (~root : string) (~directory : string) (~arguments : string) (~date : string) : string =
+    $'{ let mut command = std::process::Command::new("git"); command.current_dir(std::path::Path::new(&*!root).join(&*!directory)).args(["-c", "user.name=eoie", "-c"]).arg(format\!("user.email=eoie{}localhost", char::from(64u8))).args(["-c", "commit.gpgsign=false", "-c", "core.autocrlf=false"]).args((!arguments).split(char::from(10u8))).stdin(std::process::Stdio::null()); if \!(!date).is_empty() { command.env("GIT_AUTHOR_DATE", &*!date).env("GIT_COMMITTER_DATE", &*!date); } let mark = char::from(30u8); std::rc::Rc::<str>::from(match command.output() { Ok(output) => format\!("{}{mark}{}{mark}{}", output.status.code().unwrap_or(1), String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr).trim()), Err(error) => format\!("1{mark}{mark}git: {error}") }) }' : string
+
+let porcelain_paths (~lines : string) (~untracked : bool) : string =
+    $'std::rc::Rc::<str>::from((!lines).lines().filter(|line| line.len() > 3 && line.starts_with("??") == !untracked).map(|line| line[3..].trim_matches(char::from(34u8)).to_owned()).collect::<Vec<_>>().join("\n"))' : string
+
+let occurrences (~text : string) (~needle : string) : u64 = $'(!text).matches(&*!needle).count() as u64' : u64
+
+let matching_lines (~root : string) (~path : string) (~needle : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::read_to_string(std::path::Path::new(&*!root).join(&*!path)).unwrap_or_default().lines().enumerate().filter(|(_, line)| line.contains(&*!needle)).map(|(index, line)| format\!("{}:{}  {}", &*!path, index + 1, line)).collect::<Vec<_>>().join("\n"))' : string
+
+let days_counted (~dates : string) : string =
+    $'{ let mut days = std::collections::BTreeMap::<&str, u64>::new(); for day in (!dates).lines().map(str::trim).filter(|day| \!day.is_empty()) { *days.entry(day).or_default() += 1; } std::rc::Rc::<str>::from(days.iter().rev().map(|(day, count)| format\!("{day}{}{count}", char::from(31u8))).collect::<Vec<_>>().join("\n")) }' : string
+
+let aligned (~report : string) : string =
+    $'{ let separator = char::from(31u8); let rows = (&*!report).lines().collect::<Vec<_>>(); let mut widths: Vec<usize> = Vec::new(); for row in &rows { if row.contains(separator) { let cells = row.split(separator).collect::<Vec<_>>(); for (index, cell) in cells[..cells.len() - 1].iter().enumerate() { let length = cell.chars().count(); if widths.len() <= index { widths.push(length); } else if widths[index] < length { widths[index] = length; } } } } let shown = rows.iter().map(|row| if row.contains(separator) { let cells = row.split(separator).collect::<Vec<_>>(); let last = cells.len() - 1; cells.iter().enumerate().map(|(index, cell)| if index == last { cell.to_string() } else { format\!("{:<width$}  ", cell, width = widths[index]) }).collect::<String>() } else { row.to_string() }).collect::<Vec<_>>(); std::rc::Rc::<str>::from(shown.join("\n")) }' : string

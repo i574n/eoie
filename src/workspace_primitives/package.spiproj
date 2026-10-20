@@ -10,3 +10,4 @@ modules:
     console
     files
     rooted
+    toolchain

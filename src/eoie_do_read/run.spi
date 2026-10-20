@@ -26,12 +26,12 @@ let empty_query_tally () : query_tally =
 let lines_joined (~left : string) (~right : string) : string =
     if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
 
-let query_step (~root : string) (~touched : touched_files) (~q : query) : query_outcome =
+let query_step (~root : string) (~touched : touched_files) (~q : query) (~git : bool) : query_outcome =
     inl target = q.target
     inl paths = files_matching root target q.include q.exclude
     touched_with touched paths
     match q.verb with
-    | Search => searched root paths q.needle q.literal q.before q.after q.first q.paths_only
+    | Search => if git then git_hits root paths q.needle q.literal else searched root paths q.needle q.literal q.before q.after q.first q.paths_only
     | ReadAround => around root target q.needle q.before q.after
     | ListFiles => listing root paths
     | Head => edge_lines root paths q.count false
@@ -54,7 +54,7 @@ let outcome_merged (~state : query_tally) (~verb : query_verb) (~outcome : query
 let rec queries_run (~root : string) (~touched : touched_files) (~records : record_list) (~index : i32) (~state : query_tally) : query_tally =
     if index < record_count records then
         match query_parsed records index with
-        | QueryParsed q => queries_run root touched records (index + 1i32) (outcome_merged state q.verb (query_step root touched q))
+        | QueryParsed q => queries_run root touched records (index + 1i32) (outcome_merged state q.verb (query_step root touched q (git_marked records index)))
         | QueryRejected _ => queries_run root touched records (index + 1i32) state
     else state
 

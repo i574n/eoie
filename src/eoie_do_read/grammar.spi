@@ -53,10 +53,10 @@ let rec query_options (~records : record_list) (~record : i32) (~field : i32) (~
     | Text text => query_options records record (field + 1i32) { q with needle = text }
     | Bare word =>
         inl value = value_at records record (field + 1i32)
-        inl valued = word = "in" || word = "context" || word = "first" || word = "include" || word = "exclude" || word = "timeout"
+        inl valued = pipe_member "in|context|first|include|exclude|timeout" word
         if word = "literal" then query_options records record (field + 1i32) { q with literal = true }
         elif word = "paths" then query_options records record (field + 1i32) { q with paths_only = true }
-        elif word = "around" || word = "per" || word = "file" || word = "~" then query_options records record (field + 1i32) q
+        elif pipe_member "around|per|file|~|with|git|status" word then query_options records record (field + 1i32) q
         elif valued && value = "" then QueryRejected (concat5 word ": expected a value after it" "" "" "")
         elif word = "in" then query_options records record (field + 2i32) { q with target = value }
         elif word = "context" then query_options records record (field + 2i32) { q with before = first_number value; after = last_number value }

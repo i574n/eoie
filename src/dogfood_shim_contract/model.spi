@@ -52,12 +52,12 @@ let shim_decision_packed_binding (mode : i32) (flags : i32) : i32 =
         shim_decision_binding mode native_equivalent allow_real gap_present
 
 let shim_install_packed_binding (shape : i32) (mode : i32) : i32 =
-    if !!!!NEQ(shape,9i32) then 0i32
+    if shape <> 9i32 then 0i32
     elif mode < 0i32 then 0i32
     elif 2i32 < mode then 0i32
     else 1i32
 
 let shim_uninstall_binding (manifest_present : i32) (wrapper_count : i32) : i32 =
-    if !!!!NEQ(manifest_present,1i32) then 0i32
-    elif !!!!NEQ(wrapper_count,4i32) then 0i32
+    if manifest_present <> 1i32 then 0i32
+    elif wrapper_count <> 4i32 then 0i32
     else 1i32

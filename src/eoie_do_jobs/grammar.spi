@@ -1,0 +1,70 @@
+///- --package .
+test grammar static =
+    open rust_std_string.model
+    open host
+
+open rust_std_string.model
+open host
+
+union job_step =
+    | JobStart : string * string * string * bool
+    | JobWait : string * u64
+    | Blank
+
+union job_parse =
+    | JobParsed : job_step
+    | JobRejected : string
+
+let start_parsed (~records : record_list) (~record : i32) : job_parse =
+    inl as_at = field_index records record "as"
+    inl timeout_at = field_index records record "timeout"
+    inl command = words_between records record 3i32 as_at
+    if as_at < 0i32 || command = "" then JobRejected "job start: expected job start <command> as <name> timeout <duration> [notify]"
+    elif timeout_at < 0i32 || duration_ms (body_at records record (timeout_at + 1i32)) = 0u64 then JobRejected "job start: expected timeout <duration> such as 30s or 5m"
+    else
+        inl name = body_at records record (as_at + 1i32)
+        if name = "" || name = "timeout" then JobRejected "as: expected a job name after it"
+        else JobParsed (JobStart (name, command, body_at records record (timeout_at + 1i32), field_index records record "notify" > 0i32))
+
+let wait_parsed (~records : record_list) (~record : i32) : job_parse =
+    inl name = body_at records record 3i32
+    inl timeout_at = field_index records record "timeout"
+    if name = "" || name = "timeout" then JobRejected "job wait: expected job wait <name> [timeout <duration>]"
+    else JobParsed (JobWait (name, if timeout_at < 0i32 then 0u64 else duration_ms (body_at records record (timeout_at + 1i32))))
+
+let job_parsed (~records : record_list) (~record : i32) : job_parse =
+    inl kind = field_at records record 0i32
+    inl action = body_at records record 2i32
+    if kind = "" then JobParsed Blank
+    elif kind <> "query" || field_at records record 1i32 <> "job" then JobRejected (concat5 (field_at records record 1i32) " cannot share one program with job yet; run it as its own call" "" "" "")
+    elif action = "start" then start_parsed records record
+    elif action = "wait" then wait_parsed records record
+    else JobRejected (concat5 "job: unknown action " action "; expected start or wait" "" "")
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl records_from_bars (~text : string) : record_list =
+    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
+
+inl rejection_at (~records : record_list) (~record : i32) : string =
+    match job_parsed records record with
+    | JobRejected message => message
+    | JobParsed _ => ""
+
+///> rust
+test job_statements_parse_into_one_domain =
+    inl records = records_from_bars "ok\nquery|job|wstart|wslow.cmd|warg|was|wj1|wtimeout|w2s|wnotify\nquery|job|wwait|wj1|wtimeout|w30s"
+    match job_parsed records 1i32 with
+    | JobParsed (JobStart (name, command, timeout, notify)) => expect (name = "j1" && command = "slow.cmd arg" && timeout = "2s" && notify) "start parts"
+    | _ => expect false "start"
+    match job_parsed records 2i32 with
+    | JobParsed (JobWait (name, wait_ms)) => expect (name = "j1" && wait_ms = 30000u64) "wait parts"
+    | _ => expect false "wait"
+
+///> rust
+test incomplete_job_statements_are_rejected =
+    inl records = records_from_bars "ok\nquery|job|wstart|wslow.cmd|wtimeout|w2s\nquery|job|wstart|wslow.cmd|was|wj1\nquery|job|wkill|wj1"
+    expect (rejection_at records 1i32 = "job start: expected job start <command> as <name> timeout <duration> [notify]") "start without a name"
+    expect (rejection_at records 2i32 = "job start: expected timeout <duration> such as 30s or 5m") "start without a timeout"
+    expect (rejection_at records 3i32 = "job: unknown action kill; expected start or wait") "unknown action"
+    expect (duration_text 2000u64 = "2s" && duration_text 1500u64 = "1.5s" && duration_text 250u64 = "250ms") "durations"

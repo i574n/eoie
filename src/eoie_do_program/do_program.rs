@@ -540,21 +540,21 @@ fn query_at_15(mut v0: std::rc::Rc<Vec<(i32, std::rc::Rc<str>)>>, mut v1: i32, m
 fn step_at_5(mut v0: std::rc::Rc<Vec<(i32, std::rc::Rc<str>)>>, mut v1: i32) -> US6 {
     let mut v2: US5 = token_at_4(v0.clone(), v1);
     match &v2 {
-        US5::US5_Quoted(v65) => {
-            let mut v65: Rc<str> = v65.clone();
-            let mut v66: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unexpected quoted text"); } LIT.with(|lit| lit.clone()) };
-            let mut v67: Rc<str> = quoted_problem_13(v66.clone(), v65.clone());
-            US6::US6_Rejected(v67.clone())
+        US5::US5_Quoted(v26) => {
+            let mut v26: Rc<str> = v26.clone();
+            let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unexpected quoted text"); } LIT.with(|lit| lit.clone()) };
+            let mut v28: Rc<str> = quoted_problem_13(v27.clone(), v26.clone());
+            US6::US6_Rejected(v28.clone())
         }
         US5::US5_StatementEnd => {
-            let mut v69: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("empty statement"); } LIT.with(|lit| lit.clone()) };
-            US6::US6_Rejected(v69.clone())
+            let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("empty statement"); } LIT.with(|lit| lit.clone()) };
+            US6::US6_Rejected(v30.clone())
         }
-        US5::US5_Unterminated(v61) => {
-            let mut v61: Rc<str> = v61.clone();
-            let mut v62: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unterminated string"); } LIT.with(|lit| lit.clone()) };
-            let mut v63: Rc<str> = quoted_problem_13(v62.clone(), v61.clone());
-            US6::US6_Rejected(v63.clone())
+        US5::US5_Unterminated(v22) => {
+            let mut v22: Rc<str> = v22.clone();
+            let mut v23: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unterminated string"); } LIT.with(|lit| lit.clone()) };
+            let mut v24: Rc<str> = quoted_problem_13(v23.clone(), v22.clone());
+            US6::US6_Rejected(v24.clone())
         }
         US5::US5_Word(v3) => {
             let mut v3: Rc<str> = v3.clone();
@@ -566,139 +566,20 @@ fn step_at_5(mut v0: std::rc::Rc<Vec<(i32, std::rc::Rc<str>)>>, mut v1: i32) -> 
                 if v6 {
                     show_at_14(v0.clone(), v1)
                 } else {
-                    let mut v8: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("search"); } LIT.with(|lit| lit.clone()) };
-                    let mut v10: bool = if v8 {
-                        true
-                    } else {
-                        let mut v9: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("read"); } LIT.with(|lit| lit.clone()) };
-                        v9
-                    };
-                    let mut v12: bool = if v10 {
-                        true
-                    } else {
-                        let mut v11: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("files"); } LIT.with(|lit| lit.clone()) };
-                        v11
-                    };
-                    let mut v14: bool = if v12 {
-                        true
-                    } else {
-                        let mut v13: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("head"); } LIT.with(|lit| lit.clone()) };
-                        v13
-                    };
-                    let mut v16: bool = if v14 {
-                        true
-                    } else {
-                        let mut v15: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tail"); } LIT.with(|lit| lit.clone()) };
-                        v15
-                    };
-                    let mut v18: bool = if v16 {
-                        true
-                    } else {
-                        let mut v17: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("wait"); } LIT.with(|lit| lit.clone()) };
-                        v17
-                    };
-                    let mut v20: bool = if v18 {
-                        true
-                    } else {
-                        let mut v19: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("hash"); } LIT.with(|lit| lit.clone()) };
-                        v19
-                    };
-                    let mut v22: bool = if v20 {
-                        true
-                    } else {
-                        let mut v21: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("env"); } LIT.with(|lit| lit.clone()) };
-                        v21
-                    };
-                    let mut v24: bool = if v22 {
-                        true
-                    } else {
-                        let mut v23: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("exists"); } LIT.with(|lit| lit.clone()) };
-                        v23
-                    };
-                    let mut v26: bool = if v24 {
-                        true
-                    } else {
-                        let mut v25: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("nearest"); } LIT.with(|lit| lit.clone()) };
-                        v25
-                    };
-                    let mut v28: bool = if v26 {
-                        true
-                    } else {
-                        let mut v27: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("json"); } LIT.with(|lit| lit.clone()) };
-                        v27
-                    };
-                    let mut v30: bool = if v28 {
-                        true
-                    } else {
-                        let mut v29: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("lines"); } LIT.with(|lit| lit.clone()) };
-                        v29
-                    };
-                    let mut v32: bool = if v30 {
-                        true
-                    } else {
-                        let mut v31: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("table"); } LIT.with(|lit| lit.clone()) };
-                        v31
-                    };
-                    let mut v34: bool = if v32 {
-                        true
-                    } else {
-                        let mut v33: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("dirs"); } LIT.with(|lit| lit.clone()) };
-                        v33
-                    };
-                    let mut v36: bool = if v34 {
-                        true
-                    } else {
-                        let mut v35: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("diff"); } LIT.with(|lit| lit.clone()) };
-                        v35
-                    };
-                    let mut v38: bool = if v36 {
-                        true
-                    } else {
-                        let mut v37: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("tag"); } LIT.with(|lit| lit.clone()) };
-                        v37
-                    };
-                    let mut v40: bool = if v38 {
-                        true
-                    } else {
-                        let mut v39: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("count"); } LIT.with(|lit| lit.clone()) };
-                        v39
-                    };
-                    let mut v42: bool = if v40 {
-                        true
-                    } else {
-                        let mut v41: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("run"); } LIT.with(|lit| lit.clone()) };
-                        v41
-                    };
-                    let mut v44: bool = if v42 {
-                        true
-                    } else {
-                        let mut v43: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("errors"); } LIT.with(|lit| lit.clone()) };
-                        v43
-                    };
-                    let mut v46: bool = if v44 {
-                        true
-                    } else {
-                        let mut v45: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("processes"); } LIT.with(|lit| lit.clone()) };
-                        v45
-                    };
-                    let mut v48: bool = if v46 {
-                        true
-                    } else {
-                        let mut v47: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("stop"); } LIT.with(|lit| lit.clone()) };
-                        v47
-                    };
-                    if v48 {
+                    let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("search|read|files|head|tail|wait|hash|env|exists|nearest|json|lines|table|dirs|diff|tag|count|run|errors|processes|stop|append|copy|git|job|lab"); } LIT.with(|lit| lit.clone()) };
+                    let mut v9: bool = v8.split("|").any(|item| item == &*v3);
+                    if v9 {
                         query_at_15(v0.clone(), v1, v3.clone())
                     } else {
-                        let mut v50: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("replace"); } LIT.with(|lit| lit.clone()) };
-                        if v50 {
-                            let mut v51: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("replace: needs an edit line above it"); } LIT.with(|lit| lit.clone()) };
-                            US6::US6_Rejected(v51.clone())
+                        let mut v11: bool = v3.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("replace"); } LIT.with(|lit| lit.clone()) };
+                        if v11 {
+                            let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("replace: needs an edit line above it"); } LIT.with(|lit| lit.clone()) };
+                            US6::US6_Rejected(v12.clone())
                         } else {
-                            let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unsupported statement: "); } LIT.with(|lit| lit.clone()) };
-                            let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                            let mut v55: Rc<str> = std::rc::Rc::<str>::from([&*v53, &*v3, &*v54, &*v54, &*v54].concat());
-                            US6::US6_Rejected(v55.clone())
+                            let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unsupported statement: "); } LIT.with(|lit| lit.clone()) };
+                            let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                            let mut v16: Rc<str> = std::rc::Rc::<str>::from([&*v14, &*v3, &*v15, &*v15, &*v15].concat());
+                            US6::US6_Rejected(v16.clone())
                         }
                     }
                 }
@@ -753,11 +634,7 @@ fn fields_20(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>,
     let mut v5: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v1, &*v2, &*v3, &*v4].join(&char::from(31u8).to_string()));
     v5.clone()
 }
-fn fields_21(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>) -> Rc<str> {
-    let mut v4: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v1, &*v2, &*v3, &*v3].join(&char::from(31u8).to_string()));
-    v4.clone()
-}
-fn decimal_text_22(mut v0: u64) -> Rc<str> {
+fn decimal_text_21(mut v0: u64) -> Rc<str> {
     let mut v1: Rc<str> = std::rc::Rc::<str>::from((v0).to_string());
     v1.clone()
 }
@@ -777,18 +654,18 @@ fn edit_record_19(mut v0: Rc<str>, mut v1: US2, mut v2: US3, mut v3: Rc<UH1>) ->
             let mut v11: u64 = *v11;
             let mut v12: u64 = *v12;
             let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("edit"); } LIT.with(|lit| lit.clone()) };
-            let mut v14: Rc<str> = decimal_text_22(v11);
-            let mut v15: Rc<str> = decimal_text_22(v12);
+            let mut v14: Rc<str> = decimal_text_21(v11);
+            let mut v15: Rc<str> = decimal_text_21(v12);
             fields_20(v13.clone(), v0.clone(), v7.clone(), v14.clone(), v15.clone())
         }
         US3::US3_Unchecked => {
             let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("edit"); } LIT.with(|lit| lit.clone()) };
             let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("-"); } LIT.with(|lit| lit.clone()) };
-            fields_21(v8.clone(), v0.clone(), v7.clone(), v9.clone())
+            fields_20(v8.clone(), v0.clone(), v7.clone(), v9.clone(), v9.clone())
         }
     }
 }
-fn records_joined_23(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
+fn records_joined_22(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
     let mut v2: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
     if v2 {
         v1.clone()
@@ -799,7 +676,7 @@ fn records_joined_23(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
         v5.clone()
     }
 }
-fn rule_record_25(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US4) -> Rc<str> {
+fn rule_record_24(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US4) -> Rc<str> {
     match &v2 {
         US4::US4_Every => {
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("replace"); } LIT.with(|lit| lit.clone()) };
@@ -811,7 +688,7 @@ fn rule_record_25(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US4) -> Rc<str> {
             let mut v11: u64 = *v11;
             let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("replace"); } LIT.with(|lit| lit.clone()) };
             let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("times"); } LIT.with(|lit| lit.clone()) };
-            let mut v14: Rc<str> = decimal_text_22(v11);
+            let mut v14: Rc<str> = decimal_text_21(v11);
             fields_20(v12.clone(), v13.clone(), v14.clone(), v0.clone(), v1.clone())
         }
         US4::US4_Once => {
@@ -822,7 +699,7 @@ fn rule_record_25(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: US4) -> Rc<str> {
         }
     }
 }
-fn rules_encoded_24(mut v0: Rc<UH1>, mut v1: Rc<str>) -> Rc<str> {
+fn rules_encoded_23(mut v0: Rc<UH1>, mut v1: Rc<str>) -> Rc<str> {
     loop {
         match &*v0 {
             UH1::UH1_NoRules => {
@@ -833,17 +710,13 @@ fn rules_encoded_24(mut v0: Rc<UH1>, mut v1: Rc<str>) -> Rc<str> {
                 let mut v3: Rc<str> = v3.clone();
                 let mut v4: US4 = v4.clone();
                 let mut v5: Rc<UH1> = v5.clone();
-                let mut v6: Rc<str> = rule_record_25(v2.clone(), v3.clone(), v4.clone());
-                let mut v7: Rc<str> = records_joined_23(v1.clone(), v6.clone());
+                let mut v6: Rc<str> = rule_record_24(v2.clone(), v3.clone(), v4.clone());
+                let mut v7: Rc<str> = records_joined_22(v1.clone(), v6.clone());
                 (v0, v1) = (v5.clone(), v7.clone());
                 continue;
             }
         }
     }
-}
-fn fields_26(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>) -> Rc<str> {
-    let mut v3: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v1, &*v2, &*v2, &*v2].join(&char::from(31u8).to_string()));
-    v3.clone()
 }
 fn steps_encoded_18(mut v0: Rc<UH0>, mut v1: Rc<str>) -> Rc<str> {
     loop {
@@ -861,8 +734,8 @@ fn steps_encoded_18(mut v0: Rc<UH0>, mut v1: Rc<str>) -> Rc<str> {
                         let mut v6: US3 = v6.clone();
                         let mut v7: Rc<UH1> = v7.clone();
                         let mut v8: Rc<str> = edit_record_19(v4.clone(), v5.clone(), v6.clone(), v7.clone());
-                        let mut v9: Rc<str> = records_joined_23(v1.clone(), v8.clone());
-                        let mut v10: Rc<str> = rules_encoded_24(v7.clone(), v9.clone());
+                        let mut v9: Rc<str> = records_joined_22(v1.clone(), v8.clone());
+                        let mut v10: Rc<str> = rules_encoded_23(v7.clone(), v9.clone());
                         (v0, v1) = (v3.clone(), v10.clone());
                         continue;
                     }
@@ -871,8 +744,8 @@ fn steps_encoded_18(mut v0: Rc<UH0>, mut v1: Rc<str>) -> Rc<str> {
                         let mut v19: Rc<str> = v19.clone();
                         let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("query"); } LIT.with(|lit| lit.clone()) };
                         let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        let mut v22: Rc<str> = fields_21(v20.clone(), v18.clone(), v19.clone(), v21.clone());
-                        let mut v23: Rc<str> = records_joined_23(v1.clone(), v22.clone());
+                        let mut v22: Rc<str> = fields_20(v20.clone(), v18.clone(), v19.clone(), v21.clone(), v21.clone());
+                        let mut v23: Rc<str> = records_joined_22(v1.clone(), v22.clone());
                         (v0, v1) = (v3.clone(), v23.clone());
                         continue;
                     }
@@ -880,8 +753,8 @@ fn steps_encoded_18(mut v0: Rc<UH0>, mut v1: Rc<str>) -> Rc<str> {
                         let mut v12: Rc<str> = v12.clone();
                         let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("show"); } LIT.with(|lit| lit.clone()) };
                         let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                        let mut v15: Rc<str> = fields_26(v13.clone(), v12.clone(), v14.clone());
-                        let mut v16: Rc<str> = records_joined_23(v1.clone(), v15.clone());
+                        let mut v15: Rc<str> = fields_20(v13.clone(), v12.clone(), v14.clone(), v14.clone(), v14.clone());
+                        let mut v16: Rc<str> = records_joined_22(v1.clone(), v15.clone());
                         (v0, v1) = (v3.clone(), v16.clone());
                         continue;
                     }

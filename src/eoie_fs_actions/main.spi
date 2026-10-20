@@ -2,7 +2,7 @@ open filesystem_action_batch_contract.bindings
 
 
 let fs_action_mode_valid_binding (mode : i32) (reserved : i32) : i32 =
-    if !!!!NEQ(reserved,0i32) then 0i32
+    if reserved <> 0i32 then 0i32
     elif mode < 0i32 then 0i32
     elif 4095i32 < mode then 0i32
     else 1i32

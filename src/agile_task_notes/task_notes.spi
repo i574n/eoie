@@ -72,44 +72,7 @@ let note_entry () : i32 =
         | AuthorUnnamedAgent => note_failure "an agent session must name the note's author: agile note <root> <id> <text> --as <author> (or set EOIE_AUTHOR)" id
         | AuthorMalformed => note_failure "usage: agile note <root> <id> <text> [--as <author>]" id
 
-inl decimal_i32 (~text : string) : i32 = $'!text.trim().parse::<i32>().unwrap_or(-1)' : i32
-
-inl note_row_head (~id : string) (seq : i32) : string = rust_std_string.model.concat5 "inl " (note_binding id seq) " () = " "" ""
-
-inl note_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile note-edit " id " rejected: " reason "")
-
-inl note_edit_success (~id : string) (seq : i32) (previous : task_note) (revised : task_note) (before : u64) (after : u64) (elapsed : u64) : i32 =
-    inl head = rust_std_string.model.concat5 "eoie agile note-edit ok id=" id " note=" (i32_text seq) " at="
-    inl middle = rust_std_string.model.concat5 previous.at " author=" (spi_quoted previous.author) " text_bytes=" (i32_text (byte_len previous.text))
-    stdout_line (rust_std_string.model.concat5 head middle "->" (i32_text (byte_len revised.text)) (measured_sizes before after elapsed))
-
-let note_edited (~root : string) (~id : string) (seq : i32) (~body : string) : i32 =
-    inl started = unix_ms ()
-    inl state = backlog_state_path root
-    match probe (unchecked state) with
-    | FileMissing _ => note_edit_failure "state/agile.spi is missing" id
-    | FileReadable file =>
-        inl original = loaded_string (read_text file)
-        inl row = byte_find original (note_row_head id seq)
-        if row < 0i32 then note_edit_failure "no note with this number" id
-        else
-            inl previous = note_at original (row + byte_len (note_row_head id seq))
-            inl revised = { previous with text = body }
-            inl updated = spliced original row (line_end_after original row) (note_row id seq revised)
-            match state_written state original updated with
-            | StateWritten => note_edit_success id seq previous revised (text_bytes original) (text_bytes updated) (ms_since started)
-            | problem => note_edit_failure (state_write_problem problem) id
-
-let note_edit_entry () : i32 =
-    inl id = argument_owned 2i32
-    inl seq = decimal_i32 (argument_owned 3i32)
-    inl body = rust_std_string.model.trim (argument_owned 4i32)
-    if seq < 1i32 then note_edit_failure "the note number must be a positive integer" id
-    elif rust_std_string.model.equals body "" then note_edit_failure "the note text is empty" id
-    else note_edited (argument_owned 1i32) id seq body
-
 inl main () : i32 =
     !!!!Export("eoie_agile_note_run", ((fun () => note_entry ()) : () -> i32))
-    !!!!Export("eoie_agile_note_edit_run", ((fun () => note_edit_entry ()) : () -> i32))
     inl _ = note_entry ()
     0i32
