@@ -17,3 +17,4 @@ path = "spiral_tests.rs"
 
 [dependencies]
 eoie-process = { path = "../eoie_process" }
+eoie-process-streaming = { path = "../eoie_process_streaming" }

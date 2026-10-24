@@ -1,0 +1,7 @@
+packages:
+    |core-
+    spiral-
+    union_reflection
+    eoie_table_query
+modules:
+    measures

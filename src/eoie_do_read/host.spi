@@ -1,4 +1,4 @@
-nominal record_list = $'std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>'
+open eoie_do_records.records
 
 nominal path_list = $'std::rc::Rc<Vec<std::rc::Rc<str>>>'
 
@@ -6,13 +6,7 @@ nominal touched_files = $'std::rc::Rc<std::cell::RefCell<std::collections::BTree
 
 nominal query_outcome = $'std::rc::Rc<(std::rc::Rc<str>, [u64; 4], bool)>'
 
-let records_of (~encoded : string) : record_list =
-    $'std::rc::Rc::new((&*!encoded).split(char::from(30u8)).map(|record| record.split(char::from(31u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
-
-inl record_count (~records : record_list) : i32 = $'!records.len() as i32' : i32
-let field_at (~records : record_list) (~record : i32) (~field : i32) : string =
-    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).cloned().unwrap_or_default()' : string
-let decimal_of (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+let decimal_of (~text : string) : u64 = optionm'.default_value 0u64 (convert.try_convert text)
 inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
 
 let files_matching (~root : string) (~target : string) (~include : string) (~exclude : string) : path_list =

@@ -149,5 +149,7 @@ inl word_after (~text : string) (~marker : string) : string =
 inl utc_minute (~text : string) : bool =
     $'{ let bytes = (!text).as_bytes(); bytes.len() == 17 && bytes[4] == 45u8 && bytes[7] == 45u8 && bytes[10] == 84u8 && bytes[13] == 58u8 && bytes[16] == 90u8 }' : bool
 
-inl byte_count (~text : string) : i32 = $'(!text).len() as i32' : i32
+inl byte_count (~text : string) : i32 = sm'.length text
+inl pause_ms (~millis : u64) : () = $'std::thread::sleep(std::time::Duration::from_millis(!millis))' : ()
+inl path_appears (~path : string) (~max_ms : u64) : bool = $'{ let started = std::time::Instant::now(); while \!std::path::Path::new(&*!path).exists() && started.elapsed() < std::time::Duration::from_millis(!max_ms) { std::thread::sleep(std::time::Duration::from_millis(50)); } std::path::Path::new(&*!path).exists() }' : bool
 inl decimal (~value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string

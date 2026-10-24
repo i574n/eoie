@@ -1,4 +1,5 @@
 open rust_std_fs.model
+open sm'_operators
 open agile_task_text.model
 open workspace_primitives.outcome
 open workspace_primitives.numbers
@@ -12,12 +13,20 @@ inl argument_owned index : string = rust_std_env.model.argument_owned index
 union scaffold_file =
     | StatePackage
     | BacklogSchema
+    | LeasePrompt
 
 inl scaffold_relative = function
     | StatePackage => "/state/package.spiproj"
     | BacklogSchema => "/state/agile.spi"
+    | LeasePrompt => "/state/prompt.spi"
 
-inl scaffold_text = function
+inl expired_lease_text (now : u64) : string =
+    inl started = now - 5100000u64
+    inl head = "union lease_status = | LeaseActive :: lease_status | LeaseClosed :: lease_status\nunion prompt_lease = | PromptLease :: string * string * u64 * u64 * u64 * u64 * lease_status -> prompt_lease\n"
+    inl row = "inl current () : prompt_lease = PromptLease (\"init\", \"scaffolded by agile init; agile begin opens a lease\", 4500000u64, 600000u64, " ++# (u64_text started) ++# "u64, " ++# (u64_text now) ++# "u64, LeaseActive)\ninl main () : i32 = 0i32\n"
+    head ++# row
+
+inl scaffold_text (now : u64) = function
     | StatePackage => """
         modules:
             agile
@@ -60,27 +69,31 @@ inl scaffold_text = function
             inl main () : i32 = 0i32
 
             """
-        rust_std_string.model.concat5 kinds priorities difficulties statuses item
+        kinds ++# priorities ++# difficulties ++# statuses ++# item
+    | LeasePrompt => expired_lease_text now
 
-inl scaffold_path (~root : string) (file : scaffold_file) : string = rust_std_string.model.concat5 root (scaffold_relative file) "" "" ""
-inl state_directory (~root : string) : string = rust_std_string.model.concat5 root "/state" "" "" ""
+inl scaffold_path (~root : string) (file : scaffold_file) : string = root ++# (scaffold_relative file)
+inl state_directory (~root : string) : string = root ++# "/state"
 inl directory_ready (~path : string) : bool = $'std::fs::create_dir_all(&*!path).is_ok()' : bool
 inl file_present (~path : string) : bool = $'std::path::Path::new(&*!path).exists()' : bool
 
-inl agile_init_failure (~reason : string) (~root : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile init " root " rejected: " reason "")
+inl agile_init_failure (~reason : string) (~root : string) : i32 = stderr_failure ("agile init " ++# root ++# " rejected: " ++# reason)
 
 inl agile_init_success (~root : string) (written : u64) (elapsed : u64) : i32 =
-    inl head = rust_std_string.model.concat5 "eoie agile init ok root=" root " files=2 bytes=" (u64_text written) " elapsed_ms="
-    stdout_line (rust_std_string.model.concat5 head (u64_text elapsed) " next=eoie agile begin <root> <title>" "" "")
+    inl head = "eoie agile init ok root=" ++# root ++# " files=3 bytes=" ++# (u64_text written) ++# " elapsed_ms="
+    stdout_line (head ++# (u64_text elapsed) ++# " next=eoie agile begin <root> <title>")
 
 inl agile_init (~root : string) : i32 =
     inl started = unix_ms ()
     if file_present (scaffold_path root BacklogSchema) then agile_init_failure "state/agile.spi already exists" root
     elif file_present (scaffold_path root StatePackage) then agile_init_failure "state/package.spiproj already exists" root
+    elif file_present (scaffold_path root LeasePrompt) then agile_init_failure "state/prompt.spi already exists" root
     elif directory_ready (state_directory root) then
-        if write_text (scaffold_path root StatePackage) (scaffold_text StatePackage) then
-            if write_text (scaffold_path root BacklogSchema) (scaffold_text BacklogSchema) then
-                agile_init_success root ($"!(text_bytes (scaffold_text StatePackage)) + !(text_bytes (scaffold_text BacklogSchema))" : u64) (ms_since started)
+        if write_text (scaffold_path root StatePackage) (scaffold_text started StatePackage) then
+            if write_text (scaffold_path root BacklogSchema) (scaffold_text started BacklogSchema) then
+                if write_text (scaffold_path root LeasePrompt) (scaffold_text started LeasePrompt) then
+                    agile_init_success root ($"!(text_bytes (scaffold_text started StatePackage)) + !(text_bytes (scaffold_text started BacklogSchema)) + !(text_bytes (scaffold_text started LeasePrompt))" : u64) (ms_since started)
+                else agile_init_failure "could not write state/prompt.spi" root
             else agile_init_failure "could not write state/agile.spi" root
         else agile_init_failure "could not write state/package.spiproj" root
     else agile_init_failure "could not create the state directory" root

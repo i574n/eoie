@@ -14,7 +14,7 @@ inl table_command_of (~word : string) : table_command =
     elif word = "diff" then TableDiff
     else TableUnknown
 
-inl table_usage () : string = "table query <file> [--where col=value]... [--cols a,b] [--group col] [--limit n] | table diff <left> <right> --key a,b [--cols x,y] [--limit n]"
+inl table_usage () : string = "table query <file> [--where col=value|col!=value|col>value|col>=value|col<value|col<=value]... [--cols a,b] [--group col] [--mean|--sd|--sum|--min|--max|--count a,b]... [--limit n] [--quiet] | table diff <left> <right> --key a,b [--cols x,y] [--latest-by col] [--limit n]"
 
 type table_request =
     {
@@ -23,25 +23,36 @@ type table_request =
         group : string
         key : string
         limit : u64
+        measured : string
+        latest : string
+        quiet : bool
     }
 
-inl no_request () : table_request = { wheres = ""; cols = ""; group = ""; key = ""; limit = 20u64 }
+let no_request () : table_request = { wheres = ""; cols = ""; group = ""; key = ""; limit = 20u64; measured = ""; latest = ""; quiet = false }
 
 union option_step =
     | StepTaken : table_request
     | StepRejected : string
 
 inl appended (~list : string) (~item : string) : string = if list = "" then item else concat5 list "\n" item "" ""
+inl listed_line (~list : string) (~item : string) : string = appended list item
+inl listed (~list : string) (~item : string) : string = if list = "" then item elif item = "" then list else concat5 list "," item "" ""
 
-inl decimal_u64 (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+inl trim_start_matches (~text : string) (~prefix : string) : string = $'std::rc::Rc::<str>::from((!text).trim_start_matches(&*!prefix))' : string
+let each_prefixed (~prefix : string) (~items : string) : string =
+    $'std::rc::Rc::<str>::from((!items).split(char::from(44u8)).filter(|item| \!item.trim().is_empty()).map(|item| format\!("{}{}", &*!prefix, item.trim())).collect::<Vec<_>>().join(",").as_str())' : string
+
+let decimal_u64 (~text : string) : u64 = optionm'.default_value 0u64 (convert.try_convert text)
 
 let option_applied (request : table_request) (~name : string) (~value : string) : option_step =
     if name = "--where" then
-        if contains value "=" then StepTaken { request with wheres = appended request.wheres value }
-        else StepRejected (concat5 "--where expects col=value, got " value "" "" "")
+        if contains value "=" || contains value "<" || contains value ">" then StepTaken { request with wheres = appended request.wheres value }
+        else StepRejected (concat5 "--where expects col=value (or col!=value, col>value, col>=value, col<value, col<=value), got " value "" "" "")
     elif name = "--cols" then StepTaken { request with cols = value }
     elif name = "--group" then StepTaken { request with group = value }
     elif name = "--key" then StepTaken { request with key = value }
+    elif pipe_member "--mean|--sd|--sum|--min|--max|--count" name then StepTaken { request with measured = listed request.measured (each_prefixed (concat5 (trim_start_matches name "-") ":" "" "" "") value) }
+    elif name = "--latest-by" then StepTaken { request with latest = value }
     elif name = "--limit" then
         inl limit = decimal_u64 value
         if limit = 0u64 then StepRejected "--limit expects a positive integer" else StepTaken { request with limit = limit }
@@ -60,6 +71,10 @@ test options_build_a_typed_request =
     inl b = taken (option_applied a "--where" "native=ran")
     expect (b.wheres = "backend=C\nnative=ran") "wheres accumulate in order"
     expect ((taken (option_applied b "--limit" "5")).limit = 5u64) "limit"
+    inl measured = taken (option_applied (taken (option_applied b "--mean" "retries,latency_ms")) "--min" "free_mb")
+    expect (measured.measured = "mean:retries,mean:latency_ms,min:free_mb") measured.measured
+    expect ((taken (option_applied b "--latest-by" "timestamp")).latest = "timestamp") "latest by"
+    expect (listed (listed "" "a") "" = "a") "listed skips empty items"
     inl rejected =
         match option_applied b "--where" "backend" with
         | StepRejected _ => true

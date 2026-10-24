@@ -1,0 +1,203 @@
+///- --package .
+test verbs static =
+    open eoie_do_model.model
+    open eoie_do_records.records
+
+open eoie_do_model.model
+open eoie_do_records.records
+
+union fact_verb =
+    | HashVerb
+    | EnvVerb
+    | ExistsVerb
+    | NearestVerb
+    | JsonVerb
+    | LinesVerb
+    | TableVerb
+    | DirsVerb
+    | TagVerb
+    | CountVerb
+    | DiffVerb
+
+union run_verb =
+    | RunVerb
+    | ErrorsVerb
+    | ProcessesVerb
+    | StopVerb
+
+union write_verb =
+    | AppendVerb
+    | CopyVerb
+    | MoveVerb
+
+union program_verb =
+    | ReadVerb : query_verb
+    | FactVerb : fact_verb
+    | RunStepVerb : run_verb
+    | WriteVerb : write_verb
+    | GitVerb
+    | JobVerb
+    | LabVerb
+
+inl fact_word (verb : fact_verb) : string =
+    match verb with
+    | HashVerb => "hash"
+    | EnvVerb => "env"
+    | ExistsVerb => "exists"
+    | NearestVerb => "nearest"
+    | JsonVerb => "json"
+    | LinesVerb => "lines"
+    | TableVerb => "table"
+    | DirsVerb => "dirs"
+    | TagVerb => "tag"
+    | CountVerb => "count"
+    | DiffVerb => "diff"
+
+inl run_word (verb : run_verb) : string =
+    match verb with
+    | RunVerb => "run"
+    | ErrorsVerb => "errors"
+    | ProcessesVerb => "processes"
+    | StopVerb => "stop"
+
+inl write_word (verb : write_verb) : string =
+    match verb with
+    | AppendVerb => "append"
+    | CopyVerb => "copy"
+    | MoveVerb => "move"
+
+inl program_verb_family (verb : program_verb) : program_family =
+    match verb with
+    | ReadVerb _ => Reads
+    | FactVerb _ => Facts
+    | RunStepVerb _ => Runs
+    | WriteVerb _ => Writes
+    | GitVerb => Git
+    | JobVerb => Jobs
+    | LabVerb => Labs
+
+let fact_named (~word : string) : option fact_verb =
+    union_reflection.cases.union_case_where (fun (verb : fact_verb) => word = fact_word verb) (fun verb => Some verb) None
+
+let run_named (~word : string) : option run_verb =
+    union_reflection.cases.union_case_where (fun (verb : run_verb) => word = run_word verb) (fun verb => Some verb) None
+
+let write_named (~word : string) : option write_verb =
+    union_reflection.cases.union_case_where (fun (verb : write_verb) => word = write_word verb) (fun verb => Some verb) None
+
+let program_verb_tail (~word : string) : option program_verb =
+    match run_named word with
+    | Some verb => Some (RunStepVerb verb)
+    | None =>
+        match write_named word with
+        | Some verb => Some (WriteVerb verb)
+        | None =>
+            if word = "git" then Some GitVerb
+            elif word = "job" then Some JobVerb
+            elif word = "lab" then Some LabVerb
+            else None
+
+let program_verb_named (~word : string) : option program_verb =
+    match query_verb_named word with
+    | Some verb => Some (ReadVerb verb)
+    | None =>
+        match fact_named word with
+        | Some verb => Some (FactVerb verb)
+        | None => program_verb_tail word
+
+let do_verb_family (~word : string) : string =
+    match program_verb_named word with
+    | Some verb => program_family_word (program_verb_family verb)
+    | None => ""
+
+type families_seen =
+    {
+        runs : bool
+        jobs : bool
+        labs : bool
+        git : bool
+        writes : bool
+        facts : bool
+        reads : bool
+    }
+
+inl nothing_seen () : families_seen = { runs = false; jobs = false; labs = false; git = false; writes = false; facts = false; reads = false }
+
+inl seen_with (seen : families_seen) (family : program_family) : families_seen =
+    match family with
+    | Runs => { seen with runs = true }
+    | Jobs => { seen with jobs = true }
+    | Labs => { seen with labs = true }
+    | Git => { seen with git = true }
+    | Writes => { seen with writes = true }
+    | Facts => { seen with facts = true }
+    | Reads => { seen with reads = true }
+    | Edits => seen
+
+inl family_seen (seen : families_seen) (family : program_family) : bool =
+    match family with
+    | Runs => seen.runs
+    | Jobs => seen.jobs
+    | Labs => seen.labs
+    | Git => seen.git
+    | Writes => seen.writes
+    | Facts => seen.facts
+    | Reads => seen.reads
+    | Edits => false
+
+inl family_priority () : list program_family = Cons (Runs, Cons (Jobs, Cons (Labs, Cons (Git, Cons (Writes, Cons (Facts, Cons (Reads, Nil)))))))
+
+let query_family (~records : record_list) (index : i32) : option program_family =
+    inl verb = field_at records index 1i32
+    if verb = "files" && field_index records index "count" >= 0i32 then Some Facts
+    else
+        match program_verb_named verb with
+        | Some named => Some (program_verb_family named)
+        | None => None
+
+let rec families_of (~records : record_list) (index : i32) (seen : families_seen) : families_seen =
+    if index >= record_count records then seen
+    elif field_at records index 0i32 <> "query" then families_of records (index + 1i32) seen
+    else
+        match query_family records index with
+        | Some family => families_of records (index + 1i32) (seen_with seen family)
+        | None => families_of records (index + 1i32) seen
+
+let rec first_seen (order : list program_family) (seen : families_seen) : program_family =
+    match order with
+    | Nil => Edits
+    | Cons (family, rest) => if family_seen seen family then family else first_seen rest seen
+
+let records_family (~records : record_list) : program_family = first_seen (family_priority ()) (families_of records 1i32 (nothing_seen ()))
+
+inl main () : i32 =
+    !!!!Export("eoie_do_program_family", ((fun encoded => program_family_word (records_family (records_of encoded))) : string -> string))
+    !!!!Export("eoie_do_verb_family", ((fun word => do_verb_family word) : string -> string))
+    0i32
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test every_verb_names_its_family_once =
+    expect (do_verb_family "search" = "reads") "search reads"
+    expect (do_verb_family "tail" = "reads") "tail reads"
+    expect (do_verb_family "hash" = "facts") "hash is a fact"
+    expect (do_verb_family "diff" = "facts") "diff is a fact"
+    expect (do_verb_family "processes" = "runs") "processes runs"
+    expect (do_verb_family "move" = "writes") "move writes"
+    expect (do_verb_family "git" = "git") "git"
+    expect (do_verb_family "lab" = "labs") "lab"
+    expect (do_verb_family "replace" = "") "replace is no query verb"
+    expect (do_verb_family "edit" = "") "edit is a statement, not a query verb"
+
+inl family_of_bars (~text : string) : string = program_family_word (records_family (records_from_bars text))
+
+///> rust
+test a_program_is_delegated_to_its_highest_priority_family =
+    expect (family_of_bars "ok\nquery|search|qneedle\nquery|run|qcargo" = "runs") "a run step outranks reads"
+    expect (family_of_bars "ok\nquery|hash|qa.txt\nquery|move|qa|qb" = "writes") "writes outrank facts"
+    expect (family_of_bars "ok\nquery|files|q.|wcount" = "facts") "counting files is a fact"
+    expect (family_of_bars "ok\nquery|files|q." = "reads") "listing files reads"
+    expect (family_of_bars "ok\nquery|lab|qlist\nquery|git|qstatus" = "labs") "labs outrank git"
+    expect (family_of_bars "ok\nedit|qa.txt" = "edits") "no query is an edit program"
+    expect (program_family_named "jobs" = Some Jobs) "family words read back"

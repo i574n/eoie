@@ -7,16 +7,16 @@ inl agile_transient_schema_verdict_code = function
     | InvalidTransientSchema => 0u64
 
 let agile_transient_schema_code (~projection : string) : u64 =
-    if rust_std_string.model.starts_with projection "patch_resume.spi\n" then
-        if rust_std_string.model.contains projection "PatchResumeReceipt ("
-            && rust_std_string.model.contains projection "inl main () : i32 = 0i32" then
+    if sm'.starts_with "patch_resume.spi\n" projection then
+        if sm'.contains "PatchResumeReceipt (" projection
+            && sm'.contains "inl main () : i32 = 0i32" projection then
             agile_transient_schema_verdict_code ValidTransientSchema
         else
             agile_transient_schema_verdict_code InvalidTransientSchema
-    elif rust_std_string.model.starts_with projection "toolchain_process_receipt.spi\n" then
-        if rust_std_string.model.contains projection "\n// toolchain-process-receipt|"
-            && rust_std_string.model.contains projection "ToolchainProcessReceipt ("
-            && rust_std_string.model.contains projection "inl main () : i32 = 0i32" then
+    elif sm'.starts_with "toolchain_process_receipt.spi\n" projection then
+        if sm'.contains "\n// toolchain-process-receipt|" projection
+            && sm'.contains "ToolchainProcessReceipt (" projection
+            && sm'.contains "inl main () : i32 = 0i32" projection then
             agile_transient_schema_verdict_code ValidTransientSchema
         else
             agile_transient_schema_verdict_code InvalidTransientSchema

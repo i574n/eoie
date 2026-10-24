@@ -1,0 +1,9 @@
+packages:
+    |core-
+    spiral-
+    spiral-
+    union_reflection
+    agile_subcommand_domain
+modules:
+    query
+    task_query

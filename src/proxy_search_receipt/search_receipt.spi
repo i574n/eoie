@@ -1,4 +1,5 @@
 open workspace_primitives.numbers
+open sm'_operators
 open workspace_primitives.clock
 open workspace_primitives.console
 
@@ -13,10 +14,10 @@ inl emit_receipt (stream : receipt_stream) (~text : string) : i32 =
     | AfterContent => stdout_line text
     | BesideDigest => stderr_line text
 
-inl elapsed_text (started : u64) : string = rust_std_string.model.concat5 " elapsed_ms=" (u64_text (ms_since started)) "" "" ""
+inl elapsed_text (started : u64) : string = " elapsed_ms=" ++# (u64_text (ms_since started))
 
 inl phases_text (started : u64) (serial_done : u64) (parallel_done : u64) : string =
-    rust_std_string.model.concat5 " serial_ms=" (u64_text (u64_span started serial_done)) " parallel_ms=" (u64_text (u64_span serial_done parallel_done)) ""
+    " serial_ms=" ++# (u64_text (u64_span started serial_done)) ++# " parallel_ms=" ++# (u64_text (u64_span serial_done parallel_done))
 
 union hit_budget =
     | AllHitsShown
@@ -26,15 +27,15 @@ inl hit_budget_of (found : i32) (limit : i32) : hit_budget = if $"!found > !limi
 
 inl hits_text (found : i32) (limit : i32) (budget : hit_budget) : string =
     match budget with
-    | AllHitsShown => rust_std_string.model.concat5 " hits=" (i32_text found) "" "" ""
-    | HitsTruncated => rust_std_string.model.concat5 " hits=" (i32_text limit) " truncated=true found_at_least=" (i32_text found) ""
+    | AllHitsShown => " hits=" ++# (i32_text found)
+    | HitsTruncated => " hits=" ++# (i32_text limit) ++# " truncated=true found_at_least=" ++# (i32_text found)
 
 let parallel_search_receipt_text (workers : i32) (found : i32) (limit : i32) (started : u64) (serial_done : u64) (parallel_done : u64) : string =
-    inl head = rust_std_string.model.concat5 "eoie proxy parallel-search ok workers=" (i32_text workers) (hits_text found limit (hit_budget_of found limit)) " parity=exact ordering=deterministic excludes=.git,node_modules,build-output,symlinks" ""
-    rust_std_string.model.concat5 head (phases_text started serial_done parallel_done) (elapsed_text started) "" ""
+    inl head = "eoie proxy parallel-search ok workers=" ++# (i32_text workers) ++# (hits_text found limit (hit_budget_of found limit)) ++# " parity=exact ordering=deterministic excludes=.git,node_modules,build-output,symlinks"
+    head ++# (phases_text started serial_done parallel_done) ++# (elapsed_text started)
 
 let fs_search_receipt_text (found : i32) (limit : i32) (started : u64) : string =
-    rust_std_string.model.concat5 "eoie proxy fs-search ok" (hits_text found limit (hit_budget_of found limit)) " excludes=.git,node_modules,build-output,symlinks" (elapsed_text started) ""
+    "eoie proxy fs-search ok" ++# (hits_text found limit (hit_budget_of found limit)) ++# " excludes=.git,node_modules,build-output,symlinks" ++# (elapsed_text started)
 
 union slice_extent =
     | SliceFilled
@@ -48,24 +49,24 @@ inl slice_extent_text (extent : slice_extent) : string =
     | SliceReachedEnd => " end_of_file=true"
 
 let fs_slice_receipt_text (start : u64) (shown : u64) (requested : u64) (started : u64) : string =
-    inl head = rust_std_string.model.concat5 "eoie proxy fs-slice ok start=" (u64_text start) " lines=" (u64_text shown) " requested="
-    rust_std_string.model.concat5 head (u64_text requested) (slice_extent_text (slice_extent_of shown requested)) (elapsed_text started) ""
+    inl head = "eoie proxy fs-slice ok start=" ++# (u64_text start) ++# " lines=" ++# (u64_text shown) ++# " requested="
+    head ++# (u64_text requested) ++# (slice_extent_text (slice_extent_of shown requested)) ++# (elapsed_text started)
 
 let fs_context_receipt_text (offset : u64) (window : u64) (file_bytes : u64) (started : u64) : string =
-    inl head = rust_std_string.model.concat5 "eoie proxy fs-context ok offset=" (u64_text offset) " window_bytes=" (u64_text window) " file_bytes="
-    rust_std_string.model.concat5 head (u64_text file_bytes) (elapsed_text started) "" ""
+    inl head = "eoie proxy fs-context ok offset=" ++# (u64_text offset) ++# " window_bytes=" ++# (u64_text window) ++# " file_bytes="
+    head ++# (u64_text file_bytes) ++# (elapsed_text started)
 
 inl regular_file_bytes (~path : string) : u64 = $'std::fs::metadata(&*!path).map(|meta| meta.len()).unwrap_or(0)' : u64
 
 let hash_receipt_text (~path : string) (started : u64) : string =
-    rust_std_string.model.concat5 "eoie proxy hash ok bytes=" (u64_text (regular_file_bytes path)) (elapsed_text started) "" ""
+    "eoie proxy hash ok bytes=" ++# (u64_text (regular_file_bytes path)) ++# (elapsed_text started)
 
 let hash_tree_receipt_text (~relative : string) (started : u64) : string =
-    rust_std_string.model.concat5 "eoie proxy hash-tree ok relative=" relative (elapsed_text started) "" ""
+    "eoie proxy hash-tree ok relative=" ++# relative ++# (elapsed_text started)
 
 let parallel_manifest_receipt_text (workers : i32) (entries : i32) (~digest : string) (started : u64) (serial_done : u64) (parallel_done : u64) : string =
-    inl head = rust_std_string.model.concat5 "eoie proxy parallel-manifest ok workers=" (i32_text workers) " entries=" (i32_text entries) " sha256="
-    rust_std_string.model.concat5 head digest " parity=exact ordering=deterministic" (phases_text started serial_done parallel_done) (elapsed_text started)
+    inl head = "eoie proxy parallel-manifest ok workers=" ++# (i32_text workers) ++# " entries=" ++# (i32_text entries) ++# " sha256="
+    head ++# digest ++# " parity=exact ordering=deterministic" ++# (phases_text started serial_done parallel_done) ++# (elapsed_text started)
 
 let parallel_search_receipt (workers : i32) (found : i32) (limit : i32) (started : u64) (serial_done : u64) (parallel_done : u64) : i32 =
     emit_receipt AfterContent (parallel_search_receipt_text workers found limit started serial_done parallel_done)

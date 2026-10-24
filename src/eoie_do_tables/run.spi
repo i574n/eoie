@@ -1,7 +1,8 @@
-open rust_std_string.model
+open sm'_operators
 open eoie_receipt.receipt
 open host
 open grammar
+open eoie_do_records.records
 
 type diff_tally =
     {
@@ -16,7 +17,7 @@ type diff_tally =
 let empty_diff_tally () : diff_tally = { report = ""; failed = false; left = 0u64; right = 0u64; changed = 0u64; both = 0u64 }
 
 let lines_joined (~left : string) (~right : string) : string =
-    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+    if right = "" then left elif left = "" then right else left ++# "\n" ++# right
 
 let rec tables_run (~root : string) (~records : record_list) (~index : i32) (~state : diff_tally) : diff_tally =
     if index < record_count records then
@@ -38,8 +39,8 @@ let rec first_rejection (~records : record_list) (~index : i32) : string =
     else ""
 
 let receipt_counts (~state : diff_tally) : string =
-    inl rows = concat5 "rows a " (decimal_text state.left) "  b " (decimal_text state.right) ""
-    concat5 rows "  changed " (decimal_text state.changed) (concat5 "  added " (decimal_text (state.right - state.both)) "  removed " (decimal_text (state.left - state.both)) "") ""
+    inl rows = "rows a " ++# (decimal_text state.left) ++# "  b " ++# (decimal_text state.right)
+    rows ++# "  changed " ++# (decimal_text state.changed) ++# ("  added " ++# (decimal_text (state.right - state.both)) ++# "  removed " ++# (decimal_text (state.left - state.both)))
 
 let tables_program_run (~root : string) (~encoded : string) : i32 =
     inl started = now_ms ()
@@ -56,7 +57,7 @@ let tables_program_run (~root : string) (~encoded : string) : i32 =
             receipt_line Succeeded (receipt_counts state) started
             0i32
     else
-        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        stdout_line ("program rejected: " ++# rejection)
         receipt_line Failed "rows a 0  b 0" started
         2i32
 

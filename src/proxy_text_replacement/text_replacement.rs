@@ -34,54 +34,71 @@ enum US5 {
     US5_RenameFailed,
     US5_ReadbackMismatch,
 }
+fn command_line_argument_count_3() -> i32 {
+    let mut v0: i32 = (std::env::args().count() as i32) - 1;
+    v0
+}
+fn proxy_argument_count_2() -> i32 {
+    let mut v0: i32 = command_line_argument_count_3();
+    let mut v1: bool = v0 > 0i32;
+    if v1 {
+        let mut v2: i32 = v0.wrapping_sub(1i32);
+        v2
+    } else {
+        0i32
+    }
+}
+fn regular_file_4(mut v0: Rc<str>) -> bool {
+    let mut v2: &str = &*v0;
+    let mut v4: std::string::String = String::from(v2);
+    let mut v6: std::path::PathBuf = std::path::PathBuf::from(v4);
+    let mut v8: bool = v6.is_file();
+    v8
+}
 fn text_replace_outcome_1() -> US0 {
     let mut v0: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
     let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 1i32 as usize).unwrap_or_default());
-    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("check"); } LIT.with(|lit| lit.clone()) };
-    let mut v3: bool = v1 == v2 ;
-    let mut v12: US1 = if v3 {
-        let mut v4: US2 = US2::US2_CheckReplacement;
-        US1::US1_Valid(v4.clone())
+    let mut v2: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("check"); } LIT.with(|lit| lit.clone()) };
+    let mut v10: US1 = if v2 {
+        let mut v3: US2 = US2::US2_CheckReplacement;
+        US1::US1_Valid(v3.clone())
     } else {
-        let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("apply"); } LIT.with(|lit| lit.clone()) };
-        let mut v7: bool = v1 == v6 ;
-        if v7 {
-            let mut v8: US2 = US2::US2_ApplyReplacement;
-            US1::US1_Valid(v8.clone())
+        let mut v5: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("apply"); } LIT.with(|lit| lit.clone()) };
+        if v5 {
+            let mut v6: US2 = US2::US2_ApplyReplacement;
+            US1::US1_Valid(v6.clone())
         } else {
             US1::US1_Invalid
         }
     };
-    let mut v13: i32 = std::env::args().skip(2).count() as i32;
-    let mut v14: bool = 6i32 == v13;
-    let mut v41: US3 = if v14 {
-        let mut v15: US4 = US4::US4_ExactlyOneMatch;
-        US3::US3_Valid(v15.clone())
+    let mut v11: i32 = proxy_argument_count_2();
+    let mut v12: bool = 6i32 == v11;
+    let mut v37: US3 = if v12 {
+        let mut v13: US4 = US4::US4_ExactlyOneMatch;
+        US3::US3_Valid(v13.clone())
     } else {
-        let mut v17: bool = 7i32 == v13;
-        if v17 {
-            let mut v18: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 6i32 as usize).unwrap_or_default());
-            let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--all"); } LIT.with(|lit| lit.clone()) };
-            let mut v20: bool = v18 == v19 ;
-            if v20 {
-                let mut v21: US4 = US4::US4_EveryMatch;
-                US3::US3_Valid(v21.clone())
+        let mut v15: bool = 7i32 == v11;
+        if v15 {
+            let mut v16: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 6i32 as usize).unwrap_or_default());
+            let mut v17: bool = v16.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--all"); } LIT.with(|lit| lit.clone()) };
+            if v17 {
+                let mut v18: US4 = US4::US4_EveryMatch;
+                US3::US3_Valid(v18.clone())
             } else {
                 US3::US3_Invalid
             }
         } else {
-            let mut v25: bool = 8i32 == v13;
-            if v25 {
-                let mut v26: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 7i32 as usize).unwrap_or_default());
-                let mut v27: u64 = v26.parse::<u64>().unwrap_or(0);
-                let mut v28: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 6i32 as usize).unwrap_or_default());
-                let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--expect"); } LIT.with(|lit| lit.clone()) };
-                let mut v30: bool = v28 == v29 ;
-                if v30 {
-                    let mut v31: bool = 0 < v27;
-                    if v31 {
-                        let mut v32: US4 = US4::US4_ExactlyMatches(v27);
-                        US3::US3_Valid(v32.clone())
+            let mut v22: bool = 8i32 == v11;
+            if v22 {
+                let mut v23: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 7i32 as usize).unwrap_or_default());
+                let mut v24: u64 = v23.parse::<u64>().unwrap_or(0);
+                let mut v25: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 6i32 as usize).unwrap_or_default());
+                let mut v26: bool = v25.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--expect"); } LIT.with(|lit| lit.clone()) };
+                if v26 {
+                    let mut v27: bool = 0 < v24;
+                    if v27 {
+                        let mut v28: US4 = US4::US4_ExactlyMatches(v24);
+                        US3::US3_Valid(v28.clone())
                     } else {
                         US3::US3_Invalid
                     }
@@ -93,85 +110,87 @@ fn text_replace_outcome_1() -> US0 {
             }
         }
     };
-    match &v12 {
+    match &v10 {
         US1::US1_Invalid => {
-            let mut v42: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace mode must be check or apply"); } LIT.with(|lit| lit.clone()) };
-            US0::US0_ReplacementRejected(v42.clone())
+            let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace mode must be check or apply"); } LIT.with(|lit| lit.clone()) };
+            US0::US0_ReplacementRejected(v38.clone())
         }
         _ => {
-            match &v41 {
+            match &v37 {
                 US3::US3_Invalid => {
-                    let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace expects <check|apply> <root> <relative> <old> <new> [--expect N | --all]"); } LIT.with(|lit| lit.clone()) };
-                    US0::US0_ReplacementRejected(v44.clone())
+                    let mut v40: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace expects <check|apply> <root> <relative> <old> <new> [--expect N | --all]"); } LIT.with(|lit| lit.clone()) };
+                    US0::US0_ReplacementRejected(v40.clone())
                 }
                 _ => {
-                    match &v12 {
-                        US1::US1_Valid(v46) => {
-                            let mut v46: US2 = v46.clone();
-                            match &v41 {
-                                US3::US3_Valid(v47) => {
-                                    let mut v47: US4 = v47.clone();
-                                    let mut v48: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 4i32 as usize).unwrap_or_default());
-                                    let mut v49: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 5i32 as usize).unwrap_or_default());
-                                    let mut v50: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 2i32 as usize).unwrap_or_default());
-                                    let mut v51: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 3i32 as usize).unwrap_or_default());
-                                    let mut v52: Rc<str> = eoie_rust_std_fs::rooted_path(std::path::Path::new(&*v50), &*v51).map(|path| std::rc::Rc::<str>::from(path.to_string_lossy().as_ref())).unwrap_or_else(|_| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-                                    let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                                    let mut v54: bool = v52 == v53 ;
-                                    if v54 {
-                                        let mut v55: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace target escapes the root"); } LIT.with(|lit| lit.clone()) };
-                                        US0::US0_ReplacementRejected(v55.clone())
+                    match &v10 {
+                        US1::US1_Valid(v42) => {
+                            let mut v42: US2 = v42.clone();
+                            match &v37 {
+                                US3::US3_Valid(v43) => {
+                                    let mut v43: US4 = v43.clone();
+                                    let mut v44: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 4i32 as usize).unwrap_or_default());
+                                    let mut v45: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 5i32 as usize).unwrap_or_default());
+                                    let mut v46: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 2i32 as usize).unwrap_or_default());
+                                    let mut v47: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(2 + 3i32 as usize).unwrap_or_default());
+                                    let mut v48: Rc<str> = eoie_rust_std_fs::rooted_path(std::path::Path::new(&*v46), &*v47).map(|path| std::rc::Rc::<str>::from(path.to_string_lossy().as_ref())).unwrap_or_else(|_| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+                                    let mut v49: bool = v48.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                                    if v49 {
+                                        let mut v50: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace target escapes the root"); } LIT.with(|lit| lit.clone()) };
+                                        US0::US0_ReplacementRejected(v50.clone())
                                     } else {
-                                        let mut v57: bool = v48 == v53 ;
-                                        if v57 {
-                                            let mut v58: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace old text is empty"); } LIT.with(|lit| lit.clone()) };
-                                            US0::US0_ReplacementRejected(v58.clone())
+                                        let mut v52: bool = v44.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                                        if v52 {
+                                            let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace old text is empty"); } LIT.with(|lit| lit.clone()) };
+                                            US0::US0_ReplacementRejected(v53.clone())
                                         } else {
-                                            let mut v60: bool = v48 == v49 ;
-                                            if v60 {
-                                                let mut v61: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace old and new text are identical"); } LIT.with(|lit| lit.clone()) };
-                                                US0::US0_ReplacementRejected(v61.clone())
+                                            let mut v55: bool = v44.clone() == v45.clone();
+                                            if v55 {
+                                                let mut v56: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace old and new text are identical"); } LIT.with(|lit| lit.clone()) };
+                                                US0::US0_ReplacementRejected(v56.clone())
                                             } else {
-                                                let mut v63: bool = std::path::Path::new(&*v52).is_file();
-                                                if v63 {
-                                                    let mut v64: Rc<str> = std::rc::Rc::<str>::from(std::fs::read_to_string(&*v52).unwrap_or_default());
-                                                    let mut v65: u64 = v64.match_indices(&*v48).count() as u64;
-                                                    let mut v72: bool = match &v47 {
+                                                let mut v58: bool = regular_file_4(v48.clone());
+                                                if v58 {
+                                                    let mut v59: Rc<str> = std::rc::Rc::<str>::from(std::fs::read_to_string(&*v48).unwrap_or_default());
+                                                    let mut v60: u64 = v59.match_indices(&*v44).count() as u64;
+                                                    let mut v67: bool = match &v43 {
                                                         US4::US4_EveryMatch => {
-                                                            let mut v69: bool = 0 < v65;
-                                                            v69
+                                                            let mut v64: bool = 0 < v60;
+                                                            v64
                                                         }
-                                                        US4::US4_ExactlyMatches(v67) => {
-                                                            let mut v67: u64 = *v67;
-                                                            let mut v68: bool = v65 == v67;
-                                                            v68
+                                                        US4::US4_ExactlyMatches(v62) => {
+                                                            let mut v62: u64 = *v62;
+                                                            let mut v63: bool = v60 == v62;
+                                                            v63
                                                         }
                                                         US4::US4_ExactlyOneMatch => {
-                                                            let mut v66: bool = v65 == 1u64;
-                                                            v66
+                                                            let mut v61: bool = v60 == 1u64;
+                                                            v61
                                                         }
                                                     };
-                                                    if v72 {
-                                                        let mut v75: Rc<str> = match &v47 {
+                                                    if v67 {
+                                                        let mut v70: Rc<str> = match &v43 {
                                                             US4::US4_EveryMatch => {
-                                                                let mut v73: Rc<str> = std::rc::Rc::<str>::from(v64.replace(&*v48, &*v49));
-                                                                v73.clone()
+                                                                let mut v68: Rc<str> = std::rc::Rc::<str>::from(v59.replace(&*v44, &*v45));
+                                                                v68.clone()
                                                             }
                                                             _ => {
-                                                                let mut v74: Rc<str> = std::rc::Rc::<str>::from(v64.replacen(&*v48, &*v49, v65 as usize));
-                                                                v74.clone()
+                                                                let mut v69: Rc<str> = std::rc::Rc::<str>::from(v59.replacen(&*v44, &*v45, v60 as usize));
+                                                                v69.clone()
                                                             }
                                                         };
-                                                        match &v46 {
+                                                        match &v42 {
                                                             US2::US2_ApplyReplacement => {
-                                                                let mut v103: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".pending"); } LIT.with(|lit| lit.clone()) };
-                                                                let mut v104: Rc<str> = std::rc::Rc::<str>::from([&*v52, &*v103, &*v53, &*v53, &*v53].concat());
-                                                                let mut v105: bool = std::fs::write(&*v104, &*v75).is_ok();
-                                                                let mut v114: US5 = if v105 {
-                                                                    let mut v106: bool = std::fs::rename(&*v104, &*v52).is_ok();
-                                                                    if v106 {
-                                                                        let mut v107: bool = std::fs::read_to_string(&*v52).is_ok_and(|value| value == *v75);
-                                                                        if v107 {
+                                                                let mut v105: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("."); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v106: Rc<str> = std::rc::Rc::<str>::from(std::process::id().to_string().as_str());
+                                                                let mut v107: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".pending"); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v108: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v109: Rc<str> = std::rc::Rc::<str>::from([&*v48, &*v105, &*v106, &*v107, &*v108].concat());
+                                                                let mut v110: bool = std::fs::write(&*v109, &*v70).is_ok();
+                                                                let mut v119: US5 = if v110 {
+                                                                    let mut v111: bool = std::fs::rename(&*v109, &*v48).is_ok();
+                                                                    if v111 {
+                                                                        let mut v112: bool = std::fs::read_to_string(&*v48).is_ok_and(|value| value == *v70);
+                                                                        if v112 {
                                                                             US5::US5_Replaced
                                                                         } else {
                                                                             US5::US5_ReadbackMismatch
@@ -182,75 +201,85 @@ fn text_replace_outcome_1() -> US0 {
                                                                 } else {
                                                                     US5::US5_TemporaryWriteFailed
                                                                 };
-                                                                match &v114 {
+                                                                match &v119 {
                                                                     US5::US5_Replaced => {
-                                                                        let mut v115: u64 = v64.len() as u64;
-                                                                        let mut v116: u64 = v75.len() as u64;
-                                                                        let mut v117: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode="); } LIT.with(|lit| lit.clone()) };
-                                                                        let mut v118: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("apply"); } LIT.with(|lit| lit.clone()) };
-                                                                        let mut v119: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" path="); } LIT.with(|lit| lit.clone()) };
-                                                                        let mut v120: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" matches="); } LIT.with(|lit| lit.clone()) };
-                                                                        let mut v121: Rc<str> = std::rc::Rc::<str>::from([&*v117, &*v118, &*v119, &*v52, &*v120].concat());
-                                                                        let mut v122: Rc<str> = std::rc::Rc::<str>::from((v65).to_string());
-                                                                        let mut v123: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expected="); } LIT.with(|lit| lit.clone()) };
-                                                                        let mut v130: Rc<str> = match &v47 {
+                                                                        let mut v120: u64 = v59.len() as u64;
+                                                                        let mut v121: u64 = v70.len() as u64;
+                                                                        let mut v122: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode="); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v123: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("apply"); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v124: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode=apply"); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v125: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" path="); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v126: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode=apply path="); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v127: Rc<str> = Rc::<str>::from(format!("{}{}", v126, v48));
+                                                                        let mut v128: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" matches="); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v129: Rc<str> = Rc::<str>::from(format!("{}{}", v127, v128));
+                                                                        let mut v130: Rc<str> = std::rc::Rc::<str>::from((v60).to_string());
+                                                                        let mut v131: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expected="); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v132: Rc<str> = Rc::<str>::from(format!("{}{}", v130, v131));
+                                                                        let mut v139: Rc<str> = match &v43 {
                                                                             US4::US4_EveryMatch => {
-                                                                                let mut v127: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("all"); } LIT.with(|lit| lit.clone()) };
-                                                                                v127.clone()
+                                                                                let mut v136: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("all"); } LIT.with(|lit| lit.clone()) };
+                                                                                v136.clone()
                                                                             }
-                                                                            US4::US4_ExactlyMatches(v125) => {
-                                                                                let mut v125: u64 = *v125;
-                                                                                let mut v126: Rc<str> = std::rc::Rc::<str>::from((v125).to_string());
-                                                                                v126.clone()
+                                                                            US4::US4_ExactlyMatches(v134) => {
+                                                                                let mut v134: u64 = *v134;
+                                                                                let mut v135: Rc<str> = std::rc::Rc::<str>::from((v134).to_string());
+                                                                                v135.clone()
                                                                             }
                                                                             US4::US4_ExactlyOneMatch => {
-                                                                                let mut v124: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
-                                                                                v124.clone()
+                                                                                let mut v133: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
+                                                                                v133.clone()
                                                                             }
                                                                         };
-                                                                        let mut v131: Rc<str> = std::rc::Rc::<str>::from([&*v122, &*v123, &*v130, &*v53, &*v53].concat());
-                                                                        let mut v132: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v0);
-                                                                        let mut v133: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_before="); } LIT.with(|lit| lit.clone()) };
-                                                                        let mut v134: Rc<str> = std::rc::Rc::<str>::from((v115).to_string());
-                                                                        let mut v135: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_after="); } LIT.with(|lit| lit.clone()) };
-                                                                        let mut v136: Rc<str> = std::rc::Rc::<str>::from((v116).to_string());
-                                                                        let mut v137: Rc<str> = std::rc::Rc::<str>::from([&*v133, &*v134, &*v135, &*v136, &*v53].concat());
-                                                                        let mut v138: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
-                                                                        let mut v139: Rc<str> = std::rc::Rc::<str>::from((v132).to_string());
-                                                                        let mut v140: Rc<str> = std::rc::Rc::<str>::from([&*v137, &*v138, &*v139, &*v53, &*v53].concat());
-                                                                        let mut v141: Rc<str> = std::rc::Rc::<str>::from([&*v121, &*v131, &*v140, &*v53, &*v53].concat());
-                                                                        US0::US0_ReplacementReceipt(v141.clone())
+                                                                        let mut v140: Rc<str> = Rc::<str>::from(format!("{}{}", v132, v139));
+                                                                        let mut v141: Rc<str> = Rc::<str>::from(format!("{}{}", v129, v140));
+                                                                        let mut v142: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v0);
+                                                                        let mut v143: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_before="); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v144: Rc<str> = std::rc::Rc::<str>::from((v120).to_string());
+                                                                        let mut v145: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_after="); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v146: Rc<str> = std::rc::Rc::<str>::from((v121).to_string());
+                                                                        let mut v147: Rc<str> = std::rc::Rc::<str>::from([&*v143, &*v144, &*v145, &*v146, &*v108].concat());
+                                                                        let mut v148: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
+                                                                        let mut v149: Rc<str> = std::rc::Rc::<str>::from((v142).to_string());
+                                                                        let mut v150: Rc<str> = std::rc::Rc::<str>::from([&*v147, &*v148, &*v149, &*v108, &*v108].concat());
+                                                                        let mut v151: Rc<str> = Rc::<str>::from(format!("{}{}", v141, v150));
+                                                                        US0::US0_ReplacementReceipt(v151.clone())
                                                                     }
                                                                     _ => {
-                                                                        let mut v148: Rc<str> = match &v114 {
+                                                                        let mut v158: Rc<str> = match &v119 {
                                                                             US5::US5_ReadbackMismatch => {
-                                                                                let mut v145: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("readback did not match the written file"); } LIT.with(|lit| lit.clone()) };
-                                                                                v145.clone()
+                                                                                let mut v155: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("readback did not match the written file"); } LIT.with(|lit| lit.clone()) };
+                                                                                v155.clone()
                                                                             }
                                                                             US5::US5_RenameFailed => {
-                                                                                let mut v144: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("could not move the replacement file into place"); } LIT.with(|lit| lit.clone()) };
-                                                                                v144.clone()
+                                                                                let mut v154: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("could not move the replacement file into place"); } LIT.with(|lit| lit.clone()) };
+                                                                                v154.clone()
                                                                             }
                                                                             US5::US5_TemporaryWriteFailed => {
-                                                                                let mut v143: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("could not write the replacement file"); } LIT.with(|lit| lit.clone()) };
-                                                                                v143.clone()
+                                                                                let mut v153: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("could not write the replacement file"); } LIT.with(|lit| lit.clone()) };
+                                                                                v153.clone()
                                                                             }
                                                                             _ => unreachable!(),
                                                                         };
-                                                                        US0::US0_ReplacementRejected(v148.clone())
+                                                                        US0::US0_ReplacementRejected(v158.clone())
                                                                     }
                                                                 }
                                                             }
                                                             US2::US2_CheckReplacement => {
-                                                                let mut v76: u64 = v64.len() as u64;
-                                                                let mut v77: u64 = v75.len() as u64;
-                                                                let mut v78: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode="); } LIT.with(|lit| lit.clone()) };
-                                                                let mut v79: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" path="); } LIT.with(|lit| lit.clone()) };
-                                                                let mut v80: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" matches="); } LIT.with(|lit| lit.clone()) };
-                                                                let mut v81: Rc<str> = std::rc::Rc::<str>::from([&*v78, &*v2, &*v79, &*v52, &*v80].concat());
-                                                                let mut v82: Rc<str> = std::rc::Rc::<str>::from((v65).to_string());
-                                                                let mut v83: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expected="); } LIT.with(|lit| lit.clone()) };
-                                                                let mut v90: Rc<str> = match &v47 {
+                                                                let mut v71: u64 = v59.len() as u64;
+                                                                let mut v72: u64 = v70.len() as u64;
+                                                                let mut v73: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode="); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v74: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("check"); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v75: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode=check"); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v76: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" path="); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v77: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy text-replace ok mode=check path="); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v78: Rc<str> = Rc::<str>::from(format!("{}{}", v77, v48));
+                                                                let mut v79: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" matches="); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v80: Rc<str> = Rc::<str>::from(format!("{}{}", v78, v79));
+                                                                let mut v81: Rc<str> = std::rc::Rc::<str>::from((v60).to_string());
+                                                                let mut v82: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" expected="); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v83: Rc<str> = Rc::<str>::from(format!("{}{}", v81, v82));
+                                                                let mut v90: Rc<str> = match &v43 {
                                                                     US4::US4_EveryMatch => {
                                                                         let mut v87: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("all"); } LIT.with(|lit| lit.clone()) };
                                                                         v87.clone()
@@ -265,47 +294,51 @@ fn text_replace_outcome_1() -> US0 {
                                                                         v84.clone()
                                                                     }
                                                                 };
-                                                                let mut v91: Rc<str> = std::rc::Rc::<str>::from([&*v82, &*v83, &*v90, &*v53, &*v53].concat());
-                                                                let mut v92: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v0);
-                                                                let mut v93: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_before="); } LIT.with(|lit| lit.clone()) };
-                                                                let mut v94: Rc<str> = std::rc::Rc::<str>::from((v76).to_string());
-                                                                let mut v95: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_after="); } LIT.with(|lit| lit.clone()) };
-                                                                let mut v96: Rc<str> = std::rc::Rc::<str>::from((v77).to_string());
-                                                                let mut v97: Rc<str> = std::rc::Rc::<str>::from([&*v93, &*v94, &*v95, &*v96, &*v53].concat());
-                                                                let mut v98: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
-                                                                let mut v99: Rc<str> = std::rc::Rc::<str>::from((v92).to_string());
-                                                                let mut v100: Rc<str> = std::rc::Rc::<str>::from([&*v97, &*v98, &*v99, &*v53, &*v53].concat());
-                                                                let mut v101: Rc<str> = std::rc::Rc::<str>::from([&*v81, &*v91, &*v100, &*v53, &*v53].concat());
-                                                                US0::US0_ReplacementReceipt(v101.clone())
+                                                                let mut v91: Rc<str> = Rc::<str>::from(format!("{}{}", v83, v90));
+                                                                let mut v92: Rc<str> = Rc::<str>::from(format!("{}{}", v80, v91));
+                                                                let mut v93: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v0);
+                                                                let mut v94: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_before="); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v95: Rc<str> = std::rc::Rc::<str>::from((v71).to_string());
+                                                                let mut v96: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_after="); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v97: Rc<str> = std::rc::Rc::<str>::from((v72).to_string());
+                                                                let mut v98: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v99: Rc<str> = std::rc::Rc::<str>::from([&*v94, &*v95, &*v96, &*v97, &*v98].concat());
+                                                                let mut v100: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v101: Rc<str> = std::rc::Rc::<str>::from((v93).to_string());
+                                                                let mut v102: Rc<str> = std::rc::Rc::<str>::from([&*v99, &*v100, &*v101, &*v98, &*v98].concat());
+                                                                let mut v103: Rc<str> = Rc::<str>::from(format!("{}{}", v92, v102));
+                                                                US0::US0_ReplacementReceipt(v103.clone())
                                                             }
                                                         }
                                                     } else {
-                                                        let mut v153: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace expected "); } LIT.with(|lit| lit.clone()) };
-                                                        let mut v160: Rc<str> = match &v47 {
+                                                        let mut v169: Rc<str> = match &v43 {
                                                             US4::US4_EveryMatch => {
-                                                                let mut v157: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("all"); } LIT.with(|lit| lit.clone()) };
-                                                                v157.clone()
+                                                                let mut v166: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("all"); } LIT.with(|lit| lit.clone()) };
+                                                                v166.clone()
                                                             }
-                                                            US4::US4_ExactlyMatches(v155) => {
-                                                                let mut v155: u64 = *v155;
-                                                                let mut v156: Rc<str> = std::rc::Rc::<str>::from((v155).to_string());
-                                                                v156.clone()
+                                                            US4::US4_ExactlyMatches(v164) => {
+                                                                let mut v164: u64 = *v164;
+                                                                let mut v165: Rc<str> = std::rc::Rc::<str>::from((v164).to_string());
+                                                                v165.clone()
                                                             }
                                                             US4::US4_ExactlyOneMatch => {
-                                                                let mut v154: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
-                                                                v154.clone()
+                                                                let mut v163: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("1"); } LIT.with(|lit| lit.clone()) };
+                                                                v163.clone()
                                                             }
                                                         };
-                                                        let mut v161: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" match(es), observed matches="); } LIT.with(|lit| lit.clone()) };
-                                                        let mut v162: Rc<str> = std::rc::Rc::<str>::from((v65).to_string());
-                                                        let mut v163: Rc<str> = std::rc::Rc::<str>::from([&*v153, &*v160, &*v161, &*v162, &*v53].concat());
-                                                        let mut v164: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" (use --expect N or --all for repeated text)"); } LIT.with(|lit| lit.clone()) };
-                                                        let mut v165: Rc<str> = std::rc::Rc::<str>::from([&*v163, &*v164, &*v53, &*v53, &*v53].concat());
-                                                        US0::US0_ReplacementRejected(v165.clone())
+                                                        let mut v170: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace expected "); } LIT.with(|lit| lit.clone()) };
+                                                        let mut v171: Rc<str> = Rc::<str>::from(format!("{}{}", v170, v169));
+                                                        let mut v172: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" match(es), observed matches="); } LIT.with(|lit| lit.clone()) };
+                                                        let mut v173: Rc<str> = Rc::<str>::from(format!("{}{}", v171, v172));
+                                                        let mut v174: Rc<str> = std::rc::Rc::<str>::from((v60).to_string());
+                                                        let mut v175: Rc<str> = Rc::<str>::from(format!("{}{}", v173, v174));
+                                                        let mut v176: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" (use --expect N or --all for repeated text)"); } LIT.with(|lit| lit.clone()) };
+                                                        let mut v177: Rc<str> = Rc::<str>::from(format!("{}{}", v175, v176));
+                                                        US0::US0_ReplacementRejected(v177.clone())
                                                     }
                                                 } else {
-                                                    let mut v168: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace target is not a regular file"); } LIT.with(|lit| lit.clone()) };
-                                                    US0::US0_ReplacementRejected(v168.clone())
+                                                    let mut v180: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("text-replace target is not a regular file"); } LIT.with(|lit| lit.clone()) };
+                                                    US0::US0_ReplacementRejected(v180.clone())
                                                 }
                                             }
                                         }

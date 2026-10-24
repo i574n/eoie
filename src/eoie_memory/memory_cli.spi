@@ -1,0 +1,80 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl memory_run (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("memory", args))
+
+inl alpha () : string = "---\nname: alpha\ndescription: \"quoted: desc\"\nmetadata:\n  node_type: memory\n  type: feedback\n  originSessionId: s1\n  modified: 2026-10-21T00:00:00.000Z\n---\n\nRule with \"quotes\" and a back\\slash.\n\n**Why:** because.\n\n**How to apply:** always. See [[beta]] and [[nowhere]].\n"
+inl beta () : string = "---\nname: beta\ndescription: who the user is\nmetadata:\n  type: user\n---\n\nThe user.\n"
+inl gamma () : string = "---\nname: gamma\ndescription: a project fact\nmetadata:\n  node_type: memory\n  type: project\n  originSessionId: s2\n  modified: 2026-10-21T01:00:00.000Z\n---\n\nFact only.\n"
+inl index () : string = "- [Alpha](alpha.md) — first\n- [Beta](beta.md) — user\n- [Gone](gone.md) — missing file\n"
+
+inl memory_root (~label : string) : fixture_root =
+    inl root = fixture_root_create (cat "memory " label)
+    fixture_write root "mem/alpha.md" (alpha ())
+    fixture_write root "mem/beta.md" (beta ())
+    fixture_write root "mem/gamma.md" (gamma ())
+    fixture_write root "mem/MEMORY.md" (index ())
+    root
+
+inl imported (root : fixture_root) : string =
+    inl data = fixture_path root "state/memory.spi"
+    shows (succeeded (memory_run root (Arg ("import", Arg (fixture_path root "mem", Arg (data, NoArgs)))))) "eoie memory import ok memories=3 identical=3 index_identical=yes data="
+    data
+
+///> rust
+test memories_import_to_spiral_data_and_render_back_byte_identical =
+    inl root = memory_root "round trip"
+    inl data = imported root
+    inl stored = fixture_read root "state/memory.spi"
+    shows stored "union memory_kind =\n    | User\n    | Feedback\n    | Project\n    | Reference\n"
+    shows stored "inl memory_alpha () = Memory (Feedback, \"alpha.md\", \"alpha\", \"\\\"quoted: desc\\\"\""
+    shows (succeeded (memory_run root (Arg ("render", Arg (data, Arg (fixture_path root "out", NoArgs)))))) "eoie memory render ok memories=3 out="
+    same (fixture_read root "out/alpha.md") (alpha ())
+    same (fixture_read root "out/beta.md") (beta ())
+    same (fixture_read root "out/gamma.md") (gamma ())
+    same (fixture_read root "out/MEMORY.md") (index ())
+    inl listed = succeeded (memory_run root (Arg ("list", Arg (data, Arg ("--kind", Arg ("feedback", NoArgs))))))
+    shows listed "feedback  alpha  \"quoted: desc\""
+    hides listed "beta"
+    shows listed "eoie memory list ok shown=1 kind=feedback"
+    rejected_with (memory_run root (Arg ("list", Arg (data, Arg ("--kind", Arg ("habit", NoArgs)))))) 2i32 "list --kind expects user|feedback|project|reference, got habit"
+    fixture_root_remove root
+
+///> rust
+test check_reports_dangling_links_missing_reasons_and_index_drift =
+    inl root = memory_root "check"
+    inl data = imported root
+    inl checked = memory_run root (Arg ("check", Arg (data, NoArgs)))
+    expect (checked.code = 1i32) (run_text checked)
+    shows checked.stdout "alpha.md: dangling [[nowhere]]"
+    hides checked.stdout "dangling [[beta]]"
+    shows checked.stdout "gamma.md: project without **Why:** and **How to apply:**"
+    shows checked.stdout "gamma.md: missing from MEMORY.md"
+    shows checked.stdout "MEMORY.md: entry for missing gone.md"
+    shows checked.stdout "eoie memory check failed memories=3 dangling_links=1 missing_reasons=1 unindexed=1 index_missing=1"
+    fixture_root_remove root
+
+///> rust
+test recall_ranks_memories_by_weighted_word_hits =
+    inl root = memory_root "recall"
+    inl data = imported root
+    inl user = succeeded (memory_run root (Arg ("recall", Arg (data, Arg ("user", NoArgs)))))
+    shows user "4  user  beta  who the user is"
+    hides user "alpha"
+    shows user "eoie memory recall ok shown=1 of=3 query=user"
+    inl both = succeeded (memory_run root (Arg ("recall", Arg (data, Arg ("Alpha project", Arg ("--limit", Arg ("1", NoArgs)))))))
+    shows both "5  feedback  alpha"
+    hides both "gamma"
+    shows both "eoie memory recall ok shown=1 of=3"
+    rejected_with (memory_run root (Arg ("recall", Arg (data, Arg ("  ", NoArgs))))) 2i32 "recall needs query words"
+    fixture_root_remove root
+
+///> rust
+test import_refuses_files_that_would_not_round_trip_and_writes_nothing =
+    inl root = memory_root "refuse"
+    fixture_write root "mem/plain.md" "no frontmatter\n"
+    inl data = fixture_path root "state/memory.spi"
+    rejected_with (memory_run root (Arg ("import", Arg (fixture_path root "mem", Arg (data, NoArgs))))) 2i32 "plain.md: no frontmatter"
+    expect (path_exists data = false) "nothing written"
+    rejected_with (memory_run root (Arg ("sync", NoArgs))) 2i32 "usage: eoie memory import <memory-dir> <data.spi>"
+    fixture_root_remove root

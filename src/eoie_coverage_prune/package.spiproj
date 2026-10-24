@@ -1,6 +1,6 @@
 packages:
     |core-
-    rust_std_string
+    spiral-
     coverage_prune_model-
 modules:
     prune_terminal

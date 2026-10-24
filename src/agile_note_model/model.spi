@@ -1,3 +1,12 @@
+///- --package .
+test model static =
+    open rust_std_fs.model
+    open agile_task_text.model
+    open workspace_primitives.outcome
+    open workspace_primitives.numbers
+    open workspace_primitives.bytes
+    open workspace_primitives.files
+
 open rust_std_fs.model
 open agile_task_text.model
 open workspace_primitives.outcome
@@ -22,12 +31,14 @@ inl item_constructor = function
     | PlanningItem => "Planning ("
     | NoteItem => "Note ("
 
-inl item_anchor (kind : item_kind) (~id : string) : string = rust_std_string.model.concat5 (item_constructor kind) "\"" id "\"," ""
+inl item_anchor (kind : item_kind) (~id : string) : string =
+    rust_std_string.model.concat5 (item_constructor kind) "\"" id "\"," ""
 inl item_arguments_offset (kind : item_kind) : i32 = byte_len (item_constructor kind)
 
 inl item_binding (~id : string) : string = ascii_lowercase (rust_std_string.model.replace id "-" "_")
 inl planning_binding (~id : string) : string = rust_std_string.model.concat5 "planning_of_" (item_binding id) "" "" ""
-inl note_binding (~id : string) (seq : i32) : string = rust_std_string.model.concat5 "note_of_" (item_binding id) "_" (i32_text seq) ""
+inl note_binding (~id : string) (seq : i32) : string =
+    rust_std_string.model.concat5 "note_of_" (item_binding id) "_" (i32_text seq) ""
 
 inl note_schema () : string = "union task_note =\n    | Note :: string * u32 * string * string * string -> task_note"
 inl note_schema_marker () : string = "union task_note ="
@@ -105,12 +116,17 @@ inl escape_target (text : string) (escaped : i32) : string =
     elif code = ascii_t () then "\t"
     else byte_slice text escaped (escaped + 1i32)
 
-let rec unescaped_from (~text : string) (~offset : i32) (~run_start : i32) (~length : i32) (~decoded : string) : string =
+let rec unescaped_from
+    (~text : string) (~offset : i32) (~run_start : i32) (~length : i32) (~decoded : string)
+    : string
+    =
     if length <= offset then rust_std_string.model.concat5 decoded (byte_slice text run_start length) "" "" ""
     elif byte_at text offset = backslash_byte () then
         inl escaped = offset + 1i32
         inl resumed = escaped + 1i32
-        unescaped_from text resumed resumed length (rust_std_string.model.concat5 decoded (byte_slice text run_start offset) (escape_target text escaped) "" "")
+        unescaped_from text resumed resumed length (
+            rust_std_string.model.concat5 decoded (byte_slice text run_start offset) (escape_target text escaped) "" ""
+        )
     else unescaped_from text (offset + 1i32) run_start length decoded
 
 inl quote_stripped (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
@@ -123,9 +139,27 @@ inl item_field (text : string) (kind : item_kind) (found : i32) (position : i32)
     tuple_field text ($"!found + !(item_arguments_offset kind)" : i32) (byte_len text) position
 
 let note_at (text : string) (found : i32) : task_note =
-    { at = unquoted (item_field text NoteItem found 2i32); author = unquoted (item_field text NoteItem found 3i32); text = unquoted (item_field text NoteItem found 4i32) }
+    {
+        at = unquoted (item_field text NoteItem found 2i32)
+        author = unquoted (item_field text NoteItem found 3i32)
+        text = unquoted (item_field text NoteItem found 4i32)
+    }
 
-inl note_line (note : task_note) : string = rust_std_string.model.concat5 note.at "  " note.author "  " note.text
+let local_stamp (~at : string) : string =
+    inl offset = eoie_receipt.receipt.local_offset_minutes ()
+    $'{ let at = &*!at; let offset = !offset; let parsed = (|| -> Option<i64> { let hours: i64 = \
+        at.get(11..13)?.parse().ok()?; let minutes: i64 = at.get(14..16)?.parse().ok()?; Some(hours * 60 + minutes) \
+        })(); std::rc::Rc::<str>::from(match parsed { Some(total) => { let local = (total + offset).rem_euclid(1440); \
+        let sign = if offset < 0 { char::from(45u8) } else { char::from(43u8) }; format\!(" ({:02}:{:02} \
+        {}{:02}:{:02})", local / 60, local % 60, sign, offset.abs() / 60, offset.abs() % 60) } None => String::new() \
+        }) }' : string
+
+inl note_line (note : task_note) : string =
+    rust_std_string.model.concat5 note.at
+        (local_stamp note.at)
+        "  "
+        note.author
+        (rust_std_string.model.concat5 "  " note.text "" "" "")
 
 let note_json_at (text : string) (found : i32) : string =
     inl field = item_field text NoteItem found
@@ -135,17 +169,28 @@ let note_json_at (text : string) (found : i32) : string =
 let rec note_lines_from (text : string) (~needle : string) (offset : i32) (~lines : string) : string =
     inl found = declared_from text needle offset
     if found < 0i32 then lines
-    else note_lines_from text needle (found + 1i32) (rust_std_string.model.concat5 lines "\n" (note_line (note_at text found)) "" "")
+    else
+        note_lines_from text needle
+            (found + 1i32)
+            (rust_std_string.model.concat5 lines "\n" (note_line (note_at text found)) "" "")
 
 let rec note_json_from (text : string) (~needle : string) (offset : i32) (~items : string) (~joint : string) : string =
     inl found = declared_from text needle offset
     if found < 0i32 then items
-    else note_json_from text needle (found + 1i32) (rust_std_string.model.concat5 items joint (note_json_at text found) "" "") ","
+    else
+        note_json_from text needle
+            (found + 1i32)
+            (rust_std_string.model.concat5 items joint (note_json_at text found) "" "")
+            ","
 
 let notes_text (text : string) (~id : string) : string =
     inl count = note_count text id
     if count = 0i32 then ""
-    else note_lines_from text (item_anchor NoteItem id) 0i32 (rust_std_string.model.concat5 "notes (" (i32_text count) ")" "" "")
+    else
+        note_lines_from text
+            (item_anchor NoteItem id)
+            0i32
+            (rust_std_string.model.concat5 "notes (" (i32_text count) ")" "" "")
 
 let notes_json (text : string) (~id : string) : string =
     rust_std_string.model.concat5 "\"notes\":[" (note_json_from text (item_anchor NoteItem id) 0i32 "" "") "]" "" ""
@@ -157,7 +202,8 @@ inl u64_sub (a : u64) (b : u64) : u64 = $"!a - !b"
 inl u64_mul (a : u64) (b : u64) : u64 = $"!a * !b"
 inl u64_lt (a : u64) (b : u64) : bool = $"!a < !b"
 
-inl two_digits (value : u64) : string = if value < 10u64 then rust_std_string.model.concat5 "0" (u64_text value) "" "" "" else u64_text value
+inl two_digits (value : u64) : string =
+    if value < 10u64 then rust_std_string.model.concat5 "0" (u64_text value) "" "" "" else u64_text value
 
 type civil_date =
     {
@@ -183,7 +229,13 @@ let utc_stamp (unix_ms : u64) : string =
     inl date = civil_of_days (seconds / 86400u64)
     inl minute_of_day = (seconds % 86400u64) / 60u64
     inl head = rust_std_string.model.concat5 (u64_text date.year) "-" (two_digits date.month) "-" (two_digits date.day)
-    inl clock = rust_std_string.model.concat5 (two_digits (minute_of_day / 60u64)) ":" (two_digits (minute_of_day % 60u64)) "Z" ""
+    inl clock =
+        rust_std_string.model.concat5
+            (two_digits (minute_of_day / 60u64))
+            ":"
+            (two_digits (minute_of_day % 60u64))
+            "Z"
+            ""
     rust_std_string.model.concat5 head "T" clock "" ""
 
 union state_write =
@@ -194,7 +246,9 @@ union state_write =
 inl pause_marker (~path : string) : string = rust_std_string.model.concat5 path ".paused" "" "" ""
 inl pause_after_read_for_tests (~path : string) : () =
     inl marker = pause_marker path
-    $'std::env::var("EOIE_AGILE_TEST_PAUSE_MS").ok().and_then(|value| value.parse::<u64>().ok()).map(|ms| { let _ = std::fs::write(&*!marker, b""); std::thread::sleep(std::time::Duration::from_millis(ms)); let _ = std::fs::remove_file(&*!marker); }).unwrap_or(())' : ()
+    $'std::env::var("EOIE_AGILE_TEST_PAUSE_MS").ok().and_then(|value| value.parse::<u64>().ok()).map(|ms| { let _ = \
+        std::fs::write(&*!marker, b""); std::thread::sleep(std::time::Duration::from_millis(ms)); let _ = \
+        std::fs::remove_file(&*!marker); }).unwrap_or(())' : ()
 
 let state_written (~path : string) (~original : string) (~updated : string) : state_write =
     inl _ = pause_after_read_for_tests path
@@ -208,3 +262,11 @@ inl state_write_problem = function
     | StateWritten => ""
     | StateChangedSinceRead => "state/agile.spi changed since it was read; nothing written, run the call again"
     | StateWriteFailed reason => reason
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test notes_show_local_time_next_to_utc =
+    inl shown = local_stamp "2026-10-21T20:45Z"
+    expect (rust_std_string.model.starts_with shown " (" && rust_std_string.model.contains shown ":") shown
+    expect (local_stamp "not a stamp" = "") "a malformed stamp shows nothing extra"

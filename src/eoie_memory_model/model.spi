@@ -1,0 +1,195 @@
+open rust_std_string.model
+
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+inl option_value (~name : string) : string = $'std::rc::Rc::<str>::from({ let args = std::env::args().collect::<Vec<_>>(); args.iter().position(|argument| argument == &*!name).and_then(|at| args.get(at + 1)).cloned().unwrap_or_default() }.as_str())' : string
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+inl exact_text (~path : string) : string = $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap_or_default().as_str())' : string
+let file_present (~path : string) : bool = file_system.path_buf_is_file (file_system.new_path_buf (sm'.to_std_string path))
+inl text_written (~path : string) (~text : string) : bool = $'{ let path = std::path::Path::new(&*!path); let _ = path.parent().map(std::fs::create_dir_all); std::fs::write(path, (!text).as_bytes()).is_ok() }' : bool
+inl markdown_names (~dir : string) : string = $'std::rc::Rc::<str>::from({ let mut names = std::fs::read_dir(&*!dir).map(|entries| entries.filter_map(|entry| entry.ok()).map(|entry| entry.file_name().to_string_lossy().into_owned()).filter(|name| name.ends_with(".md") && name \!= "MEMORY.md").collect::<Vec<_>>()).unwrap_or_default(); names.sort(); names.join("\n") }.as_str())' : string
+inl path_joined (~dir : string) (~name : string) : string = $'std::rc::Rc::<str>::from(std::path::Path::new(&*!dir).join(&*!name).to_string_lossy().as_ref())' : string
+inl count_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+inl text_length (~text : string) : i32 = sm'.length text
+inl byte_at (~text : string) (index : i32) : i32 = $'(!text).as_bytes().get(!index as usize).map(|byte| *byte as i32).unwrap_or(-1)' : i32
+inl text_between (~text : string) (start : i32) (stop : i32) : string = $'std::rc::Rc::<str>::from((!text).get(!start as usize..!stop as usize).unwrap_or(""))' : string
+inl index_of (~text : string) (~needle : string) (from : i32) : i32 = $'(!text).get(!from as usize..).and_then(|rest| rest.find(&*!needle)).map(|at| at as i32 + !from).unwrap_or(-1)' : i32
+inl line_value (~front : string) (~key : string) : string = $'std::rc::Rc::<str>::from((!front).lines().find_map(|line| line.strip_prefix(&*!key)).unwrap_or(""))' : string
+inl first_line (~lines : string) : string = $'std::rc::Rc::<str>::from((!lines).split(char::from(10u8)).next().unwrap_or(""))' : string
+inl rest_lines (~lines : string) : string = $'std::rc::Rc::<str>::from((!lines).split_once(char::from(10u8)).map(|(_, rest)| rest).unwrap_or(""))' : string
+inl ascii_lowercase (~text : string) : string = $'std::rc::Rc::<str>::from((!text).to_ascii_lowercase().as_str())' : string
+inl text_before (~left : string) (~right : string) : bool = $'!left < !right' : bool
+inl clipped (~text : string) (width : i32) : string = $'{ let text = !text; if text.chars().count() <= !width as usize { text } else { std::rc::Rc::<str>::from(text.chars().take((!width as usize).saturating_sub(3)).collect::<String>() + "...") } }' : string
+
+union memory_kind =
+    | KindUser
+    | KindFeedback
+    | KindProject
+    | KindReference
+
+inl kind_case (kind : memory_kind) : string = union_reflection.cases.union_case_suffix "Kind" kind
+inl kind_word (kind : memory_kind) : string = ascii_lowercase (kind_case kind)
+
+union kind_parse =
+    | KindKnown : memory_kind
+    | KindUnknown
+
+let kind_of_word (~word : string) : kind_parse =
+    union_reflection.cases.union_case_where (fun (kind : memory_kind) => word = kind_word kind) (fun kind => KindKnown kind) KindUnknown
+
+let kind_of_case (~word : string) : kind_parse =
+    union_reflection.cases.union_case_where (fun (kind : memory_kind) => word = kind_case kind) (fun kind => KindKnown kind) KindUnknown
+
+inl needs_reasons (kind : memory_kind) : bool =
+    match kind with
+    | KindFeedback => true
+    | KindProject => true
+    | _ => false
+
+type memory_entry =
+    {
+        file : string
+        slug : string
+        description : string
+        kind : memory_kind
+        node_type : string
+        origin : string
+        modified : string
+        body : string
+    }
+
+union rec memory_list =
+    | NoMemories
+    | MemoryThen : memory_entry * memory_list
+
+let rec memories_flipped (list : memory_list) (acc : memory_list) : memory_list =
+    match list with
+    | NoMemories => acc
+    | MemoryThen (entry, rest) => memories_flipped rest (MemoryThen (entry, acc))
+
+inl meta_line (~key : string) (~value : string) : string = if value = "" then "" else concat5 "  " key ": " value "\n"
+
+let rendered (entry : memory_entry) : string =
+    inl head = concat5 "---\nname: " entry.slug "\ndescription: " entry.description "\nmetadata:\n"
+    inl meta = concat5 (meta_line "node_type" entry.node_type) (meta_line "type" (kind_word entry.kind)) (meta_line "originSessionId" entry.origin) (meta_line "modified" entry.modified) ""
+    concat5 head meta "---\n" entry.body ""
+
+union entry_read =
+    | EntryRead : memory_entry
+    | EntryRefused : string
+
+let entry_of_file (~dir : string) (~name : string) : entry_read =
+    inl text = exact_text (path_joined dir name)
+    inl close = index_of text "\n---\n" 3i32
+    if starts_with text "---\n" = false || close < 0i32 then EntryRefused (concat5 name ": no frontmatter" "" "" "")
+    else
+        inl front = text_between text 4i32 (close + 1i32)
+        match kind_of_word (line_value front "  type: ") with
+        | KindUnknown => EntryRefused (concat5 name ": unknown metadata type " (line_value front "  type: ") "" "")
+        | KindKnown kind =>
+            inl entry = { file = name; slug = line_value front "name: "; description = line_value front "description: "; kind = kind; node_type = line_value front "  node_type: "; origin = line_value front "  originSessionId: "; modified = line_value front "  modified: "; body = text_between text (close + 5i32) (text_length text) }
+            if rendered entry = text then EntryRead entry else EntryRefused (concat5 name ": does not render back byte-identical" "" "" "")
+
+type import_tally =
+    {
+        memories : memory_list
+        count : i32
+        refused : string
+    }
+
+let rec entries_from (~dir : string) (~names : string) (tally : import_tally) : import_tally =
+    if names = "" then tally
+    else
+        inl name = first_line names
+        match entry_of_file dir name with
+        | EntryRead entry => entries_from dir (rest_lines names) { tally with memories = MemoryThen (entry, tally.memories); count = tally.count + 1i32 }
+        | EntryRefused reason => entries_from dir (rest_lines names) { tally with refused = if tally.refused = "" then reason else concat5 tally.refused "\n" reason "" "" }
+
+inl escaped (~text : string) : string = replace (replace (replace (replace (replace text "\\" "\\\\") "\"" "\\\"") "\n" "\\n") "\r" "\\r") "\t" "\\t"
+inl quoted (~text : string) : string = concat5 "\"" (escaped text) "\"" "" ""
+inl binding_of (~slug : string) : string = concat5 "memory_" (replace (replace slug "-" "_") "." "_") "" "" ""
+
+let memory_line (entry : memory_entry) : string =
+    inl head = concat5 "inl " (binding_of entry.slug) " () = Memory (" (kind_case entry.kind) ", "
+    inl fields = concat5 (quoted entry.file) ", " (quoted entry.slug) ", " (quoted entry.description)
+    inl meta = concat5 ", " (quoted entry.node_type) ", " (quoted entry.origin) ", "
+    concat5 head fields meta (concat5 (quoted entry.modified) ", " (quoted entry.body) ")\n" "") ""
+
+let rec memory_lines (list : memory_list) (~acc : string) : string =
+    match list with
+    | NoMemories => acc
+    | MemoryThen (entry, rest) => memory_lines rest (concat5 acc (memory_line entry) "" "" "")
+
+inl index_marker () : string = "inl index_of_memory () = MemoryIndex ("
+
+inl schema () : string =
+    inl cases = union_reflection.cases.union_cases_joined (fun (kind : memory_kind) => !!!!StaticStringConcat("    | ", kind_case kind)) "\n"
+    concat5 "union memory_kind =\n" cases "\n\nunion memory_item =\n    | Memory :: memory_kind * string * string * string * string * string * string * string -> memory_item\n    | MemoryIndex :: string -> memory_item\n\n" "" ""
+
+let data_text (list : memory_list) (~index : string) : string =
+    concat5 (schema ()) (memory_lines list "") (index_marker ()) (quoted index) ")\n\ninl main () : i32 = 0i32\n"
+
+let rec unescaped_from (~text : string) (index : i32) (start : i32) (~acc : string) : string * i32 =
+    inl byte = byte_at text index
+    if byte < 0i32 || byte = 34i32 then concat5 acc (text_between text start index) "" "" "", index + 1i32
+    elif byte = 92i32 then
+        inl next = byte_at text (index + 1i32)
+        inl taken = concat5 acc (text_between text start index) "" "" ""
+        if next = 110i32 then unescaped_from text (index + 2i32) (index + 2i32) (concat5 taken "\n" "" "" "")
+        elif next = 114i32 then unescaped_from text (index + 2i32) (index + 2i32) (concat5 taken "\r" "" "" "")
+        elif next = 116i32 then unescaped_from text (index + 2i32) (index + 2i32) (concat5 taken "\t" "" "" "")
+        else unescaped_from text (index + 2i32) (index + 1i32) taken
+    else unescaped_from text (index + 1i32) start acc
+
+let quoted_at (~line : string) (index : i32) : string * i32 =
+    inl opening = if index < 0i32 then -1i32 else index_of line "\"" index
+    if opening < 0i32 then "", -1i32 else unescaped_from line (opening + 1i32) (opening + 1i32) ""
+
+let entry_of_line (~line : string) : entry_read =
+    inl start = index_of line "= Memory (" 0i32 + 10i32
+    inl comma = index_of line "," start
+    match kind_of_case (text_between line start comma) with
+    | KindUnknown => EntryRefused (concat5 "unknown memory kind in: " (clipped line 80i32) "" "" "")
+    | KindKnown kind =>
+        inl file, a = quoted_at line comma
+        inl slug, b = quoted_at line a
+        inl description, c = quoted_at line b
+        inl node_type, d = quoted_at line c
+        inl origin, e = quoted_at line d
+        inl modified, f = quoted_at line e
+        inl body, g = quoted_at line f
+        if g < 0i32 then EntryRefused (concat5 "malformed memory line: " (clipped line 80i32) "" "" "")
+        else EntryRead { file = file; slug = slug; description = description; kind = kind; node_type = node_type; origin = origin; modified = modified; body = body }
+
+type memory_store =
+    {
+        memories : memory_list
+        count : i32
+        index : string
+        problems : string
+    }
+
+let rec store_from (~text : string) (offset : i32) (store : memory_store) : memory_store =
+    if offset >= text_length text then { store with memories = memories_flipped store.memories NoMemories }
+    else
+        inl stop = index_of text "\n" offset
+        inl stop = if stop < 0i32 then text_length text else stop
+        inl line = text_between text offset stop
+        inl next =
+            if starts_with line "inl memory_" && contains line "= Memory (" then
+                match entry_of_line line with
+                | EntryRead entry => { store with memories = MemoryThen (entry, store.memories); count = store.count + 1i32 }
+                | EntryRefused reason => { store with problems = concat5 store.problems reason "\n" "" "" }
+            elif starts_with line (index_marker ()) then
+                inl index, _ = quoted_at line 0i32
+                { store with index = index }
+            else store
+        store_from text (stop + 1i32) next
+
+inl store_of (~text : string) : memory_store = store_from text 0i32 { memories = NoMemories; count = 0i32; index = ""; problems = "" }
+
+inl failed (~reason : string) : i32 =
+    stderr_line (concat5 "eoie error: memory " reason "" "" "")
+    2i32
+
+inl decimal_of (~text : string) (fallback : i32) : i32 = $'(!text).trim().parse::<i32>().ok().filter(|value| *value > 0).unwrap_or(!fallback)' : i32

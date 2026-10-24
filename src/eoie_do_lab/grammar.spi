@@ -1,10 +1,12 @@
 ///- --package .
 test grammar static =
-    open rust_std_string.model
+    open sm'_operators
     open host
+    open eoie_do_records.records
 
-open rust_std_string.model
+open sm'_operators
 open host
+open eoie_do_records.records
 
 union lab_step =
     | LabAudit : string * string
@@ -19,16 +21,13 @@ let lab_parsed (~records : record_list) (~record : i32) : lab_parse =
     inl against_at = field_index records record "against"
     inl folder = body_at records record 3i32
     if kind = "" then LabParsed Blank
-    elif kind <> "query" || field_at records record 1i32 <> "lab" then LabRejected (concat5 (field_at records record 1i32) " cannot share one program with lab yet; run it as its own call" "" "" "")
+    elif kind <> "query" || field_at records record 1i32 <> "lab" then LabRejected ((field_at records record 1i32) ++# " cannot share one program with lab yet; run it as its own call")
     elif body_at records record 2i32 <> "audit" then LabRejected "lab: expected lab audit <folder> against <backlog>"
     elif folder = "" || folder = "against" then LabRejected "lab audit: expected the lab folder"
     elif against_at < 0i32 || body_at records record (against_at + 1i32) = "" then LabRejected "lab audit: expected against <backlog root>"
     else LabParsed (LabAudit (folder, body_at records record (against_at + 1i32)))
 
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
-
-inl records_from_bars (~text : string) : record_list =
-    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
 
 inl rejection_at (~records : record_list) (~record : i32) : string =
     match lab_parsed records record with

@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "command_line.spi"
+output = "command_line.rs"
+
+[package]
+name = "eoie-command-line"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_command_line"
+path = "command_line.rs"

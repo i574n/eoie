@@ -1,4 +1,5 @@
 open rust_std_fs.model
+open sm'_operators
 open agile_task_text.model
 open workspace_primitives.numbers
 open workspace_primitives.clock
@@ -21,13 +22,13 @@ let rewritten (~text : string) (~id : string) (~field_name : string) (~token : s
 
 inl planning_summary (~text : string) (~id : string) : string = $'agile_planning_fields::eoie_agile_planning_summary(&*!text, &*!id)' : string
 
-let planning_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile edit " id " rejected: " reason "")
+let planning_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure ("agile edit " ++# id ++# " rejected: " ++# reason)
 
 let planning_written (~state : string) (~id : string) (~field_name : string) (~original : string) (~updated : string) (started : u64) : i32 =
     match replace_file_checked state updated with
     | Replaced =>
-        inl head = rust_std_string.model.concat5 "eoie agile edit ok id=" id " field=" field_name " "
-        stdout_line (rust_std_string.model.concat5 head (planning_summary updated id) (measured_sizes (text_bytes original) (text_bytes updated) (ms_since started)) "" "")
+        inl head = "eoie agile edit ok id=" ++# id ++# " field=" ++# field_name ++# " "
+        stdout_line (head ++# (planning_summary updated id) ++# (measured_sizes (text_bytes original) (text_bytes updated) (ms_since started)))
     | problem => planning_edit_failure (file_replacement_problem problem) id
 
 let planning_revised (~state : string) (~id : string) (~field_name : string) (~token : string) (~original : string) (started : u64) : i32 =

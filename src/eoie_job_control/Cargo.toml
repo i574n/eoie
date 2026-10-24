@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "control.spi"
+output = "control.rs"
+
+[package]
+name = "eoie-job-control"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_job_control"
+path = "control.rs"
+[dependencies]
+eoie-machine-windows = { path = "../eoie_machine_windows" }
+eoie-job-launch = { path = "../eoie_job_launch" }

@@ -1,0 +1,8 @@
+packages:
+    |core-
+    rust_std_string
+modules:
+    model
+    host
+    classify
+    run

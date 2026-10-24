@@ -34,11 +34,11 @@ inl source_directory_code = function
     | MixBuildDirectory => 5u64
 
 let source_directory_kind (~name : string) : u64 =
-    if rust_std_string.model.equals name ".git" then source_directory_code RepositoryMetadata
-    elif rust_std_string.model.equals name "vendor" then source_directory_code VendorDirectory
-    elif rust_std_string.model.equals name "target" then source_directory_code BuildCacheDirectory
-    elif rust_std_string.model.equals name ".cache" then source_directory_code LocalCacheDirectory
-    elif rust_std_string.model.equals name "_build" then source_directory_code MixBuildDirectory
+    if (name = ".git") then source_directory_code RepositoryMetadata
+    elif (name = "vendor") then source_directory_code VendorDirectory
+    elif (name = "target") then source_directory_code BuildCacheDirectory
+    elif (name = ".cache") then source_directory_code LocalCacheDirectory
+    elif (name = "_build") then source_directory_code MixBuildDirectory
     else source_directory_code SourceDirectory
 
 union source_map_policy =

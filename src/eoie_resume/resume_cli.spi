@@ -1,0 +1,42 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl resume_call (root : fixture_root) (args : cli_args) : cli_run =
+    inl sets = Arg (cat "EOIE_JOBS_HOME=" (fixture_path root "jobs"), Arg (cat "EOIE_WINDOWS_HOME=" (fixture_path root "windows"), Arg ("EOIE_WINDOWS_FREE_MB=8000", NoArgs)))
+    eoie_run (fixture_text_of root) sets NoArgs (Arg ("resume", args))
+
+inl backlog () : string =
+    "inl task_eoie_a () = Task (\"EOIE-A\", \"resume item\", Story, P1, D2, 0u32, Planned, \"\", \"eoie\", \"current\", \"current\")\ninl task_main_b () = Task (\"MAIN-B\", \"other item\", Story, P0, D1, 0u32, Planned, \"\", \"\", \"current\", \"current\")\ninl main () : i32 = 0i32\n"
+
+///> rust
+test resume_prints_next_work_jobs_and_windows_in_one_call =
+    inl root = fixture_root_create "resume"
+    fixture_write root "state/agile.spi" (backlog ())
+    inl out = succeeded (resume_call root (Arg (fixture_text_of root, Arg ("--team", Arg ("eoie", NoArgs)))))
+    shows out "== next work (agile next, WSJF)"
+    shows out "EOIE-A"
+    hides out "MAIN-B"
+    shows out "== recent jobs (job list)"
+    shows out "== machine windows (window list)"
+    shows out "eoie window list ok windows=0"
+    shows out "eoie resume ok sections=3 team=eoie"
+    shows (succeeded (resume_call root (Arg (fixture_text_of root, NoArgs)))) "MAIN-B"
+    rejected_with (resume_call root NoArgs) 2i32 "usage: eoie resume <backlog-root>"
+    fixture_root_remove root
+
+inl noted_backlog () : string =
+    cat (backlog ()) "union task_note =\n    | Note :: string * u32 * string * string * string -> task_note\ninl note_of_eoie_a_1 () = Note (\"EOIE-A\", 1u32, \"2026-10-21T09:00Z\", \"eoie-lane\", \"older note\")\ninl note_of_eoie_a_2 () = Note (\"EOIE-A\", 2u32, \"2026-10-21T11:00Z\", \"main-thread\", \"someone else\")\ninl note_of_main_b_1 () = Note (\"MAIN-B\", 1u32, \"2026-10-21T10:00Z\", \"eoie-lane\", \"newer note\\nsecond line\")\n"
+
+///> rust
+test resume_as_an_author_adds_that_authors_newest_notes_across_items =
+    inl root = fixture_root_create "resume notes"
+    fixture_write root "state/agile.spi" (noted_backlog ())
+    inl out = succeeded (resume_call root (Arg (fixture_text_of root, Arg ("--as", Arg ("eoie-lane", NoArgs)))))
+    shows out "== recent notes by author (agile notes --as)"
+    same (line_starting out "2026-10-21T") "2026-10-21T10:00Z  MAIN-B  newer note second line"
+    shows out "2026-10-21T09:00Z  EOIE-A  older note"
+    hides out "someone else"
+    shows out "eoie resume ok sections=4 author=eoie-lane"
+    shows (succeeded (resume_call root (Arg (fixture_text_of root, Arg ("--as", Arg ("nobody", NoArgs)))))) "no notes by nobody"
+    hides (succeeded (resume_call root (Arg (fixture_text_of root, NoArgs)))) "== recent notes by author"
+    fixture_root_remove root

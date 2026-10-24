@@ -1,0 +1,48 @@
+open eoie_machine_windows.window_model
+open eoie_machine_windows.windows
+
+let rec first_blocker
+    (wanted : window_class) (~mine : string) (since : u64) (backfills : bool) (~rows : string)
+    : string
+    =
+    if rows = "" then ""
+    else
+        inl row = first_row rows
+        if row_blocks wanted mine since backfills row then row
+        else first_blocker wanted mine since backfills (other_rows rows)
+
+let rec held_until_latest (~rows : string) (latest : u64) : u64 =
+    if rows = "" then latest
+    else
+        inl row = first_row rows
+        inl until = if tab_field row 2i32 = "held" then decimal_of (tab_field row 5i32) else 0u64
+        held_until_latest (other_rows rows) (if until > latest then until else latest)
+
+let rec settling_total (~rows : string) (now : u64) (total : u64) : u64 =
+    if rows = "" then total else settling_total (other_rows rows) now (total + settling_mb (first_row rows) now)
+
+let verdict_terms
+    (~wanted_word : string) (~mine : string) (since : u64) (minutes : u64) (~rows : string) (free : u64) (now : u64)
+    : string
+    =
+    match class_of wanted_word with
+    | ClassUnknown => "reason=unknown-class"
+    | ClassKnown wanted =>
+        inl backfills = minutes > 0u64 && now + minutes * 60000u64 <= held_until_latest rows 0u64
+        inl verdict =
+            admission_of wanted
+                (first_blocker wanted mine since backfills rows)
+                (free_after_settling free (settling_total rows now 0u64))
+                now
+        admission_terms wanted verdict
+
+inl main () : i32 =
+    !!!!Export(
+        "eoie_window_verdict",
+        (
+            fun (wanted_word, mine, since, minutes, rows, free, now) =>
+                verdict_terms wanted_word mine since minutes rows free now
+            : string * string * u64 * u64 * string * u64 * u64 -> string
+        )
+    )
+    0i32

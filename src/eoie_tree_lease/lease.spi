@@ -1,0 +1,134 @@
+///- --package .
+test lease static =
+    open sm'_operators
+
+open sm'_operators
+
+nominal reads = ()
+nominal shapes = ()
+
+type lease_terms =
+    {
+        root : string
+        holder : string
+        until_ms : u64
+    }
+
+union tree_lease use =
+    | ReadLease :: lease_terms -> tree_lease reads
+    | ShapeLease :: lease_terms -> tree_lease shapes
+
+union stored_lease =
+    | StoredRead : lease_terms
+    | StoredShape : lease_terms
+
+union rec stored_leases =
+    | NoLeases
+    | LeaseThen : stored_lease * stored_leases
+
+union tree_claim =
+    | TreeFree
+    | TreeHeld : lease_terms
+
+union edit_verdict =
+    | EditAllowed
+    | EditRefused : lease_terms
+
+inl path_key (~path : string) : string = sm'.to_lower (sm'.replace "\\" "/" path)
+
+inl root_key (~root : string) : string =
+    inl key = path_key root
+    if sm'.ends_with "/" key then key else key ++# "/"
+
+inl path_inside (~root : string) (~path : string) : bool =
+    inl key = path_key path
+    key ++# "/" = root_key root || sm'.starts_with (root_key root) key
+
+inl terms_bind (terms : lease_terms) (~path : string) (now : u64) : bool =
+    now < terms.until_ms && path_inside terms.root path
+
+inl stored forall use. (lease : tree_lease use) : stored_lease =
+    match lease with
+    | ReadLease terms => StoredRead terms
+    | ShapeLease terms => StoredShape terms
+
+inl blocking_terms (row : stored_lease) : option lease_terms =
+    match row with
+    | StoredRead terms => Some terms
+    | StoredShape _ => None
+
+let rec claim_of (leases : stored_leases) (~path : string) (now : u64) : tree_claim =
+    match leases with
+    | NoLeases => TreeFree
+    | LeaseThen (stored, rest) =>
+        match blocking_terms stored with
+        | Some terms => if terms_bind terms path now then TreeHeld terms else claim_of rest path now
+        | None => claim_of rest path now
+
+inl edit_verdict_of (claim : tree_claim) : edit_verdict =
+    match claim with
+    | TreeFree => EditAllowed
+    | TreeHeld terms => EditRefused terms
+
+inl minutes_left (terms : lease_terms) (now : u64) : u64 = (terms.until_ms - now + 59999u64) / 60000u64
+
+inl verdict_text (verdict : edit_verdict) (now : u64) : string =
+    match verdict with
+    | EditAllowed => "edit allowed"
+    | EditRefused terms =>
+        "edit refused: "
+        ++# terms.root
+        ++# " is read by "
+        ++# terms.holder
+        ++# " for "
+        ++# sm'.format (minutes_left terms now)
+        ++# " more min"
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else failwith detail
+
+inl release_terms () : lease_terms = { root = "C:\\work\\repo"; holder = "release job-7"; until_ms = 600000u64 }
+
+inl release_leases () : stored_leases = LeaseThen (stored (ReadLease (release_terms ())), NoLeases)
+
+///> rust
+test a_reading_lease_refuses_edits_inside_its_root =
+    expect
+        (
+            edit_verdict_of (claim_of (release_leases ()) "C:\\work\\repo\\lab\\probe.ps1" 1000u64)
+            = EditRefused (release_terms ())
+        )
+        "a file in lab/ under the leased root is refused"
+    expect
+        (
+            edit_verdict_of (claim_of (release_leases ()) "c:/WORK/repo/src/a.spi" 1000u64)
+            = EditRefused (release_terms ())
+        )
+        "case and separators do not matter on Windows"
+    expect
+        (edit_verdict_of (claim_of (release_leases ()) "C:\\work\\repo" 1000u64) = EditRefused (release_terms ()))
+        "the root itself is inside"
+
+///> rust
+test edits_outside_the_root_after_the_lease_or_under_a_shaping_lease_pass =
+    expect
+        (edit_verdict_of (claim_of (release_leases ()) "C:\\work\\repository\\a.spi" 1000u64) = EditAllowed)
+        "a sibling with the same prefix is outside"
+    expect
+        (edit_verdict_of (claim_of (release_leases ()) "C:\\work\\repo\\a.spi" 600000u64) = EditAllowed)
+        "an expired lease binds nothing"
+    inl shaping = LeaseThen (stored (ShapeLease (release_terms ())), NoLeases)
+    expect
+        (edit_verdict_of (claim_of shaping "C:\\work\\repo\\a.spi" 1000u64) = EditAllowed)
+        "a shaping lease cannot block by its type"
+    inl mixed = LeaseThen (stored (ShapeLease (release_terms ())), release_leases ())
+    expect
+        (edit_verdict_of (claim_of mixed "C:\\work\\repo\\a.spi" 1000u64) = EditRefused (release_terms ()))
+        "a reader behind a shaper still blocks"
+
+///> rust
+test a_refusal_names_the_holder_and_the_time_left =
+    inl verdict = edit_verdict_of (claim_of (release_leases ()) "C:\\work\\repo\\a.spi" 60000u64)
+    expect
+        (verdict_text verdict 60000u64 = "edit refused: C:\\work\\repo is read by release job-7 for 9 more min")
+        (verdict_text verdict 60000u64)
+    expect (verdict_text EditAllowed 0u64 = "edit allowed") "allowed"

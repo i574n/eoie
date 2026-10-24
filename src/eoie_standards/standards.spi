@@ -1,0 +1,99 @@
+open sm'_operators
+open workspace_primitives.bytes
+open rules
+
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+inl text_of (~path : string) : string = $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap_or_default().as_str())' : string
+let directory_exists (~path : string) : bool = file_system.path_buf_is_dir (file_system.new_path_buf (sm'.to_std_string path))
+inl joined (~base : string) (~name : string) : string = $'std::rc::Rc::<str>::from(std::path::Path::new(&*!base).join(&*!name).to_string_lossy().replace(char::from(92u8), "/").as_str())' : string
+inl json_requested () : bool = $'std::env::args().skip(2).any(|argument| argument == "--json")' : bool
+
+inl spiral_files (~directory : string) : string =
+    $'std::rc::Rc::<str>::from({ let mut names = std::fs::read_dir(&*!directory).into_iter().flatten().flatten().filter(|entry| entry.path().is_file()).map(|entry| entry.file_name().to_string_lossy().into_owned()).filter(|name| (name.ends_with(".spi") || name.ends_with(".spir")) && name \!= "standards.spi").collect::<Vec<_>>(); names.sort(); names.join("\n") }.as_str())' : string
+
+inl module_of (~name : string) : string = $'std::rc::Rc::<str>::from((!name).rsplit_once(char::from(46u8)).map(|(stem, _)| stem).unwrap_or(&*!name))' : string
+
+inl findings_json (~text : string) : string =
+    $'std::rc::Rc::<str>::from({ let q = char::from(34u8); let b = char::from(92u8); let escape = |value: &str| value.replace(b, &format\!("{b}{b}")).replace(q, &format\!("{b}{q}")); let items = (!text).lines().filter_map(|line| { let mut parts = line.splitn(3, "  "); let place = parts.next()?; let rule = parts.next()?; let detail = parts.next().unwrap_or(""); let (path, number) = place.rsplit_once(char::from(58u8))?; Some(format\!("{{{q}path{q}:{q}{}{q},{q}line{q}:{},{q}rule{q}:{q}{}{q},{q}detail{q}:{q}{}{q}}}", escape(path), number, rule, escape(detail))) }).collect::<Vec<_>>(); items.join(",") }.as_str())' : string
+let rec rule_words (list : standards) (~found : string) : string =
+    match list with
+    | NoStandards => found
+    | StandardThen (rule, rest) => rule_words rest (if found = "" then standard_word rule else found ++# "," ++# (standard_word rule))
+
+let package_standards (~directory : string) : standards * bool =
+    inl declared = declared_from (text_of (joined directory "standards.spi")) NoStandards
+    match declared with
+    | NoStandards => default_standards (), false
+    | _ => declared, true
+
+let rec package_findings (list : standards) (~directory : string) (~found : string) : string =
+    match list with
+    | NoStandards => found
+    | StandardThen (rule, rest) =>
+        match rule with
+        | LibReferenced =>
+            inl project = joined directory "package.spiproj"
+            package_findings rest directory (if sm'.contains "spiral-" (text_of project) then found else found ++# project ++# ":1  lib-referenced  package.spiproj does not list spiral-; every package reuses lib/spiral\n")
+        | _ => package_findings rest directory found
+
+type standards_tally =
+    {
+        packages : i32
+        files : i32
+        findings : string
+        count : i32
+        declared : i32
+        rules : string
+    }
+
+let rec files_checked (list : standards) (~directory : string) (~names : string) (tally : standards_tally) : standards_tally =
+    if names = "" then tally
+    else
+        inl name = line_head names
+        inl path = joined directory name
+        inl scan = lines_scanned list path (module_of name) (text_of path) 1i32 (file_scan_start ())
+        files_checked list directory (line_rest names) { tally with files = (tally.files + 1i32); findings = tally.findings ++# scan.findings; count = (tally.count + scan.count) }
+
+let rec packages_checked (index : i32) (total : i32) (tally : standards_tally) : standards_tally =
+    if total <= index then tally
+    else
+        inl directory = argument index
+        if directory = "--json" then packages_checked (index + 1i32) total tally
+        elif directory_exists directory = false then
+            inl missing = { tally with findings = tally.findings ++# directory ++# ":0  package  not a directory\n"; count = (tally.count + 1i32) }
+            packages_checked (index + 1i32) total missing
+        else
+            inl list, declared = package_standards directory
+            inl counted = { tally with packages = (tally.packages + 1i32); declared = (tally.declared + (if declared then 1i32 else 0i32)); rules = rule_words list "" }
+            inl checked = files_checked list directory (spiral_files directory) counted
+            inl declaration = joined directory "standards.spi"
+            inl extra = package_findings list directory (unknown_rules (text_of declaration) declaration 1i32 "")
+            packages_checked (index + 1i32) total (if extra = "" then checked else { checked with findings = checked.findings ++# extra; count = (checked.count + findings_count extra) })
+
+let tally_start () : standards_tally = { packages = 0i32; files = 0i32; findings = ""; count = 0i32; declared = 0i32; rules = "" }
+
+let rules_run () : i32 =
+    if argument_count () < 3i32 then
+        stderr_line "eoie error: standards <package-dir>... [--json]"
+        2i32
+    else
+        inl tally = packages_checked 2i32 (argument_count ()) (tally_start ())
+        inl counts = "packages=" ++# (i32_text tally.packages) ++# " declared=" ++# (i32_text tally.declared) ++# (" files=" ++# (i32_text tally.files) ++# " findings=" ++# (i32_text tally.count))
+        inl _ =
+            if json_requested () then stdout_line ("{\"findings\":[" ++# (findings_json tally.findings) ++# "],\"count\":" ++# (i32_text tally.count) ++# "}")
+            else
+                inl findings = tally.findings
+                inl _ = if findings <> "" then stdout_line ($'std::rc::Rc::<str>::from((!findings).trim_end())' : string) else ()
+                stdout_line ("eoie standards ok " ++# counts ++# " rules=" ++# tally.rules)
+        if tally.count = 0i32 then 0i32 else 1i32
+
+let census_requested () : bool = $'std::env::args().nth(2).is_some_and(|flag| matches\!(flag.as_str(), "--census" | "--baseline" | "--baseline-merge" | "--ratchet"))' : bool
+
+let standards_run () : i32 = if census_requested () then $'eoie_style_census::eoie_census_run()' : i32 else rules_run ()
+
+inl main () : i32 =
+    !!!!Export("eoie_standards_run", ((fun () => standards_run ()) : () -> i32))
+    0i32

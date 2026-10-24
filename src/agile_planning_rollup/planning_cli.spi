@@ -105,19 +105,19 @@ test planning_edit_validates_and_renders_typed_fields =
 ///> rust
 test tag_migration_is_previewed_applied_once_and_keeps_rejected_tags =
     inl a = task_row "ID-A" "Epic" "Active" "" "eoie,est:300m,load:heavy,agent:yes"
-    inl b = task_row "ID-B" "TaskKind" "Planned" "ID-A" "est:abc,load:light,agent:no,kino"
+    inl b = task_row "ID-B" "TaskKind" "Planned" "ID-A" "est:abc,load:light,agent:no,web"
     inl c = task_row "ID-C" "TaskKind" "Done" "" "plain"
     inl root = fixture "migrate" (cat (cat a b) c)
     inl before = state_read root
     inl preview = agile root (ModeThenRoot ("migrate-tags", "preview"))
     accepted preview "ID-A moved=3 estimate=300m load=heavy assignee=agent tags=eoie"
-    accepted preview "ID-B moved=2 estimate=- load=light assignee=user tags=est:abc,kino rejected=est:abc"
+    accepted preview "ID-B moved=2 estimate=- load=light assignee=user tags=est:abc,web rejected=est:abc"
     accepted preview "eoie agile migrate-tags preview tasks=2 tags_moved=5 rejected=1"
     expect (same_text (state_read root) before) "preview changed the state"
     accepted (agile root (ModeThenRoot ("migrate-tags", "apply"))) "eoie agile migrate-tags ok tasks=2"
     inl migrated = state_read root
     expect (contains migrated "\"eoie\", \"current\"") migrated
-    expect (contains migrated "\"est:abc,kino\"") migrated
+    expect (contains migrated "\"est:abc,web\"") migrated
     expect (contains migrated "Planning (\"ID-B\", Unestimated, Load Light, Assigned User)") migrated
     accepted (agile root (ModeThenRoot ("migrate-tags", "apply"))) "ok unchanged tasks=0 tags_moved=0 rejected=1"
     expect (same_text (state_read root) migrated) "a second apply changed the state"

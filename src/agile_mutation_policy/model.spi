@@ -37,6 +37,14 @@ union agile_difficulty =
     | AgileD7
     | AgileD8
 
+inl agile_status_open (status : agile_status) : bool =
+    match status with
+    | AgilePlanned => true
+    | AgileActive => true
+    | AgileBlocked => false
+    | AgilePaused => false
+    | AgileDone => false
+
 inl agile_status_code status : i32 =
     match status with
     | AgilePlanned => 0i32

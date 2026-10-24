@@ -1,28 +1,30 @@
-inl plan_op0 () : plan_op = CreateFile ("state/example.spi", "typed-payload")
-inl plan_op1 () : plan_op = ReplaceFile ("src/example.spi", "expected", "replacement")
-inl plan_op2 () : plan_op = PatchExact ("src/example.spi", "old", "new")
-inl plan_op3 () : plan_op = MakeDir "src/generated"
-inl plan_op4 () : plan_op = ToolchainAction "cargo-check"
-inl plan_op5 () : plan_op = CopyFile ("src/source.spi", "expected-sha", "src/copied.spi")
-inl plan_op6 () : plan_op = Chmod ("src/tool", "0755", "0644")
-inl plan_op7 () : plan_op = Symlink ("src/current", "src/target")
+///- --package .
+inl sample_op = function
+    | CreateKind => CreateFile ("state/example.spi", "typed-payload")
+    | ReplaceKind => ReplaceFile ("src/example.spi", "expected", "replacement")
+    | PatchExactKind => PatchExact ("src/example.spi", "old", "new")
+    | MakeDirKind => MakeDir "src/generated"
+    | ToolchainKind => ToolchainAction "cargo-check"
+    | CopyKind => CopyFile ("src/source.spi", "expected-sha", "src/copied.spi")
+    | ChmodKind => Chmod ("src/tool", "0755", "0644")
+    | SymlinkKind => Symlink ("src/current", "src/target")
+
+inl kind_code (kind : plan_kind) : i32 = union_reflection.cases.union_case_index kind - 1i32
+inl kind_count () : i32 = union_reflection.cases.union_cases_fold (fun counted (_ : plan_kind) => counted + 1i32) 0i32
+inl index_code (~input : string) : i32 = $'(!input).parse::<u8>().ok().filter(|index| index.to_string() == &*!input).map(|index| index as i32).unwrap_or(-1)' : i32
+inl wire_code (code : i32) : u64 = $'!code as u64' : u64
 
 let plan_schema_tag (~input : string) : string =
-    if rust_std_string.model.equals input "schema" then "canonical-plan-ir" else "invalid"
+    if (input = "schema") then "canonical-plan-ir" else "invalid"
+
+inl kind_at (code : i32) (kind : plan_kind) : bool = kind_code kind = code
+inl kind_descriptor (kind : plan_kind) : string * string * string * string * string = op_descriptor (sample_op kind)
 
 let plan_descriptor_by_index (~input : string) : string * string * string * string * string =
-    if rust_std_string.model.equals input "0" then op_descriptor (plan_op0 ())
-    elif rust_std_string.model.equals input "1" then op_descriptor (plan_op1 ())
-    elif rust_std_string.model.equals input "2" then op_descriptor (plan_op2 ())
-    elif rust_std_string.model.equals input "3" then op_descriptor (plan_op3 ())
-    elif rust_std_string.model.equals input "4" then op_descriptor (plan_op4 ())
-    elif rust_std_string.model.equals input "5" then op_descriptor (plan_op5 ())
-    elif rust_std_string.model.equals input "6" then op_descriptor (plan_op6 ())
-    elif rust_std_string.model.equals input "7" then op_descriptor (plan_op7 ())
-    else "invalid", "", "", "", "invalid"
+    union_reflection.cases.union_case_where (kind_at (index_code input)) kind_descriptor ("invalid", "", "", "", "invalid")
 
 let plan_manifest_header_projection (~input : string) : string =
-    if rust_std_string.model.equals input "EOIE-PLAN-IR\t1" then "1" else codec_empty ()
+    if (input = "EOIE-PLAN-IR\t1") then "1" else codec_empty ()
 
 let plan_manifest_row_hex_tuple (~input : string) : string * string * string * string * string =
     inl text_len = sm.length input : i32
@@ -46,7 +48,7 @@ let plan_manifest_row_hex_tuple (~input : string) : string * string * string * s
                         inl marker = slice_exclusive input 0i32 first
                         if (<) extra text_len then
                             codec_empty (), codec_empty (), codec_empty (), codec_empty (), codec_empty ()
-                        elif rust_std_string.model.equals marker "op" then
+                        elif (marker = "op") then
                             slice_exclusive input ((+.) first 1i32) second,
                             slice_exclusive input ((+.) second 1i32) third,
                             slice_exclusive input ((+.) third 1i32) fourth,
@@ -57,21 +59,21 @@ let plan_manifest_row_hex_tuple (~input : string) : string * string * string * s
 
 let plan_manifest_projection_witness () : i32 =
     inl header = plan_manifest_header_projection "EOIE-PLAN-IR\t1"
-    if rust_std_string.model.equals header "1" then
+    if (header = "1") then
         inl invalid_header = plan_manifest_header_projection "EOIE-PLAN-IR\t2"
-        if rust_std_string.model.equals invalid_header "" then
+        if (invalid_header = "") then
             inl op_hex, target_hex, expected_hex, payload_hex, effect_hex = plan_manifest_row_hex_tuple "op\t01\t02\t03\t04\t05"
-            if rust_std_string.model.equals op_hex "01" then
-                if rust_std_string.model.equals target_hex "02" then
-                    if rust_std_string.model.equals expected_hex "03" then
-                        if rust_std_string.model.equals payload_hex "04" then
-                            if rust_std_string.model.equals effect_hex "05" then
+            if (op_hex = "01") then
+                if (target_hex = "02") then
+                    if (expected_hex = "03") then
+                        if (payload_hex = "04") then
+                            if (effect_hex = "05") then
                                 inl invalid_op, invalid_target, invalid_expected, invalid_payload, invalid_effect = plan_manifest_row_hex_tuple "op\t01\t02\t03\t04\t05\t06"
-                                if rust_std_string.model.equals invalid_op "" then
-                                    if rust_std_string.model.equals invalid_target "" then
-                                        if rust_std_string.model.equals invalid_expected "" then
-                                            if rust_std_string.model.equals invalid_payload "" then
-                                                if rust_std_string.model.equals invalid_effect "" then 1i32 else 0i32
+                                if (invalid_op = "") then
+                                    if (invalid_target = "") then
+                                        if (invalid_expected = "") then
+                                            if (invalid_payload = "") then
+                                                if (invalid_effect = "") then 1i32 else 0i32
                                             else 0i32
                                         else 0i32
                                     else 0i32
@@ -84,7 +86,7 @@ let plan_manifest_projection_witness () : i32 =
         else 0i32
     else 0i32
 
-let plan_provider_count () : i32 = 8i32
+let plan_provider_count () : i32 = kind_count ()
 
 let plan_stage_witness () : i32 =
     inl _ : plan_stage plan_raw plan_canonical = Canonicalize
@@ -92,40 +94,53 @@ let plan_stage_witness () : i32 =
     1i32
 
 let plan_index_valid (~input : string) : u64 =
-    if rust_std_string.model.pipe_member "0|1|2|3|4|5|6|7" input then 1u64 else 0u64
+    inl code = index_code input
+    if 0i32 <= code && code < kind_count () then 1u64 else 0u64
+
+inl field_absent (~field : string) : bool = field = "" || field = "-"
+
+inl field_fits (rule : field_rule) (~field : string) : bool =
+    match rule with
+    | AnyField => true
+    | PresentField => if field_absent field then false else true
+    | DashField => field = "-"
+
+inl kind_named (~op : string) (~effect : string) (kind : plan_kind) : bool =
+    inl spec = kind_spec_of kind
+    spec.name = op && effect_name spec.effect = effect
+
+inl decoded (~target : string) (~expected : string) (~payload : string) (invalid : u64) (kind : plan_kind) : u64 =
+    inl spec = kind_spec_of kind
+    if field_fits PresentField target && field_fits spec.expected expected && field_fits spec.payload payload then wire_code (kind_code kind)
+    else invalid
 
 let plan_decode_code (~op : string) (~target : string) (~expected : string) (~payload : string) (~effect : string) : u64 =
-    if rust_std_string.model.equals op "create" && rust_std_string.model.equals effect "write" then
-        if rust_std_string.model.pipe_member "|-" target then 8u64
-        elif rust_std_string.model.equals expected "-" then 0u64
-        else 8u64
-    elif rust_std_string.model.equals op "replace" && rust_std_string.model.equals effect "write" then
-        if rust_std_string.model.pipe_member "|-" target then 8u64
-        elif rust_std_string.model.pipe_member "|-" expected then 8u64
-        else 1u64
-    elif rust_std_string.model.equals op "patch-exact" && rust_std_string.model.equals effect "write" then
-        if rust_std_string.model.pipe_member "|-" target then 8u64 else 2u64
-    elif rust_std_string.model.equals op "mkdir" && rust_std_string.model.equals effect "write" then
-        if rust_std_string.model.pipe_member "|-" target then 8u64
-        elif rust_std_string.model.equals expected "-" && rust_std_string.model.equals payload "-" then 3u64
-        else 8u64
-    elif rust_std_string.model.equals op "toolchain" && rust_std_string.model.equals effect "toolchain" then
-        if rust_std_string.model.pipe_member "|-" target then 8u64
-        elif rust_std_string.model.equals expected "-" && rust_std_string.model.equals payload "-" then 4u64
-        else 8u64
-    elif rust_std_string.model.equals op "copy" && rust_std_string.model.equals effect "write" then
-        if rust_std_string.model.pipe_member "|-" target then 8u64
-        elif rust_std_string.model.pipe_member "|-" expected then 8u64
-        elif rust_std_string.model.pipe_member "|-" payload then 8u64
-        else 5u64
-    elif rust_std_string.model.equals op "chmod" && rust_std_string.model.equals effect "write" then
-        if rust_std_string.model.pipe_member "|-" target then 8u64
-        elif rust_std_string.model.pipe_member "|-" expected then 8u64
-        elif rust_std_string.model.pipe_member "|-" payload then 8u64
-        else 6u64
-    elif rust_std_string.model.equals op "symlink" && rust_std_string.model.equals effect "write" then
-        if rust_std_string.model.pipe_member "|-" target then 8u64
-        elif rust_std_string.model.equals expected "-" then
-            if rust_std_string.model.pipe_member "|-" payload then 8u64 else 7u64
-        else 8u64
-    else 8u64
+    inl invalid = wire_code (kind_count ())
+    union_reflection.cases.union_case_where (kind_named op effect) (decoded target expected payload invalid) invalid
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+inl index_text (index : i32) : string = $'std::rc::Rc::<str>::from((!index).to_string().as_str())' : string
+
+let rec descriptors_round_trip (index : i32) : bool =
+    if kind_count () <= index then true
+    else
+        inl op, target, expected, payload, effect = plan_descriptor_by_index (index_text index)
+        if plan_decode_code op target expected payload effect = wire_code index then descriptors_round_trip (index + 1i32) else false
+
+///> rust
+test plan_codes_keep_their_wire_values =
+    expect (descriptors_round_trip 0i32) "every sample descriptor decodes to its own index"
+    expect (plan_provider_count () = 8i32) "eight plan kinds"
+    expect (plan_decode_code "create" "state/a.spi" "-" "" "write" = 0u64) "create takes any payload"
+    expect (plan_decode_code "create" "state/a.spi" "sha" "p" "write" = 8u64) "create needs a dash expected"
+    expect (plan_decode_code "replace" "a" "-" "p" "write" = 8u64) "replace needs an expected hash"
+    expect (plan_decode_code "patch-exact" "a" "" "" "write" = 2u64) "patch-exact checks only its target"
+    expect (plan_decode_code "toolchain" "cargo-check" "-" "-" "toolchain" = 4u64) "toolchain is code 4"
+    expect (plan_decode_code "toolchain" "cargo-check" "-" "-" "write" = 8u64) "toolchain runs under its own effect"
+    expect (plan_decode_code "copy" "-" "e" "s" "write" = 8u64) "a dash target is absent"
+    expect (plan_decode_code "symlink" "a" "-" "" "write" = 8u64) "symlink needs a link target"
+    expect (plan_decode_code "symlink" "a" "-" "b" "write" = 7u64) "symlink is code 7"
+    expect (plan_decode_code "rename" "a" "-" "b" "write" = 8u64) "an unknown op is invalid"
+    expect (plan_index_valid "7" = 1u64) "7 is a plan index"
+    expect (plan_index_valid "8" = 0u64) "8 is past the kinds"
+    expect (plan_index_valid "+1" = 0u64) "only canonical index text"

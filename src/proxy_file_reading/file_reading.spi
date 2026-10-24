@@ -1,4 +1,5 @@
 open workspace_primitives.outcome
+open sm'_operators
 open workspace_primitives.numbers
 open workspace_primitives.clock
 open workspace_primitives.console
@@ -68,23 +69,23 @@ inl shown_extent_text (extent : read_extent) (last_byte : i32) : string =
 
 let read_receipt_text (~path : string) (shown : u64) (last_byte : i32) (started : u64) : string =
     inl file_bytes = regular_file_bytes path
-    inl head = rust_std_string.model.concat5 "eoie proxy fs-read ok bytes=" (u64_text file_bytes) " shown=" (u64_text shown) (shown_extent_text (read_extent_of shown file_bytes) last_byte)
-    rust_std_string.model.concat5 head " elapsed_ms=" (u64_text (ms_since started)) "" ""
+    inl head = "eoie proxy fs-read ok bytes=" ++# (u64_text file_bytes) ++# " shown=" ++# (u64_text shown) ++# (shown_extent_text (read_extent_of shown file_bytes) last_byte)
+    head ++# " elapsed_ms=" ++# (u64_text (ms_since started))
 
 inl stream_file (~path : string) (limit : read_limit) (started : u64) : read_outcome =
     match stream_result_of (streamed_prefix path (limit_bytes limit)) with
-    | StreamFailed => ReadRejected (rust_std_string.model.concat5 "fs-read failed while streaming: " path "" "" "")
+    | StreamFailed => ReadRejected ("fs-read failed while streaming: " ++# path)
     | Streamed shown =>
         if flushed_stdout () = 0i32 then ReadShown (stderr_line (read_receipt_text path shown (byte_before path shown) started))
-        else ReadRejected (rust_std_string.model.concat5 "fs-read could not flush stdout: " path "" "" "")
+        else ReadRejected ("fs-read could not flush stdout: " ++# path)
 
 inl read_rooted (~root : string) (~relative : string) (limit : read_limit) (started : u64) : read_outcome =
     inl path = rooted_path root relative
-    if rust_std_string.model.equals path "" then ReadRejected (rust_std_string.model.concat5 "fs-read path rejected: " (rooted_path_problem root relative) "" "" "")
+    if (path = "") then ReadRejected ("fs-read path rejected: " ++# (rooted_path_problem root relative))
     else
         inl problem = open_problem path
-        if rust_std_string.model.equals problem "" then stream_file path limit started
-        else ReadRejected (rust_std_string.model.concat5 "fs-read failed: " problem "" "" "")
+        if (problem = "") then stream_file path limit started
+        else ReadRejected ("fs-read failed: " ++# problem)
 
 inl read_with_limit (~root : string) (~relative : string) (~limit_text : string) (started : u64) : read_outcome =
     match parse_read_limit limit_text with

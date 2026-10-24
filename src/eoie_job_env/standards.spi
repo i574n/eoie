@@ -1,0 +1,4 @@
+inl comments () = NoCommentLines
+inl width () = LineWidth 120i32
+inl lf () = LfOnly
+inl lib () = LibReferenced

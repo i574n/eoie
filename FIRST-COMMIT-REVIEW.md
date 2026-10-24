@@ -210,7 +210,7 @@ Root cause: the `FileRenameInfoEx` fallback (`windows_replace_readonly`, `src/ru
 `FileNameLength`. The zero-filled word buffer only supplies a NUL when `size % 8 != 0`, i.e. when the target path length
 is not ≡ 2 (mod 4). Otherwise the call read past the allocation and renamed the stage to `target<heap bytes>`, returning
 success. The test path is `\\?\C:\Users\<user>\AppData\Local\Temp\eoie-fs-actions-<pid>-<nonce>\…\target`: 412 characters
-here (`i574n`, 4-digit pid, ≡ 0) and 418 on the runner (`runneradmin`, 4-digit pid, ≡ 2), so it could not fail locally
+here (a 5-character user name, 4-digit pid, ≡ 0) and 418 on the runner (`runneradmin`, 4-digit pid, ≡ 2), so it could not fail locally
 for any pid under six digits. Elevation is not the difference: this host's session is also High integrity. (Assumed, not
 observed: the runner's `TEMP` canonicalizes to `runneradmin`.)
 

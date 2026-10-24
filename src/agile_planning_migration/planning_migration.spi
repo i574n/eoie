@@ -1,4 +1,5 @@
 open rust_std_fs.model
+open sm'_operators
 open agile_task_text.model
 open workspace_primitives.outcome
 open workspace_primitives.numbers
@@ -8,7 +9,9 @@ open workspace_primitives.console
 open workspace_primitives.files
 
 inl argument_owned index : string = rust_std_env.model.argument_owned index
-inl argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+let argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
 inl i32_sum (a : i32) (b : i32) : i32 = $"!a + !b"
 
 union migration_mode =
@@ -37,9 +40,9 @@ union tag_kind =
 inl tag_rest (~tag : string) (~prefix : string) : string = byte_slice tag (byte_len prefix) (byte_len tag)
 
 let tag_kind_of (~tag : string) : tag_kind =
-    if rust_std_string.model.starts_with tag "est:" then PlanningTag ("estimate", tag_rest tag "est:")
-    elif rust_std_string.model.starts_with tag "load:" then PlanningTag ("load", tag_rest tag "load:")
-    elif rust_std_string.model.starts_with tag "agent:" then PlanningTag ("assignee", legacy_agent_value (tag_rest tag "agent:"))
+    if sm'.starts_with "est:" tag then PlanningTag ("estimate", tag_rest tag "est:")
+    elif sm'.starts_with "load:" tag then PlanningTag ("load", tag_rest tag "load:")
+    elif sm'.starts_with "agent:" tag then PlanningTag ("assignee", legacy_agent_value (tag_rest tag "agent:"))
     else PlainTag
 
 type tag_pass =
@@ -52,7 +55,7 @@ type tag_pass =
     }
 
 inl joined (~list : string) (~item : string) : string =
-    if rust_std_string.model.equals list "" then item else rust_std_string.model.concat5 list "," item "" ""
+    if (list = "") then item else list ++# "," ++# item
 
 let fresh_tag_pass (~text : string) : tag_pass = { text = text; kept = ""; moved = 0i32; rejected = ""; rejections = 0i32 }
 
@@ -84,14 +87,14 @@ let rec tags_applied (pass : tag_pass) (~id : string) (~tags : string) (offset :
 
 inl unquoted (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
 inl tags_position () : i32 = 8i32
-inl task_anchor (~id : string) : string = rust_std_string.model.concat5 "Task (\"" id "\"," "" ""
+inl task_anchor (~id : string) : string = "Task (\"" ++# id ++# "\","
 
 let tags_replaced (~text : string) (~id : string) (~tags : string) : string =
     inl length = byte_len text
     inl found = byte_find text (task_anchor id)
     inl start = field_start text ($"!found + !(task_arguments_offset ())" : i32) length (tags_position ())
     inl stop = field_end text start length ScanPlain
-    rust_std_string.model.concat5 (byte_slice text 0i32 start) (spi_quoted tags) (byte_slice text stop length) "" ""
+    (byte_slice text 0i32 start) ++# (spi_quoted tags) ++# (byte_slice text stop length)
 
 inl task_line_end (~text : string) (~id : string) : i32 =
     inl found = byte_find_from text "\n" (byte_find text (task_anchor id))
@@ -108,11 +111,11 @@ type migration_pass =
 let fresh_migration (~text : string) : migration_pass = { state = text; tasks = 0i32; moved = 0i32; rejections = 0i32 }
 
 inl rejection_note (pass : tag_pass) : string =
-    if pass.rejections = 0i32 then "" else rust_std_string.model.concat5 " rejected=" pass.rejected "" "" ""
+    if pass.rejections = 0i32 then "" else " rejected=" ++# pass.rejected
 
 let task_report (~id : string) (pass : tag_pass) : i32 =
-    inl head = rust_std_string.model.concat5 id " moved=" (i32_text pass.moved) " " (planning_summary pass.text id)
-    stdout_line (rust_std_string.model.concat5 head " tags=" pass.kept (rejection_note pass) "")
+    inl head = id ++# " moved=" ++# (i32_text pass.moved) ++# " " ++# (planning_summary pass.text id)
+    stdout_line (head ++# " tags=" ++# pass.kept ++# (rejection_note pass))
 
 let task_migrated (migration : migration_pass) (~id : string) (pass : tag_pass) : migration_pass =
     inl updated = tags_replaced pass.text id pass.kept
@@ -142,14 +145,14 @@ let rec migrated_from (migration : migration_pass) (offset : i32) : migration_pa
         else migrated_from migration arguments
 
 inl migration_counts (migration : migration_pass) : string =
-    inl counts = rust_std_string.model.concat5 " tasks=" (i32_text migration.tasks) " tags_moved=" (i32_text migration.moved) " rejected="
-    rust_std_string.model.concat5 counts (i32_text migration.rejections) "" "" ""
+    inl counts = " tasks=" ++# (i32_text migration.tasks) ++# " tags_moved=" ++# (i32_text migration.moved) ++# " rejected="
+    counts ++# (i32_text migration.rejections)
 
 let migration_receipt (~verdict : string) (migration : migration_pass) (~original : string) (started : u64) : i32 =
-    inl head = rust_std_string.model.concat5 "eoie agile migrate-tags " verdict (migration_counts migration) "" ""
-    stdout_line (rust_std_string.model.concat5 head (measured_sizes (text_bytes original) (text_bytes migration.state) (ms_since started)) "" "" "")
+    inl head = "eoie agile migrate-tags " ++# verdict ++# (migration_counts migration)
+    stdout_line (head ++# (measured_sizes (text_bytes original) (text_bytes migration.state) (ms_since started)))
 
-inl migration_failure (~reason : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile migrate-tags rejected: " reason "" "" "")
+inl migration_failure (~reason : string) : i32 = stderr_failure ("agile migrate-tags rejected: " ++# reason)
 
 let migration_written (~path : string) (migration : migration_pass) (~original : string) (started : u64) : i32 =
     if migration.tasks = 0i32 then migration_receipt "ok unchanged" migration original started
@@ -173,8 +176,8 @@ let tags_migration (~root : string) (mode : migration_mode) : i32 =
         else migration_failure "malformed Task fields"
 
 inl migration_mode_of (~mode : string) : validation_result migration_mode =
-    if rust_std_string.model.equals mode "apply" then Valid MigrationApply
-    elif rust_std_string.model.equals mode "preview" then Valid MigrationDryRun
+    if (mode = "apply") then Valid MigrationApply
+    elif (mode = "preview") then Valid MigrationDryRun
     else Invalid
 
 let tags_migration_entry () : i32 =

@@ -1,7 +1,7 @@
 packages:
     |core-
     bundle_retention_domain
-    rust_std_string
+    spiral-
 modules:
     series
     receipt

@@ -1,0 +1,68 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl logs_run (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("table", Arg ("logs", args)))
+
+inl logs_fixture () : fixture_root =
+    inl root = fixture_root_create "table logs"
+    fixture_write root "runs/run-1-fast.log" "Request took 12 ms\nMiss on a disk: page\nRequest took 3 ms\n"
+    fixture_write root "runs/run-2-slow.log" "Miss on a disk: page\nMiss on a disk: blob\n"
+    fixture_write root "runs/notes.txt" "Request took 99 ms\n"
+    root
+
+///> rust
+test each_log_file_becomes_a_row_of_counts_sums_and_path_fields =
+    inl root = logs_fixture ()
+    inl run = logs_run root (Arg ("runs", Arg ("--glob", Arg ("*.log", Arg ("--field", Arg ("variant=run-\\d+-(\\w+)", Arg ("--sum", Arg ("millis=Request took (\\d+) ms", Arg ("--count", Arg ("misses=Miss on a", NoArgs))))))))))
+    expect (run.code = 0i32) (run_text run)
+    same run.stdout "file\tvariant\tmillis\tmisses\nruns/run-1-fast.log\tfast\t15\t1\nruns/run-2-slow.log\tslow\t0\t2\n"
+    shows run.stderr "eoie table logs ok files=2 columns=3"
+    inl written = succeeded (logs_run root (Arg ("runs", Arg ("--glob", Arg ("*.log", Arg ("--count", Arg ("misses=Miss on a", Arg ("--out", Arg ("misses.tsv", NoArgs)))))))))
+    shows written "eoie table logs ok files=2 columns=1 out=misses.tsv"
+    shows (succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("table", Arg ("query", Arg ("misses.tsv", Arg ("--group", Arg ("file", Arg ("--sum", Arg ("misses", NoArgs)))))))))) "1\truns/run-2-slow.log\t2"
+    inl kinds = logs_run root (Arg ("runs", Arg ("--glob", Arg ("*.log", Arg ("--count-by", Arg ("misses=Miss on a (\\w+)", NoArgs))))))
+    same kinds.stdout "file\tmisses_disk\nruns/run-1-fast.log\t1\nruns/run-2-slow.log\t2\n"
+    inl last = logs_run root (Arg ("runs", Arg ("--glob", Arg ("*.log", Arg ("--last", Arg ("hit=Request took (\\d+) ms", Arg ("--field", Arg ("hit_in_path=Request took (\\d+)", NoArgs))))))))
+    same last.stdout "file\thit\thit_in_path\nruns/run-1-fast.log\t3\t\nruns/run-2-slow.log\t\t\n"
+    fixture_write root "runs/run-3-fast.log" "Miss on a ram: row\nMiss on a disk: blob\n"
+    inl more = logs_run root (Arg ("runs", Arg ("--glob", Arg ("*.log", Arg ("--count-by", Arg ("misses=Miss on a (\\w+)", NoArgs))))))
+    same more.stdout "file\tmisses_disk\tmisses_ram\nruns/run-1-fast.log\t1\t0\nruns/run-2-slow.log\t2\t0\nruns/run-3-fast.log\t1\t1\n"
+    fixture_root_remove root
+
+///> rust
+test bad_specs_and_missing_paths_are_refused =
+    inl root = logs_fixture ()
+    rejected_with (logs_run root (Arg ("runs", Arg ("--count", Arg ("misses", NoArgs))))) 2i32 "--count expects name=regex"
+    rejected_with (logs_run root (Arg ("runs", Arg ("--count", Arg ("misses=Miss (on", NoArgs))))) 2i32 "invalid pattern for misses"
+    rejected_with (logs_run root (Arg ("nowhere", Arg ("--count", Arg ("misses=Miss", NoArgs))))) 2i32 "no such file or directory: nowhere"
+    rejected_with (logs_run root (Arg ("runs", NoArgs))) 2i32 "needs at least one --count, --count-by, --sum, --last or --field"
+    fixture_root_remove root
+
+///> rust
+test since_counts_only_lines_after_the_first_marker =
+    inl root = fixture_root_create "table logs since"
+    fixture_write root "runs/run-1-fast.log" "Request took 5 ms\nsecondary start\nRequest took 7 ms\nRequest took 1 ms\n"
+    inl run = logs_run root (Arg ("runs", Arg ("--since", Arg ("secondary start", Arg ("--sum", Arg ("millis=Request took (\\d+) ms", NoArgs))))))
+    same run.stdout "file\tmillis\nruns/run-1-fast.log\t8\n"
+    rejected_with (logs_run root (Arg ("runs", Arg ("--since", Arg ("(open", Arg ("--count", Arg ("n=x", NoArgs))))))) 2i32 "invalid --since pattern"
+    fixture_root_remove root
+
+///> rust
+test values_make_one_row_per_match_and_stand_alone =
+    inl root = logs_fixture ()
+    inl run = logs_run root (Arg ("runs", Arg ("--glob", Arg ("*.log", Arg ("--values", Arg ("hit=Request took (\\d+) ms", NoArgs))))))
+    same run.stdout "file\thit\nruns/run-1-fast.log\t12\nruns/run-1-fast.log\t3\n"
+    shows run.stderr "eoie table logs ok files=2 rows=2 columns=1"
+    rejected_with (logs_run root (Arg ("runs", Arg ("--values", Arg ("hit=Request took (\\d+)", Arg ("--count", Arg ("misses=Miss on a", NoArgs))))))) 2i32 "--values makes one row per match"
+    fixture_root_remove root
+
+///> rust
+test quiet_logs_print_only_the_table =
+    inl root = fixture_root_create "logs quiet"
+    fixture_write root "runs/run-1-alpha.log" "Miss on a rat\nMiss on a rat\n"
+    inl run = logs_run root (Arg ("runs", Arg ("--glob", Arg ("*.log", Arg ("--count", Arg ("misses=Miss on a", Arg ("--quiet", NoArgs)))))))
+    expect (run.code = 0i32) (run_text run)
+    shows run.stdout "misses"
+    hides run.stdout "eoie table logs ok"
+    hides run.stderr "eoie table logs ok"
+    fixture_root_remove root

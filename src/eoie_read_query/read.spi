@@ -1,127 +1,112 @@
-open rust_std_string.model
+open sm'_operators
 open model
 open eoie_receipt.receipt
+open slice
 
 nominal host_tally = $'[u64; 4]'
 
-inl argument (~index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(!index as usize).unwrap_or_default())' : string
-inl argument_count () : i32 = $'std::env::args().count() as i32' : i32
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
 inl stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
-inl decimal_u64 (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+let decimal_u64 (~text : string) : u64 = optionm'.default_value 0u64 (convert.try_convert text)
 inl tally_at (~tally : host_tally) (~index : u64) : u64 = $'!tally[!index as usize]' : u64
 inl unsigned_of (~value : i64) : u64 = $'!value as u64' : u64
 
 inl rejected (~message : string) : i32 =
-    stderr_line (concat5 "eoie error: " message "" "" "")
+    stderr_line ("eoie error: " ++# message)
     2i32
-
-let file_slice (~path : string) (from : u64) (to : u64) (~limit : u64) : i64 =
-    $'(|| -> i64 { let text = match std::fs::read(&*!path) { Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(), Err(error) => { println\!("{} (unreadable: {error})", &*!path); return -1; } }; let lines = text.lines().collect::<Vec<_>>(); let total = lines.len() as u64; let first = (!from).max(1); let last = (!to).min(total); let shown_last = last.min(first.saturating_add(!limit).saturating_sub(1)); println\!("{} (lines {}-{} of {})", &*!path, first, shown_last.max(first.saturating_sub(1)), total); let width = shown_last.to_string().len(); let mut shown = 0i64; if first <= shown_last { for index in first..=shown_last { println\!("{:>width$}  {}", index, lines[(index - 1) as usize]); shown += 1; } } if shown_last < last { println\!("... {} more lines (raise --max-lines or pass a range)", last - shown_last); } shown })()' : i64
 
 type read_tally =
     {
         files : u64
         unreadable : u64
         lines : u64
+        json : string
     }
 
-let rec read_from (index : i32) (count : i32) (limit : u64) (tally : read_tally) : read_tally =
+let slice_tallied (~path : string) (range : line_range) (limit : u64) (json : bool) (tally : read_tally) : read_tally =
+    inl view = file_slice path range limit json
+    inl files = tally.files + 1u64
+    inl items = if tally.json = "" then view.json else tally.json ++# "," ++# view.json
+    if view.shown < 0i64 then { tally with files = files; unreadable = (tally.unreadable + 1u64); json = items }
+    else { tally with files = files; lines = (tally.lines + unsigned_of view.shown); json = items }
+
+let rec globbed_from (~paths : string) (index : i32) (range : line_range) (limit : u64) (json : bool) (tally : read_tally) : read_tally =
+    inl path = nth_path paths index
+    if path = "" then tally
+    else globbed_from paths (index + 1i32) range limit json (slice_tallied path range limit json tally)
+
+let spec_tallied (spec : read_spec) (limit : u64) (json : bool) (tally : read_tally) : read_tally =
+    inl paths = glob_paths spec.path
+    if paths = "" then slice_tallied spec.path spec.range limit json tally
+    else globbed_from paths 0i32 spec.range limit json tally
+
+let rec read_from (index : i32) (count : i32) (limit : u64) (json : bool) (tally : read_tally) : read_tally =
     if index < count then
         inl word = argument index
-        if word = "--max-lines" then read_from (index + 2i32) count limit tally
-        else
-            inl spec = read_spec_of word
-            inl shown = file_slice spec.path (range_first spec.range) (range_last spec.range 18446744073709551615u64) limit
-            inl files = tally.files + 1u64
-            inl next =
-                if shown < 0i64 then { tally with files = files; unreadable = (tally.unreadable + 1u64) }
-                else { tally with files = files; lines = (tally.lines + unsigned_of shown) }
-            read_from (index + 1i32) count limit next
+        if word = "--max-lines" then read_from (index + 2i32) count limit json tally
+        elif word = "--json" then read_from (index + 1i32) count limit json tally
+        else read_from (index + 1i32) count limit json (spec_tallied (read_spec_of word) limit json tally)
     else tally
-
 let rec max_lines_from (index : i32) (count : i32) : u64 =
     if index + 1i32 < count then
         if argument index = "--max-lines" then decimal_u64 (argument (index + 1i32)) else max_lines_from (index + 1i32) count
     else 400u64
 
-let read_receipt (tally : read_tally) (~started : u64) : i32 =
+let read_receipt (tally : read_tally) (json : bool) (~started : u64) : i32 =
     inl files = decimal_text tally.files
     inl unreadable = tally.unreadable
     inl lines = decimal_text tally.lines
-    if unreadable = 0u64 then
-        receipt_line Succeeded (concat5 "files " files "  lines " lines "") started
+    if json then
+        stdout_text ("{\"files\":[" ++# tally.json ++# "],\"lines\":" ++# lines ++# (",\"unreadable\":" ++# (decimal_text unreadable) ++# "}"))
+        if unreadable = 0u64 then 0i32 else 2i32
+    elif unreadable = 0u64 then
+        receipt_line Succeeded ("files " ++# files ++# "  lines " ++# lines) started
         0i32
     else
-        receipt_line Failed (concat5 "files " files "  unreadable " (decimal_text unreadable) (concat5 "  lines " lines "" "" "")) started
+        receipt_line Failed ("files " ++# files ++# "  unreadable " ++# (decimal_text unreadable) ++# ("  lines " ++# lines)) started
         2i32
 
+let read_start () : read_tally = { files = 0u64; unreadable = 0u64; lines = 0u64; json = "" }
+
+inl json_flag () : bool = $'std::env::args().skip(2).any(|argument| argument == "--json")' : bool
 let lines_counted (~patterns : string) : host_tally =
-    $'(|| -> [u64; 4] { let expand = |pattern: &str| -> Vec<(String, std::path::PathBuf)> { let split = pattern.rfind(|character: char| character == char::from(47u8) || character == char::from(92u8)); if \!pattern.contains(char::from(42u8)) { return vec\![(pattern.to_owned(), std::path::PathBuf::from(pattern))]; } let (folder_text, separator, mask) = match split { Some(at) => (&pattern[..at], &pattern[at..at + 1], &pattern[at + 1..]), None => (".", "", pattern) }; let (head, tail) = mask.split_once(char::from(42u8)).unwrap_or((mask, "")); let mut found = std::fs::read_dir(folder_text).map(|entries| entries.filter_map(|entry| entry.ok()).filter(|entry| entry.path().is_file()).map(|entry| entry.file_name().to_string_lossy().into_owned()).filter(|name| name.starts_with(head) && name.ends_with(tail) && name.len() >= head.len() + tail.len()).collect::<Vec<_>>()).unwrap_or_default(); found.sort(); found.into_iter().map(|name| (if separator.is_empty() { name.clone() } else { format\!("{folder_text}{separator}{name}") }, std::path::Path::new(folder_text).join(&name))).collect() }; let mut rows = Vec::new(); for pattern in (&*!patterns).lines() { for (shown, path) in expand(pattern) { rows.push((shown, std::fs::read(&path).map(|bytes| (bytes.len() as u64, String::from_utf8_lossy(&bytes).lines().count() as u64)).map_err(|error| error.to_string()))); } } let path_width = rows.iter().map(|row| row.0.len()).max().unwrap_or(0).max(4); let bytes_width = rows.iter().map(|row| row.1.as_ref().map(|counts| counts.0.to_string().len()).unwrap_or(1)).max().unwrap_or(0).max(5); println\!("{:<path_width$}  {:<bytes_width$}  {}", "path", "bytes", "lines"); let mut tally = [0u64; 4]; for (shown, counts) in &rows { tally[0] += 1; match counts { Ok((bytes, lines)) => { tally[1] += bytes; tally[2] += lines; println\!("{:<path_width$}  {:<bytes_width$}  {}", shown, bytes, lines); } Err(error) => { tally[3] += 1; println\!("{:<path_width$}  {:<bytes_width$}  -  (unreadable: {error})", shown, "-"); } } } tally })()' : host_tally
+    $'(|| -> [u64; 4] { let mut rows = Vec::new(); for shown in (&*!patterns).lines().filter(|line| \!line.is_empty()) { rows.push((shown.to_owned(), std::fs::read(shown).map(|bytes| (bytes.len() as u64, String::from_utf8_lossy(&bytes).lines().count() as u64)).map_err(|error| error.to_string()))); } let path_width = rows.iter().map(|row| row.0.len()).max().unwrap_or(0).max(4); let bytes_width = rows.iter().map(|row| row.1.as_ref().map(|counts| counts.0.to_string().len()).unwrap_or(1)).max().unwrap_or(0).max(5); println\!("{:<path_width$}  {:<bytes_width$}  {}", "path", "bytes", "lines"); let mut tally = [0u64; 4]; for (shown, counts) in &rows { tally[0] += 1; match counts { Ok((bytes, lines)) => { tally[1] += bytes; tally[2] += lines; println\!("{:<path_width$}  {:<bytes_width$}  {}", shown, bytes, lines); } Err(error) => { tally[3] += 1; println\!("{:<path_width$}  {:<bytes_width$}  -  (unreadable: {error})", shown, "-"); } } } tally })()' : host_tally
 
 let lines_receipt (tally : host_tally) (~started : u64) : i32 =
     inl files = decimal_text (tally_at tally 0u64)
     inl bytes = decimal_text (tally_at tally 1u64)
     inl lines = decimal_text (tally_at tally 2u64)
     inl unreadable = tally_at tally 3u64
-    inl counts = concat5 "files " files (concat5 "  bytes " bytes "  lines " lines "") "" ""
+    inl counts = "files " ++# files ++# ("  bytes " ++# bytes ++# "  lines " ++# lines)
     if unreadable = 0u64 then
         receipt_line Succeeded counts started
         0i32
     else
-        receipt_line Failed (concat5 counts "  unreadable " (decimal_text unreadable) "" "") started
+        receipt_line Failed (counts ++# "  unreadable " ++# (decimal_text unreadable)) started
         2i32
 
 let rec patterns_from (index : i32) (count : i32) (~acc : string) : string =
-    if index < count then patterns_from (index + 1i32) count (if acc = "" then argument index else concat5 acc "\n" (argument index) "" "")
+    if index < count then patterns_from (index + 1i32) count (if acc = "" then argument index else acc ++# "\n" ++# (argument index))
     else acc
 
-type search_options =
-    {
-        glob : string
-        context : u64
-        limit : u64
-        ignore_case : bool
-    }
-
-let rec search_options_from (index : i32) (count : i32) (options : search_options) : search_options =
-    if index < count then
-        inl word = argument index
-        if word = "--ignore-case" then search_options_from (index + 1i32) count { options with ignore_case = true }
-        elif index + 1i32 < count then
-            inl value = argument (index + 1i32)
-            if word = "--glob" then search_options_from (index + 2i32) count { options with glob = value }
-            elif word = "--context" then search_options_from (index + 2i32) count { options with context = decimal_u64 value }
-            elif word = "--max" then search_options_from (index + 2i32) count { options with limit = decimal_u64 value }
-            else search_options_from (index + 1i32) count options
-        else options
-    else options
-
-let text_searched (~root : string) (~needle : string) (~glob : string) (context : u64) (limit : u64) (ignore_case : bool) : host_tally =
-    $'(|| -> [u64; 4] { use rayon::prelude::*; let skip = ["target", "node_modules", ".git", "_build", "deps", "dist", ".cache", "obj"]; let root = std::path::PathBuf::from(&*!root); let mut stack = vec\![root.clone()]; let mut files = Vec::new(); while let Some(folder) = stack.pop() { let Ok(entries) = std::fs::read_dir(&folder) else { continue }; for entry in entries.filter_map(|entry| entry.ok()) { let path = entry.path(); let Ok(kind) = entry.file_type() else { continue }; if kind.is_symlink() { continue; } if kind.is_dir() { if \!skip.iter().any(|name| path.file_name().map(|value| value == *name).unwrap_or(false)) { stack.push(path); } } else if kind.is_file() { files.push(path); } } } let glob = &*!glob; let (head, tail) = glob.split_once(char::from(42u8)).unwrap_or((glob, "")); let wanted = |path: &std::path::Path| glob.is_empty() || path.file_name().map(|name| { let name = name.to_string_lossy(); if glob.contains(char::from(42u8)) { name.starts_with(head) && name.ends_with(tail) } else { name == glob } }).unwrap_or(false); files.retain(|path| wanted(path)); let ignore_case = !ignore_case; let needle = if ignore_case { (&*!needle).to_lowercase() } else { (&*!needle).to_owned() }; let mut hits = files.par_iter().filter_map(|path| { let bytes = std::fs::read(path).ok()?; let text = String::from_utf8_lossy(&bytes); let lines = text.lines().map(str::to_owned).collect::<Vec<_>>(); let found = lines.iter().enumerate().filter(|(_, line)| if ignore_case { line.to_lowercase().contains(&needle) } else { line.contains(needle.as_str()) }).map(|(index, _)| index).collect::<Vec<_>>(); if found.is_empty() { return None; } Some((path.clone(), found, lines)) }).collect::<Vec<_>>(); hits.sort_by(|left, right| left.0.cmp(&right.0)); let shown_path = |path: &std::path::Path| path.strip_prefix(&root).unwrap_or(path).to_string_lossy().replace(char::from(92u8), "/"); let clip = |line: &str| if line.chars().count() > 200 { format\!("{}...", line.chars().take(200).collect::<String>()) } else { line.to_owned() }; let context = !context as usize; let mut shown = 0u64; let mut total = 0u64; for (path, found, lines) in &hits { total += found.len() as u64; if shown >= !limit { continue; } let taken = found.iter().copied().take((!limit - shown) as usize).collect::<Vec<_>>(); shown += taken.len() as u64; let last_line = taken.iter().map(|index| (index + context).min(lines.len() - 1)).max().unwrap_or(0); let width = (last_line + 1).to_string().len(); println\!("{}", shown_path(path)); let mut printed_until: Option<usize> = None; for index in &taken { let start = match printed_until { Some(printed) if printed + 1 > index.saturating_sub(context) => printed + 1, _ => index.saturating_sub(context) }; let end = (index + context).min(lines.len() - 1); for line in start..=end { let marker = if taken.contains(&line) { char::from(62u8) } else { char::from(32u8) }; println\!("{:>width$}{} {}", line + 1, marker, clip(&lines[line])); } printed_until = Some(printed_until.map_or(end, |printed| printed.max(end))); } } [files.len() as u64, hits.len() as u64, total, shown] })()' : host_tally
-
-let search_receipt (tally : host_tally) (~started : u64) : i32 =
-    inl searched = decimal_text (tally_at tally 0u64)
-    inl matched = decimal_text (tally_at tally 1u64)
-    inl total = tally_at tally 2u64
-    inl shown = tally_at tally 3u64
-    inl counts = concat5 "files " searched " searched  " matched (concat5 " matched  matches " (decimal_text total) "" "" "")
-    receipt_line Succeeded (if shown < total then concat5 counts "  shown " (decimal_text shown) "" "" else counts) started
-    0i32
+let rec expanded_from (~patterns : string) (index : i32) (~acc : string) : string =
+    inl pattern = nth_path patterns index
+    if path_count patterns <= index then acc
+    elif pattern = "" then expanded_from patterns (index + 1i32) acc
+    else
+        inl paths = glob_paths pattern
+        expanded_from patterns (index + 1i32) (if paths = "" then acc elif acc = "" then paths else acc ++# "\n" ++# paths)
 
 let read_run () : i32 =
     inl started = now_ms ()
     match read_command_of (argument 1i32) with
     | ReadFiles =>
         if argument_count () < 3i32 then rejected (read_usage ())
-        else read_receipt (read_from 2i32 (argument_count ()) (max_lines_from 2i32 (argument_count ())) { files = 0u64; unreadable = 0u64; lines = 0u64 }) started
+        else read_receipt (read_from 2i32 (argument_count ()) (max_lines_from 2i32 (argument_count ())) (json_flag ()) (read_start ())) (json_flag ()) started
     | CountLines =>
         if argument_count () < 3i32 then rejected (read_usage ())
-        else lines_receipt (lines_counted (patterns_from 2i32 (argument_count ()) "")) started
-    | SearchText =>
-        if argument_count () < 4i32 then rejected (read_usage ())
-        else
-            inl options = search_options_from 4i32 (argument_count ()) { glob = ""; context = 0u64; limit = 200u64; ignore_case = false }
-            search_receipt (text_searched (argument 2i32) (argument 3i32) options.glob options.context options.limit options.ignore_case) started
+        else lines_receipt (lines_counted (expanded_from (patterns_from 2i32 (argument_count ()) "") 0i32 "")) started
     | ReadUnknown => rejected (read_usage ())
 
 inl main () : i32 =

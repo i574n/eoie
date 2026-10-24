@@ -1,4 +1,5 @@
 open workspace_primitives.numbers
+open sm'_operators
 open workspace_primitives.bytes
 open agile_todo_model.model
 
@@ -18,10 +19,10 @@ inl listed_names (~path : string) : string =
     $'std::rc::Rc::<str>::from(eoie_rust_std_fs::rooted_list_names(std::path::Path::new(&*!path)).unwrap_or_default().join(&char::from(10u8).to_string()).as_str())' : string
 
 inl joined_path (~base : string) (~relative : string) : string =
-    if rust_std_string.model.equals base "" then relative
-    else rust_std_string.model.concat5 base "/" relative "" ""
+    if (base = "") then relative
+    else base ++# "/" ++# relative
 
-inl appended (~listing : string) (~relative : string) : string = rust_std_string.model.concat5 listing relative (nul_text ()) "" ""
+inl appended (~listing : string) (~relative : string) : string = listing ++# relative ++# (nul_text ())
 
 let rec walked_names (~directory : string) (~relative : string) (~names : string) (~offset : i32) (~listing : string) : string =
     if byte_len names <= offset then listing
@@ -33,7 +34,7 @@ let rec walked_names (~directory : string) (~relative : string) (~names : string
         inl absolute = joined_path directory name
         inl child = joined_path relative name
         inl visited =
-            if rust_std_string.model.equals name "" then listing
+            if (name = "") then listing
             elif both (entry_code absolute = walked_directory_code ()) (vendor_directory name) then appended listing (joined_path child ".")
             elif entry_code absolute = walked_directory_code () then walked_directory absolute child listing
             else appended listing child

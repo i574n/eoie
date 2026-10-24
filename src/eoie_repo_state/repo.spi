@@ -1,4 +1,4 @@
-open rust_std_string.model
+open sm'_operators
 open state
 
 nominal area_tally = $'std::rc::Rc<std::cell::RefCell<std::collections::BTreeMap<String, [u64; 4]>>>'
@@ -38,8 +38,8 @@ let rec tally_status (tally : area_tally) (~status : string) (index : u64) (coun
         if path <> "" then tallied tally (area_of path depth) (counts_of line)
         tally_status tally status (index + 1u64) count depth
 
-inl argument (~index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(!index as usize).unwrap_or_default())' : string
-inl argument_count () : i32 = $'std::env::args().count() as i32' : i32
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
 inl decimal_text (~value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
 inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
 inl is_repository (~root : string) : bool = $'std::path::Path::new(&*!root).join(".git").exists()' : bool
@@ -52,14 +52,14 @@ let repo_state_of (~root : string) (depth : u64) : i32 =
         tally_status tally status 0u64 (line_count status) depth
         inl branch = header_value status "# branch.head "
         inl ab = header_value status "# branch.ab "
-        inl head = concat5 "eoie repo state ok root=" root " branch=" branch (concat5 " ab=" (if ab = "" then "none" else ab) "" "" "")
-        inl totals = concat5 " staged=" (decimal_text (tally_total tally 0u64)) " modified=" (decimal_text (tally_total tally 1u64)) (concat5 " untracked=" (decimal_text (tally_total tally 2u64)) " unmerged=" (decimal_text (tally_total tally 3u64)) "")
-        stdout_line (concat5 head totals (concat5 " areas=" (decimal_text (area_count tally)) "" "" "") " last=" (line_at last 0u64))
+        inl head = "eoie repo state ok root=" ++# root ++# " branch=" ++# branch ++# (" ab=" ++# (if ab = "" then "none" else ab))
+        inl totals = " staged=" ++# (decimal_text (tally_total tally 0u64)) ++# " modified=" ++# (decimal_text (tally_total tally 1u64)) ++# (" untracked=" ++# (decimal_text (tally_total tally 2u64)) ++# " unmerged=" ++# (decimal_text (tally_total tally 3u64)))
+        stdout_line (head ++# totals ++# (" areas=" ++# (decimal_text (area_count tally))) ++# " last=" ++# (line_at last 0u64))
         inl areas = tally_lines tally "  " (busiest_areas ())
         if areas <> "" then stdout_line areas
         0i32
     else
-        stdout_line (concat5 "eoie repo state rejected root=" root " reason=not-a-git-repository" "" "")
+        stdout_line ("eoie repo state rejected root=" ++# root ++# " reason=not-a-git-repository")
         2i32
 
 let rec states_from (index : i32) (count : i32) (depth : u64) (worst : i32) : i32 =

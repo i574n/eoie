@@ -27,11 +27,25 @@ let planning_value_token (~field_name : string) (~value : string) : i32 * string
     | Valid field => field_value_token field value
     | Invalid => 1i32, "field must be estimate, load or assignee"
 
-let legacy_agent_value (~value : string) : string = rust_std_string.model.pipe_lookup "yes|pair|no" """
-    agent
-    pair
-    user
-    """ value
+union legacy_agent =
+    | LegacyYes
+    | LegacyPair
+    | LegacyNo
+
+inl legacy_word (flag : legacy_agent) : string =
+    match flag with
+    | LegacyYes => "yes"
+    | LegacyPair => "pair"
+    | LegacyNo => "no"
+
+inl legacy_assignee (flag : legacy_agent) : string =
+    match flag with
+    | LegacyYes => "agent"
+    | LegacyPair => "pair"
+    | LegacyNo => "user"
+
+let legacy_agent_value (~value : string) : string =
+    union_reflection.cases.union_case_where (fun (flag : legacy_agent) => value = legacy_word flag) (fun flag => legacy_assignee flag) ""
 
 inl main () : i32 =
     !!!!Export("eoie_agile_planning_value_token", ((fun (field_name, value) => planning_value_token field_name value) : string * string -> i32 * string))

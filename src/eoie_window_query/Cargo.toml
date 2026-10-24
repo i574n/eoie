@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "query.spi"
+output = "query.rs"
+
+[package]
+name = "eoie-window-query"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_window_query"
+path = "query.rs"
+
+[dependencies]
+eoie-window-run = { path = "../eoie_window_run" }
+eoie-window-admission = { path = "../eoie_window_admission" }

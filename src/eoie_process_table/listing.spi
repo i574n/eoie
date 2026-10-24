@@ -1,0 +1,188 @@
+open sm'_operators
+open eoie_machine_watch.host
+open model
+
+union ps_scope =
+    | EveryProcess
+    | SessionTree : u64
+    | NoSession
+
+inl agent_named (~name : string) : bool = name = "claude" || name = "codex"
+
+let rec session_root (~rows : process_rows) (pid : u64) (hops : i32) : u64 =
+    inl at = row_of_pid rows pid
+    if at < 0i32 || hops > 32i32 then 0u64
+    elif agent_named (row_name rows at) then pid
+    else session_root rows (row_parent rows at) (hops + 1i32)
+
+let rec descends_from (~rows : process_rows) (pid : u64) (root : u64) (hops : i32) : bool =
+    if pid = root then true
+    elif pid = 0u64 || hops > 64i32 then false
+    else
+        inl at = row_of_pid rows pid
+        if at < 0i32 then false else descends_from rows (row_parent rows at) root (hops + 1i32)
+
+inl scope_of (~rows : process_rows) (mine : bool) (own : u64) : ps_scope =
+    if mine then
+        inl root = session_root rows own 0i32
+        if root = 0u64 then NoSession else SessionTree root
+    else EveryProcess
+
+inl in_scope (~rows : process_rows) (scope : ps_scope) (pid : u64) : bool =
+    match scope with
+    | EveryProcess => true
+    | SessionTree root => descends_from rows pid root 0i32
+    | NoSession => false
+
+inl count_word (value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+
+inl scope_text (scope : ps_scope) : string =
+    match scope with
+    | EveryProcess => ""
+    | SessionTree root => "  session " ++# (count_word root)
+    | NoSession => "  session none"
+
+let pattern_problem (~pattern : string) : string = $'std::rc::Rc::<str>::from(regex::RegexBuilder::new(&*!pattern).cas\
+    e_insensitive(true).build().err().map(|error| error.to_string()).unwrap_or_default().as_str())' : string
+let pattern_matches (~pattern : string) (~text : string) : bool = $'{ static PATTERN: std::sync::OnceLock<Option<regex\
+    ::Regex>> = std::sync::OnceLock::new(); PATTERN.get_or_init(|| \
+    regex::RegexBuilder::new(&*!pattern).case_insensitive(true).build().ok()).as_ref().map(|found| \
+    found.is_match(&*!text)).unwrap_or(false) }' : bool
+inl rows_oldest_first (~rows : process_rows) : process_rows =
+    $'{ let mut sorted = (*!rows).clone(); sorted.sort_by(|left, right| \
+        right.5.cmp(&left.5).then(left.0.cmp(&right.0))); std::rc::Rc::new(sorted) }'
+    : process_rows
+inl started_text (age_minutes : u64) (offset_minutes : i64) : string = $'std::rc::Rc::<str>::from({ let now = \
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_secs()).unwrap_or(0) \
+    as i64; let local = (now - (!age_minutes as i64) * 60 + !offset_minutes * 60).rem_euclid(86400); \
+    format\!("{:02}:{:02}", local / 3600, local / 60 % 60) }.as_str())' : string
+inl cores_text (cores : f64) : string = $'std::rc::Rc::<str>::from(format\!("{:.1}", !cores).as_str())' : string
+inl indent_of (depth : i32) : string = $'std::rc::Rc::<str>::from("  ".repeat(!depth as usize).as_str())' : string
+inl clipped (~text : string) : string = $'std::rc::Rc::<str>::from({ let text = &*!text; if text.chars().count() > \
+    200 { format\!("{}...", text.chars().take(200).collect::<String>()) } else { text.to_owned() } }.as_str())' : string
+inl text_width (~text : string) : i32 = $'(&*!text).chars().count() as i32' : i32
+inl padded (~text : string) (width : i32) : string = $'std::rc::Rc::<str>::from(format\!("{:<width$}", &*!text, width \
+    = !width as usize).as_str())' : string
+inl wider (a : i32) (b : i32) : i32 = if a < b then b else a
+
+type ps_row =
+    {
+        pid : string
+        parent : string
+        started : string
+        megabytes : string
+        cores : string
+        command : string
+    }
+
+union rec ps_rows =
+    | NoPsRows
+    | PsRowThen : ps_row * ps_rows
+
+type ps_widths =
+    {
+        pid : i32
+        parent : i32
+        started : i32
+        megabytes : i32
+        cores : i32
+    }
+
+type ps_listing =
+    {
+        found : ps_rows
+        shown : string
+        matched : u64
+    }
+
+inl header_row () : ps_row =
+    { pid = "pid"; parent = "ppid"; started = "started"; megabytes = "mem_mb"; cores = "cores"; command = "command" }
+inl empty_listing () : ps_listing = { found = NoPsRows; shown = ","; matched = 0u64 }
+inl shown_in (listing : ps_listing) (pid : u64) : bool = sm'.contains ("," ++# (count_word pid) ++# ",") listing.shown
+
+inl widths_with (widths : ps_widths) (row : ps_row) : ps_widths =
+    {
+        pid = wider widths.pid (text_width row.pid)
+        parent = wider widths.parent (text_width row.parent)
+        started = wider widths.started (text_width row.started)
+        megabytes = wider widths.megabytes (text_width row.megabytes)
+        cores = wider widths.cores (text_width row.cores)
+    }
+
+let rec widths_of (rows : ps_rows) (widths : ps_widths) : ps_widths =
+    match rows with
+    | NoPsRows => widths
+    | PsRowThen (row, rest) => widths_of rest (widths_with widths row)
+
+inl row_text (widths : ps_widths) (row : ps_row) : string =
+    inl left =
+        padded row.pid widths.pid
+        ++# "  "
+        ++# padded row.parent widths.parent
+        ++# "  "
+        ++# padded row.started widths.started
+    left
+    ++# "  "
+    ++# padded row.megabytes widths.megabytes
+    ++# "  "
+    ++# ((padded row.cores widths.cores) ++# "  " ++# row.command)
+
+let rec rows_text (rows : ps_rows) (widths : ps_widths) (~acc : string) : string =
+    match rows with
+    | NoPsRows => acc
+    | PsRowThen (row, rest) =>
+        rows_text rest widths (if acc = "" then row_text widths row else (row_text widths row) ++# "\n" ++# acc)
+
+let listing_text (listing : ps_listing) : string =
+    inl widths =
+        widths_of listing.found (
+            widths_with { pid = 0i32; parent = 0i32; started = 0i32; megabytes = 0i32; cores = 0i32 } (header_row ())
+        )
+    inl body = rows_text listing.found widths ""
+    inl head = row_text widths (header_row ())
+    if body = "" then head else head ++# "\n" ++# body
+
+inl row_added (~rows : process_rows) (at : i32) (depth : i32) (offset : i64) (listing : ps_listing) : ps_listing =
+    inl pid = row_pid rows at
+    inl row =
+        {
+            pid = count_word pid
+            parent = count_word (row_parent rows at)
+            started = started_text (row_age rows at) offset
+            megabytes = count_word (row_megabytes rows at)
+            cores = cores_text (row_cores rows at)
+            command = (indent_of depth) ++# (clipped (row_command rows at))
+        }
+    { listing with found = PsRowThen (row, listing.found); shown = listing.shown ++# (count_word pid) ++# "," }
+let rec children_listed
+    (~rows : process_rows) (parent : u64) (depth : i32) (offset : i64) (at : i32) (listing : ps_listing)
+    : ps_listing
+    =
+    if at >= row_count rows then listing
+    else
+        inl pid = row_pid rows at
+        inl next =
+            if row_parent rows at = parent && pid <> parent && shown_in listing pid = false
+            then children_listed rows pid (depth + 1i32) offset 0i32 (row_added rows at depth offset listing)
+            else listing
+        children_listed rows parent depth offset (at + 1i32) next
+
+let rec listed
+    (~rows : process_rows) (~pattern : string) (scope : ps_scope) (tree : bool) (own : u64) (offset : i64) (at : i32)
+    (listing : ps_listing)
+    : ps_listing
+    =
+    if at >= row_count rows then listing
+    else
+        inl pid = row_pid rows at
+        inl wanted =
+            pid <> own
+            && shown_in listing pid = false
+            && in_scope rows scope pid
+            && pattern_matches pattern ((row_name rows at) ++# " " ++# (row_command rows at))
+        inl next =
+            if wanted then
+                inl added = row_added rows at 0i32 offset { listing with matched = listing.matched + 1u64 }
+                if tree then children_listed rows pid 1i32 offset 0i32 added else added
+            else listing
+        listed rows pattern scope tree own offset (at + 1i32) next

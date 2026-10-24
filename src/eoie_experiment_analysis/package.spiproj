@@ -1,0 +1,9 @@
+packages:
+    |core-
+    rust_std_string
+    union_reflection
+    eoie_table_query
+    agile_note_model
+    eoie_experiments
+modules:
+    analysis

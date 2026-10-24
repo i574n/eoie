@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "after.spi"
+output = "after.rs"
+
+[package]
+name = "eoie-job-after"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_job_after"
+path = "after.rs"

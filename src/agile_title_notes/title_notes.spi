@@ -1,4 +1,5 @@
 open rust_std_fs.model
+open sm'_operators
 open agile_task_text.model
 open agile_note_model.model
 open workspace_primitives.outcome
@@ -9,19 +10,21 @@ open workspace_primitives.console
 open workspace_primitives.files
 
 inl argument_owned index : string = rust_std_env.model.argument_owned index
-inl argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+let argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
 
 inl tail_rows (~title : string) (~id : string) (seq : i32) (~fallback : string) : i32 * string =
     $'agile_title_tails::eoie_agile_title_tail_rows(&*!title, &*!id, !seq, &*!fallback)' : i32 * string
 
 inl kept_end (~title : string) : i32 = $'agile_title_tails::eoie_agile_title_kept_end(&*!title)' : i32
 
-inl from_title_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile notes from-title " id " rejected: " reason "")
+inl from_title_failure (~reason : string) (~id : string) : i32 = stderr_failure ("agile notes from-title " ++# id ++# " rejected: " ++# reason)
 
 inl from_title_success (~id : string) (moved : i32) (title_before : i32) (title_after : i32) (before : u64) (after : u64) (elapsed : u64) : i32 =
-    inl head = rust_std_string.model.concat5 "eoie agile notes ok id=" id " moved=" (i32_text moved) " title_bytes_before="
-    inl middle = rust_std_string.model.concat5 (i32_text title_before) " title_bytes_after=" (i32_text title_after) "" ""
-    stdout_line (rust_std_string.model.concat5 head middle (measured_sizes before after elapsed) "" "")
+    inl head = "eoie agile notes ok id=" ++# id ++# " moved=" ++# (i32_text moved) ++# " title_bytes_before="
+    inl middle = (i32_text title_before) ++# " title_bytes_after=" ++# (i32_text title_after)
+    stdout_line (head ++# middle ++# (measured_sizes before after elapsed))
 
 inl title_bounds (text : string) (found : i32) : i32 * i32 =
     inl length = byte_len text
@@ -36,7 +39,7 @@ let title_moved (~state : string) (~id : string) (~original : string) (started :
     inl first = kept_end title
     if first < 0i32 then from_title_failure "the title has no \"; \" tail starting with a date or time to move" id
     else
-        inl kept = rust_std_string.model.trim (byte_slice title 0i32 first)
+        inl kept = sm'.trim (byte_slice title 0i32 first)
         inl moved, rows = tail_rows title id (note_count schema_ready id + 1i32) (utc_stamp started)
         inl retitled = spliced schema_ready start stop (spi_quoted kept)
         inl updated = notes_appended retitled id rows
@@ -47,7 +50,7 @@ let title_moved (~state : string) (~id : string) (~original : string) (started :
 let from_title_entry () : i32 =
     inl id = argument_owned 3i32
     if argument_count () = 4i32 then
-        if rust_std_string.model.equals (argument_owned 1i32) "from-title" then
+        if ((argument_owned 1i32) = "from-title") then
             inl started = unix_ms ()
             inl state = backlog_state_path (argument_owned 2i32)
             match probe (unchecked state) with

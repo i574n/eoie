@@ -1,0 +1,8 @@
+packages:
+    |core-
+    spiral-
+    union_reflection
+    eoie_do_model
+    eoie_do_records
+modules:
+    verbs

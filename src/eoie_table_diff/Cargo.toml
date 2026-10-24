@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "diff.spi"
+output = "diff.rs"
+
+[package]
+name = "eoie-table-diff"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_table_diff"
+path = "diff.rs"

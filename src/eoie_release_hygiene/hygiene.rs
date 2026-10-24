@@ -441,7 +441,7 @@ fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
 fn hygiene_name_classification_12(mut v0: Rc<str>) -> u64 {
     let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".spiral-entry"); } LIT.with(|lit| lit.clone()) };
     let mut v2: bool = v0.ends_with(&*v1);
-    let mut v44: US0 = if v2 {
+    let mut v43: US0 = if v2 {
         US0::US0_HygieneCompilerSidecar
     } else {
         let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".eoie-typecheck-"); } LIT.with(|lit| lit.clone()) };
@@ -501,9 +501,8 @@ fn hygiene_name_classification_12(mut v0: Rc<str>) -> u64 {
                             if v31 {
                                 US0::US0_HygieneRootTransientDirectory
                             } else {
-                                let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cargo"); } LIT.with(|lit| lit.clone()) };
-                                let mut v34: bool = v0 == v33 ;
-                                if v34 {
+                                let mut v33: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cargo"); } LIT.with(|lit| lit.clone()) };
+                                if v33 {
                                     US0::US0_HygieneRootTransientDirectory
                                 } else {
                                     US0::US0_HygieneKeep
@@ -515,7 +514,7 @@ fn hygiene_name_classification_12(mut v0: Rc<str>) -> u64 {
             }
         }
     };
-    match &v44 {
+    match &v43 {
         US0::US0_HygieneCompilerSidecar => {
             1u64
         }
@@ -536,24 +535,20 @@ fn closure5() -> Rc<dyn Fn(Rc<str>) -> u64> {
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn hygiene_directory_ignored_13(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("target"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: bool = v0 == v1 ;
-    if v2 {
+    let mut v1: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("target"); } LIT.with(|lit| lit.clone()) };
+    if v1 {
         1u64
     } else {
-        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("vendor"); } LIT.with(|lit| lit.clone()) };
-        let mut v4: bool = v0 == v3 ;
-        if v4 {
+        let mut v2: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("vendor"); } LIT.with(|lit| lit.clone()) };
+        if v2 {
             1u64
         } else {
-            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".git"); } LIT.with(|lit| lit.clone()) };
-            let mut v6: bool = v0 == v5 ;
-            if v6 {
+            let mut v3: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".git"); } LIT.with(|lit| lit.clone()) };
+            if v3 {
                 1u64
             } else {
-                let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cache"); } LIT.with(|lit| lit.clone()) };
-                let mut v8: bool = v0 == v7 ;
-                if v8 {
+                let mut v4: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cache"); } LIT.with(|lit| lit.clone()) };
+                if v4 {
                     1u64
                 } else {
                     0u64

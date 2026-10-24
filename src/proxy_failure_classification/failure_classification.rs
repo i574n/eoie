@@ -40,6 +40,20 @@ fn closure0() -> Rc<dyn Fn(Rc<str>) -> i32> {
         proxy_child_exit_code_0(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
+fn command_line_argument_count_3() -> i32 {
+    let mut v0: i32 = (std::env::args().count() as i32) - 1;
+    v0
+}
+fn proxy_argument_count_2() -> i32 {
+    let mut v0: i32 = command_line_argument_count_3();
+    let mut v1: bool = v0 > 0i32;
+    if v1 {
+        let mut v2: i32 = v0.wrapping_sub(1i32);
+        v2
+    } else {
+        0i32
+    }
+}
 fn proxy_corrected_command_1(mut v0: Rc<str>) -> Rc<str> {
     let mut v1: u64 = v0.find("observed matches=").and_then(|at| v0[at + 17..].split(|c: char| c.is_ascii_digit() == false).next().and_then(|digits| digits.parse::<u64>().ok())).unwrap_or(0);
     let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-write refuses to overwrite existing file"); } LIT.with(|lit| lit.clone()) };
@@ -74,7 +88,7 @@ fn proxy_corrected_command_1(mut v0: Rc<str>) -> Rc<str> {
             let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy "); } LIT.with(|lit| lit.clone()) };
             let mut v18: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(2 + 0i32 as usize).take((3i32 - 0i32).max(0) as usize).map(|word| Some(word.clone()).filter(|plain| plain.is_empty() == false && plain.chars().enumerate().all(|(at, c)| c.is_ascii_alphanumeric() || "_-./:=+,".contains(c) || c == char::from(92u8) || (c == char::from(126u8) && at > 0))).unwrap_or_else(|| [String::from(char::from(39u8)), word.replace(char::from(39u8), &String::from_iter([char::from(39u8); 2])), String::from(char::from(39u8))].concat())).collect::<Vec<_>>().join(" ").as_str());
             let mut v19: Rc<str> = std::rc::Rc::<str>::from([&*v17, &*v18, &*v16].concat().as_str());
-            let mut v20: i32 = std::env::args().skip(2).count() as i32;
+            let mut v20: i32 = proxy_argument_count_2();
             let mut v21: Rc<str> = std::rc::Rc::<str>::from(std::env::args().skip(2 + 3i32 as usize).take((v20 - 3i32).max(0) as usize).map(|word| Some(word.clone()).filter(|plain| plain.is_empty() == false && plain.chars().enumerate().all(|(at, c)| c.is_ascii_alphanumeric() || "_-./:=+,".contains(c) || c == char::from(92u8) || (c == char::from(126u8) && at > 0))).unwrap_or_else(|| [String::from(char::from(39u8)), word.replace(char::from(39u8), &String::from_iter([char::from(39u8); 2])), String::from(char::from(39u8))].concat())).collect::<Vec<_>>().join(" ").as_str());
             let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
             let mut v23: Rc<str> = std::rc::Rc::<str>::from([&*v19, &*v21, &*v22].concat().as_str());

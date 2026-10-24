@@ -1,7 +1,8 @@
 packages:
     |core-
-    rust_std_string
+    spiral-
 modules:
     registry
     notebook
+    failures
     main

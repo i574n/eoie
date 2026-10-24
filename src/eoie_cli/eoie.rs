@@ -1,17 +1,17 @@
 #![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-use command_spec_domain::{eoie_agile_subcommand_known, eoie_command_code, eoie_command_count, eoie_command_more_usages, eoie_command_descriptor, eoie_command_descriptor_json, eoie_command_schema_witness, eoie_command_proxy_usage, eoie_proxy_route_code, eoie_proxy_route_witness, eoie_help_flag_code, eoie_help_flag_witness};
+use command_spec_domain::{eoie_agile_subcommand_known, eoie_command_code, eoie_command_count, eoie_command_more_usages, eoie_command_descriptor, eoie_command_descriptor_named, eoie_command_descriptor_json, eoie_command_schema_witness, eoie_command_proxy_usage, eoie_proxy_route_code, eoie_proxy_route_witness, eoie_help_flag_code, eoie_help_flag_witness};
 use canonical_plan_ir_domain::{eoie_plan_ir_count, eoie_plan_ir_decode_code, eoie_plan_ir_descriptor, eoie_plan_ir_index_valid, eoie_plan_ir_projection_witness, eoie_plan_ir_schema, eoie_plan_ir_stage_witness};
 use eoie_agile_lease::lease_authority_code;
 
 #[must_use]
 fn EoieProcessVerbCode() -> i32 {
-    if !command_spec_domain::eoie_help_request_text().is_empty() { return 5; }
+    if !command_spec_domain::eoie_help_request_text().is_empty() { return eoie_command_code("help") as i32; }
     if lease_authority_code() != 0 { return 7; }
     let verb = std::env::args().nth(1).unwrap_or_else(|| "status".to_owned());
     let code = eoie_command_code(&verb);
-    if code <= 6 { code as i32 } else { 6 }
+    let unknown = eoie_command_count(); if code < unknown as u64 { code as i32 } else { unknown }
 }
 
 fn eoie_authority_summary_for_mask(mask: i32) -> Result<(i32, i32, i32, String), String> {
@@ -86,7 +86,7 @@ fn eoie_public_valid_values() -> String { (0..eoie_command_count()).map(|index| 
 fn eoie_actionable_error(reason: &str, intent: &str, usage: &str, valid: &str, corrected: &str) -> i32 { eprintln!("eoie error: {reason}\nintent: {intent}\nusage: eoie {usage}\nvalid: {valid}\ncorrected: {corrected}"); 2 }
 
 #[must_use]
-fn EoieStatusArityError() -> i32 { let descriptor = eoie_command_descriptor("0"); eoie_actionable_error("status accepts zero arguments or one bundle root", "status", descriptor.2.as_ref(), "zero arguments|one bundle root", "eoie status") }
+fn EoieStatusArityError() -> i32 { let descriptor = eoie_command_descriptor_named("status"); eoie_actionable_error("status accepts zero arguments or one bundle root", "status", descriptor.2.as_ref(), "zero arguments|one bundle root", "eoie status") }
 
 #[must_use]
 fn EoieStatusAuthorityError() -> i32 {
@@ -133,7 +133,7 @@ fn eoie_reenter_with_compiler(verb: &str, forwarded: &[&str], compiler: &str) ->
 #[must_use]
 fn EoiePatchAdapter() -> i32 {
     let args = std::env::args().skip(2).collect::<Vec<_>>();
-    let subcommand = args.first().map(String::as_str); if !matches!(subcommand, Some("apply" | "check" | "rehearse" | "gated")) { let descriptor = eoie_command_descriptor("1"); let reason = subcommand.map(|value| format!("unknown patch subcommand: {value}")).unwrap_or_else(|| "patch subcommand required".to_owned()); return eoie_actionable_error(&reason, "patch", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help patch"); }
+    let subcommand = args.first().map(String::as_str); if !matches!(subcommand, Some("apply" | "check" | "rehearse" | "gated")) { let descriptor = eoie_command_descriptor_named("patch"); let reason = subcommand.map(|value| format!("unknown patch subcommand: {value}")).unwrap_or_else(|| "patch subcommand required".to_owned()); return eoie_actionable_error(&reason, "patch", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help patch"); }
     if args.len() == 5 && args[0] == "apply" && args[3] == "--compiler" {
         return eoie_reenter_with_compiler(
             "patch",
@@ -153,7 +153,7 @@ fn EoiePatchAdapter() -> i32 {
 #[must_use]
 fn EoieAgileAdapter() -> i32 {
     let args = std::env::args().skip(2).collect::<Vec<_>>();
-    let subcommand = args.first().map(String::as_str); if subcommand.map(|value| eoie_agile_subcommand_known(value) == 0).unwrap_or(true) { let descriptor = eoie_command_descriptor("2"); let reason = subcommand.map(|value| format!("unknown agile subcommand: {value}")).unwrap_or_else(|| "agile subcommand required".to_owned()); return eoie_actionable_error(&reason, "agile", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help agile"); }
+    let subcommand = args.first().map(String::as_str); if subcommand.map(|value| eoie_agile_subcommand_known(value) == 0).unwrap_or(true) { let descriptor = eoie_command_descriptor_named("agile"); let reason = subcommand.map(|value| format!("unknown agile subcommand: {value}")).unwrap_or_else(|| "agile subcommand required".to_owned()); return eoie_actionable_error(&reason, "agile", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help agile"); }
     if args.len() == 4 && args[0] == "check" && args[2] == "--compiler" {
         return eoie_agile_state::agile_check_with_compiler_owned(args[1].as_str(), args[3].as_str());
     }
@@ -163,7 +163,7 @@ fn EoieAgileAdapter() -> i32 {
 #[must_use]
 fn EoieBundleAdapter() -> i32 {
     let args = std::env::args().skip(2).collect::<Vec<_>>();
-    let subcommand = args.first().map(String::as_str); if !matches!(subcommand, Some("growth-baseline" | "growth-receipt" | "check" | "create" | "create-flat" | "verify" | "verify-flat" | "rehydrate" | "retention-plan" | "retention-apply")) { let descriptor = eoie_command_descriptor("3"); let reason = subcommand.map(|value| format!("unknown bundle subcommand: {value}")).unwrap_or_else(|| "bundle subcommand required".to_owned()); return eoie_actionable_error(&reason, "bundle", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help bundle"); }
+    let subcommand = args.first().map(String::as_str); if !matches!(subcommand, Some("growth-baseline" | "growth-receipt" | "check" | "create" | "create-flat" | "verify" | "verify-flat" | "rehydrate" | "retention-plan" | "retention-apply")) { let descriptor = eoie_command_descriptor_named("bundle"); let reason = subcommand.map(|value| format!("unknown bundle subcommand: {value}")).unwrap_or_else(|| "bundle subcommand required".to_owned()); return eoie_actionable_error(&reason, "bundle", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help bundle"); }
     match subcommand {
         Some("retention-plan") => eoie_proxy_result(eoie_bundle_retention::retention_plan_command(&args)),
         Some("retention-apply") => eoie_proxy_result(eoie_bundle_retention::retention_apply_command(&args)),
@@ -211,7 +211,7 @@ fn eoie_plan_ir_check(args: &[String]) -> Result<(), String> {
 #[must_use]
 fn EoieProxyAdapter() -> i32 {
     let args = std::env::args().skip(2).collect::<Vec<_>>();
-    if args.is_empty() { let descriptor = eoie_command_descriptor("4"); return eoie_actionable_error("proxy capability required", "proxy capability", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help proxy"); }
+    if args.is_empty() { let descriptor = eoie_command_descriptor_named("proxy"); return eoie_actionable_error("proxy capability required", "proxy capability", descriptor.2.as_ref(), descriptor.2.as_ref(), "eoie help proxy"); }
     if eoie_proxy_route_witness() != 1 { return eoie_actionable_error("typed proxy route witness rejected", "proxy capability", "proxy <capability>", "typed proxy route catalog", "eoie help proxy"); }
     let route = eoie_proxy_route_code(args[0].as_str());
     match route {
@@ -260,11 +260,11 @@ fn EoieHelpRejected() -> i32 {
     if count <= 0 { eprintln!("eoie error: typed command catalog is empty"); return 2; }
     if args.len() == 2 && eoie_command_code(&args[0]) == 4 {
         let usage = eoie_command_proxy_usage(&args[1]);
-        if usage.is_empty() { let valid = eoie_command_descriptor("4").2; return eoie_actionable_error(&format!("unknown proxy help target: {}", args[1]), "proxy help", "help proxy <capability>", valid.as_ref(), "eoie help"); }
+        if usage.is_empty() { let valid = eoie_command_descriptor_named("proxy").2; return eoie_actionable_error(&format!("unknown proxy help target: {}", args[1]), "proxy help", "help proxy <capability>", valid.as_ref(), "eoie help"); }
         println!("usage: eoie {}", usage);
         return 0;
     }
-    if args.len() > 1 { let descriptor = eoie_command_descriptor("5"); let valid = format!("{}|proxy <capability>|--completion|--json|--schema", eoie_public_valid_values()); return eoie_actionable_error("help accepts zero arguments, one verb, proxy <capability>, --completion, --json, or --schema", "help", descriptor.2.as_ref(), &valid, "eoie help"); }
+    if args.len() > 1 { let descriptor = eoie_command_descriptor_named("help"); let valid = format!("{}|proxy <capability>|--completion|--json|--schema", eoie_public_valid_values()); return eoie_actionable_error("help accepts zero arguments, one verb, proxy <capability>, --completion, --json, or --schema", "help", descriptor.2.as_ref(), &valid, "eoie help"); }
     if let Some(target) = args.first() {
         if eoie_help_flag_witness() != 1 { eprintln!("eoie error: typed help flag witness rejected"); return 2; }
         let help_flag = eoie_help_flag_code(target);
@@ -309,15 +309,50 @@ enum US0 {
     US0_StdinArguments,
 }
 #[derive(Clone)]
+enum US2 {
+    US2_VerbJob,
+    US2_VerbRepo,
+    US2_VerbTable,
+    US2_VerbRead,
+    US2_VerbLines,
+    US2_VerbGrep,
+    US2_VerbDo,
+    US2_VerbPs,
+    US2_VerbKill,
+    US2_VerbStandards,
+    US2_VerbWindow,
+    US2_VerbExperiment,
+    US2_VerbGuide,
+    US2_VerbMachine,
+    US2_VerbAdoption,
+    US2_VerbMemory,
+    US2_VerbResume,
+}
+#[derive(Clone)]
 enum US1 {
-    US1_StatusHandler,
-    US1_PatchHandler,
-    US1_AgileHandler,
-    US1_BundleHandler,
-    US1_ProxyHandler,
-    US1_HelpHandler,
-    US1_UnknownHandler,
-    US1_LeaseDeniedHandler,
+    US1_DirectKnown(US2),
+    US1_DirectUnknown,
+}
+#[derive(Clone)]
+enum US3 {
+    US3_StatusHandler,
+    US3_PatchHandler,
+    US3_AgileHandler,
+    US3_BundleHandler,
+    US3_ProxyHandler,
+    US3_HelpHandler,
+    US3_UnknownHandler,
+    US3_LeaseDeniedHandler,
+}
+#[derive(Clone)]
+enum US4 {
+    US4_StatusSpec,
+    US4_PatchSpec,
+    US4_AgileSpec,
+    US4_BundleSpec,
+    US4_ProxySpec,
+    US4_HelpSpec,
+    US4_UnknownSpec,
 }
 fn argument_source_0() -> US0 {
     let mut v0: i32 = 1i32;
@@ -336,184 +371,138 @@ fn argument_source_0() -> US0 {
         US0::US0_DirectArguments
     }
 }
-fn closure0() -> Rc<dyn Fn() -> i32> {
-    thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
-        let mut v0: i32 = 1i32;
-        let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v0 as usize).unwrap_or_default());
-        let mut v2: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("job"); } LIT.with(|lit| lit.clone()) };
-        if v2 {
-            let mut v3: i32 = eoie_jobs::eoie_job_run();
-            v3
+fn command_more_usages_2() -> Rc<str> {
+    let mut v0: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("status [root]\npatch: apply <root> <plan.spi> [--compiler <absolute>] | check <root> <plan.spi> | rehearse <root> <plan.spi> | gated <root> <plan.spi> <gate-program>\nagile: init <root> | begin <root> <title> | lease <root> | status <root> | handoff <root> | list <root> [all|Planned|Active|Blocked|Paused|Done] [--team <team>] [--tag <tag>] [--prefix <ID prefix>] [--open] [--ready] [--blocked] [--sort priority|difficulty|progress] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json] | check <root> [--compiler <absolute>] | record <root> | set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done> | add <root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags> [--estimate <m>] [--load <l>] [--assignee <a>] [--deps <A,B>] [--note <text> --as <author>] | edit <root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value> | show <root> <id> [--json] | plan <root> [--json] | migrate-tags preview|apply <root> | note <root> <id> <text> [--as <author>] | note-edit <root> <id> <note-number> <text> [--as <author>] | notes from-title <root> <id> | rename <root> <old-id> <new-id> | todos <root> [<path>...] [--json] [--tagged | --id <ID>] | <root> --record | next <root> [--as main|subagent] [--team <team>] [--tag <tag>] [--prefix <ID prefix>] [--open] [--ready] [--blocked] [count] | roots <root> [add|drop <path>...] | links <root> --memory <dir> [--json] | views <root> | view <root> <name> [extra flags...] | view-add <root> <name> <list|next> [flags...]\nbundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>\nproxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew\nhelp [verb|--completion|--json|--schema] | proxy <capability>\nrepo: state <root> [<root>...] | affected <src> <package>... (Cargo crates whose package.spiproj graph reaches a changed package)\nread <path|glob>[:from-to|:-last]... [--max-lines n] [--json] | lines <path|glob>... | grep <root> <needle> [--glob pattern] [--context n] [--max n] [--ignore-case] [--regex] [--json]\ntable: query <file> [--where col=value|col!=value|col>value|col>=value|col<value|col<=value]... [--cols a,b] [--group col] [--mean|--sd|--sum|--min|--max|--count a,b]... [--limit n] [--quiet] | diff <left> <right> --key a,b [--cols x,y] [--latest-by col] [--limit n] | logs <file|dir>... [--glob *.log] [--since regex] (--count name=regex | --count-by name=regex | --sum name=regex | --last name=regex | --field name=regex-on-the-file-path)... | --values name=regex alone [--out file.tsv] [--quiet] | test <file.tsv> --test welch|one-sample|binomial|wilson|median|binomial-band --metric <column> [--arms a[,b] [--group <column>]] [--prediction x] [--confidence 0.95] [--where ...]...\nstandards: <package-dir>... [--json] (rules from the package's standards.spi rows, else no-comment-lines, line-width 120, lf-only, test-targets; exit 1 on findings) | --census <dir>... | --baseline <file.spi> <dir>... | --ratchet <file.spi> <dir>... (typefeatureset and drift counts per package; the ratchet fails when a package gets worse than its baseline or a new package misses the floor)\nwindow: request <class> <minutes> [--label <text>] [--wait <minutes>] | release <id> | list | check <class> | run <class> <minutes> [--label <text>] [--wait <minutes>] -- <command> [args...] (machine windows shared by every session; live-gui and compiler-install exclude all other classes; exit 1 when blocked)\nexperiment: register <ledger> <ID> --test welch|one-sample|binomial|wilson|median|binomial-band --metric <col> --runs <n> --decision <rule> [--group <col> --arms a[,b]] [--prediction <x>] [--confidence 0.95] [--question <text>] [--time <col>] | analyze <ledger> <ID> <table.tsv> [--where col=value]... [--interim <reason>] | amend <ledger> <ID> --field <name> --value <v> --reason <text> | addendum <ledger> <ID> <text> | show <ledger> <ID> (pre-registered; one analysis at the planned count)\ndo <root> '<program>' | do <root> - (stdin); edit <path|glob> [dry-run] [expect files n replacements n] / replace [pattern] once|all|<n> times \"old\" with \"new\" / patch <<<hunks>>> / show <path>; search [literal] \"re\" in <glob> [include a,b] [exclude glob] [context n[,m]] [first n per file] [paths] / read <path> around \"text\" [context n[,m]] / files <glob> / head <glob> n / tail <glob> n / wait <file> ~ \"re\" [timeout 5s]; hash <a,b,...> / env <A,B> / exists <a,b> / nearest \"re\" before lines n,m in <file> / json <file> get a.b,c.length / lines <file> count by \"(re)\" / files <glob> count by extension / table <file.tsv> [where col = \"v\"|col <> \"v\"] count by a,b / dirs <dir/*> having a and b + tag <name> = <file> ~ \"re\" [and|or|not ...] + count by <name> / diff <a.tsv> <b.tsv> by k1,k2 [on c1,c2]; run <cmd> [timeout 10s] [until output ~ \"re\" then stop] [background as name] / tail output n / search \"re\" in output / errors in output by \"(re)\" / processes where command ~ \"re\" / stop <name>; append <file> \"line {clock:HH:mm}\" / copy <glob> to <dir> [except *.tmp,...] / move <path> to <path> (no overwrite; absolute paths reach other roots), then read statements; git init|commit <repo> all \"msg\" [at <iso>] / git history <repo> \"text\" in <file> / git status a, b group by state / git log <repo> [since <date>] count by day / search \"re\" in <glob> with git status; job start <cmd> as <name> timeout 30s [notify] / job wait <name> [timeout 5m] / job stop <name>; lab audit <dir> against <backlog>\nps [regex] [--tree] [--mine] | kill <pid>... [--tree] (never this eoie or its calling shells)\nguide <spec/one-call.md> [--out <file.md>]\nmemory import <memory-dir> <data.spi> | render <data.spi> <out-dir> | check <data.spi> | list <data.spi> [--kind user|feedback|project|reference] | recall <data.spi> <words> [--limit n]\nresume <backlog-root> [--team <team>] [--as <author>]\nmachine watch [--sample-seconds n]\nadoption [--days n] [--out <file.tsv>]\njob: start [--heavy] <label> <timeout-ms> <program> [args...] | run [--heavy] <label> <timeout-ms> <program> [args...] (attached: supervises in this process, ends with its caller, exits with the job's code; long runs from reapable agent shells use start + a background wait) | status <id> | wait <id> [max-ms] (default: until the job settles; a queued --heavy job's timeout starts when it is admitted) | list [count] | tail <id> [lines] | stop <id> (stops the job's own process tree)"); } LIT.with(|lit| lit.clone()) };
+    let mut v1: Rc<str> = std::rc::Rc::<str>::from(v0.lines().skip(6).collect::<Vec<_>>().join("
+"));
+    v1.clone()
+}
+fn direct_verb_usage_1(mut v0: Rc<str>) -> Rc<str> {
+    let mut v1: Rc<str> = command_more_usages_2();
+    let mut v2: Rc<str> = std::rc::Rc::<str>::from((v1).lines().find(|line| line.split(char::from(124u8)).any(|part| part.trim().split(|c: char| c == char::from(32u8) || c == char::from(58u8)).next() == Some(&*v0))).unwrap_or("").trim());
+    v2.clone()
+}
+fn direct_help_3(mut v0: Rc<str>) -> i32 {
+    println!("usage: eoie {}", &*v0);
+    0i32
+}
+fn lowercase_named_5(mut v0: Rc<str>, mut v1: Rc<str>) -> bool {
+    let mut v2: bool = (v1).to_ascii_lowercase() == &*v0;
+    v2
+}
+fn direct_of_4(mut v0: Rc<str>) -> US1 {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Job"); } LIT.with(|lit| lit.clone()) };
+    let mut v2: bool = lowercase_named_5(v0.clone(), v1.clone());
+    if v2 {
+        let mut v3: US2 = US2::US2_VerbJob;
+        US1::US1_DirectKnown(v3.clone())
+    } else {
+        let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Repo"); } LIT.with(|lit| lit.clone()) };
+        let mut v6: bool = lowercase_named_5(v0.clone(), v5.clone());
+        if v6 {
+            let mut v7: US2 = US2::US2_VerbRepo;
+            US1::US1_DirectKnown(v7.clone())
         } else {
-            let mut v4: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("repo"); } LIT.with(|lit| lit.clone()) };
-            if v4 {
-                let mut v5: i32 = eoie_repo_state::eoie_repo_run();
-                v5
+            let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Table"); } LIT.with(|lit| lit.clone()) };
+            let mut v10: bool = lowercase_named_5(v0.clone(), v9.clone());
+            if v10 {
+                let mut v11: US2 = US2::US2_VerbTable;
+                US1::US1_DirectKnown(v11.clone())
             } else {
-                let mut v6: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("table"); } LIT.with(|lit| lit.clone()) };
-                if v6 {
-                    let mut v7: i32 = eoie_table_query::eoie_table_run();
-                    v7
+                let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Read"); } LIT.with(|lit| lit.clone()) };
+                let mut v14: bool = lowercase_named_5(v0.clone(), v13.clone());
+                if v14 {
+                    let mut v15: US2 = US2::US2_VerbRead;
+                    US1::US1_DirectKnown(v15.clone())
                 } else {
-                    let mut v8: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("read"); } LIT.with(|lit| lit.clone()) };
-                    let mut v10: bool = if v8 {
-                        true
+                    let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Lines"); } LIT.with(|lit| lit.clone()) };
+                    let mut v18: bool = lowercase_named_5(v0.clone(), v17.clone());
+                    if v18 {
+                        let mut v19: US2 = US2::US2_VerbLines;
+                        US1::US1_DirectKnown(v19.clone())
                     } else {
-                        let mut v9: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("lines"); } LIT.with(|lit| lit.clone()) };
-                        v9
-                    };
-                    let mut v12: bool = if v10 {
-                        true
-                    } else {
-                        let mut v11: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("grep"); } LIT.with(|lit| lit.clone()) };
-                        v11
-                    };
-                    if v12 {
-                        let mut v13: i32 = eoie_read_query::eoie_read_run();
-                        v13
-                    } else {
-                        let mut v14: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("do"); } LIT.with(|lit| lit.clone()) };
-                        if v14 {
-                            let mut v15: i32 = eoie_do::eoie_do_run();
-                            v15
+                        let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Grep"); } LIT.with(|lit| lit.clone()) };
+                        let mut v22: bool = lowercase_named_5(v0.clone(), v21.clone());
+                        if v22 {
+                            let mut v23: US2 = US2::US2_VerbGrep;
+                            US1::US1_DirectKnown(v23.clone())
                         } else {
-                            let mut v16: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("ps"); } LIT.with(|lit| lit.clone()) };
-                            let mut v18: bool = if v16 {
-                                true
+                            let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Do"); } LIT.with(|lit| lit.clone()) };
+                            let mut v26: bool = lowercase_named_5(v0.clone(), v25.clone());
+                            if v26 {
+                                let mut v27: US2 = US2::US2_VerbDo;
+                                US1::US1_DirectKnown(v27.clone())
                             } else {
-                                let mut v17: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("kill"); } LIT.with(|lit| lit.clone()) };
-                                v17
-                            };
-                            if v18 {
-                                let mut v19: i32 = eoie_process_table::eoie_process_run();
-                                v19
-                            } else {
-                                let mut v20: i32 = eoie_legacy_operations::dogfood_shim_argv0_code();
-                                let mut v21: bool = 0i32 == v20;
-                                if v21 {
-                                    let mut v22: i32 = EoieProcessVerbCode();
-                                    let mut v23: bool = 0i32 == v22;
-                                    let mut v44: US1 = if v23 {
-                                        US1::US1_StatusHandler
+                                let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Ps"); } LIT.with(|lit| lit.clone()) };
+                                let mut v30: bool = lowercase_named_5(v0.clone(), v29.clone());
+                                if v30 {
+                                    let mut v31: US2 = US2::US2_VerbPs;
+                                    US1::US1_DirectKnown(v31.clone())
+                                } else {
+                                    let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Kill"); } LIT.with(|lit| lit.clone()) };
+                                    let mut v34: bool = lowercase_named_5(v0.clone(), v33.clone());
+                                    if v34 {
+                                        let mut v35: US2 = US2::US2_VerbKill;
+                                        US1::US1_DirectKnown(v35.clone())
                                     } else {
-                                        let mut v25: bool = 1i32 == v22;
-                                        if v25 {
-                                            US1::US1_PatchHandler
+                                        let mut v37: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Standards"); } LIT.with(|lit| lit.clone()) };
+                                        let mut v38: bool = lowercase_named_5(v0.clone(), v37.clone());
+                                        if v38 {
+                                            let mut v39: US2 = US2::US2_VerbStandards;
+                                            US1::US1_DirectKnown(v39.clone())
                                         } else {
-                                            let mut v27: bool = 2i32 == v22;
-                                            if v27 {
-                                                US1::US1_AgileHandler
+                                            let mut v41: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Window"); } LIT.with(|lit| lit.clone()) };
+                                            let mut v42: bool = lowercase_named_5(v0.clone(), v41.clone());
+                                            if v42 {
+                                                let mut v43: US2 = US2::US2_VerbWindow;
+                                                US1::US1_DirectKnown(v43.clone())
                                             } else {
-                                                let mut v29: bool = 3i32 == v22;
-                                                if v29 {
-                                                    US1::US1_BundleHandler
+                                                let mut v45: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Experiment"); } LIT.with(|lit| lit.clone()) };
+                                                let mut v46: bool = lowercase_named_5(v0.clone(), v45.clone());
+                                                if v46 {
+                                                    let mut v47: US2 = US2::US2_VerbExperiment;
+                                                    US1::US1_DirectKnown(v47.clone())
                                                 } else {
-                                                    let mut v31: bool = 4i32 == v22;
-                                                    if v31 {
-                                                        US1::US1_ProxyHandler
-                                                    } else {
-                                                        let mut v33: bool = 5i32 == v22;
-                                                        if v33 {
-                                                            US1::US1_HelpHandler
-                                                        } else {
-                                                            let mut v35: bool = 7i32 == v22;
-                                                            if v35 {
-                                                                US1::US1_LeaseDeniedHandler
-                                                            } else {
-                                                                US1::US1_UnknownHandler
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    };
-                                    match &v44 {
-                                        US1::US1_AgileHandler => {
-                                            let mut v76: i32 = EoieAgileAdapter();
-                                            v76
-                                        }
-                                        US1::US1_BundleHandler => {
-                                            let mut v77: i32 = EoieBundleAdapter();
-                                            v77
-                                        }
-                                        US1::US1_HelpHandler => {
-                                            let mut v79: i32 = EoieHelpRejected();
-                                            v79
-                                        }
-                                        US1::US1_LeaseDeniedHandler => {
-                                            2i32
-                                        }
-                                        US1::US1_PatchHandler => {
-                                            let mut v75: i32 = EoiePatchAdapter();
-                                            v75
-                                        }
-                                        US1::US1_ProxyHandler => {
-                                            let mut v78: i32 = EoieProxyAdapter();
-                                            v78
-                                        }
-                                        US1::US1_StatusHandler => {
-                                            let mut v45: i32 = std::env::args().skip(2).count() as i32;
-                                            let mut v46: bool = 0i32 == v45;
-                                            if v46 {
-                                                let mut v47: i32 = bootstrap_authority_status::eoie_bootstrap_workspace_state_status();
-                                                let mut v48: bool = 1i32 == v47;
-                                                if v48 {
-                                                    let mut v49: i32 = bootstrap_authority_status::eoie_bootstrap_compiler_session_status();
-                                                    let mut v50: bool = 1i32 == v49;
+                                                    let mut v49: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Guide"); } LIT.with(|lit| lit.clone()) };
+                                                    let mut v50: bool = lowercase_named_5(v0.clone(), v49.clone());
                                                     if v50 {
-                                                        let mut v51: i32 = bootstrap_authority_status::eoie_bootstrap_legacy_bundle_writer_status();
-                                                        let mut v52: bool = 1i32 == v51;
-                                                        if v52 {
-                                                            let mut v53: i32 = bootstrap_authority_status::eoie_bootstrap_ingest_frontier_status();
-                                                            let mut v54: bool = 1i32 == v53;
-                                                            if v54 {
-                                                                let mut v55: i32 = process_batch_plan_domain::eoie_batch_matrix_auto_chain_budget(60000, 16000);
-                                                                let mut v56: bool = 1i32 == v55;
-                                                                if v56 {
-                                                                    let mut v57: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
-                                                                    let mut v58: i32 = EoieStatusOk(v57);
-                                                                    v58
-                                                                } else {
-                                                                    let mut v59: i32 = EoieStatusAuthorityError();
-                                                                    v59
-                                                                }
-                                                            } else {
-                                                                let mut v61: i32 = EoieStatusAuthorityError();
-                                                                v61
-                                                            }
-                                                        } else {
-                                                            let mut v63: i32 = EoieStatusAuthorityError();
-                                                            v63
-                                                        }
+                                                        let mut v51: US2 = US2::US2_VerbGuide;
+                                                        US1::US1_DirectKnown(v51.clone())
                                                     } else {
-                                                        let mut v65: i32 = EoieStatusAuthorityError();
-                                                        v65
+                                                        let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Machine"); } LIT.with(|lit| lit.clone()) };
+                                                        let mut v54: bool = lowercase_named_5(v0.clone(), v53.clone());
+                                                        if v54 {
+                                                            let mut v55: US2 = US2::US2_VerbMachine;
+                                                            US1::US1_DirectKnown(v55.clone())
+                                                        } else {
+                                                            let mut v57: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Adoption"); } LIT.with(|lit| lit.clone()) };
+                                                            let mut v58: bool = lowercase_named_5(v0.clone(), v57.clone());
+                                                            if v58 {
+                                                                let mut v59: US2 = US2::US2_VerbAdoption;
+                                                                US1::US1_DirectKnown(v59.clone())
+                                                            } else {
+                                                                let mut v61: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Memory"); } LIT.with(|lit| lit.clone()) };
+                                                                let mut v62: bool = lowercase_named_5(v0.clone(), v61.clone());
+                                                                if v62 {
+                                                                    let mut v63: US2 = US2::US2_VerbMemory;
+                                                                    US1::US1_DirectKnown(v63.clone())
+                                                                } else {
+                                                                    let mut v65: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("Resume"); } LIT.with(|lit| lit.clone()) };
+                                                                    let mut v66: bool = lowercase_named_5(v0.clone(), v65.clone());
+                                                                    if v66 {
+                                                                        let mut v67: US2 = US2::US2_VerbResume;
+                                                                        US1::US1_DirectKnown(v67.clone())
+                                                                    } else {
+                                                                        US1::US1_DirectUnknown
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
                                                     }
-                                                } else {
-                                                    let mut v67: i32 = EoieStatusAuthorityError();
-                                                    v67
-                                                }
-                                            } else {
-                                                let mut v69: bool = 1i32 == v45;
-                                                if v69 {
-                                                    let mut v70: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
-                                                    let mut v71: i32 = EoieStatusLive(v70);
-                                                    v71
-                                                } else {
-                                                    let mut v72: i32 = EoieStatusArityError();
-                                                    v72
                                                 }
                                             }
-                                        }
-                                        US1::US1_UnknownHandler => {
-                                            let mut v80: i32 = EoieUnknownRejected();
-                                            v80
                                         }
                                     }
-                                } else {
-                                    let mut v89: i32 = eoie_legacy_operations::dogfood_shim_dispatch();
-                                    v89
                                 }
                             }
                         }
@@ -521,9 +510,282 @@ fn closure0() -> Rc<dyn Fn() -> i32> {
                 }
             }
         }
+    }
+}
+fn closure0() -> Rc<dyn Fn() -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn() -> i32> = Rc::new(move || -> i32 {
+        let mut v0: i32 = 1i32;
+        let mut v1: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v0 as usize).unwrap_or_default());
+        let mut v2: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("help"); } LIT.with(|lit| lit.clone()) };
+        let mut v7: Rc<str> = if v2 {
+            let mut v3: i32 = 2i32;
+            let mut v4: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v3 as usize).unwrap_or_default());
+            direct_verb_usage_1(v4.clone())
+        } else {
+            let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            v6.clone()
+        };
+        let mut v8: bool = v7.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        if v8 {
+            direct_help_3(v7.clone())
+        } else {
+            let mut v10: US1 = direct_of_4(v1.clone());
+            match &v10 {
+                US1::US1_DirectKnown(v11) => {
+                    let mut v11: US2 = v11.clone();
+                    match &v11 {
+                        US2::US2_VerbAdoption => {
+                            let mut v41: i32 = eoie_adoption::eoie_adoption_run();
+                            v41
+                        }
+                        US2::US2_VerbDo => {
+                            let mut v33: i32 = eoie_do::eoie_do_run();
+                            v33
+                        }
+                        US2::US2_VerbExperiment => {
+                            let mut v38: i32 = eoie_experiments::eoie_experiment_run();
+                            v38
+                        }
+                        US2::US2_VerbGrep => {
+                            let mut v32: i32 = eoie_grep_query::eoie_grep_run();
+                            v32
+                        }
+                        US2::US2_VerbGuide => {
+                            let mut v39: i32 = eoie_guide::eoie_guide_run();
+                            v39
+                        }
+                        US2::US2_VerbJob => {
+                            let mut v12: i32 = eoie_jobs::eoie_job_run();
+                            v12
+                        }
+                        US2::US2_VerbKill => {
+                            let mut v35: i32 = eoie_process_table::eoie_process_run();
+                            v35
+                        }
+                        US2::US2_VerbLines => {
+                            let mut v31: i32 = eoie_read_query::eoie_read_run();
+                            v31
+                        }
+                        US2::US2_VerbMachine => {
+                            let mut v40: i32 = eoie_machine_watch::eoie_machine_watch_run();
+                            v40
+                        }
+                        US2::US2_VerbMemory => {
+                            let mut v42: i32 = eoie_memory::eoie_memory_run();
+                            v42
+                        }
+                        US2::US2_VerbPs => {
+                            let mut v34: i32 = eoie_process_table::eoie_process_run();
+                            v34
+                        }
+                        US2::US2_VerbRead => {
+                            let mut v30: i32 = eoie_read_query::eoie_read_run();
+                            v30
+                        }
+                        US2::US2_VerbRepo => {
+                            let mut v13: i32 = 2i32;
+                            let mut v14: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v13 as usize).unwrap_or_default());
+                            let mut v15: bool = v14.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("affected"); } LIT.with(|lit| lit.clone()) };
+                            if v15 {
+                                let mut v16: i32 = eoie_repo_affected::eoie_repo_affected_run();
+                                v16
+                            } else {
+                                let mut v17: i32 = eoie_repo_state::eoie_repo_run();
+                                v17
+                            }
+                        }
+                        US2::US2_VerbResume => {
+                            let mut v43: i32 = eoie_resume::eoie_resume_run();
+                            v43
+                        }
+                        US2::US2_VerbStandards => {
+                            let mut v36: i32 = eoie_standards::eoie_standards_run();
+                            v36
+                        }
+                        US2::US2_VerbTable => {
+                            let mut v19: i32 = 2i32;
+                            let mut v20: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v19 as usize).unwrap_or_default());
+                            let mut v21: bool = v20.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("logs"); } LIT.with(|lit| lit.clone()) };
+                            if v21 {
+                                let mut v22: i32 = eoie_table_logs::eoie_table_logs_run();
+                                v22
+                            } else {
+                                let mut v23: i32 = 2i32;
+                                let mut v24: Rc<str> = std::rc::Rc::<str>::from(std::env::args().nth(v23 as usize).unwrap_or_default());
+                                let mut v25: bool = v24.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("test"); } LIT.with(|lit| lit.clone()) };
+                                if v25 {
+                                    let mut v26: i32 = eoie_table_test::eoie_table_test_run();
+                                    v26
+                                } else {
+                                    let mut v27: i32 = eoie_table_query::eoie_table_run();
+                                    v27
+                                }
+                            }
+                        }
+                        US2::US2_VerbWindow => {
+                            let mut v37: i32 = eoie_machine_windows::eoie_window_run();
+                            v37
+                        }
+                    }
+                }
+                US1::US1_DirectUnknown => {
+                    let mut v61: i32 = eoie_legacy_operations::dogfood_shim_argv0_code();
+                    let mut v62: bool = 0i32 == v61;
+                    if v62 {
+                        let mut v63: i32 = EoieProcessVerbCode();
+                        let mut v64: bool = v63 == 7i32;
+                        let mut v103: US3 = if v64 {
+                            US3::US3_LeaseDeniedHandler
+                        } else {
+                            let mut v66: i32 = v63.wrapping_add(1i32);
+                            let mut v67: bool = v66 == 1i32;
+                            let mut v88: US4 = if v67 {
+                                US4::US4_StatusSpec
+                            } else {
+                                let mut v69: bool = v66 == 2i32;
+                                if v69 {
+                                    US4::US4_PatchSpec
+                                } else {
+                                    let mut v71: bool = v66 == 3i32;
+                                    if v71 {
+                                        US4::US4_AgileSpec
+                                    } else {
+                                        let mut v73: bool = v66 == 4i32;
+                                        if v73 {
+                                            US4::US4_BundleSpec
+                                        } else {
+                                            let mut v75: bool = v66 == 5i32;
+                                            if v75 {
+                                                US4::US4_ProxySpec
+                                            } else {
+                                                let mut v77: bool = v66 == 6i32;
+                                                if v77 {
+                                                    US4::US4_HelpSpec
+                                                } else {
+                                                    US4::US4_UnknownSpec
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                            match &v88 {
+                                US4::US4_AgileSpec => {
+                                    US3::US3_AgileHandler
+                                }
+                                US4::US4_BundleSpec => {
+                                    US3::US3_BundleHandler
+                                }
+                                US4::US4_HelpSpec => {
+                                    US3::US3_HelpHandler
+                                }
+                                US4::US4_PatchSpec => {
+                                    US3::US3_PatchHandler
+                                }
+                                US4::US4_ProxySpec => {
+                                    US3::US3_ProxyHandler
+                                }
+                                US4::US4_StatusSpec => {
+                                    US3::US3_StatusHandler
+                                }
+                                US4::US4_UnknownSpec => {
+                                    US3::US3_UnknownHandler
+                                }
+                            }
+                        };
+                        match &v103 {
+                            US3::US3_AgileHandler => {
+                                let mut v135: i32 = EoieAgileAdapter();
+                                v135
+                            }
+                            US3::US3_BundleHandler => {
+                                let mut v136: i32 = EoieBundleAdapter();
+                                v136
+                            }
+                            US3::US3_HelpHandler => {
+                                let mut v138: i32 = EoieHelpRejected();
+                                v138
+                            }
+                            US3::US3_LeaseDeniedHandler => {
+                                2i32
+                            }
+                            US3::US3_PatchHandler => {
+                                let mut v134: i32 = EoiePatchAdapter();
+                                v134
+                            }
+                            US3::US3_ProxyHandler => {
+                                let mut v137: i32 = EoieProxyAdapter();
+                                v137
+                            }
+                            US3::US3_StatusHandler => {
+                                let mut v104: i32 = std::env::args().skip(2).count() as i32;
+                                let mut v105: bool = 0i32 == v104;
+                                if v105 {
+                                    let mut v106: i32 = bootstrap_authority_status::eoie_bootstrap_workspace_state_status();
+                                    let mut v107: bool = 1i32 == v106;
+                                    if v107 {
+                                        let mut v108: i32 = bootstrap_authority_status::eoie_bootstrap_compiler_session_status();
+                                        let mut v109: bool = 1i32 == v108;
+                                        if v109 {
+                                            let mut v110: i32 = bootstrap_authority_status::eoie_bootstrap_legacy_bundle_writer_status();
+                                            let mut v111: bool = 1i32 == v110;
+                                            if v111 {
+                                                let mut v112: i32 = bootstrap_authority_status::eoie_bootstrap_ingest_frontier_status();
+                                                let mut v113: bool = 1i32 == v112;
+                                                if v113 {
+                                                    let mut v114: i32 = process_batch_plan_domain::eoie_batch_matrix_auto_chain_budget(60000, 16000);
+                                                    let mut v115: bool = 1i32 == v114;
+                                                    if v115 {
+                                                        let mut v116: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
+                                                        let mut v117: i32 = EoieStatusOk(v116);
+                                                        v117
+                                                    } else {
+                                                        let mut v118: i32 = EoieStatusAuthorityError();
+                                                        v118
+                                                    }
+                                                } else {
+                                                    let mut v120: i32 = EoieStatusAuthorityError();
+                                                    v120
+                                                }
+                                            } else {
+                                                let mut v122: i32 = EoieStatusAuthorityError();
+                                                v122
+                                            }
+                                        } else {
+                                            let mut v124: i32 = EoieStatusAuthorityError();
+                                            v124
+                                        }
+                                    } else {
+                                        let mut v126: i32 = EoieStatusAuthorityError();
+                                        v126
+                                    }
+                                } else {
+                                    let mut v128: bool = 1i32 == v104;
+                                    if v128 {
+                                        let mut v129: i32 = bootstrap_authority_status::eoie_bootstrap_settled_migration_status();
+                                        let mut v130: i32 = EoieStatusLive(v129);
+                                        v130
+                                    } else {
+                                        let mut v131: i32 = EoieStatusArityError();
+                                        v131
+                                    }
+                                }
+                            }
+                            US3::US3_UnknownHandler => {
+                                let mut v139: i32 = EoieUnknownRejected();
+                                v139
+                            }
+                        }
+                    } else {
+                        let mut v148: i32 = eoie_legacy_operations::dogfood_shim_dispatch();
+                        v148
+                    }
+                }
+            }
+        }
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn run_from_1(mut v0: US0, mut v1: Rc<dyn Fn() -> i32>) -> i32 {
+fn run_from_6(mut v0: US0, mut v1: Rc<dyn Fn() -> i32>) -> i32 {
     #[cfg(windows)] { unsafe extern "system" { fn SetHandleInformation(handle: *mut std::ffi::c_void, mask: u32, flags: u32) -> i32; } use std::os::windows::io::AsRawHandle; unsafe { SetHandleInformation(std::io::stdin().as_raw_handle(), 1, 0); SetHandleInformation(std::io::stdout().as_raw_handle(), 1, 0); SetHandleInformation(std::io::stderr().as_raw_handle(), 1, 0); } };
     match &v0 {
         US0::US0_DirectArguments => {
@@ -561,7 +823,7 @@ fn run_from_1(mut v0: US0, mut v1: Rc<dyn Fn() -> i32>) -> i32 {
 fn spiral_main() -> i32 {
     let mut v0: US0 = argument_source_0();
     let mut v1: Rc<dyn Fn() -> i32> = closure0();
-    let mut v2: i32 = run_from_1(v0.clone(), v1.clone());
+    let mut v2: i32 = run_from_6(v0.clone(), v1.clone());
     let mut v3: i32 = eoie_coverage_prune::coverage_finish(v2);
     v3
 }

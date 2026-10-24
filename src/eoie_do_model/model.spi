@@ -3,11 +3,16 @@ union replace_count =
     | Every
     | Exactly : u64
 
+union rule_matcher =
+    | Literal
+    | Pattern
+
 type rule =
     {
         anchor : string
         replacement : string
         count : replace_count
+        matcher : rule_matcher
     }
 
 union rec rule_list =
@@ -27,6 +32,7 @@ type edit_block =
         target : string
         mode : write_mode
         expectation : expectation
+        excluded : string
         rules : rule_list
     }
 
@@ -37,6 +43,18 @@ union query_verb =
     | Head
     | Tail
     | Wait
+
+inl query_verb_word (verb : query_verb) : string =
+    match verb with
+    | Search => "search"
+    | ReadAround => "read"
+    | ListFiles => "files"
+    | Head => "head"
+    | Tail => "tail"
+    | Wait => "wait"
+
+inl query_verb_named (~word : string) : option query_verb =
+    union_reflection.cases.union_case_where (fun (verb : query_verb) => word = query_verb_word verb) (fun verb => Some verb) None
 
 type query =
     {
@@ -53,6 +71,30 @@ type query =
         count : u64
         timeout_ms : u64
     }
+
+union program_family =
+    | Edits
+    | Reads
+    | Facts
+    | Runs
+    | Writes
+    | Git
+    | Jobs
+    | Labs
+
+inl program_family_word (family : program_family) : string =
+    match family with
+    | Edits => "edits"
+    | Reads => "reads"
+    | Facts => "facts"
+    | Runs => "runs"
+    | Writes => "writes"
+    | Git => "git"
+    | Jobs => "jobs"
+    | Labs => "labs"
+
+let program_family_named (~word : string) : option program_family =
+    union_reflection.cases.union_case_where (fun (family : program_family) => word = program_family_word family) (fun family => Some family) None
 
 union step =
     | EditStep : edit_block

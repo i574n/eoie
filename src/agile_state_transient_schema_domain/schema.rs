@@ -55,14 +55,13 @@ fn closure0() -> Rc<dyn Fn(Rc<str>) -> u64> {
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn state_path_candidate_code_2(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("typecheck_receipts.spi"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: bool = v0 == v1 ;
-    if v2 {
+    let mut v1: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("typecheck_receipts.spi"); } LIT.with(|lit| lit.clone()) };
+    if v1 {
         0u64
     } else {
-        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".spi"); } LIT.with(|lit| lit.clone()) };
-        let mut v4: bool = v0.ends_with(&*v3);
-        if v4 {
+        let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".spi"); } LIT.with(|lit| lit.clone()) };
+        let mut v3: bool = v0.ends_with(&*v2);
+        if v3 {
             1u64
         } else {
             0u64

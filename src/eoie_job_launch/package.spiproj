@@ -1,0 +1,6 @@
+packages:
+    |core-
+    spiral-
+    eoie_jobs
+modules:
+    launch

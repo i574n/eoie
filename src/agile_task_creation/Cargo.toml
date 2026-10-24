@@ -12,3 +12,6 @@ publish.workspace = true
 [lib]
 name = "agile_task_creation"
 path = "task_creation.rs"
+
+[dependencies]
+agile-task-notes = { path = "../agile_task_notes" }

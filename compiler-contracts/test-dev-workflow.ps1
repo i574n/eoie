@@ -148,7 +148,7 @@ if ($env:EOIE_TEST_MUTATE_CHECKOUT) { [IO.File]::AppendAllText($env:EOIE_TEST_MU
     Assert-Contract ([IO.File]::GetLastWriteTimeUtc($target) -eq $stamp) 'Unchanged output timestamp changed.'
     Invoke-Regeneration 'auxiliary target publication with reusable spaced cache' $true @('-CargoCheck', '-Test', '-SkipRelease', '-Publish', '-IncludeAuxiliary')
     Assert-Contract ([IO.File]::ReadAllText((Join-Path $root 'src/alpha/probe.rs')).Contains('42')) 'Auxiliary output was not published.'
-    Assert-Contract (Test-Path -LiteralPath (Join-Path $targetDirectory 'debug/deps')) 'Explicit Cargo target directory was not used.'
+    Assert-Contract (Test-Path -LiteralPath (Join-Path $targetDirectory 'debug') -PathType Container) 'Explicit Cargo target directory was not used.'
     Assert-Contract ([IO.File]::GetLastWriteTimeUtc($target) -eq $stamp) 'Auxiliary publication touched unchanged primary output.'
     Assert-Contract (-not (Test-Path -LiteralPath (Join-Path $script:lastStagedEoie 'src/alpha/aux_entry.rs'))) 'Undeclared compiler sidecar remains in staged sources.'
     Assert-Contract ([IO.File]::ReadAllText((Join-Path $script:lastStagedEoie 'src/alpha/custom_entry.rs')) -ceq 'pub fn value() -> i32 { 7 }') 'Compiler overwrote a copied native adapter.'

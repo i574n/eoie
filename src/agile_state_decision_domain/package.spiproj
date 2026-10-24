@@ -1,6 +1,7 @@
 packages:
     |core-
     state_series_contract
-    rust_std_string
+    spiral-
+    union_reflection
 modules:
     main

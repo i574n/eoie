@@ -14,4 +14,6 @@ name = "eoie_do_jobs"
 path = "do_jobs.rs"
 
 [dependencies]
+eoie-command-line = { path = "../eoie_command_line" }
 eoie-jobs = { path = "../eoie_jobs" }
+eoie-job-control = { path = "../eoie_job_control" }

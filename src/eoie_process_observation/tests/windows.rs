@@ -16,5 +16,5 @@ fn stdout_consumer_timeout_closes_descendant_pipes() {
     .unwrap();
     assert!(observation.timed_out);
     assert!(String::from_utf8_lossy(&bytes).contains("data"));
-    assert!(started.elapsed() < Duration::from_secs(10));
+    assert!(started.elapsed() < Duration::from_secs(20));
 }

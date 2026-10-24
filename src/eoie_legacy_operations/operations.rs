@@ -196,7 +196,7 @@ fn eoie_proxy(args: &[String]) -> Result<(), String> {
             let (code, message) = proxy_file_reading::eoie_file_reading_outcome();
             if code == 0 { Ok(()) } else { Err(message.to_string()) }
         }
-        "fs-write" => {             let started = proxy_file_receipt::eoie_file_clock_ms();             let root = Path::new(eoie_arg(args, 1, "root")?);             let path = eoie_rooted(root, eoie_arg(args, 2, "relative")?)?;             let usage = "usage: eoie proxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>; creating a missing file needs no replace flag, --create-or-replace writes whether or not it exists";             if args.len() < 4 { return Err(format!("fs-write requires an explicit payload argument; {usage}")); }             let mut replace_existing = false;             let mut create_or_replace = false;             let mut expect_hash: Option<&str> = None;             let mut expect_nonempty = false;             let mut payload_start = 3usize;             if args.get(3).is_some_and(|value| eoie_legacy_operations_proxy_write_token_code(value) < 5) {                 let mut index = 3usize;                 let mut separator_seen = false;                 while index < args.len() {                     match eoie_legacy_operations_proxy_write_token_code(args[index].as_str()) {                         0 => { replace_existing = true; index += 1; }                         1 => { index += 1; expect_hash = Some(eoie_arg(args, index, "sha256")?); index += 1; }                         2 => { expect_nonempty = true; index += 1; }                         3 => { payload_start = index + 1; separator_seen = true; break; }                         4 => { create_or_replace = true; index += 1; }                         _ => return Err(format!("unexpected fs-write option: {}; {usage}", args[index])),                     }                 }                 if !separator_seen { return Err(format!("guarded fs-write requires -- before the payload; {usage}")); }             }             let text = args[payload_start..].join(" ");             let existed = path.exists();             let original = if existed { Some(fs::read(&path).map_err(|error| format!("read {} before replace: {error}", path.display()))?) } else { None };             let packed = i32::from(replace_existing) + 2 * i32::from(create_or_replace) + 4 * i32::from(expect_hash.is_some()) + 8 * i32::from(expect_nonempty) + 16 * i32::from(original.as_ref().is_some_and(Vec::is_empty));             match eoie_legacy_operations_proxy_write_action_binding(i32::from(existed), packed) {                 0 => {}                 2 => return Err(format!("fs-write refuses to overwrite existing file without --replace-existing or --create-or-replace: {}; {usage}", path.display())),                 3 => return Err(format!("fs-write --expect-nonempty rejected empty target: {}", path.display())),                 4 => return Err(format!("fs-write replacement preconditions require an existing file: {}; {usage}", path.display())),                 _ => if let Some(expected) = expect_hash {                     let observed = eoie_proxy_search::inspection_file_sha256(&path)?;                     if observed != expected { return Err(format!("fs-write expected hash mismatch path={} expected={} observed={}", path.display(), expected, observed)); }                 },             }             eoie_atomic_write(&path, text.as_bytes())?;             let observed = fs::read(&path).map_err(|error| format!("readback {}: {error}", path.display()))?;             if observed != text.as_bytes() {                 if let Some(original) = original.as_ref() { let _ = eoie_atomic_write(&path, original); } else { let _ = eoie_remove_leaf_nofollow(&path); }                 return Err("fs-write readback mismatch; prior state restored".to_owned());             }             println!("eoie proxy fs-write ok mode={} path={} bytes={} replace_existing={} create_or_replace={} expect_hash={} expect_nonempty={}{}", if existed {"replace"} else {"create"}, path.display(), text.len(), i32::from(replace_existing), i32::from(create_or_replace), i32::from(expect_hash.is_some()), i32::from(expect_nonempty), proxy_file_receipt::eoie_elapsed_field(started));             Ok(()) }
+        "fs-write" => {             let started = proxy_file_receipt::eoie_file_clock_ms();             let root = Path::new(eoie_arg(args, 1, "root")?);             let path = eoie_rooted(root, eoie_arg(args, 2, "relative")?)?;             let usage = "usage: eoie proxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>; creating a missing file needs no replace flag, --create-or-replace writes whether or not it exists";             if args.len() < 4 { return Err(format!("fs-write requires an explicit payload argument; {usage}")); }             let mut replace_existing = false;             let mut create_or_replace = false;             let mut expect_hash: Option<&str> = None;             let mut expect_nonempty = false;             let mut payload_start = 3usize;             if args.get(3).is_some_and(|value| eoie_legacy_operations_proxy_write_token_code(value) < 5) {                 let mut index = 3usize;                 let mut separator_seen = false;                 while index < args.len() {                     match eoie_legacy_operations_proxy_write_token_code(args[index].as_str()) {                         0 => { replace_existing = true; index += 1; }                         1 => { index += 1; expect_hash = Some(eoie_arg(args, index, "sha256")?); index += 1; }                         2 => { expect_nonempty = true; index += 1; }                         3 => { payload_start = index + 1; separator_seen = true; break; }                         4 => { create_or_replace = true; index += 1; }                         _ => return Err(format!("unexpected fs-write option: {}; {usage}", args[index])),                     }                 }                 if !separator_seen { return Err(format!("guarded fs-write requires -- before the payload; {usage}")); }             }             let text = args[payload_start..].join(" ");             let existed = path.exists();             let original = if existed { Some(fs::read(&path).map_err(|error| format!("read {} before replace: {error}", path.display()))?) } else { None };             let packed = i32::from(replace_existing) + 2 * i32::from(create_or_replace) + 4 * i32::from(expect_hash.is_some()) + 8 * i32::from(expect_nonempty) + 16 * i32::from(original.as_ref().is_some_and(Vec::is_empty)) + 32 * i32::from(text.is_empty());             match eoie_legacy_operations_proxy_write_action_binding(i32::from(existed), packed) {                 0 => {}                 2 => return Err(format!("fs-write refuses to overwrite existing file without --replace-existing or --create-or-replace: {}; {usage}", path.display())),                 3 => return Err(format!("fs-write --expect-nonempty rejected empty target: {}", path.display())),                 4 => return Err(format!("fs-write replacement preconditions require an existing file: {}; {usage}", path.display())),                 5 => return Err(format!("fs-write refuses an empty payload over a non-empty file without --expect-hash: {}; {usage}", path.display())),                 _ => if let Some(expected) = expect_hash {                     let observed = eoie_proxy_search::inspection_file_sha256(&path)?;                     if observed != expected { return Err(format!("fs-write expected hash mismatch path={} expected={} observed={}", path.display(), expected, observed)); }                 },             }             eoie_atomic_write(&path, text.as_bytes())?;             let observed = fs::read(&path).map_err(|error| format!("readback {}: {error}", path.display()))?;             if observed != text.as_bytes() {                 if let Some(original) = original.as_ref() { let _ = eoie_atomic_write(&path, original); } else { let _ = eoie_remove_leaf_nofollow(&path); }                 return Err("fs-write readback mismatch; prior state restored".to_owned());             }             println!("eoie proxy fs-write ok mode={} path={} bytes={} replace_existing={} create_or_replace={} expect_hash={} expect_nonempty={}{}", if existed {"replace"} else {"create"}, path.display(), text.len(), i32::from(replace_existing), i32::from(create_or_replace), i32::from(expect_hash.is_some()), i32::from(expect_nonempty), proxy_file_receipt::eoie_elapsed_field(started));             Ok(()) }
         "text-replace" => {
             let (code, message) = proxy_text_replacement::eoie_text_replace_outcome();
             if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
@@ -415,6 +415,7 @@ enum US0 {
     US0_RejectOverwriteWithoutFlag,
     US0_RejectEmptyTarget,
     US0_RejectPreconditionsOnMissingFile,
+    US0_RejectEmptyPayload,
 }
 fn shim_decision_binding_2(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
     let mut v4: bool = v0 < 0i32;
@@ -603,32 +604,112 @@ fn proxy_exact_replace_verify_binding_11(mut v0: i32, mut v1: i32) -> i32 {
     verification_binding_12(v0, v2, v1)
 }
 fn proxy_run_token_code_14(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--timeout-ms|--cwd|--program|--env|--unset|--"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: u64 = v1.split("|").position(|item| item == &*v0).map(|index| index as u64).unwrap_or(u64::MAX);
-    v2
+    let mut v1: u64 = u64::MAX;
+    let mut v2: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--timeout-ms"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+    if v2 {
+        let mut v3: u64 = (1i32 - 1) as u64;
+        v3
+    } else {
+        let mut v4: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--cwd"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+        if v4 {
+            let mut v5: u64 = (2i32 - 1) as u64;
+            v5
+        } else {
+            let mut v6: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--program"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+            if v6 {
+                let mut v7: u64 = (3i32 - 1) as u64;
+                v7
+            } else {
+                let mut v8: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--env"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                if v8 {
+                    let mut v9: u64 = (4i32 - 1) as u64;
+                    v9
+                } else {
+                    let mut v10: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--unset"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                    if v10 {
+                        let mut v11: u64 = (5i32 - 1) as u64;
+                        v11
+                    } else {
+                        let mut v12: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                        if v12 {
+                            let mut v13: u64 = (6i32 - 1) as u64;
+                            v13
+                        } else {
+                            v1
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 fn proxy_write_token_code_15(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--replace-existing|--expect-hash|--expect-nonempty|--|--create-or-replace"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: u64 = v1.split("|").position(|item| item == &*v0).map(|index| index as u64).unwrap_or(u64::MAX);
-    v2
+    let mut v1: u64 = u64::MAX;
+    let mut v2: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--replace-existing"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+    if v2 {
+        let mut v3: u64 = (1i32 - 1) as u64;
+        v3
+    } else {
+        let mut v4: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--expect-hash"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+        if v4 {
+            let mut v5: u64 = (2i32 - 1) as u64;
+            v5
+        } else {
+            let mut v6: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--expect-nonempty"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+            if v6 {
+                let mut v7: u64 = (3i32 - 1) as u64;
+                v7
+            } else {
+                let mut v8: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                if v8 {
+                    let mut v9: u64 = (4i32 - 1) as u64;
+                    v9
+                } else {
+                    let mut v10: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--create-or-replace"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                    if v10 {
+                        let mut v11: u64 = (5i32 - 1) as u64;
+                        v11
+                    } else {
+                        v1
+                    }
+                }
+            }
+        }
+    }
 }
-fn proxy_write_action_17(mut v0: bool, mut v1: bool, mut v2: bool, mut v3: bool, mut v4: bool, mut v5: bool) -> US0 {
+fn proxy_write_action_17(mut v0: bool, mut v1: bool, mut v2: bool, mut v3: bool, mut v4: bool, mut v5: bool, mut v6: bool) -> US0 {
     if v0 {
-        let mut v6: bool = v1 || v2;
-        if v6 {
-            let mut v7: bool = v4 && v5;
-            if v7 {
+        let mut v7: bool = v1 || v2;
+        if v7 {
+            let mut v8: bool = v4 && v5;
+            if v8 {
                 US0::US0_RejectEmptyTarget
             } else {
-                US0::US0_ReplaceExistingFile
+                let mut v11: bool = if v6 {
+                    let mut v10: bool = v5 == false;
+                    v10
+                } else {
+                    false
+                };
+                let mut v13: bool = if v11 {
+                    let mut v12: bool = v3 == false;
+                    v12
+                } else {
+                    false
+                };
+                if v13 {
+                    US0::US0_RejectEmptyPayload
+                } else {
+                    US0::US0_ReplaceExistingFile
+                }
             }
         } else {
             US0::US0_RejectOverwriteWithoutFlag
         }
     } else {
-        let mut v13: bool = v1 || v3;
-        let mut v14: bool = v13 || v4;
-        if v14 {
+        let mut v20: bool = v1 || v3;
+        let mut v21: bool = v20 || v4;
+        if v21 {
             US0::US0_RejectPreconditionsOnMissingFile
         } else {
             US0::US0_CreateMissingFile
@@ -640,7 +721,7 @@ fn proxy_write_action_binding_16(mut v0: i32, mut v1: i32) -> i32 {
     if v2 {
         -1i32
     } else {
-        let mut v3: bool = 31i32 < v1;
+        let mut v3: bool = 63i32 < v1;
         if v3 {
             -1i32
         } else {
@@ -667,10 +748,16 @@ fn proxy_write_action_binding_16(mut v0: i32, mut v1: i32) -> i32 {
                     let mut v18: i32 = v1.wrapping_div(16i32);
                     let mut v19: i32 = v18.wrapping_rem(2i32);
                     let mut v20: bool = v19 == 1i32;
-                    let mut v21: US0 = proxy_write_action_17(v6, v8, v11, v14, v17, v20);
-                    match &v21 {
+                    let mut v21: i32 = v1.wrapping_div(32i32);
+                    let mut v22: i32 = v21.wrapping_rem(2i32);
+                    let mut v23: bool = v22 == 1i32;
+                    let mut v24: US0 = proxy_write_action_17(v6, v8, v11, v14, v17, v20, v23);
+                    match &v24 {
                         US0::US0_CreateMissingFile => {
                             0i32
+                        }
+                        US0::US0_RejectEmptyPayload => {
+                            5i32
                         }
                         US0::US0_RejectEmptyTarget => {
                             3i32

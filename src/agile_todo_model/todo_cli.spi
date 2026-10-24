@@ -91,7 +91,8 @@ test todos_json_lists_each_comment_once =
     inl run = todos root "--json"
     shows run "{\"todos\":["
     shows run (marked "\"line\":2,\"text\":\"// " " split\"}")
-    shows run "\"todos\":3,\"skipped\":{"
+    shows run "\"todo_count\":3,\"skipped\":{"
+    hides run "\"todos\":3"
     fixture_root_remove root
 
 ///> rust
@@ -99,11 +100,24 @@ test todos_flag_blocks_whose_item_is_done_or_missing =
     inl root = fixture_root_create "standing"
     inl done_row = "inl done_task () = Task (\"DONE-1\", \"t\", Epic, P0, D0, 100u32, Done, \"\", \"\", \"current\", \"current\")\n"
     inl open_row = "inl open_task () = Task (\"OPEN-1\", \"t\", Epic, P0, D0, 0u32, Active, \"\", \"\", \"current\", \"current\")\n"
-    fixture_write root "state/agile.spi" (cat done_row open_row)
+    inl word_row = "inl word_task () = Task (\"WORD\", \"t\", Epic, P0, D0, 0u32, Active, \"\", \"\", \"current\", \"current\")\n"
+    fixture_write root "state/agile.spi" (cat (cat done_row open_row) word_row)
     fixture_write root "a.spi" (cat (cat (marked "// " ": DONE-1 retire\n") (marked "// " ": OPEN-1 keep\n")) (marked "// " ": GONE-1 orphan\n"))
+    fixture_write root "b.spi" (cat (cat (marked "// " ": WORD declared\n") (marked "// " ": I am prose\n")) (marked "    //if seen then () // " ": I reuse it\n"))
     inl run = todos root ""
     shows run "stale (item is Done): DONE-1 at "
     shows run "unknown (no backlog item): GONE-1 at "
     hides run ": OPEN-1 at "
-    shows run "stale=1 unknown=1"
+    hides run ": I at "
+    hides run "I reuse it"
+    shows run (marked "/b.spi:2  // " ": I am prose")
+    shows run "todos=5"
+    shows run "stale=1 unknown=1 wide=0"
+    inl json = todos root "--json"
+    shows json "\"id\":\"WORD\""
+    hides json "\"id\":\"I\""
+    inl tagged = todos root "--tagged"
+    shows tagged (marked "/b.spi:1  // " ": WORD declared")
+    hides tagged "I am prose"
+    shows tagged "todos=4"
     fixture_root_remove root

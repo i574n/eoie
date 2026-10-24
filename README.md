@@ -401,14 +401,78 @@ each stamped tail, undated clauses included, into one note dated from its stamp 
 entry that names it, in one write; titles that mention the old id are counted, not changed. Each of
 these writes only if `state/agile.spi` still holds what the call read.
 
-`agile todos <root> [<path>...] [--json]` lists the TODO comments in any language under each path
+`agile todos <root> [<path>...] [--json] [--tagged | --id <ID>]` lists the TODO comments in any language under each path
 (the backlog root when none is given) as `path:line  comment`, and reads nothing else. A git work tree
 is listed by `git ls-files -co --exclude-standard`, so ignored build output and nested repositories
 stay out; any other directory is walked without following links. The comment syntax comes from the
 extension (`//`, `#`, `--`, `;`, `%`, `<!--`, `(*`, `{-`, `REM`), a marker inside a string or a word does
 not count, and Spiral `///>`/`///-` directives are skipped. Files next to a `.spi` of the same stem are
-generated output and are skipped, as are vendor directories, binary files and files over 1 MiB; the
-receipt counts every skip by reason.
+generated output and are skipped, as are vendor directories, binary files and files over 32 MiB; the
+receipt counts every skip by reason. `--json` prints one object: the `todos` list, then `todo_count`,
+`skipped` by reason, `stale` and `unknown`. A marker counts only where it starts a comment: a TODO
+inside commented-out code (`//x() // TODO: ...`) is skipped. A block is tagged with the ID that follows
+`TODO:`; a dashed ID always counts, a single word (`DEPLOY`) only when the backlog declares that task.
+`--tagged` keeps tagged blocks only and `--id <ID>` keeps the blocks of one task.
+`agile roots <root> [add|drop <path>...]` lists, adds or drops the harvest roots kept in
+`state/agile.spi` (`HarvestRoot "<path>"` rows under a `harvest_root` union declared on first use);
+a bare `agile todos <root>` scans those roots instead of the backlog folder. `agile set <root> <id>
+<progress> Done` refuses while a TODO block under those roots still names the task and lists the
+blocks, so a stale block is caught when it would be born. `agile todos <root> --record` harvests the
+tagged blocks under those roots, compares them with the `TodoSite ("<ID>", "<path:line>")` rows the
+previous record left in `state/agile.spi`, writes one note per task whose blocks appeared, moved or
+vanished (author `todos`), and replaces the rows, all in one write; a block that disappears without
+its task being done shows up as a "vanished" note instead of going unnoticed.
+
+`agile links <root> --memory <dir> [--json]` reads the agents' memory files (`*.md` with
+frontmatter `name` and `type`, `MEMORY.md` excepted) and reports backlog IDs they cite that the
+backlog does not declare (`dangling`, exit 1), Done items cited by feedback or project memories whose
+rule may have changed (`done`), and `[[name]]` links to memories not written yet (`unwritten-link`).
+Only tokens whose first segment is a backlog ID prefix count as IDs, so `UTF-8` is not one.
+
+`eoie standards <package-dir>... [--json]` checks each package's `.spi` files against the rules its
+`standards.spi` declares as rows (`inl width () = LineWidth 100u32`, `NoCommentLines`, `LfOnly`,
+`IntegerOnly "module"`, `TestTargets`), or against the defaults (no comment lines outside TODO blocks
+and `///` directives, 120 columns, LF only, a `///>` target above every test block); it prints
+`path:line  rule  detail` per finding and exits 1 when there is any. `eoie standards --census <dir>...` counts, per package, the typefeatureset constructs (GADT cases `| X :: t`, existentials, foralls, indexed unions, prototypes) and the drift (host macros, macros over 200 characters, rust_global, tab or record-separated rows, pipe tables, number-coded arms, concat5); `--baseline <file.spi> <dir>...` writes the counts as typed `CensusCount` rows, and `--ratchet <file.spi> <dir>...` exits 1 when a package's drift per thousand lines rose or its typefeatureset use fell beyond noise, or when a package missing from the baseline carries rust_global, wide macros or encoded rows, or declares types without any typefeatureset construct. A directory without `.spi` files stands for its package subdirectories, so `--ratchet standards/census.spi src` checks all of eoie.
+
+`eoie window request <class> <minutes> [--label <text>] [--wait <minutes>]` takes a machine window
+that every session on the box sees (`%LOCALAPPDATA%\eoie\windows`, or `EOIE_WINDOWS_HOME`). The
+classes are `live-gui`, `test-suite`, `heavy-build`, `compile`, `compiler-install`, `bench` and `tree-read`: a live GUI run
+or a compiler install excludes every other window, a bench excludes heavy builds, suites and other benches but lets
+compiles through, a tree read only marks a source tree as being read (edits under it are refused while it holds),
+and suites, heavy builds and compiles share the box (the heavy gate counts their slots). A request also needs free
+memory (live-gui 4096 MB, test-suite 3072, compiler-install and bench 2048, heavy-build and compile 1024; the
+heavy gate keeps its own second-slot floor), and a window granted in the last moments still counts as using its
+class's memory until it settles (heavy-build, test-suite and bench 90 s, compile 20 s), so the end of an exclusive
+window admits the queue one grant at a time instead of all at once. A request prints `ok` with the window id, or `blocked` with the holder's id,
+class, minutes left and label (or `reason=low-memory`) and exits 1. With `--wait` it queues: an older
+waiting live-gui or compiler-install request keeps newer requests out, so a live block is not starved
+by a stream of compiles. Windows end at their minutes (a waiting request lapses after 30 s unless it
+is still polling); `window release <id>` ends one early, `window list` shows them and `window check
+<class>` answers without taking one. A `--heavy` job's supervisor waits for its heavy-build window and then for a heavy-gate slot itself (it writes its own heavy-queue ticket and hands it to `Invoke-Heavy` through `SPIRAL_HEAVY_TICKET`), so a queued job costs one small process and no PowerShell; `jobs/<id>/window` and `jobs/<id>/slot` show where it waits, and the window is dropped whenever the job ends. `--slot-within <minutes>` makes a `--heavy` or `--compile` job give up when it has no slot or window by then (state `expired-in-queue`, exit 75, nothing started), and `--done-within <minutes>` caps a job's whole life from submission, never stretched by queue time: still queued then, it expires in the queue; running, it stops as `timed-out`. Every job runs in a kill-on-close job object: when its supervisor ends, for any reason, everything the job started ends with it. Supervisors are children of one `eoie job host` per jobs folder (`jobs/host.pid`): the first `job start` launches it, it exits after ten quiet minutes or once its jobs folder is gone, and a start that no host answers within 5 s launches its supervisor detached instead. `eoie job run [--heavy] <label> <timeout-ms> <program> [args...]` supervises in the calling process instead of a detached one, so the job stays in its caller's process tree, still shows in `job list`/`status`/`tail`/`stop`, and exits with the job's code; an agent runs it as a background task and gets the completion as a notification instead of blocking on `job wait`. An attached job ends with its caller, so a long run from an agent shell that the memory reaper may kill belongs in `job start` plus a background `job wait`. A job whose supervisor stopped beating and whose child is gone is settled as `lost` the first time it is observed (exit 125, elapsed frozen at the last heartbeat, a detail naming the cause), and a machine window whose job supervisor is dead is dropped instead of waiting out its minutes. `window run <class> <minutes> [--label <text>] [--wait <minutes>] -- <command> [args...]` does all three steps in one call: it takes the window (waiting if asked), runs the command only when the window was granted, releases the window when the command ends and exits with the command's code, so a blocked request never falls through to the work.
+
+`eoie experiment register <ledger> <ID> --test welch|one-sample|binomial|wilson|median --metric <col> --runs <n>
+--decision <rule> [--group <col> --arms a[,b]] [--prediction <x>] [--confidence 0.95] [--question <text>] [--time <col>]`
+writes `<ledger>/<ID>.registration` once, stamped with the time, before any data. `experiment analyze
+<ledger> <ID> <table.tsv> [--where col=value]...` reads the metric only when every arm has the planned
+number of rows, computes the test (Welch two-sided with a confidence interval, one-sample t against the
+prediction, binomial P(X <= successes) under the predicted rate, or a Wilson band around the observed
+rate, or the median of the arm against a `--prediction low,high` band) and records `<ID>.verdict`; a second analysis is refused. Before the planned count it refuses
+unless `--interim <reason>` is given, and then it appends the look to `<ID>.disclosures` instead of a
+verdict. A success cell is any non-empty cell other than `0`, `false`, `no` or `-`. `experiment show`
+prints the registration, the disclosures and the verdict. With `--time <col>` the registration also keeps the local time, and analysis leaves out (and counts as `before_registration`) every row whose time cell sorts before it, so data gathered before the plan cannot decide the verdict. `experiment amend <ledger> <ID> --field <name> --value <v> --reason <text>` changes one plan field (question, test, metric, group, arms, runs, prediction, confidence, decision, time) before any look, appended with its time and reason to `<ID>.amendments` while the registration stays as written; it is refused after an interim look or the verdict, and with `--time` the amendment time becomes the new data cutoff. `experiment addendum <ledger> <ID> <text>` appends a post-hoc note to `<ID>.addenda`, kept apart from the verdict.
+
+`eoie table logs <file|dir>... [--glob *.log] [--since regex] (--count name=regex | --count-by name=regex | --sum name=regex | --last name=regex | --field name=regex)... [--out file.tsv] [--quiet]` turns log files into a table: one row per file (directories are walked, `--glob` filters file names), a `file` column, then one column per option in order: `--count` counts the regex matches in the file, `--count-by` adds one `name_<value>` column per distinct capture group 1, `--sum` adds capture group 1 of every match, `--last` keeps capture group 1 of the last match, `--field` takes capture group 1 from the file path. `--since regex` counts only the lines after the first one that matches it. `--values name=regex` stands alone and makes one row per match instead. The TSV goes to stdout (the receipt to stderr, or nothing with `--quiet`) or to `--out`, ready for `table query` and `experiment analyze`.
+
+`agile next <root> [--as main|subagent] [count]` ranks the open (Planned or Active) tasks whose deps
+are all Done, top 10 by default. `--as main` (the default) is weighted shortest job first: the
+priority weight (P0 1024, each step a quarter of the one above) plus the weights of the open tasks
+that depend on it, over its duration. `--as subagent` is longest first; narrow it with `--team <team>`.
+A team is a word: a task is on it when its tags list the word or its ID starts with the word in
+upper case followed by a dash (`--team ops` takes `ops`-tagged and `OPS-` tasks).
+The duration is the planning estimate, or the median
+estimate for the task's difficulty (D1 30m, D2 60m, D3 180m, D4 300m, D5 600m, D6 1200m, D7 2400m,
+D8 3600m) marked `~`.
 
 See [README.windows.md](README.windows.md) for Windows filesystem and process details.
 See [FIRST-COMMIT-REVIEW.md](FIRST-COMMIT-REVIEW.md) for validation and remaining release scope.

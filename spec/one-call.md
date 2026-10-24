@@ -602,7 +602,7 @@ Ties keep the order in which a group first appears.
 
 ## 23. The git state of several repos, grouped (walk + git: 119 calls; read + walk + git: 66)
 
-Habit (Claude, abbreviated): `foreach ($r in 'eoie','spiral','polyglot') { $st = @(git -C $g --no-optional-locks status
+Habit (Claude, abbreviated): `foreach ($r in 'app','lib','tool') { $st = @(git -C $g --no-optional-locks status
 --porcelain --untracked-files=all); ... Where-Object { $_.StartsWith('??') } ... }`.
 
 ```fixture
@@ -943,3 +943,336 @@ lab/pack-night       PACK-NIGHT       Done    100       done: promote or delete
 lab/convo-in-spiral/bench.fsx:1  non-portable path C:\Users\someone\.nuget\packages\hopac\0.5.1\lib\netstandard2.0\Hopac.dll
 failed  labs 3  keep 1  orphan 1  done 1  stale 0  non-portable 1  <elapsed>  <clock>
 ```
+
+## 35. A row is done only when its own anchor is gone (the row-local idempotency trap, BUNDLE-WISDOM)
+
+Habit (old apply-spec scripts, abbreviated): skip a row when its replacement text already appears anywhere in the file.
+Here the replacement text already sits on line 2, and the anchor on line 4 still needs the edit.
+
+```fixture
+lib/kit.spi
+inl show_i32 (x : i32) : string =
+    show_i64 (convert.i64 x)
+inl show_u8 (x : u8) : string =
+    x |> convert.i64 |> show_i64
+```
+
+```command
+eoie do . '
+edit lib/kit.spi
+  replace once "x |> convert.i64 |> show_i64" with "show_i64 (convert.i64 x)"'
+```
+
+```expected
+edit lib/kit.spi  1 replacement  line 4  sha256 <hash> -> <hash>
+ok  files 1  replacements 1  <elapsed>  <clock>
+```
+
+## 36. Running the same edit again fails loudly (companion of 35)
+
+```fixture
+lib/kit.spi
+inl show_i32 (x : i32) : string =
+    show_i64 (convert.i64 x)
+inl show_u8 (x : u8) : string =
+    x |> convert.i64 |> show_i64
+```
+
+```setup
+do . 'edit lib/kit.spi
+  replace once "x |> convert.i64 |> show_i64" with "show_i64 (convert.i64 x)"'
+```
+
+```command
+eoie do . '
+edit lib/kit.spi
+  replace once "x |> convert.i64 |> show_i64" with "show_i64 (convert.i64 x)"'
+```
+
+```expected
+edit lib/kit.spi  anchor not found: "x |> convert.i64 |> show_i64" (0 matches, expected 1)
+nothing written: 1 of 1 edits failed validation
+failed  files 0  replacements 0  <elapsed>  <clock>
+```
+
+## 37. Edits that would empty a file write nothing (the empty-payload trap, BUNDLE-WISDOM: a source wiped to 0 bytes)
+
+```fixture
+a.txt
+alpha
+b.txt
+beta
+```
+
+```command
+eoie do . '
+edit b.txt
+  replace once "beta" with "BETA"
+edit a.txt
+  replace once "alpha\n" with ""'
+```
+
+```expected
+edit a.txt  the edits would leave the file empty (was 6 bytes); empty it with eoie proxy fs-write --expect-hash
+nothing written: 1 of 2 edits failed validation
+failed  files 0  replacements 0  <elapsed>  <clock>
+```
+
+## 38. Latency between paired log events across files (read + walk + aggregate: log timing habit, new verb table sequences)
+
+Habit (abbreviated): a loop over log files with a regex per event kind, a hash of open starts, and a subtraction per end, printed per file.
+
+```fixture
+runs/a.log
+t=1000 request
+t=1250 reply
+t=2000 request
+t=3900 reply
+runs/b.log
+t=500 request
+t=900 reply
+```
+
+```command
+eoie table sequences runs --time "t=(?<ms>\d+)" --latency lat=request --to reply
+```
+
+```expected
+file	line	lat
+runs/a.log	1	250
+runs/a.log	3	1900
+runs/b.log	1	400
+eoie table sequences ok files=2 rows=3
+```
+
+The table goes to stdout and the receipt to stderr; each start pairs with the next end in the same file.
+
+## 39. Files two trees keep in step, and which side moved (read + walk + hash: the mirrored-repos habit, new verb mirror check)
+
+Habit (abbreviated): hash the same relative paths under two roots and list the ones that differ or exist on one side only.
+
+```fixture
+left/ci.yml
+on: push
+right/ci.yml
+on: push
+left/extra.txt
+one side only
+```
+
+```command
+eoie mirror check left right ci.yml extra.txt
+```
+
+```expected
+left-only	extra.txt
+eoie mirror check left-ahead files=2 differing=1
+```
+
+Anything but in-step exits 1, so a pre-commit step can refuse a change made on one side only.
+
+## 40. May I edit this path, or is a release reading the tree (read + walk + process: the hand-rolled lease check, new verb window claim)
+
+Habit (abbreviated): list the lease folder, parse each file's pid= line, ask the process table whether that pid still runs, and compare the leased root with the path about to be edited.
+
+```setup
+eoie window request tree-read 5 --label repo
+```
+
+```command
+eoie window claim repo/src/a.spi
+```
+
+```expected
+eoie window claim refused path=repo/src/a.spi edit refused: repo is read by win-<ms>-<pid>-tree-read for 5 more min
+```
+
+A path outside every leased root prints 'edit allowed' and exits 0; a refusal exits 1, so a hook or a script can gate an edit on the exit code alone.
+
+---
+
+## 41. The same filtered list, asked for by name (agile: the retyped long-flag list, existing verbs view-add and view)
+
+Habit (abbreviated): retype 'agile list <backlog> --team eoie --open --load light --sort priority' every time the heavy slots are busy and light work is wanted, sometimes with a flag in the wrong slot.
+
+```setup
+eoie agile init backlog
+eoie agile add backlog A-LIGHT Story P1 D1 "light first item" "eoie" --load light
+eoie agile add backlog B-HEAVY Story P0 D2 "heavy item" "eoie" --load heavy
+eoie agile add backlog C-LIGHT Story P0 D1 "light urgent item" "eoie" --load light
+eoie agile view-add backlog light list --open --load light --sort priority
+```
+
+```command
+eoie agile view backlog light
+```
+
+```expected
+ID                         P  D     %  STATUS  KIND     EST    LOAD   WHO   TITLE
+C-LIGHT                    P0 D1    0  Planned Story    -      light  -     light urgent item
+A-LIGHT                    P1 D1    0  Planned Story    -      light  -     light first item
+eoie agile list ok shown=2 filter=all load=light assignee=all open planned=3 active=0 blocked=0 paused=0 done=0 elapsed_ms=<ms>
+```
+
+A saved view runs its verb with its stored flags plus any extra flags given after the name, so the long list is typed once.
+
+---
+
+## 42. A serial chain of jobs in one call (jobs: N job starts, each pasting the previous id, new verb job chain)
+
+Habit (abbreviated): start a job, read its id from the receipt, start the next with --after <that id>, and repeat for every job in the chain; when the order changes, stop each job and start it again with new ids (seven or eight re-chains in one day).
+
+```command
+eoie job chain -- one 60000 cmd /c exit 0 -- two 60000 cmd /c exit 0
+```
+
+```expected
+eoie job start ok id=job-<ms>-one supervisor_pid=<pid> timeout_ms=60000 gate=plain label=one
+eoie job start ok id=job-<ms>-two supervisor_pid=<pid> timeout_ms=60000 gate=plain label=two after=job-<ms>-one after_mode=any
+eoie job chain ok jobs=2 ids=job-<ms>-one,job-<ms>-two
+```
+
+Each link starts with --after the previous id (--after-ok when the chain begins with --ok); a link that does not start stops the chain and names the ids started before it. 'job after <queued-id> <predecessor-id>' re-points a waiting link in place, keeping its id.
+
+---
+
+## 43. Which generated crates are over the line budget (walk + count: the per-repo gate.ps1 habit, new verb crate gate)
+
+Habit (abbreviated): find every Cargo.toml with a [package.metadata.spiral] section, read its output file name, count that file's lines, and compare each with 1000; a repo-specific script per repo, and some scan only apps/.
+
+```fixture
+tool/Cargo.toml
+[package.metadata.spiral]
+entry = "tool.spi"
+output = "tool.rs"
+tool/tool.rs
+fn a() {}
+fn b() {}
+fn c() {}
+big/Cargo.toml
+[package.metadata.spiral]
+entry = "big.spi"
+output = "big.rs"
+big/big.rs
+fn a() {}
+fn b() {}
+fn c() {}
+fn d() {}
+fn e() {}
+```
+
+```command
+eoie crate gate . --enforce --limit 4
+```
+
+```expected
+gate / tool tool.rs 3 lines ok
+gate / big big.rs 5 lines OVER 4
+eoie crate gate refused: 1 crate(s) over the limit; crates=2 over=1 limit=4 root=.
+```
+
+Without --enforce the same rows print and the call exits 0; with it, a crate over the limit or a crate whose output was never generated exits 1, and a root with no Spiral crate at all is refused rather than read as clean.
+
+---
+
+## 44. An alternation that silently matched nothing (search: a regex-looking needle searched literally, grep hint)
+
+Habit (abbreviated): search for "a|b" expecting either word, get zero matches, conclude neither is there, and only later notice the search was literal.
+
+```fixture
+notes.txt
+alpha one
+beta two
+```
+
+```command
+eoie grep notes.txt "one|two"
+```
+
+```expected
+ok  files 1 searched  0 matched  matches 0  hint: the needle is literal; pass --regex to use it as a pattern  <elapsed>  <clock>
+```
+
+The hint appears only when nothing matched and the needle holds pattern syntax; with --regex the same needle finds both lines.
+
+---
+
+## 45. Per-run first events in a log that holds many runs (logs: a scratch reader per question, table sequences with sections)
+
+Habit (abbreviated): one log file holds many runs, each opened by a header line; a scratch script splits the file at the headers, moves the lines stamped before a header (@knight+-1) into the run they belong to, and finds each monster's first move per run.
+
+```fixture
+trace.log
+lead-trace monster 81 Hunter starts at 1931,1352 @knight+-1
+lead-trace monster 82 Hunter starts at 1931,1353 @knight+-1
+lead-trace run 20261023-030000 knight seen at 1932,1349 @knight+0
+lead-trace think 81 at 1931,1352 @knight+600
+lead-trace think 82 at 1931,1353 @knight+300
+lead-trace monster 81 moved to 1930,1352 @knight+850
+lead-trace think 82 at 1931,1353 @knight+1300
+lead-trace think 82 at 1931,1353 @knight+2300
+lead-trace knight targets 82 @knight+2500
+lead-trace knight gone @knight+90000
+lead-trace monster 71 Hunter starts at 1931,1352 @knight+-1
+lead-trace monster 72 Hunter starts at 1931,1353 @knight+-1
+lead-trace run 20261023-030300 knight seen at 1932,1349 @knight+0
+lead-trace monster 71 moved to 1932,1352 @knight+700
+lead-trace knight targets 72 @knight+2500
+lead-trace knight gone @knight+90000
+```
+
+```command
+eoie table sequences trace.log --section-on "run (?<section>\S+)" --carry "@knight\+-1" --time "@knight\+(?<ms>-?\d+)" --first move="monster (?<id>\d+) moved to (?<value>\S+)"
+```
+
+```expected
+section	id	move_time	move_value
+20261023-030000	81	850	1930,1352
+20261023-030300	71	700	1932,1352
+eoie table sequences ok files=1 sections=2 rows=2
+```
+
+A section starts at each line matching --section-on; lines matching --carry before a header belong to the section that header opens. --first keeps the earliest match per section and id, named by the word before '='. (Expected rows from tibia's synthetic trace, TIBIA-EVENT-TIME note 100, verified by hand and by tibia's scratch reader.)
+
+---
+
+## 46. First and last event per run and id, side by side (logs: life = last - first, table sequences --first and --last)
+
+Habit (abbreviated): for each run in a multi-run log, find when each creature appeared and when it last acted (or died), by hand-splitting the file per run, then subtract.
+
+```fixture
+trace.log
+lead-trace monster 81 Hunter starts at 1931,1352 @knight+-1
+lead-trace monster 82 Hunter starts at 1931,1353 @knight+-1
+lead-trace run 20261023-030000 knight seen at 1932,1349 @knight+0
+lead-trace think 81 at 1931,1352 @knight+600
+lead-trace think 82 at 1931,1353 @knight+300
+lead-trace monster 81 moved to 1930,1352 @knight+850
+lead-trace think 82 at 1931,1353 @knight+1300
+lead-trace think 82 at 1931,1353 @knight+2300
+lead-trace knight targets 82 @knight+2500
+lead-trace knight gone @knight+90000
+lead-trace monster 71 Hunter starts at 1931,1352 @knight+-1
+lead-trace monster 72 Hunter starts at 1931,1353 @knight+-1
+lead-trace run 20261023-030300 knight seen at 1932,1349 @knight+0
+lead-trace monster 71 moved to 1932,1352 @knight+700
+lead-trace knight targets 72 @knight+2500
+lead-trace knight gone @knight+90000
+```
+
+```command
+eoie table sequences trace.log --section-on "run (?<section>\S+)" --carry "@knight\+-1" --time "@knight\+(?<ms>-?\d+)" --first appear="monster (?<id>\d+) Hunter starts at (?<value>\S+)" --last think="think (?<id>\d+) at (?<value>\S+)"
+```
+
+```expected
+section	id	appear_time	appear_value	think_time	think_value
+20261023-030000	81	-1	1931,1352	600	1931,1352
+20261023-030000	82	-1	1931,1353	2300	1931,1353
+20261023-030300	71	-1	1931,1352	-	-
+20261023-030300	72	-1	1931,1353	-	-
+eoie table sequences ok files=1 sections=2 rows=4
+```
+
+Rows are one per (section, id) seen by any --first or --last, in section order and then by first sighting; a column with no match in that section prints '-'. Ids repeat across sections (each run restarts the server), so the key is the pair. Negative times (@knight+-1, lines carried into the next run) are kept as written. (tibia, EOIE-LOG-SEQUENCES note 15.)
+
+---

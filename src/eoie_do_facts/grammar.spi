@@ -2,9 +2,11 @@
 test grammar static =
     open rust_std_string.model
     open host
+    open eoie_do_records.records
 
 open rust_std_string.model
 open host
+open eoie_do_records.records
 
 union fact =
     | HashFiles : string
@@ -98,9 +100,6 @@ let fact_parsed (~records : record_list) (~record : i32) : fact_parse =
     else FactRejected (concat5 verb " cannot share one program with hash, env, exists, nearest, json, table, dirs or count by yet; run it as its own call" "" "" "")
 
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
-
-inl records_from_bars (~text : string) : record_list =
-    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
 
 inl rejection_at (~records : record_list) (~record : i32) : string =
     match fact_parsed records record with

@@ -1,0 +1,9 @@
+packages:
+    |core-
+    spiral-
+    rust_std_string
+    union_reflection
+    eoie_jobs
+modules:
+    window_model
+    windows

@@ -7,7 +7,7 @@ param(
     [switch]$CompilerContracts,
     [switch]$Offline,
     [string]$SpiralCompiler,
-    [ValidateRange(1, 86400000)][int]$TimeoutMs
+    [ValidateRange(1, 3600000)][int]$TimeoutMs
 )
 $ErrorActionPreference = 'Stop'
 $targetRoot = if ($TargetDirectory) { [IO.Path]::GetFullPath($TargetDirectory, $PWD.Path) } else { Join-Path $PSScriptRoot 'src/target' }

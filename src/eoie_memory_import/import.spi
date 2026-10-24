@@ -1,0 +1,31 @@
+open sm'_operators
+open eoie_memory_model.model
+
+let rec identical_count (list : memory_list) (~dir : string) (count : i32) : i32 =
+    match list with
+    | NoMemories => count
+    | MemoryThen (entry, rest) =>
+        inl same = rendered entry = exact_text (path_joined dir entry.file)
+        identical_count rest dir (if same then count + 1i32 else count)
+
+let import_receipt (~count : i32) (~identical : i32) (~index_same : string) (~data : string) : string =
+    "eoie memory import ok memories=" ++# count_text count ++# " identical=" ++# count_text identical
+    ++# " index_identical=" ++# index_same ++# " data=" ++# data
+
+let memory_import (~dir : string) (~data : string) : i32 =
+    if file_present (path_joined dir "MEMORY.md") = false then failed ("import needs " ++# dir ++# "/MEMORY.md")
+    else
+        inl tally = entries_from dir (markdown_names dir) { memories = NoMemories; count = 0i32; refused = "" }
+        if tally.refused <> "" then failed ("import refused, nothing written:\n" ++# tally.refused)
+        else
+            inl index = exact_text (path_joined dir "MEMORY.md")
+            if text_written data (data_text (memories_flipped tally.memories NoMemories) index) then
+                inl store = store_of (exact_text data)
+                inl index_same = if store.index = index then "yes" else "no"
+                stdout_line (import_receipt tally.count (identical_count store.memories dir 0i32) index_same data)
+                0i32
+            else failed ("import could not write " ++# data)
+
+inl main () : i32 =
+    !!!!Export("eoie_memory_import", ((fun (dir, data) => memory_import dir data) : string * string -> i32))
+    0i32

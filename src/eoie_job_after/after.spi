@@ -1,0 +1,50 @@
+open sm'_operators
+open eoie_jobs.model
+open eoie_jobs.host
+open eoie_jobs.jobs
+
+inl after_field (~text : string) (index : i32) : string = $'std::rc::Rc::<str>::from((!text).split(char::from(9u8)).nth(!index as usize).unwrap_or("").trim())' : string
+inl code_text (code : i32) : string = $'std::rc::Rc::<str>::from((!code).to_string().as_str())' : string
+
+union after_outcome =
+    | AfterCleared
+    | AfterHalted : i32
+
+let rec awaited (~id : string) (~other : string) (beat : u64) : job_state * bool =
+    if file_exists (job_file id "stop") then Settled JobStopped, true
+    else
+        inl state = job_state_now other
+        if state_settled state then state, false
+        else
+            inl now = now_ms ()
+            inl next =
+                if now > beat + 1000u64 then
+                    inl _ = text_written (job_file id "heartbeat_ms") (decimal_text now)
+                    now
+                else beat
+            sleep_ms 250u64
+            awaited id other next
+
+let after_outcome_of (~id : string) (~after_text : string) : after_outcome =
+    inl other = after_field after_text 0i32
+    inl started = now_ms ()
+    inl state, stopped = awaited id other 0u64
+    if stopped then
+        inl _ = text_written (job_file id "exit") (exit_line 143i32 (now_ms ()) JobStopped ("stopped on request while waiting for " ++# other))
+        AfterHalted 143i32
+    elif after_field after_text 1i32 = "ok" && state_exit state <> 0i32 then
+        inl detail = "--after-ok: " ++# other ++# " ended " ++# (state_word state) ++# (" exit " ++# (code_text (state_exit state)))
+        inl _ = text_written (job_file id "exit") (exit_line 125i32 (now_ms ()) (JobSkipped "") detail)
+        AfterHalted 125i32
+    else
+        inl _ = text_written (job_file id "after-done") (other ++# " " ++# (state_word state) ++# " waited_ms=" ++# (decimal_text (now_ms () - started)))
+        AfterCleared
+
+let after_wait (~id : string) : i32 =
+    match after_outcome_of id (text_or_empty (job_file id "after")) with
+    | AfterHalted code => code
+    | AfterCleared => 0i32
+
+inl main () : i32 =
+    !!!!Export("eoie_job_after_wait", ((fun id => after_wait id) : string -> i32))
+    0i32

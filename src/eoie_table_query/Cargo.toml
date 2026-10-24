@@ -12,3 +12,7 @@ publish.workspace = true
 [lib]
 name = "eoie_table_query"
 path = "table_query.rs"
+
+[dependencies]
+eoie-table-diff = { path = "../eoie_table_diff" }
+eoie-table-measures = { path = "../eoie_table_measures" }

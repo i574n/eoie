@@ -1,0 +1,63 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl quoted (~text : string) : string = $'std::rc::Rc::<str>::from(format\!("{}{}{}", char::from(34u8), &*!text, char::from(34u8)).as_str())' : string
+
+inl task_row (~id : string) (~priority : string) (~difficulty : string) (~status : string) (~deps : string) (~tags : string) : string =
+    $'std::rc::Rc::<str>::from(format\!("inl task_{0} () = Task ({1}{0}{1}, {1}title of {0}{1}, Story, {2}, {3}, 0u32, {4}, {1}{5}{1}, {1}{6}{1}, {1}current{1}, {1}current{1})\n", &*!id, char::from(34u8), &*!priority, &*!difficulty, &*!status, &*!deps, &*!tags).as_str())' : string
+inl small_planning () : string = cat (cat "inl planning_of_small () = Planning (" (quoted "SMALL")) ", Minutes 600u32, LoadUnset, Unassigned)\n"
+
+inl backlog_root () : fixture_root =
+    inl root = fixture_root_create "agile next"
+    inl rows = cat (cat (cat (task_row "BIG" "P0" "D8" "Active" "" "") (cat (task_row "SMALL" "P2" "D2" "Planned" "" "") (small_planning ()))) (cat (task_row "WAITS" "P1" "D2" "Planned" "GATE" "") (task_row "GATE" "P3" "D3" "Active" "" ""))) (cat (task_row "OPS-SIDE" "P1" "D4" "Planned" "" "ops") (task_row "SHIPPED" "P0" "D1" "Done" "" ""))
+    fixture_write root "state/agile.spi" rows
+    root
+
+inl next_run (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("agile", Arg ("next", Arg (fixture_text_of root, args))))
+
+inl ranked_word (~stdout : string) (~rank : string) : string = word_after (line_starting stdout (cat (padded "" (3i32 - byte_count rank)) rank)) (cat rank "  ")
+
+///> rust
+test main_ranks_ready_items_by_wsjf_and_marks_fallback_durations =
+    inl root = backlog_root ()
+    inl out = succeeded (next_run root NoArgs)
+    same (ranked_word out "1") "GATE"
+    same (ranked_word out "2") "OPS-SIDE"
+    same (ranked_word out "3") "BIG"
+    same (ranked_word out "4") "SMALL"
+    shows (line_starting out "  1") "180m~"
+    shows (line_starting out "  1") "unblocks=256"
+    shows (line_starting out "  4") "600m "
+    hides out "WAITS"
+    hides out "SHIPPED"
+    shows out "eoie agile next ok role=main ready=4 shown=4 elapsed_ms="
+    fixture_root_remove root
+
+///> rust
+test subagents_get_the_longest_items_first_and_a_count_limits_the_list =
+    inl root = backlog_root ()
+    inl out = succeeded (next_run root (Arg ("--as", Arg ("subagent", Arg ("2", NoArgs)))))
+    same (ranked_word out "1") "BIG"
+    same (ranked_word out "2") "SMALL"
+    hides out "OPS-SIDE"
+    hides out "wsjf="
+    shows out "eoie agile next ok role=subagent ready=4 shown=2 elapsed_ms="
+    inl team = succeeded (next_run root (Arg ("--as", Arg ("subagent", Arg ("--team", Arg ("ops", NoArgs))))))
+    same (ranked_word team "1") "OPS-SIDE"
+    shows team "eoie agile next ok role=subagent ready=1 shown=1 elapsed_ms="
+    rejected_with (next_run root (Arg ("--as", Arg ("boss", NoArgs)))) 2i32 "agile next rejected: --as expects main or subagent, got boss"
+    rejected_with (next_run root (Arg ("zero", NoArgs))) 2i32 "agile next rejected: unexpected argument zero"
+    fixture_root_remove root
+
+///> rust
+test teams_and_prefixes_filter_the_ranking_and_json_carries_the_ranks =
+    inl root = backlog_root ()
+    inl json = succeeded (next_run root (Arg ("--team", Arg ("ops", Arg ("--json", NoArgs)))))
+    shows json "{\"role\":\"main\",\"ready\":1,\"shown\":1,\"items\":[{\"rank\":1,\"id\":\"OPS-SIDE\""
+    shows json "\"wsjf\":"
+    hides json "\"id\":\"GATE\""
+    inl prefixed = succeeded (next_run root (Arg ("--prefix", Arg ("SM", NoArgs))))
+    same (ranked_word prefixed "1") "SMALL"
+    shows prefixed "ready=1 shown=1"
+    rejected_with (next_run root (Arg ("--team", Arg ("Ops", NoArgs)))) 2i32 "agile next rejected: --team expects a lower-case team word, got Ops"
+    fixture_root_remove root

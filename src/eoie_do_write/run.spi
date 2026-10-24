@@ -1,7 +1,8 @@
-open rust_std_string.model
+open sm'_operators
 open eoie_receipt.receipt
 open host
 open grammar
+open eoie_do_records.records
 
 type write_tally =
     {
@@ -14,62 +15,135 @@ type write_tally =
         bytes : u64
         appends : u64
         copies : u64
+        moved : u64
+        moves : u64
     }
 
-let empty_write_tally () : write_tally = { report = ""; failed = false; appended_files = 0u64; appended = 0u64; copied = 0u64; skipped = 0u64; bytes = 0u64; appends = 0u64; copies = 0u64 }
+let empty_write_tally () : write_tally =
+    {
+        report = ""
+        failed = false
+        appended_files = 0u64
+        appended = 0u64
+        copied = 0u64
+        skipped = 0u64
+        bytes = 0u64
+        appends = 0u64
+        copies = 0u64
+        moved = 0u64
+        moves = 0u64
+    }
 
 let lines_joined (~left : string) (~right : string) : string =
-    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+    if right = "" then left elif left = "" then right else left ++# "\n" ++# right
 
 let counted (~count : u64) (~one : string) (~many : string) : string =
-    concat5 (decimal_text count) " " (if count = 1u64 then one else many) "" ""
+    (decimal_text count) ++# " " ++# (if count = 1u64 then one else many)
 
 let append_run (~root : string) (~path : string) (~line : string) (~state : write_tally) : write_tally =
     inl before = file_text root path
     inl newline = if uses_crlf before then crlf () else "\n"
     inl filled = clock_filled line (local_offset_minutes ())
-    inl added = concat5 (if ended_with_newline before then "" else newline) filled newline "" ""
+    inl added = (if ended_with_newline before then "" else newline) ++# filled ++# newline
     inl problem = appended_to root path added
     if problem = "" then
         inl after = file_text root path
         inl bytes = text_bytes added
         inl lines = line_count filled
-        inl totals = concat5 "  now " (counted (line_count after) "line" "lines") ", " (counted (text_bytes after) "byte" "bytes") ""
-        inl row = concat5 "append " path "  " (counted lines "line" "lines") (concat5 "  " (counted bytes "byte" "bytes") totals "" "")
-        { state with report = lines_joined state.report row; appended_files = state.appended_files + 1u64; appended = state.appended + lines; bytes = state.bytes + bytes; appends = state.appends + 1u64 }
+        inl totals =
+            "  now "
+            ++# (counted (line_count after) "line" "lines")
+            ++# ", "
+            ++# (counted (text_bytes after) "byte" "bytes")
+        inl row =
+            "append "
+            ++# path
+            ++# "  "
+            ++# (counted lines "line" "lines")
+            ++# ("  " ++# (counted bytes "byte" "bytes") ++# totals)
+        { state with
+            report = lines_joined state.report row
+            appended_files = state.appended_files + 1u64
+            appended = state.appended + lines
+            bytes = state.bytes + bytes
+            appends = state.appends + 1u64
+        }
     else { state with report = lines_joined state.report problem; failed = true; appends = state.appends + 1u64 }
 
-let rec copies_run (~root : string) (~base : string) (~destination : string) (~excluded : string) (~paths : string) (~index : u64) (~state : write_tally) : write_tally =
+let rec copies_run
+    (~root : string) (~base : string) (~destination : string) (~excluded : string) (~paths : string) (~index : u64)
+    (~state : write_tally)
+    : write_tally
+    =
     if index < line_count paths then
         inl path = line_at paths index
         inl next =
             if excluded_by excluded path then { state with skipped = state.skipped + 1u64 }
             else
-                inl bytes = copied_bytes root path (concat5 destination "/" (relative_under base path) "" "")
-                if bytes < 0i64 then { state with failed = true; report = lines_joined state.report (concat5 "copy " path "  failed" "" "") }
+                inl bytes = copied_bytes root path (destination ++# "/" ++# (relative_under base path))
+                if bytes < 0i64
+                then { state with failed = true; report = lines_joined state.report ("copy " ++# path ++# "  failed") }
                 else { state with copied = state.copied + 1u64; bytes = state.bytes + unsigned bytes }
         copies_run root base destination excluded paths (index + 1u64) next
     else state
 
-let copy_run (~root : string) (~source : string) (~destination : string) (~excluded : string) (~state : write_tally) : write_tally =
+let copy_run
+    (~root : string) (~source : string) (~destination : string) (~excluded : string) (~state : write_tally)
+    : write_tally
+    =
     inl base = glob_base source
     inl paths = matching root source
     inl after = copies_run root base destination excluded paths 0u64 state
     inl copied = after.copied - state.copied
-    inl exclusions = if excluded = "" then "" else concat5 "  " (decimal_text (after.skipped - state.skipped)) " skipped (" (replace excluded "\n" ", ") ")"
-    inl row = concat5 "copy " (if base = "" then "." else base) " -> " destination (concat5 "  " (counted copied "file" "files") "  " (counted (after.bytes - state.bytes) "byte" "bytes") exclusions)
+    inl exclusions =
+        if excluded = "" then ""
+        else
+            "  "
+            ++# decimal_text (after.skipped - state.skipped)
+            ++# " skipped ("
+            ++# (sm'.replace "\n" ", " excluded)
+            ++# ")"
+    inl row =
+        "copy "
+        ++# (if base = "" then "." else base)
+        ++# " -> "
+        ++# destination
+        ++# (
+            "  "
+            ++# (counted copied "file" "files")
+            ++# "  "
+            ++# (counted (after.bytes - state.bytes) "byte" "bytes")
+            ++# exclusions
+        )
     inl failed = after.failed || paths = ""
-    inl report = if paths = "" then concat5 "copy: no file matched " source "" "" "" else row
+    inl report = if paths = "" then "copy: no file matched " ++# source else row
     { after with report = lines_joined after.report report; failed = failed; copies = after.copies + 1u64 }
+
+let move_run (~root : string) (~source : string) (~destination : string) (~state : write_tally) : write_tally =
+    inl problem = moved root source destination
+    if problem = "" then
+        { state with
+            report = lines_joined state.report ("move " ++# source ++# " -> " ++# destination)
+            moved = state.moved + 1u64
+            moves = state.moves + 1u64
+        }
+    else { state with report = lines_joined state.report problem; failed = true; moves = state.moves + 1u64 }
 
 let read_run (~root : string) (~records : record_list) (~record : i32) (~state : write_tally) : write_tally =
     inl outcome = read_report root (record_alone records record)
-    { state with report = lines_joined state.report (part_at outcome 0i32); failed = state.failed || part_at outcome 1i32 = "1" }
+    { state with
+        report = lines_joined state.report (part_at outcome 0i32)
+        failed = state.failed || part_at outcome 1i32 = "1"
+    }
 
-let step_run (~root : string) (~records : record_list) (~record : i32) (step : write_step) (~state : write_tally) : write_tally =
+let step_run
+    (~root : string) (~records : record_list) (~record : i32) (step : write_step) (~state : write_tally)
+    : write_tally
+    =
     match step with
     | AppendLine (path, line) => append_run root path line state
     | CopyTree (source, destination, excluded) => copy_run root source destination excluded state
+    | MovePath (source, destination) => move_run root source destination state
     | ReadAfter => read_run root records record state
     | Blank => state
 
@@ -94,11 +168,20 @@ let rec first_rejection (~records : record_list) (~index : i32) : string =
             if message = "" then first_rejection records (index + 1i32) else message
     else ""
 
+let written_counts (~state : write_tally) : string =
+    inl appends = "files " ++# (decimal_text state.appended_files) ++# "  appended " ++# (decimal_text state.appended)
+    inl head =
+        if state.copies = 0u64 then appends
+        elif state.appends = 0u64 then "files " ++# (decimal_text state.copied) ++# " copied"
+        else appends ++# "  copied " ++# (decimal_text state.copied)
+    inl with_bytes = head ++# "  bytes " ++# (decimal_text state.bytes)
+    if state.copies = 0u64 then with_bytes else with_bytes ++# "  skipped " ++# (decimal_text state.skipped)
+
 let receipt_counts (~state : write_tally) : string =
-    inl appends = concat5 "files " (decimal_text state.appended_files) "  appended " (decimal_text state.appended) ""
-    inl head = if state.copies = 0u64 then appends elif state.appends = 0u64 then concat5 "files " (decimal_text state.copied) " copied" "" "" else concat5 appends "  copied " (decimal_text state.copied) "" ""
-    inl with_bytes = concat5 head "  bytes " (decimal_text state.bytes) "" ""
-    if state.copies = 0u64 then with_bytes else concat5 with_bytes "  skipped " (decimal_text state.skipped) "" ""
+    if state.appends = 0u64 && state.copies = 0u64 then "files " ++# (decimal_text state.moved) ++# " moved"
+    else
+        inl written = written_counts state
+        if state.moves = 0u64 then written else written ++# "  moved " ++# (decimal_text state.moved)
 
 let write_program_run (~root : string) (~encoded : string) : i32 =
     inl started = now_ms ()
@@ -115,7 +198,7 @@ let write_program_run (~root : string) (~encoded : string) : i32 =
             receipt_line Succeeded (receipt_counts state) started
             0i32
     else
-        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        stdout_line ("program rejected: " ++# rejection)
         receipt_line Failed "files 0" started
         2i32
 

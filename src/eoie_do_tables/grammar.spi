@@ -1,10 +1,12 @@
 ///- --package .
 test grammar static =
-    open rust_std_string.model
+    open sm'_operators
     open host
+    open eoie_do_records.records
 
-open rust_std_string.model
+open sm'_operators
 open host
+open eoie_do_records.records
 
 union table_step =
     | TablesDiffed : string * string * string * string
@@ -19,7 +21,7 @@ let table_parsed (~records : record_list) (~record : i32) : table_parse =
     inl right = body_at records record 3i32
     inl by_at = field_index records record "by"
     inl on_at = field_index records record "on"
-    if verb <> "diff" then TableRejected (concat5 verb " cannot share one program with diff yet; run it as its own call" "" "" "")
+    if verb <> "diff" then TableRejected (verb ++# " cannot share one program with diff yet; run it as its own call")
     elif left = "" || right = "" || right = "by" then TableRejected "diff: expected two tables"
     elif by_at < 0i32 then TableRejected "diff: expected by <key,...>"
     else
@@ -28,9 +30,6 @@ let table_parsed (~records : record_list) (~record : i32) : table_parse =
         if keys = "" then TableRejected "by: expected a value after it" else TableParsed (TablesDiffed (left, right, keys, columns))
 
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
-
-inl records_from_bars (~text : string) : record_list =
-    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
 
 ///> rust
 test diff_statements_name_two_tables_keys_and_columns =

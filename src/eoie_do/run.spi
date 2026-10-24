@@ -1,6 +1,7 @@
-open rust_std_string.model
+open sm'_operators
 open eoie_receipt.receipt
 open host
+open eoie_do_model.model
 open decode
 
 let delegated_run (family : program_family) (~root : string) (~encoded : string) : i32 =
@@ -18,15 +19,15 @@ let program_run (~root : string) (~text : string) : i32 =
     inl started = now_ms ()
     match program_decoded text with
     | CompileRejected message =>
-        stdout_line (concat5 "program rejected: " message "" "" "")
+        stdout_line ("program rejected: " ++# message)
         receipt_line Failed "files 0  replacements 0" started
         2i32
     | Delegated (family, encoded) => delegated_run family root encoded
 
-inl usage () : string = "do <root> <program>... | do <root> - (program on stdin); statements: edit <path|glob> [dry-run] [expect files <n> replacements <n>], replace once|all|<n> times \"<old>\" with \"<new>\", show <path>"
+inl usage () : string = "do <root> <program>... | do <root> - (program on stdin); statements: edit <path|glob> [dry-run] [expect files <n> replacements <n>], replace [pattern] once|all|<n> times \"<old>\" with \"<new>\" (pattern: a regex, $1 groups in the replacement; either takes raw lines between <<< and a >>> line), patch <<< apply_patch hunks (@@, then lines starting with space, - or +) >>>, show <path>"
 
 let lines_joined (~left : string) (~right : string) : string =
-    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+    if right = "" then left elif left = "" then right else left ++# "\n" ++# right
 
 let rec program_from (~index : i32) (~count : i32) (~text : string) : string =
     if index < count then program_from (index + 1i32) count (lines_joined text (argument index)) else text
@@ -35,10 +36,10 @@ let do_run () : i32 =
     inl count = argument_count ()
     inl root = argument 2i32
     if count < 4i32 then
-        stdout_line (concat5 "usage: eoie " (usage ()) "" "" "")
+        stdout_line ("usage: eoie " ++# (usage ()))
         2i32
     elif directory_exists root = false then
-        stdout_line (concat5 "eoie error: root is not a directory: " root "" "" "")
+        stdout_line ("eoie error: root is not a directory: " ++# root)
         2i32
     elif argument 3i32 = "-" then program_run root (stdin_text ())
     else program_run root (program_from 3i32 count "")

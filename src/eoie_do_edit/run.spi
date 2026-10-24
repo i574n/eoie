@@ -3,6 +3,7 @@ open eoie_receipt.receipt
 open eoie_do_model.model
 open host
 open decode
+open eoie_do_records.records
 
 type tally =
     {
@@ -74,15 +75,16 @@ let rec rules_over (~rules : rule_list) (~globbed : bool) (~path : string) (~pas
         if pass.problem = "" then
             inl anchor = rule.anchor
             inl before = pass.text
-            inl outcome = replaced_in before anchor rule.replacement
+            inl outcome = match rule.matcher with | Literal => replaced_in before anchor rule.replacement | Pattern => replaced_by_pattern before anchor rule.replacement
+            inl invalid = match rule.matcher with | Literal => "" | Pattern => pattern_problem anchor
             inl found = outcome_count outcome
             inl next =
                 {
                     text = outcome_text outcome
                     replacements = pass.replacements + found
                     marks = joined_with "," pass.marks (outcome_marks outcome)
-                    problem = count_problem rule.count found globbed anchor
-                    sites = lines_joined pass.sites (sites_of before anchor path)
+                    problem = if invalid = "" then count_problem rule.count found globbed anchor else concat5 "invalid pattern " (quoted anchor) ": " invalid ""
+                    sites = lines_joined pass.sites (match rule.matcher with | Literal => sites_of before anchor path | Pattern => pattern_sites_of before anchor path)
                 }
             rules_over rest globbed path next
         else pass
@@ -91,6 +93,10 @@ union file_outcome =
     | Untouched
     | Refused : string
     | Changed : string * string * u64 * string
+
+let emptied_problem (~before : string) : string =
+    inl bytes = $'!before.len() as u64' : u64
+    concat5 "the edits would leave the file empty (was " (decimal_text bytes) " bytes); empty it with eoie proxy fs-write --expect-hash" "" ""
 
 type file_result =
     {
@@ -105,7 +111,11 @@ let file_result_of (~root : string) (~pending : pending_writes) (~rules : rule_l
         inl edited = rules_over rules globbed path (opened_file before)
         inl problem = edited.problem
         inl count = edited.replacements
-        inl outcome = if problem = "" then (if count = 0u64 then Untouched else Changed (before, edited.text, count, edited.marks)) else Refused problem
+        inl outcome =
+            if problem <> "" then Refused problem
+            elif count = 0u64 then Untouched
+            elif edited.text = "" && before <> "" then Refused (emptied_problem before)
+            else Changed (before, edited.text, count, edited.marks)
         { outcome = outcome; sites = edited.sites }
     else { outcome = Refused (read_error read); sites = "" }
 
@@ -139,7 +149,7 @@ let rec files_run (~root : string) (~pending : pending_writes) (~block : edit_bl
 let block_run (~root : string) (~pending : pending_writes) (~block : edit_block) (~state : tally) : tally =
     inl target = block.target
     inl globbed = contains target "*"
-    inl paths = target_paths root target
+    inl paths = if block.excluded = "" then target_paths root target else paths_kept (target_paths root target) block.excluded
     inl expanded = $'!paths.len() as u64' : u64
     inl opened = { state with blocks = (state.blocks + 1u64); expanded = (state.expanded + expanded); globbed = (state.globbed || globbed) }
     inl pass = files_run root pending block globbed paths 0i32 (opened_block opened)
@@ -228,7 +238,7 @@ let edit_program_run (~root : string) (~encoded : string) : i32 =
     inl started = now_ms ()
     inl records = records_of encoded
     inl steps = steps_decoded records 1i32
-    if has_run records then edits_then_runs root steps encoded started
+    if runs_in encoded then edits_then_runs root steps encoded started
     else
         match edits_applied root steps started with
         | EditsCommitted counts => finished false counts started

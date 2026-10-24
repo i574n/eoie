@@ -15,10 +15,11 @@ let records_joined (~text : string) (~record : string) : string =
 let rule_record (~rule : rule) : string =
     inl anchor = rule.anchor
     inl replacement = rule.replacement
+    inl kind = match rule.matcher with | Literal => "replace" | Pattern => "pattern"
     match rule.count with
-    | Once => fields "replace" "once" "1" anchor replacement
-    | Every => fields "replace" "all" "0" anchor replacement
-    | Exactly wanted => fields "replace" "times" (decimal_text wanted) anchor replacement
+    | Once => fields kind "once" "1" anchor replacement
+    | Every => fields kind "all" "0" anchor replacement
+    | Exactly wanted => fields kind "times" (decimal_text wanted) anchor replacement
 
 let rec rules_encoded (~rules : rule_list) (~text : string) : string =
     match rules with
@@ -32,12 +33,15 @@ let edit_record (~block : edit_block) : string =
     | Unchecked => fields "edit" target mode "-" "-"
     | Expected (files, count) => fields "edit" target mode (decimal_text files) (decimal_text count)
 
+let excluded_encoded (~excluded : string) (~text : string) : string =
+    if excluded = "" then text else records_joined text (fields "except" excluded "" "" "")
+
 let rec steps_encoded (~steps : steps) (~text : string) : string =
     match steps with
     | Done => text
     | Step (step, rest) =>
         match step with
-        | EditStep block => steps_encoded rest (rules_encoded block.rules (records_joined text (edit_record block)))
+        | EditStep block => steps_encoded rest (rules_encoded block.rules (excluded_encoded block.excluded (records_joined text (edit_record block))))
         | ShowStep path => steps_encoded rest (records_joined text (fields "show" path "" "" ""))
         | QueryStep (verb, words) => steps_encoded rest (records_joined text (fields "query" verb words "" ""))
 

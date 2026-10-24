@@ -1,4 +1,5 @@
 open agile_mutation_policy.model
+open sm'_operators
 open rust_std_fs.model
 open agile_task_text.model
 open workspace_primitives.outcome
@@ -19,15 +20,15 @@ union field_token =
     | TokenRendered : string
     | TokenRejected
 
-inl field_token_of (~token : string) : field_token = if rust_std_string.model.equals token "" then TokenRejected else TokenRendered token
+inl field_token_of (~token : string) : field_token = if (token = "") then TokenRejected else TokenRendered token
 
-let agile_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile edit " id " rejected: " reason "")
+let agile_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure ("agile edit " ++# id ++# " rejected: " ++# reason)
 
 inl agile_edit_success (~id : string) (~field : string) (before : u64) (after : u64) (elapsed : u64) : i32 =
-    inl head = rust_std_string.model.concat5 "eoie agile edit ok id=" id " field=" field ""
-    stdout_line (rust_std_string.model.concat5 head (measured_sizes before after elapsed) "" "" "")
+    inl head = "eoie agile edit ok id=" ++# id ++# " field=" ++# field
+    stdout_line (head ++# (measured_sizes before after elapsed))
 
-inl task_anchor (~id : string) : string = rust_std_string.model.concat5 "Task (\"" id "\"," "" ""
+inl task_anchor (~id : string) : string = "Task (\"" ++# id ++# "\","
 inl task_arguments_offset () : i32 = 6i32
 
 inl agile_edit (~root : string) (~id : string) (position : i32) (~field_name : string) (~value : string) : i32 =
@@ -46,7 +47,7 @@ inl agile_edit (~root : string) (~id : string) (position : i32) (~field_name : s
             match field_token_of (edit_field_token field_name (byte_slice original start stop) value) with
             | TokenRejected => agile_edit_failure (edit_field_rule field_name) id
             | TokenRendered token =>
-                inl updated = rust_std_string.model.concat5 (byte_slice original 0i32 start) token (byte_slice original stop length) "" ""
+                inl updated = (byte_slice original 0i32 start) ++# token ++# (byte_slice original stop length)
                 match replace_file_checked state updated with
                 | Replaced => agile_edit_success id field_name (text_bytes original) (text_bytes updated) (ms_since started)
                 | problem => agile_edit_failure (file_replacement_problem problem) id

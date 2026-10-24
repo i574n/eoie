@@ -1,7 +1,8 @@
 packages:
     |core-
     canonical_plan_ir_types-
-    rust_std_string
+    spiral-
+    union_reflection
     state_receipt_codec_model-
 modules:
     model-

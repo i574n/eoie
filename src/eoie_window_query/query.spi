@@ -1,0 +1,41 @@
+open sm'_operators
+open eoie_jobs.host
+open eoie_machine_windows.window_model
+open eoie_machine_windows.windows
+
+let rec shown_rows (~rows : string) (now : u64) (count : u64) : u64 =
+    if rows = "" then count
+    else
+        inl row = first_row rows
+        inl timing = if tab_field row 2i32 = "waiting" then "waited " ++# (number_text ((now - decimal_of (tab_field row 4i32)) / 60000u64)) ++# "m" else (number_text (minutes_left (decimal_of (tab_field row 5i32)) now)) ++# "m left"
+        stdout_line ((tab_field row 0i32) ++# "  " ++# (tab_field row 1i32) ++# "  " ++# ((tab_field row 2i32) ++# "  " ++# timing ++# "  " ++# (tab_field row 3i32)))
+        shown_rows (other_rows rows) now (count + 1u64)
+
+let window_listed () : i32 =
+    inl root = windows_root ()
+    inl now = now_ms ()
+    inl count = shown_rows (live_rows root (stored_rows root) now "") now 0u64
+    inl holders = $'eoie_window_run::eoie_heavy_holders_text()' : string
+    inl _ = if holders = "" then () else stdout_line holders
+    inl slots = $'(!holders).lines().count() as u64' : u64
+    stdout_line ("eoie window list ok windows=" ++# (number_text count) ++# " free_mb=" ++# (number_text (free_mb ())) ++# (" heavy_slots=" ++# (number_text slots)))
+    0i32
+
+let window_checked () : i32 =
+    match class_of (argument 3i32) with
+    | ClassUnknown => refused ("check: unknown class '" ++# (argument 3i32) ++# "'; " ++# (window_usage ()))
+    | ClassKnown wanted =>
+        inl root = windows_root ()
+        inl now = now_ms ()
+        inl terms = verdict_text wanted "" now 0u64 (live_rows root (stored_rows root) now "") (free_mb ()) now
+        if terms = "" then
+            stdout_line ("eoie window check ok class=" ++# (class_word wanted) ++# " free")
+            0i32
+        else
+            stdout_line ("eoie window check blocked class=" ++# (class_word wanted) ++# " " ++# terms)
+            1i32
+
+inl main () : i32 =
+    !!!!Export("eoie_window_list_run", ((fun () => window_listed ()) : () -> i32))
+    !!!!Export("eoie_window_check_run", ((fun () => window_checked ()) : () -> i32))
+    0i32

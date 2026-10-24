@@ -1,0 +1,10 @@
+packages:
+    |core-
+    spiral-
+    spiral-
+    union_reflection
+    eoie_jobs
+    eoie_machine_windows
+    eoie_tree_lease
+modules:
+    claim

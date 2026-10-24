@@ -1,27 +1,24 @@
 ///- --package .
 test model static =
-    open rust_std_string.model
 
-open rust_std_string.model
 
 union read_command =
     | ReadFiles
     | CountLines
-    | SearchText
     | ReadUnknown
 
 inl read_command_of (~word : string) : read_command =
     if word = "read" then ReadFiles
     elif word = "lines" then CountLines
-    elif word = "grep" then SearchText
     else ReadUnknown
 
-inl read_usage () : string = "read <path>[:from-to]... [--max-lines n] | lines <path|glob>... | grep <root> <needle> [--glob pattern] [--context n] [--max n] [--ignore-case]"
+inl read_usage () : string = "read <path|glob>[:from-to|:-last]... [--max-lines n] [--json] | lines <path|glob>... | grep <root> <needle> [--glob pattern] [--context n] [--max n] [--ignore-case] [--regex] [--json]"
 
 union line_range =
     | WholeFile
     | FromTo : u64 * u64
     | OneLine : u64
+    | LastLines : u64
 
 type read_spec =
     {
@@ -34,11 +31,14 @@ inl colon_index (~spec : string) : i64 =
 
 inl before_index (~text : string) (~index : i64) : string = $'std::rc::Rc::<str>::from(&(&*!text)[..!index as usize])' : string
 inl after_index (~text : string) (~index : i64) : string = $'std::rc::Rc::<str>::from(&(&*!text)[(!index as usize) + 1..])' : string
-inl decimal_or_zero (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+let decimal_or_zero (~text : string) : u64 = optionm'.default_value 0u64 (convert.try_convert text)
 inl all_digits (~text : string) : bool = $'\!!text.is_empty() && !text.bytes().all(|byte| byte.is_ascii_digit())' : bool
 
 inl range_of (~text : string) : line_range =
-    if contains text "-" then
+    if sm'.starts_with "-" text then
+        inl count = decimal_or_zero (after_index text 0i64)
+        if count = 0u64 then WholeFile else LastLines count
+    elif sm'.contains "-" text then
         inl dash = $'!text.find(char::from(45u8)).map(|index| index as i64).unwrap_or(-1)' : i64
         inl first = decimal_or_zero (before_index text dash)
         inl last = decimal_or_zero (after_index text dash)
@@ -51,29 +51,45 @@ let read_spec_of (~spec : string) : read_spec =
     if colon < 0i64 then { path = spec; range = WholeFile }
     else
         inl suffix = after_index spec colon
-        if all_digits suffix || (contains suffix "-" && all_digits (rust_std_string.model.replace suffix "-" "")) then { path = before_index spec colon; range = range_of suffix }
+        if all_digits suffix || (sm'.contains "-" suffix && all_digits (sm'.replace "-" "" suffix)) then { path = before_index spec colon; range = range_of suffix }
         else { path = spec; range = WholeFile }
 
-inl range_first = function
-    | WholeFile => 1u64
-    | FromTo (first, _) => first
-    | OneLine line => line
-
-inl range_last (range : line_range) (~limit : u64) : u64 =
+let range_bounds (range : line_range) (total : u64) : u64 * u64 =
     match range with
-    | WholeFile => limit
-    | FromTo (_, last) => last
-    | OneLine line => line
+    | WholeFile => 1u64, total
+    | FromTo (first, last) => first, last
+    | OneLine line => line, line
+    | LastLines count => (if count >= total then 1u64 else total - count + 1u64), total
 
+inl range_first (range : line_range) (total : u64) : u64 =
+    inl first, _ = range_bounds range total
+    first
+
+inl range_last (range : line_range) (total : u64) : u64 =
+    inl _, last = range_bounds range total
+    last
+
+inl flat_glob_paths (~pattern : string) : string =
+    $'std::rc::Rc::<str>::from({ let text: &str = &*!pattern; if \!text.contains(char::from(42u8)) { text.to_owned() } else { let split = text.rfind(|character: char| character == char::from(47u8) || character == char::from(92u8)); let (folder_text, separator, mask) = match split { Some(at) => (&text[..at], &text[at..at + 1], &text[at + 1..]), None => (".", "", text) }; let (head, tail) = mask.split_once(char::from(42u8)).unwrap_or((mask, "")); let mut found = std::fs::read_dir(folder_text).map(|entries| entries.filter_map(|entry| entry.ok()).filter(|entry| entry.path().is_file()).map(|entry| entry.file_name().to_string_lossy().into_owned()).filter(|name| name.starts_with(head) && name.ends_with(tail) && name.len() >= head.len() + tail.len()).collect::<Vec<_>>()).unwrap_or_default(); found.sort(); found.into_iter().map(|name| if separator.is_empty() { name } else { format\!("{folder_text}{separator}{name}") }).collect::<Vec<_>>().join(&char::from(10u8).to_string()) } }.as_str())' : string
+
+inl recursive_glob_paths (~pattern : string) : string =
+    $'std::rc::Rc::<str>::from({ let text: &str = &*!pattern; let at = text.find("**").unwrap_or(0); let base = text[..at].trim_end_matches(|character: char| character == char::from(47u8) || character == char::from(92u8)); let mask = text[at + 2..].trim_start_matches(|character: char| character == char::from(47u8) || character == char::from(92u8)); let (head, tail) = mask.split_once(char::from(42u8)).unwrap_or((mask, "")); let root = if base.is_empty() { std::path::PathBuf::from(".") } else { std::path::PathBuf::from(base) }; let mut found = Vec::new(); let mut pending = vec\![root.clone()]; while let Some(folder) = pending.pop() { for entry in std::fs::read_dir(&folder).into_iter().flatten().flatten() { let path = entry.path(); let name = entry.file_name().to_string_lossy().into_owned(); if path.is_dir() { if name \!= "target" && name \!= ".git" && name \!= "node_modules" { pending.push(path); } } else if name.starts_with(head) && name.ends_with(tail) && name.len() >= head.len() + tail.len() { let relative = path.strip_prefix(&root).map(|rest| rest.to_string_lossy().replace(char::from(92u8), "/")).unwrap_or(name); found.push(if base.is_empty() { relative } else { format\!("{base}/{relative}") }); } } } found.sort(); found.join(&char::from(10u8).to_string()) }.as_str())' : string
+
+inl glob_paths (~pattern : string) : string = if sm'.contains "**" pattern then recursive_glob_paths pattern else flat_glob_paths pattern
+inl path_count (~paths : string) : i32 = $'(!paths).split(char::from(10u8)).count() as i32' : i32
+inl nth_path (~paths : string) (index : i32) : string = $'std::rc::Rc::<str>::from((!paths).split(char::from(10u8)).nth(!index as usize).unwrap_or(""))' : string
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
 
 ///> rust
 test specs_split_paths_from_line_ranges =
     inl a = read_spec_of "src/eoie_jobs/jobs.spi:10-20"
-    expect (a.path = "src/eoie_jobs/jobs.spi" && range_first a.range = 10u64 && range_last a.range 400u64 = 20u64) "range"
-    inl b = read_spec_of "C:\\home\\git\\eoie\\README.md"
-    expect (b.path = "C:\\home\\git\\eoie\\README.md" && range_first b.range = 1u64 && range_last b.range 400u64 = 400u64) "drive letter is not a range"
+    expect (a.path = "src/eoie_jobs/jobs.spi" && range_first a.range 400u64 = 10u64 && range_last a.range 400u64 = 20u64) "range"
+    inl b = read_spec_of "C:\\work\\repo\\README.md"
+    expect (b.path = "C:\\work\\repo\\README.md" && range_first b.range 400u64 = 1u64 && range_last b.range 400u64 = 400u64) "drive letter is not a range"
     inl c = read_spec_of "C:\\x\\y.spi:7"
-    expect (c.path = "C:\\x\\y.spi" && range_first c.range = 7u64 && range_last c.range 400u64 = 7u64) "single line"
+    expect (c.path = "C:\\x\\y.spi" && range_first c.range 400u64 = 7u64 && range_last c.range 400u64 = 7u64) "single line"
     inl d = read_spec_of "notes:todo.md"
     expect (d.path = "notes:todo.md") "a colon before a word stays in the path"
+    inl e = read_spec_of "C:\\x\\log.txt:-3"
+    expect (e.path = "C:\\x\\log.txt" && range_first e.range 10u64 = 8u64 && range_last e.range 10u64 = 10u64) "a minus count reads the last lines"
+    expect (range_first e.range 2u64 = 1u64) "more lines asked than the file has reads it all"

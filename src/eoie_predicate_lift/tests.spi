@@ -1,6 +1,7 @@
 open rewriter
+open sm'_operators
 
-let source (rust : string) : string = rust_std_string.model.concat5 "inl rust_global (x : string) : () = !!!!Global(x)\ninl emit () : () = rust_global " (predicate_lex.model.encode rust) "\n" "" ""
+let source (rust : string) : string = "inl rust_global (x : string) : () = !!!!Global(x)\ninl emit () : () = rust_global " ++# (predicate_lex.model.encode rust) ++# "\n"
 inl candidate (value : rewriter.outcome) : string =
     match value with
     | Candidate text => text
@@ -9,7 +10,7 @@ inl rejects (value : rewriter.outcome) : bool =
     match value with
     | Rejected _ => true
     | _ => false
-inl contains (text : string) (part : string) : bool = rust_std_string.model.contains text part
+inl contains (text : string) (part : string) : bool = sm'.contains part text
 let check (success : bool) (label : string) : i32 =
     if success then 0i32
     else

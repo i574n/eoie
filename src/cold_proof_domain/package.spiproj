@@ -1,7 +1,7 @@
 packages:
     |core-
     typed_predicate
-    rust_std_string
+    spiral-
     cold_proof_bindings
     cold_rebuild_contract
 modules:

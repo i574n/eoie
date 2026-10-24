@@ -1,5 +1,7 @@
-inl append (a : string) (b : string) : string = rust_std_string.model.concat5 a b "" "" ""
-inl path (root : string) (relative : string) : string = rust_std_string.model.concat5 root "/" relative "" ""
+open sm'_operators
+
+inl append (a : string) (b : string) : string = a ++# b
+inl path (root : string) (relative : string) : string = root ++# "/" ++# relative
 inl write (path : string) (text : string) : () = $'std::fs::write(&*!path,&*!text).unwrap()' : ()
 inl read (path : string) : string = $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap())' : string
 inl remove (path : string) : () = $'std::fs::remove_file(&*!path).unwrap()' : ()
@@ -9,11 +11,11 @@ inl proof_error (root : string) : string = $'std::rc::Rc::<str>::from(verify_col
 inl count_at (root : string) (index : u64) : u64 = $'eoie_source_topology::source_topology_counts(std::path::Path::new(&*!root)).unwrap()[!index as usize] as u64' : u64
 inl decimal (value : u64) : string = $'std::rc::Rc::<str>::from(!value.to_string())' : string
 inl require (value : bool) : () = $'if !value { () } else { std::panic::panic_any("Spiral test assertion failed") }' : ()
-inl same (left : string) (right : string) : () = require (rust_std_string.model.equals left right)
-inl rejects (root : string) (message : string) : () = require (rust_std_string.model.contains (proof_error root) message)
+inl same (left : string) (right : string) : () = require ((left = right))
+inl rejects (root : string) (message : string) : () = require (sm'.contains message (proof_error root))
 
 inl gate_text (name : string) (relative : string) (digest : string) : string =
-    append (rust_std_string.model.concat5 "inl " name "_gate () = (\"" relative "\", \"") (append digest "\")\n")
+    append ("inl " ++# name ++# "_gate () = (\"" ++# relative ++# "\", \"") (append digest "\")\n")
 
 inl fixture_gate (root : string) (name : string) (relative : string) : string =
     inl target = path root relative
@@ -31,7 +33,7 @@ inl proof (root : string) (binary : string) (digest : string) : () =
     inl migration = fixture_gate root "migration" "state/migration.spi"
     inl workspace = fixture_gate root "workspace" "src/Cargo.lock"
     inl state = fixture_gate root "state" "state/core.spi"
-    write (path root "state/cold_proof.spi") (append (rust_std_string.model.concat5 header census migration workspace state) (gate_text "binary" binary digest))
+    write (path root "state/cold_proof.spi") (append (header ++# census ++# migration ++# workspace ++# state) (gate_text "binary" binary digest))
 
 inl render_counts (root : string) (wrapped : bool) : string =
     let rec loop (index : u64) : string =
@@ -39,7 +41,7 @@ inl render_counts (root : string) (wrapped : bool) : string =
         else
             inl value = if wrapped then (count_at root index) + 4294967296u64 else 2147483647u64
             inl separator = if index = 9u64 then "" else ", "
-            rust_std_string.model.concat5 (decimal value) "u32" separator (loop (index + 1u64)) ""
+            (decimal value) ++# "u32" ++# separator ++# (loop (index + 1u64))
     loop 0u64
 
 let selection (root : string) : i32 =
@@ -71,13 +73,13 @@ let census_bounds (root : string) : i32 =
     inl census = path root "state/authority_census.spi"
     inl previous = hash census
     inl wrapped_counts = render_counts root true
-    write census (rust_std_string.model.concat5 "inl current () = AuthorityCensus (" wrapped_counts ")\n" "" "")
+    write census ("inl current () = AuthorityCensus (" ++# wrapped_counts ++# ")\n")
     inl proof_path = path root "state/cold_proof.spi"
-    inl revised = rust_std_string.model.replace (read proof_path) (gate_text "census" "state/authority_census.spi" previous) (gate_text "census" "state/authority_census.spi" (hash census))
+    inl revised = sm'.replace (gate_text "census" "state/authority_census.spi" previous) (gate_text "census" "state/authority_census.spi" (hash census)) (read proof_path)
     write proof_path revised
     rejects root "census value exceeds signed comparison range"
     inl maximum_counts = render_counts root false
-    inl largest = rust_std_string.model.concat5 "AuthorityCensus (" maximum_counts ")" "" ""
+    inl largest = "AuthorityCensus (" ++# maximum_counts ++# ")"
     require ($'cold_census_values(&*!largest).unwrap() == [i32::MAX as usize;10]' : bool)
     0i32
 
@@ -91,14 +93,14 @@ let renewal (root : string) : i32 =
     inl lock = path root "src/Cargo.lock"
     write lock "renewed lock payload"
     inl renewed = renewed_text root
-    require (rust_std_string.model.contains renewed (gate_text "binary" "eoie.exe" (hash binary)))
-    require (rust_std_string.model.contains renewed (gate_text "workspace" "src/Cargo.lock" (hash lock)))
+    require (sm'.contains (gate_text "binary" "eoie.exe" (hash binary)) renewed)
+    require (sm'.contains (gate_text "workspace" "src/Cargo.lock" (hash lock)) renewed)
     inl proof_path = path root "state/cold_proof.spi"
     inl before = read proof_path
-    require (rust_std_string.model.contains (renewal_error root) "ColdProofV4 renewal rolled back")
+    require (sm'.contains "ColdProofV4 renewal rolled back" (renewal_error root))
     same (read proof_path) before
     write (path root "eoie") "unix binary"
-    require (rust_std_string.model.contains (renewal_error root) "exactly one root binary")
+    require (sm'.contains "exactly one root binary" (renewal_error root))
     same (read proof_path) before
     0i32
 
@@ -115,7 +117,7 @@ inl family_receipt (digest : string) : string =
         inl current_unsettled_family_count () : u32 = 0u32
 
         """
-    append header (rust_std_string.model.concat5 (gate_text "catalog" "state/legacy_catalog.spi" digest) (gate_text "migration" "state/migration.spi" digest) (gate_text "runtime" "state/runtime_drift.spi" digest) (gate_text "adapter" "state/adapter_inventory.spi" digest) "")
+    append header ((gate_text "catalog" "state/legacy_catalog.spi" digest) ++# (gate_text "migration" "state/migration.spi" digest) ++# (gate_text "runtime" "state/runtime_drift.spi" digest) ++# (gate_text "adapter" "state/adapter_inventory.spi" digest))
 
 inl family_current (root : string) : bool = $'verify_family_contracts(std::path::Path::new(&*!root)).is_ok()' : bool
 inl family_renewed (root : string) : bool = $'renew_family_contracts(std::path::Path::new(&*!root)).unwrap().is_some()' : bool
@@ -136,7 +138,7 @@ let family_renewal (root : string) : i32 =
     require (family_kept root)
     write (path root "state/legacy_catalog.spi") (family_catalog 35u64)
     write receipt_path stale
-    require (rust_std_string.model.contains (family_error root) "family contract catalog mismatch")
+    require (sm'.contains "family contract catalog mismatch" (family_error root))
     same (read receipt_path) stale
     0i32
 
@@ -145,9 +147,9 @@ let differential_renewal (root : string) : i32 =
     inl receipt_path = path root "state/differential_catalog.spi"
     inl stale = "inl current_differential_catalog_schema () : differential_catalog_schema = DifferentialCatalogV1\n"
     write receipt_path stale
-    require (rust_std_string.model.contains (differential_error root) "differential route")
+    require (sm'.contains "differential route" (differential_error root))
     same (read receipt_path) stale
-    require (rust_std_string.model.contains (renewal_error root) "ColdProofV4 renewal rolled back")
+    require (sm'.contains "ColdProofV4 renewal rolled back" (renewal_error root))
     same (read receipt_path) stale
     0i32
 

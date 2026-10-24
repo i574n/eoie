@@ -1,7 +1,7 @@
 packages:
     |core-
     eoie_dev_model-
-    rust_std_string
+    spiral-
 modules:
     selected_tests
     main

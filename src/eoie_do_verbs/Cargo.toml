@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "verbs.spi"
+output = "verbs.rs"
+
+[package]
+name = "eoie-do-verbs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do_verbs"
+path = "verbs.rs"

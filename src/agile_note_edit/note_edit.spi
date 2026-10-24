@@ -1,4 +1,5 @@
 open rust_std_fs.model
+open sm'_operators
 open agile_task_text.model
 open agile_note_model.model
 open workspace_primitives.outcome
@@ -12,16 +13,16 @@ inl argument_owned index : string = rust_std_env.model.argument_owned index
 
 inl decimal_i32 (~text : string) : i32 = $'!text.trim().parse::<i32>().unwrap_or(-1)' : i32
 
-inl note_row_head (~id : string) (seq : i32) : string = rust_std_string.model.concat5 "inl " (note_binding id seq) " () = " "" ""
+inl note_row_head (~id : string) (seq : i32) : string = "inl " ++# (note_binding id seq) ++# " () = "
 
-inl note_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile note-edit " id " rejected: " reason "")
+inl note_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure ("agile note-edit " ++# id ++# " rejected: " ++# reason)
 
 inl note_edit_success (~id : string) (seq : i32) (previous : task_note) (revised : task_note) (before : u64) (after : u64) (elapsed : u64) : i32 =
-    inl head = rust_std_string.model.concat5 "eoie agile note-edit ok id=" id " note=" (i32_text seq) " at="
-    inl middle = rust_std_string.model.concat5 previous.at " author=" (spi_quoted previous.author) " text_bytes=" (i32_text (byte_len previous.text))
-    stdout_line (rust_std_string.model.concat5 head middle "->" (i32_text (byte_len revised.text)) (measured_sizes before after elapsed))
+    inl head = "eoie agile note-edit ok id=" ++# id ++# " note=" ++# (i32_text seq) ++# " at="
+    inl middle = previous.at ++# " author=" ++# (spi_quoted previous.author) ++# " text_bytes=" ++# (i32_text (byte_len previous.text))
+    stdout_line (head ++# middle ++# "->" ++# (i32_text (byte_len revised.text)) ++# (measured_sizes before after elapsed))
 
-let note_edited (~root : string) (~id : string) (seq : i32) (~body : string) : i32 =
+let note_edited (~root : string) (~id : string) (seq : i32) (~body : string) (~editor : string) : i32 =
     inl started = unix_ms ()
     inl state = backlog_state_path root
     match probe (unchecked state) with
@@ -32,19 +33,23 @@ let note_edited (~root : string) (~id : string) (seq : i32) (~body : string) : i
         if row < 0i32 then note_edit_failure "no note with this number" id
         else
             inl previous = note_at original (row + byte_len (note_row_head id seq))
-            inl revised = { previous with text = body }
-            inl updated = spliced original row (line_end_after original row) (note_row id seq revised)
-            match state_written state original updated with
-            | StateWritten => note_edit_success id seq previous revised (text_bytes original) (text_bytes updated) (ms_since started)
-            | problem => note_edit_failure (state_write_problem problem) id
+            if editor = "" || previous.author = editor then
+                inl revised = { previous with text = body }
+                inl updated = spliced original row (line_end_after original row) (note_row id seq revised)
+                match state_written state original updated with
+                | StateWritten => note_edit_success id seq previous revised (text_bytes original) (text_bytes updated) (ms_since started)
+                | problem => note_edit_failure (state_write_problem problem) id
+            else note_edit_failure ("note " ++# (i32_text seq) ++# " was written by " ++# previous.author ++# "; only its author edits it") id
 
 let note_edit_entry () : i32 =
     inl id = argument_owned 2i32
     inl seq = decimal_i32 (argument_owned 3i32)
-    inl body = rust_std_string.model.trim (argument_owned 4i32)
+    inl body = sm'.trim (argument_owned 4i32)
     if seq < 1i32 then note_edit_failure "the note number must be a positive integer" id
-    elif rust_std_string.model.equals body "" then note_edit_failure "the note text is empty" id
-    else note_edited (argument_owned 1i32) id seq body
+    elif (body = "") then note_edit_failure "the note text is empty" id
+    elif ((argument_owned 5i32) = "") then note_edited (argument_owned 1i32) id seq body ""
+    elif ((argument_owned 5i32) = "--as") && (if ((sm'.trim (argument_owned 6i32)) = "") then false else true) then note_edited (argument_owned 1i32) id seq body (sm'.trim (argument_owned 6i32))
+    else note_edit_failure "usage: agile note-edit <root> <id> <note-number> <text> [--as <author>]" id
 
 inl main () : i32 =
     !!!!Export("eoie_agile_note_edit_run", ((fun () => note_edit_entry ()) : () -> i32))

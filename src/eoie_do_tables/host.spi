@@ -1,25 +1,6 @@
 nominal table_outcome = $'std::rc::Rc<(std::rc::Rc<str>, [u64; 4], bool)>'
 
-nominal record_list = $'std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>'
-
-let records_of (~encoded : string) : record_list =
-    $'std::rc::Rc::new((&*!encoded).split(char::from(30u8)).map(|record| record.split(char::from(31u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
-
-inl record_count (~records : record_list) : i32 = $'!records.len() as i32' : i32
-
-let field_at (~records : record_list) (~record : i32) (~field : i32) : string =
-    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).cloned().unwrap_or_default()' : string
-
 inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
-
-let field_index (~records : record_list) (~record : i32) (~word : string) : i32 =
-    $'!records.get(!record as usize).and_then(|fields| fields.iter().position(|field| field.len() > 1 && field.starts_with(char::from(119u8)) && &field[1..] == &*!word)).map(|index| index as i32).unwrap_or(-1)' : i32
-
-let body_at (~records : record_list) (~record : i32) (~field : i32) : string =
-    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).filter(|field| \!field.is_empty()).map(|field| std::rc::Rc::<str>::from(&field[1..])).unwrap_or_default()' : string
-
-let items_span (~records : record_list) (~record : i32) (~from : i32) (~until : i32) : string =
-    $'{ let fields = !records.get(!record as usize).cloned().unwrap_or_default(); let until = if !until < 0 { fields.len() } else { (!until as usize).min(fields.len()) }; let mut items = Vec::new(); for raw in fields.iter().take(until).skip(!from as usize) { if raw.is_empty() { continue; } let (kind, body) = raw.split_at(1); if kind == "q" { items.push(body.to_owned()); } else { items.extend(body.split(|c: char| c == char::from(44u8) || c.is_whitespace()).filter(|item| \!item.is_empty()).map(str::to_owned)); } } std::rc::Rc::<str>::from(items.join("\n")) }' : string
 
 inl outcome_report (~outcome : table_outcome) : string = $'!outcome.0.clone()' : string
 inl outcome_counter (~outcome : table_outcome) (~index : u64) : u64 = $'!outcome.1[!index as usize]' : u64

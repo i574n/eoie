@@ -1,0 +1,20 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl mini_spec () : string =
+    "# One-call eoie\n\n## 1. Read a file (read: 9 calls)\n\nHabit (Claude): Get-Content then\nSelect-Object.\n\n```command\neoie do . 'show a.txt'\n```\n\n```expected\nok\n```\n\n## 2. Count lines (read + aggregate: 3 calls)\n\nHabit (Codex): wc -l in a loop.\n\n```command\neoie do . 'count lines in *.txt'\n```\n"
+
+///> rust
+test the_guide_lists_each_intent_with_its_habit_and_one_call =
+    inl root = fixture_root_create "guide"
+    fixture_write root "spec.md" (mini_spec ())
+    inl run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("guide", Arg (fixture_path root "spec.md", Arg ("--out", Arg (fixture_path root "guide.md", NoArgs)))))
+    expect (run.code = 0i32) (run_text run)
+    shows run.stdout "eoie guide ok intents=2 out="
+    inl guide = fixture_read root "guide.md"
+    shows guide "## 1. Read a file (read: 9 calls)"
+    shows guide "Instead of: Habit (Claude): Get-Content then Select-Object.\n"
+    shows guide "One call:\n\n```sh\neoie do . 'show a.txt'\n```"
+    hides guide "```expected"
+    rejected_with (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("guide", Arg (fixture_path root "missing.md", NoArgs)))) 2i32 "guide needs a readable spec file"
+    fixture_root_remove root

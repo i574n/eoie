@@ -61,6 +61,15 @@ pub fn archive_format(path: &Path) -> Result<(i32, std::rc::Rc<str>), String> {
     }
 }
 
+fn string_slice(value: &str, from: i64, to: i64) -> Rc<str> {
+    let bytes = value.as_bytes();
+    let length = bytes.len() as i64;
+    if from < 0 || from > length || to < from - 1 || to >= length { std::process::abort(); }
+    if to < from { return { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) }; }
+    if (bytes[from as usize] & 0xC0) == 0x80 || (to + 1 < length && (bytes[(to + 1) as usize] & 0xC0) == 0x80) { std::process::exit(3); }
+    let slice = &bytes[from as usize..(to + 1) as usize];
+    match std::str::from_utf8(slice) { Ok(text) => Rc::<str>::from(text), Err(error) => Rc::<str>::from(std::str::from_utf8(&slice[..error.valid_up_to()]).unwrap_or("")) }
+}
 #[derive(Clone)]
 enum US1 {
     US1_ZipArchive,
@@ -219,19 +228,93 @@ fn closure1() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
         archive_classification_label_2(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
+fn method5(mut v0: Rc<str>, mut v1: i32, mut v2: i32) -> i32 {
+    loop {
+        let mut v3: bool = v2 >= v1;
+        if v3 {
+            return v1;
+        } else {
+            let mut v4: u8 = v0.clone().as_bytes()[v2 as usize];
+            let mut v5: bool = v4 == b' ';
+            let mut v11: bool = if v5 {
+                true
+            } else {
+                let mut v6: bool = v4 == b'\t';
+                if v6 {
+                    true
+                } else {
+                    let mut v7: bool = v4 == b'\r';
+                    if v7 {
+                        true
+                    } else {
+                        let mut v8: bool = v4 == b'\n';
+                        v8
+                    }
+                }
+            };
+            if v11 {
+                let mut v12: i32 = v2.wrapping_add(1i32);
+                (v0, v1, v2) = (v0.clone(), v1, v12);
+                continue;
+            } else {
+                return v2;
+            }
+        }
+    }
+}
+fn method6(mut v0: Rc<str>, mut v1: i32) -> i32 {
+    loop {
+        let mut v2: bool = v1 <= 0i32;
+        if v2 {
+            return -1i32;
+        } else {
+            let mut v3: i32 = v1.wrapping_sub(1i32);
+            let mut v4: u8 = v0.clone().as_bytes()[v3 as usize];
+            let mut v5: bool = v4 == b' ';
+            let mut v11: bool = if v5 {
+                true
+            } else {
+                let mut v6: bool = v4 == b'\t';
+                if v6 {
+                    true
+                } else {
+                    let mut v7: bool = v4 == b'\r';
+                    if v7 {
+                        true
+                    } else {
+                        let mut v8: bool = v4 == b'\n';
+                        v8
+                    }
+                }
+            };
+            if v11 {
+                (v0, v1) = (v0.clone(), v3);
+                continue;
+            } else {
+                return v3;
+            }
+        }
+    }
+}
 fn read_octal_field_4(mut v0: Rc<str>) -> US2 {
-    let mut v1: Rc<str> = std::rc::Rc::<str>::from(v0.trim());
-    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v3: bool = v1 == v2 ;
-    if v3 {
+    let mut v1: i32 = (v0.clone().len() as i32);
+    let mut v2: i32 = 0i32;
+    let mut v3: i32 = method5(v0.clone(), v1, v2);
+    let mut v4: i32 = v1.wrapping_sub(1i32);
+    let mut v5: Rc<str> = string_slice(&v0.clone(), v3 as i64, v4 as i64);
+    let mut v6: i32 = (v5.clone().len() as i32);
+    let mut v7: i32 = method6(v5.clone(), v6);
+    let mut v8: Rc<str> = string_slice(&v5.clone(), 0i32 as i64, v7 as i64);
+    let mut v9: bool = v8.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+    if v9 {
         US2::US2_EmptyField
     } else {
-        let mut v5: bool = u64::from_str_radix(&*v1, 8).is_err();
-        if v5 {
-            US2::US2_InvalidOctal(v1.clone())
+        let mut v11: bool = u64::from_str_radix(&*v8, 8).is_err();
+        if v11 {
+            US2::US2_InvalidOctal(v8.clone())
         } else {
-            let mut v7: u64 = u64::from_str_radix(&*v1, 8).unwrap_or(0);
-            US2::US2_OctalValue(v7)
+            let mut v13: u64 = u64::from_str_radix(&*v8, 8).unwrap_or(0);
+            US2::US2_OctalValue(v13)
         }
     }
 }
@@ -256,26 +339,27 @@ fn closure2() -> Rc<dyn Fn(Rc<str>) -> u64> {
         octal_field_value_3(v0.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
-fn octal_field_error_5(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
+fn octal_field_error_7(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
     let mut v2: US2 = read_octal_field_4(v0.clone());
     match &v2 {
         US2::US2_InvalidOctal(v3) => {
             let mut v3: Rc<str> = v3.clone();
             let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid tar "); } LIT.with(|lit| lit.clone()) };
-            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(": "); } LIT.with(|lit| lit.clone()) };
-            let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            let mut v7: Rc<str> = std::rc::Rc::<str>::from([&*v4, &*v1, &*v5, &*v3, &*v6].concat());
-            v7.clone()
+            let mut v5: Rc<str> = Rc::<str>::from(format!("{}{}", v4, v1));
+            let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(": "); } LIT.with(|lit| lit.clone()) };
+            let mut v7: Rc<str> = Rc::<str>::from(format!("{}{}", v5, v6));
+            let mut v8: Rc<str> = Rc::<str>::from(format!("{}{}", v7, v3));
+            v8.clone()
         }
         _ => {
-            let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            v8.clone()
+            let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            v9.clone()
         }
     }
 }
 fn closure3() -> Rc<dyn Fn(Rc<str>, Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>, mut v1: Rc<str>| -> Rc<str> {
-        octal_field_error_5(v0.clone(), v1.clone())
+        octal_field_error_7(v0.clone(), v1.clone())
     }); } CLOSURE.with(|closure| closure.clone())
 }
 pub fn eoie_archive_format_code(v0: &str) -> i32 {

@@ -3,7 +3,8 @@ packages:
     dogfood_shim_contract
     exact_replace_contract
     command_spec_domain
-    rust_std_string
+    spiral-
+    union_reflection
 modules:
     dogfood_shim_bindings
     dogfood_shim_terminal

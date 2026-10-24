@@ -1,4 +1,4 @@
-///- --package ../eoie_cli_harness
+///- --package ../eoie_cli_harness --timeout 900000
 open cli
 
 inl compiler_source () : string =
@@ -179,4 +179,67 @@ test agile_list_rejects_invalid_filters_and_malformed_tasks =
     fixture_write root "state/agile.spi" "inl broken () = Task (\"BROKEN\")\n"
     failed_with (listed root (Arg ("active", NoArgs))) "invalid agile status filter"
     failed_with (listed root (Arg ("Active", NoArgs))) "malformed Task fields"
+    fixture_root_remove root
+
+inl offset_of (~text : string) (~part : string) : i32 = $'(!text).find(&*!part).map(|at| at as i32).unwrap_or(-1)' : i32
+inl snake_of (~id : string) : string = $'std::rc::Rc::<str>::from((!id).replace(char::from(45u8), "_").as_str())' : string
+
+inl dep_row (~id : string) (~levels : string) (~status : string) (~deps : string) (~tags : string) : string =
+    inl head = cat (cat (cat (cat "inl task_" (snake_of id)) " () = Task (\"") id) "\", \"query row\", TaskKind, "
+    inl middle = cat (cat (cat (cat (cat levels ", ") status) ", \"") deps) "\", \""
+    cat (cat (cat (cat head middle) tags) "\", \"current\", \"current\")") "\n"
+
+inl query_row (~id : string) (~levels : string) (~status : string) (~tags : string) : string = dep_row id levels status "" tags
+
+///> rust
+test agile_list_filters_by_team_and_open_and_sorts_by_difficulty =
+    inl rows = cat (cat (query_row "OPS-B" "P1, D2, 40u32" "Active" "ops") (query_row "WEB-A" "P0, D5, 0u32" "Planned" "")) (query_row "CI-C" "P0, D1, 100u32" "Done" "web")
+    inl root = fixture_root_create "agile list query"
+    fixture_write root "state/agile.spi" (cat rows "inl main () : i32 = 0i32\n")
+    inl team = succeeded (listed root (Arg ("--team", Arg ("web", NoArgs))))
+    count_is (lines_starting_count team "WEB-A") 1i32
+    count_is (lines_starting_count team "CI-C") 1i32
+    count_is (lines_starting_count team "OPS-B") 0i32
+    inl open_team = succeeded (listed root (Arg ("--team", Arg ("web", Arg ("--open", NoArgs)))))
+    shows open_team "shown=1 filter=all team=web open"
+    inl by_priority_text = succeeded (listed root NoArgs)
+    inl by_difficulty = succeeded (listed root (Arg ("--sort", Arg ("difficulty", NoArgs))))
+    shows by_difficulty "shown=3 filter=all sort=difficulty"
+    expect (offset_of by_difficulty "CI-C" < offset_of by_difficulty "OPS-B" && offset_of by_difficulty "OPS-B" < offset_of by_difficulty "WEB-A") (cat "difficulty order: " by_difficulty)
+    expect (offset_of by_priority_text "WEB-A" < offset_of by_priority_text "OPS-B") "priority order stays the default"
+    hides by_priority_text "sort="
+    failed_with (listed root (Arg ("--sort", Arg ("size", NoArgs)))) "--sort expects priority|difficulty|progress, got size"
+    failed_with (listed root (Arg ("--team", Arg ("Ops", NoArgs)))) "--team expects a lower-case team word, got Ops"
+    fixture_root_remove root
+
+///> rust
+test agile_list_splits_open_work_into_ready_and_blocked =
+    inl gated = cat (dep_row "GATE" "P1, D2, 0u32" "Active" "" "") (dep_row "WAITS" "P1, D2, 0u32" "Planned" "GATE" "")
+    inl settled = cat (dep_row "SHIPPED" "P1, D1, 100u32" "Done" "" "") (dep_row "FREE" "P2, D2, 0u32" "Planned" "SHIPPED, MISSING" "")
+    inl root = fixture_root_create "agile list ready"
+    fixture_write root "state/agile.spi" (cat (cat (cat gated settled) (dep_row "HELD" "P3, D2, 0u32" "Blocked" "none" "")) "inl main () : i32 = 0i32\n")
+    inl ready = succeeded (listed root (Arg ("--ready", NoArgs)))
+    shows ready "shown=2 filter=all ready"
+    count_is (lines_starting_count ready "GATE") 1i32
+    count_is (lines_starting_count ready "FREE") 1i32
+    count_is (lines_starting_count ready "WAITS") 0i32
+    inl blocked = succeeded (listed root (Arg ("--blocked", NoArgs)))
+    shows blocked "shown=2 filter=all blocked"
+    count_is (lines_starting_count blocked "WAITS") 1i32
+    count_is (lines_starting_count blocked "HELD") 1i32
+    count_is (lines_starting_count blocked "SHIPPED") 0i32
+    fixture_root_remove root
+
+inl part_count (~text : string) (~part : string) : i32 = $'(!text).matches(&*!part).count() as i32' : i32
+
+///> rust
+test agile_list_reads_each_planning_row_next_to_its_task_only =
+    inl planned = cat (query_row "EOIE-PLANNED" "P1, D2, 0u32" "Active" "eoie") "inl planning_of_eoie_planned () = Planning (\"EOIE-PLANNED\", Minutes 600u32, Load Heavy, Assigned Pair)\n"
+    inl rows = cat (cat planned (query_row "EOIE-BARE" "P1, D2, 0u32" "Active" "eoie")) (query_row "EOIE-LAST" "P2, D1, 0u32" "Planned" "eoie")
+    inl root = fixture_root_create "agile list planning near"
+    fixture_write root "state/agile.spi" (cat rows "inl main () : i32 = 0i32\n")
+    inl table = succeeded (listed root NoArgs)
+    expect (part_count table "600m" = 1i32) (cat "one planned estimate in the table: " table)
+    inl json = succeeded (listed root (Arg ("--json", NoArgs)))
+    expect (part_count json "\"estimate_minutes\":600" = 1i32) (cat "the planning row belongs to its own task only: " json)
     fixture_root_remove root

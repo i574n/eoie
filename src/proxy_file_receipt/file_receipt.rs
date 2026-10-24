@@ -11,12 +11,11 @@ fn closure0() -> Rc<dyn Fn() -> u64> {
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn elapsed_field_1(mut v0: u64) -> Rc<str> {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
-    let mut v2: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v0);
-    let mut v3: Rc<str> = std::rc::Rc::<str>::from((v2).to_string());
-    let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v5: Rc<str> = std::rc::Rc::<str>::from([&*v1, &*v3, &*v4, &*v4, &*v4].concat());
-    v5.clone()
+    let mut v1: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v0);
+    let mut v2: Rc<str> = std::rc::Rc::<str>::from((v1).to_string());
+    let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
+    let mut v4: Rc<str> = Rc::<str>::from(format!("{}{}", v3, v2));
+    v4.clone()
 }
 fn closure1() -> Rc<dyn Fn(u64) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(u64) -> Rc<str>> = Rc::new(move |mut v0: u64| -> Rc<str> {

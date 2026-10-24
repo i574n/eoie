@@ -1,4 +1,5 @@
 open rust_std_fs.model
+open sm'_operators
 open agile_task_text.model
 open workspace_primitives.outcome
 open workspace_primitives.numbers
@@ -8,7 +9,9 @@ open workspace_primitives.console
 open workspace_primitives.files
 
 inl argument_owned index : string = rust_std_env.model.argument_owned index
-inl argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+let argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
 
 type planning_tally =
     {
@@ -40,23 +43,23 @@ inl padded (~text : string) (width : i32) : string =
 inl right_aligned (value : i32) (width : i32) : string =
     $'{ let text = (!value).to_string(); let filler = (!width as usize).saturating_sub(text.chars().count()); std::rc::Rc::<str>::from(" ".repeat(filler) + &text) }' : string
 
-inl json_number (~name : string) (value : i32) : string = rust_std_string.model.concat5 ",\"" name "\":" (i32_text value) ""
+inl json_number (~name : string) (value : i32) : string = ",\"" ++# name ++# "\":" ++# (i32_text value)
 
 let tally_json (tally : planning_tally) : string =
-    inl counts = rust_std_string.model.concat5 (json_number "tasks" tally.tasks) (json_number "open_tasks" tally.open_tasks) (json_number "estimated" tally.estimated) "" ""
-    rust_std_string.model.concat5 counts (json_number "minutes" tally.minutes) (json_number "open_minutes" tally.open_minutes) "" ""
+    inl counts = (json_number "tasks" tally.tasks) ++# (json_number "open_tasks" tally.open_tasks) ++# (json_number "estimated" tally.estimated)
+    counts ++# (json_number "minutes" tally.minutes) ++# (json_number "open_minutes" tally.open_minutes)
 
 let tally_columns (tally : planning_tally) : string =
-    inl counts = rust_std_string.model.concat5 (right_aligned tally.tasks 5i32) (right_aligned tally.open_tasks 7i32) (right_aligned tally.estimated 11i32) "" ""
-    rust_std_string.model.concat5 counts (right_aligned tally.minutes 9i32) (right_aligned tally.open_minutes 14i32) "" ""
+    inl counts = (right_aligned tally.tasks 5i32) ++# (right_aligned tally.open_tasks 7i32) ++# (right_aligned tally.estimated 11i32)
+    counts ++# (right_aligned tally.minutes 9i32) ++# (right_aligned tally.open_minutes 14i32)
 
 let rollup_line (format : rollup_format) (group : rollup_group) (~value : string) (tally : planning_tally) (first : bool) : string =
     match format with
-    | RollupText => rust_std_string.model.concat5 (padded group.label 11i32) (padded value 28i32) (tally_columns tally) "" ""
+    | RollupText => (padded group.label 11i32) ++# (padded value 28i32) ++# (tally_columns tally)
     | RollupJson =>
         inl separator = if first then "" else ","
-        inl head = rust_std_string.model.concat5 separator "{\"group\":\"" group.label "\",\"value\":\"" value
-        rust_std_string.model.concat5 head "\"" (tally_json tally) "}" ""
+        inl head = separator ++# "{\"group\":\"" ++# group.label ++# "\",\"value\":\"" ++# value
+        head ++# "\"" ++# (tally_json tally) ++# "}"
 
 inl status_group () : rollup_group = { name = "status"; label = "status" }
 inl load_group () : rollup_group = { name = "load"; label = "load" }
@@ -75,7 +78,7 @@ let rec print_group_rows (~text : string) (format : rollup_format) (group : roll
 inl unquoted (~token : string) : string = byte_slice token 1i32 (byte_len token - 1i32)
 
 inl joined (~list : string) (~item : string) : string =
-    if rust_std_string.model.equals list "" then item else rust_std_string.model.concat5 list "," item "" ""
+    if (list = "") then item else list ++# "," ++# item
 
 let rec epic_ids_from (text : string) (offset : i32) (length : i32) (~epics : string) : string =
     inl found = byte_find_from text (task_marker ()) offset
@@ -84,14 +87,14 @@ let rec epic_ids_from (text : string) (offset : i32) (length : i32) (~epics : st
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
         inl field = tuple_field text arguments length
         if declared_task text found then
-            if rust_std_string.model.equals (field 2i32) "Epic" then epic_ids_from text arguments length (joined epics (unquoted (field 0i32)))
+            if ((field 2i32) = "Epic") then epic_ids_from text arguments length (joined epics (unquoted (field 0i32)))
             else epic_ids_from text arguments length epics
         else epic_ids_from text arguments length epics
 
 let planning_epic_ids (~text : string) : string = epic_ids_from text 0i32 (byte_len text) ""
 
 inl rollup_header () : string =
-    rust_std_string.model.concat5 (padded "GROUP" 11i32) (padded "VALUE" 28i32) "TASKS   OPEN  ESTIMATED  MINUTES  OPEN_MINUTES" "" ""
+    (padded "GROUP" 11i32) ++# (padded "VALUE" 28i32) ++# "TASKS   OPEN  ESTIMATED  MINUTES  OPEN_MINUTES"
 
 inl rollup_opening (format : rollup_format) : string =
     match format with
@@ -99,14 +102,14 @@ inl rollup_opening (format : rollup_format) : string =
     | RollupJson => "{\"groups\":["
 
 inl rollup_receipt (tally : planning_tally) (started : u64) : string =
-    inl head = rust_std_string.model.concat5 "eoie agile plan ok tasks=" (i32_text tally.tasks) " open=" (i32_text tally.open_tasks) " estimated="
-    inl middle = rust_std_string.model.concat5 (i32_text tally.estimated) " minutes=" (i32_text tally.minutes) " open_minutes=" (i32_text tally.open_minutes)
-    rust_std_string.model.concat5 head middle " elapsed_ms=" (u64_text (ms_since started)) ""
+    inl head = "eoie agile plan ok tasks=" ++# (i32_text tally.tasks) ++# " open=" ++# (i32_text tally.open_tasks) ++# " estimated="
+    inl middle = (i32_text tally.estimated) ++# " minutes=" ++# (i32_text tally.minutes) ++# " open_minutes=" ++# (i32_text tally.open_minutes)
+    head ++# middle ++# " elapsed_ms=" ++# (u64_text (ms_since started))
 
 inl rollup_closing (format : rollup_format) (tally : planning_tally) (started : u64) : string =
     match format with
     | RollupText => rollup_receipt tally started
-    | RollupJson => rust_std_string.model.concat5 "]" (tally_json tally) ",\"elapsed_ms\":" (u64_text (ms_since started)) "}"
+    | RollupJson => "]" ++# (tally_json tally) ++# ",\"elapsed_ms\":" ++# (u64_text (ms_since started)) ++# "}"
 
 let print_rollup (~text : string) (format : rollup_format) (started : u64) : i32 =
     inl _ = stdout_line (rollup_opening format)
@@ -116,7 +119,7 @@ let print_rollup (~text : string) (format : rollup_format) (started : u64) : i32
     inl _ = print_group_rows text format (epic_group ()) (planning_epic_ids text) 0i32 false
     stdout_line (rollup_closing format (tally_of text "all" "") started)
 
-inl planning_rollup_failure (~reason : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile plan rejected: " reason "" "" "")
+inl planning_rollup_failure (~reason : string) : i32 = stderr_failure ("agile plan rejected: " ++# reason)
 
 let planning_rollup (~root : string) (format : rollup_format) : i32 =
     inl started = unix_ms ()
@@ -125,7 +128,7 @@ let planning_rollup (~root : string) (format : rollup_format) : i32 =
     | FileReadable file => print_rollup (loaded_string (read_text file)) format started
 
 inl rollup_format_of (~flag : string) : validation_result rollup_format =
-    if rust_std_string.model.equals flag "--json" then Valid RollupJson else Invalid
+    if (flag = "--json") then Valid RollupJson else Invalid
 
 let planning_rollup_entry () : i32 =
     inl count = argument_count ()

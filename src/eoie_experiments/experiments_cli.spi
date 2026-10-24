@@ -1,0 +1,120 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl experiment (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("experiment", args))
+
+inl rows_of (~arm : string) (~values : string) : string =
+    $'std::rc::Rc::<str>::from((!values).split(char::from(44u8)).map(|value| format\!("{}\t{}\n", &*!arm, value)).collect::<String>().as_str())' : string
+
+inl register_welch (root : fixture_root) : cli_run =
+    experiment root (Arg ("register", Arg ("ledger", Arg ("PR-1", Arg ("--test", Arg ("welch", Arg ("--metric", Arg ("retries", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("fast,base", Arg ("--runs", Arg ("5", Arg ("--decision", Arg ("fast differs if p < 0.05", NoArgs))))))))))))))))
+
+inl analyze (root : fixture_root) (~table : string) (rest : cli_args) : cli_run = experiment root (Arg ("analyze", Arg ("ledger", Arg ("PR-1", Arg (table, rest)))))
+
+///> rust
+test a_welch_experiment_is_registered_once_guarded_then_analyzed_once =
+    inl root = fixture_root_create "experiment welch"
+    shows (succeeded (register_welch root)) "eoie experiment register ok id=PR-1 test=welch runs=5 registered="
+    rejected_with (register_welch root) 2i32 "register: PR-1 is already registered"
+    fixture_write root "partial.tsv" (cat "variant\tretries\n" (cat (rows_of "fast" "1,2,3") (rows_of "base" "2,4,6")))
+    inl refused = analyze root "partial.tsv" NoArgs
+    expect (refused.code = 1i32) (run_text refused)
+    shows refused.stdout "interim look refused: fast 3/5, base 3/5 rows of the planned count"
+    hides refused.stdout "t="
+    inl interim = succeeded (analyze root "partial.tsv" (Arg ("--interim", Arg ("crash check after chunk 1", NoArgs))))
+    shows interim "look=interim disclosed=yes"
+    shows (fixture_read root "ledger/PR-1.disclosures") "reason=crash check after chunk 1"
+    fixture_write root "full.tsv" (cat "variant\tretries\n" (cat (rows_of "fast" "1,2,3,4,5") (rows_of "base" "2,4,6,8,10")))
+    inl full = succeeded (analyze root "full.tsv" NoArgs)
+    shows full "n=fast 5/5, base 5/5 difference=-3 t=-1.897367 df=5.882353 p=0.107531"
+    shows full "reject_h0=no look=full verdict=recorded"
+    inl again = analyze root "full.tsv" NoArgs
+    expect (again.code = 1i32) (run_text again)
+    shows again.stdout "an experiment is analyzed once"
+    inl show = succeeded (experiment root (Arg ("show", Arg ("ledger", Arg ("PR-1", NoArgs)))))
+    shows show "decision=fast differs if p < 0.05"
+    shows show "eoie experiment show ok id=PR-1 verdict=recorded"
+    fixture_root_remove root
+
+///> rust
+test binomial_and_wilson_read_success_cells =
+    inl root = fixture_root_create "experiment rates"
+    fixture_write root "clears.tsv" (cat "variant\tpassed\n" (rows_of "fast" "52240,,,0,,-,,,,"))
+    inl binomial = Arg ("--test", Arg ("binomial", Arg ("--metric", Arg ("passed", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("fast", Arg ("--runs", Arg ("10", Arg ("--prediction", Arg ("0.5", Arg ("--decision", Arg ("rate below one half", NoArgs))))))))))))))
+    inl _ = succeeded (experiment root (Arg ("register", Arg ("ledger", Arg ("PC-1", binomial)))))
+    inl tail = succeeded (experiment root (Arg ("analyze", Arg ("ledger", Arg ("PC-1", Arg ("clears.tsv", NoArgs))))))
+    shows tail "successes=1/10 p_at_most=0.010742 reject_h0=yes"
+    fixture_write root "rates.tsv" (cat "variant\tpassed\n" (rows_of "fast" "1,1,1,1,1,1,1,1,0,0"))
+    inl band = Arg ("--test", Arg ("wilson", Arg ("--metric", Arg ("passed", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("fast", Arg ("--runs", Arg ("10", Arg ("--prediction", Arg ("0.5", Arg ("--decision", Arg ("one half inside the band", NoArgs))))))))))))))
+    inl _ = succeeded (experiment root (Arg ("register", Arg ("ledger", Arg ("PC-5", band)))))
+    shows (succeeded (experiment root (Arg ("analyze", Arg ("ledger", Arg ("PC-5", Arg ("rates.tsv", NoArgs))))))) "successes=8/10 band=[0.490162,0.943318] prediction_inside=yes"
+    fixture_write root "times.tsv" (cat "variant\tseconds\n" (rows_of "fast" "31,29,35,30,timeout"))
+    inl median = Arg ("--test", Arg ("median", Arg ("--metric", Arg ("seconds", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("fast", Arg ("--runs", Arg ("5", Arg ("--prediction", Arg ("28,32", Arg ("--decision", Arg ("median inside 28..32 s", NoArgs))))))))))))))
+    inl _ = succeeded (experiment root (Arg ("register", Arg ("ledger", Arg ("PC-4", median)))))
+    shows (succeeded (experiment root (Arg ("analyze", Arg ("ledger", Arg ("PC-4", Arg ("times.tsv", NoArgs))))))) "median=30.5 band=[28,32] median_inside=yes"
+    inl acceptance = Arg ("--test", Arg ("binomial-band", Arg ("--metric", Arg ("passed", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("fast", Arg ("--runs", Arg ("20", Arg ("--prediction", Arg ("0.74", Arg ("--decision", Arg ("the count falls in the central 95% band of Binomial(20, 0.74)", NoArgs))))))))))))))
+    inl _ = succeeded (experiment root (Arg ("register", Arg ("ledger", Arg ("PC-7", acceptance)))))
+    fixture_write root "clear-20.tsv" (cat "variant\tpassed\n" (rows_of "fast" "1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0"))
+    shows (succeeded (experiment root (Arg ("analyze", Arg ("ledger", Arg ("PC-7", Arg ("clear-20.tsv", NoArgs))))))) "successes=19/20 band=[11,18] verdict=fails"
+    inl _ = succeeded (experiment root (Arg ("register", Arg ("ledger", Arg ("PC-8", acceptance)))))
+    fixture_write root "clear-15.tsv" (cat "variant\tpassed\n" (rows_of "fast" "1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0"))
+    shows (succeeded (experiment root (Arg ("analyze", Arg ("ledger", Arg ("PC-8", Arg ("clear-15.tsv", NoArgs))))))) "successes=15/20 band=[11,18] verdict=holds"
+    fixture_root_remove root
+
+inl timed_rows (~stamp : string) (~values : string) : string =
+    $'std::rc::Rc::<str>::from((!values).split(char::from(44u8)).map(|value| format\!("{}\tfast\t{}\n", &*!stamp, value)).collect::<String>().as_str())' : string
+
+///> rust
+test rows_stamped_before_the_registration_never_reach_the_verdict =
+    inl root = fixture_root_create "experiment time guard"
+    inl plan = Arg ("--test", Arg ("median", Arg ("--metric", Arg ("seconds", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("fast", Arg ("--runs", Arg ("5", Arg ("--prediction", Arg ("28,32", Arg ("--decision", Arg ("median inside 28..32 s", Arg ("--time", Arg ("timestamp", NoArgs))))))))))))))))
+    inl _ = succeeded (experiment root (Arg ("register", Arg ("ledger", Arg ("PC-6", plan)))))
+    shows (fixture_read root "ledger/PC-6.registration") "time=timestamp"
+    fixture_write root "timed.tsv" (cat "timestamp\tvariant\tseconds\n" (cat (timed_rows "2000-01-01T00:00:00" "99") (timed_rows "2999-01-01T00:00:00" "31,29,35,30,32")))
+    shows (succeeded (experiment root (Arg ("analyze", Arg ("ledger", Arg ("PC-6", Arg ("timed.tsv", NoArgs))))))) "n=fast 5/5 median=31 band=[28,32] median_inside=yes before_registration=1"
+    fixture_root_remove root
+
+///> rust
+test amendments_precede_any_look_and_addenda_stay_apart_from_the_verdict =
+    inl root = fixture_root_create "experiment amend"
+    inl _ = succeeded (register_welch root)
+    shows (succeeded (experiment root (Arg ("amend", Arg ("ledger", Arg ("PR-1", Arg ("--field", Arg ("runs", Arg ("--value", Arg ("3", Arg ("--reason", Arg ("crash rule: chunks of 3", NoArgs)))))))))))) "eoie experiment amend ok id=PR-1 field=runs value=3"
+    fixture_write root "three.tsv" (cat "variant\tretries\n" (cat (rows_of "fast" "1,2,3") (rows_of "base" "2,4,6")))
+    shows (succeeded (analyze root "three.tsv" NoArgs)) "n=fast 3/3, base 3/3"
+    rejected_with (experiment root (Arg ("amend", Arg ("ledger", Arg ("PR-1", Arg ("--field", Arg ("runs", Arg ("--value", Arg ("4", Arg ("--reason", Arg ("more data", NoArgs))))))))))) 2i32 "the metric was already read"
+    shows (succeeded (experiment root (Arg ("addendum", Arg ("ledger", Arg ("PR-1", Arg ("post-hoc: retries saturate at 6", NoArgs))))))) "after_look=yes"
+    inl show = succeeded (experiment root (Arg ("show", Arg ("ledger", Arg ("PR-1", NoArgs)))))
+    shows show "reason=crash rule: chunks of 3"
+    shows show "note=post-hoc: retries saturate at 6"
+    fixture_root_remove root
+
+///> rust
+test plans_are_refused_before_any_data =
+    inl root = fixture_root_create "experiment refusals"
+    rejected_with (experiment root (Arg ("register", Arg ("ledger", Arg ("PR-2", Arg ("--test", Arg ("anova", NoArgs))))))) 2i32 "--test must be welch|one-sample|binomial|wilson|median|binomial-band, received 'anova'"
+    rejected_with (experiment root (Arg ("register", Arg ("ledger", Arg ("PR-2", Arg ("--test", Arg ("one-sample", Arg ("--metric", Arg ("hp", Arg ("--arms", Arg ("fast", Arg ("--runs", Arg ("10", Arg ("--decision", Arg ("d", NoArgs))))))))))))))) 2i32 "one-sample needs --prediction"
+    rejected_with (experiment root (Arg ("register", Arg ("ledger", Arg ("bad id", NoArgs))))) 2i32 "the ID must be letters, digits"
+    rejected_with (experiment root (Arg ("analyze", Arg ("ledger", Arg ("PR-9", Arg ("x.tsv", NoArgs)))))) 2i32 "analyze: no registration for PR-9"
+    fixture_root_remove root
+
+inl imported_pr (root : fixture_root) (rest : cli_args) : cli_run =
+    experiment root (Arg ("import", Arg ("ledger", Arg ("PR-3a", Arg ("--test", Arg ("welch", Arg ("--metric", Arg ("retries", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("fast,base", Arg ("--runs", Arg ("5", Arg ("--decision", Arg ("fast differs if p < 0.05", rest))))))))))))))))
+
+///> rust
+test historical_registrations_import_with_their_provenance_and_take_a_recorded_verdict =
+    inl root = fixture_root_create "experiment import"
+    rejected_with (imported_pr root (Arg ("--registered-at", Arg ("2026-10-02", NoArgs)))) 2i32 "import: --evidence names what attests the registration"
+    rejected_with (imported_pr root (Arg ("--registered-at", Arg ("last week", Arg ("--evidence", Arg ("a1b2c3d", NoArgs)))))) 2i32 "import: --registered-at needs the source's registration date"
+    inl done = succeeded (imported_pr root (Arg ("--registered-at", Arg ("2026-10-02T09:00Z", Arg ("--evidence", Arg ("docs/BENCHMARK.md@120", NoArgs))))))
+    shows done "eoie experiment import ok id=PR-3a imported=yes registered=2026-10-02T09:00Z evidence=docs/BENCHMARK.md@120 imported_at="
+    inl recorded = succeeded (experiment root (Arg ("record-verdict", Arg ("ledger", Arg ("PR-3a", Arg ("--verdict", Arg ("fast faster, p=0.01", Arg ("--at", Arg ("2026-10-05", NoArgs)))))))))
+    shows recorded "eoie experiment record-verdict ok id=PR-3a at=2026-10-05 imported=yes"
+    inl show = succeeded (experiment root (Arg ("show", Arg ("ledger", Arg ("PR-3a", NoArgs)))))
+    shows show "imported=yes"
+    shows show "evidence=docs/BENCHMARK.md@120"
+    shows show "verdict=fast faster, p=0.01"
+    shows show "eoie experiment show ok id=PR-3a verdict=recorded"
+    rejected_with (experiment root (Arg ("record-verdict", Arg ("ledger", Arg ("PR-3a", Arg ("--verdict", Arg ("again", Arg ("--at", Arg ("2026-10-06", NoArgs))))))))) 2i32 "record-verdict: PR-3a already has a verdict"
+    shows (succeeded (register_welch root)) "eoie experiment register ok id=PR-1"
+    rejected_with (experiment root (Arg ("record-verdict", Arg ("ledger", Arg ("PR-1", Arg ("--verdict", Arg ("made up", Arg ("--at", Arg ("2026-10-06", NoArgs))))))))) 2i32 "only imported registrations take a recorded verdict"
+    fixture_root_remove root

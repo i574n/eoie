@@ -2,7 +2,7 @@ open rust_std_env.model
 open rust_std_process.model
 open rust_std_fs.model
 open rust_std_fs.rooted_effects
-open rust_std_string.model
+open sm'_operators
 
 nominal probe_start = ()
 nominal probe_fixtures = ()
@@ -27,22 +27,22 @@ inl main () : i32 =
     inl second = "/mnt/data/eoie-coverage-public-probe/second.lcov"
     inl merged = "/mnt/data/eoie-coverage-public-probe/merged.lcov"
     inl comma = ","
-    inl first_text = concat5 """
+    inl first_text = """
         TN:
         SF:src/example.rs
         DA:1
-        """ comma "1\nDA:2" comma """
+        """ ++# comma ++# "1\nDA:2" ++# comma ++# """
         0
         LF:2
         LH:1
         end_of_record
 
         """
-    inl second_text = concat5 """
+    inl second_text = """
         TN:
         SF:src/example.rs
         DA:1
-        """ comma "0\nDA:2" comma """
+        """ ++# comma ++# "0\nDA:2" ++# comma ++# """
         2
         LF:2
         LH:1

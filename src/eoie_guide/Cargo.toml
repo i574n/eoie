@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "guide.spi"
+output = "guide.rs"
+
+[package]
+name = "eoie-guide"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_guide"
+path = "guide.rs"

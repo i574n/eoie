@@ -1,20 +1,43 @@
-open rust_std_string.model
+open sm'_operators
 open eoie_receipt.receipt
 open model
 open host
+open listing
 
 let rec flag_present (~flag : string) (~index : i32) (~count : i32) : bool =
     if index < count then (if argument index = flag then true else flag_present flag (index + 1i32) count) else false
 
 let rec pattern_from (~index : i32) (~count : i32) : string =
-    if index < count then (if argument index = "--tree" then pattern_from (index + 1i32) count else argument index) else ""
+    if index < count then
+        if argument index = "--tree" || argument index = "--mine" then pattern_from (index + 1i32) count
+        else argument index
+    else ""
 
 let list_run (~started : u64) : i32 =
     inl count = argument_count ()
-    inl listing = process_table (pattern_from 2i32 count) (flag_present "--tree" 2i32 count) (local_offset_minutes ())
-    stdout_line (listing_text listing)
-    receipt_line Succeeded (concat5 "processes " (decimal_text (listing_count listing)) "" "" "") started
-    0i32
+    inl pattern = pattern_from 2i32 count
+    inl problem = pattern_problem pattern
+    if problem <> "" then
+        stdout_line ("ps: invalid pattern: " ++# problem)
+        2i32
+    else
+        inl rows = rows_oldest_first (eoie_machine_watch.host.process_rows_sampled 500u64)
+        inl own = own_pid ()
+        match scope_of rows (flag_present "--mine" 2i32 count) own with
+        | NoSession =>
+            stdout_line "ps --mine: no claude or codex process above this eoie"
+            2i32
+        | scope =>
+            inl listing =
+                listed rows pattern scope
+                    (flag_present "--tree" 2i32 count)
+                    own
+                    (local_offset_minutes ())
+                    0i32
+                    (empty_listing ())
+            stdout_line (listing_text listing)
+            receipt_line Succeeded ("processes " ++# (decimal_text listing.matched) ++# (scope_text scope)) started
+            0i32
 
 let stop_once (~word : string) (~pid : u64) (~tree : bool) : bool =
     inl tally = process_stopped pid tree
@@ -22,28 +45,33 @@ let stop_once (~word : string) (~pid : u64) (~tree : bool) : bool =
     stdout_line (stop_text word result)
     stop_complete result
 
-let rec stops_from (~index : i32) (~count : i32) (~tree : bool) (~own : u64) (~ancestors : string) (~stopped : u64) (~failed : u64) : u64 * u64 =
+let rec stops_from
+    (~index : i32) (~count : i32) (~tree : bool) (~own : u64) (~ancestors : string) (~stopped : u64) (~failed : u64)
+    : u64 * u64
+    =
     if index < count then
         inl word = argument index
         if word = "--tree" then stops_from (index + 1i32) count tree own ancestors stopped failed
         else
             match stop_refusal_of word own ancestors with
             | Allowed pid =>
-                if stop_once word pid tree then stops_from (index + 1i32) count tree own ancestors (stopped + 1u64) failed
+                if stop_once word pid tree
+                then stops_from (index + 1i32) count tree own ancestors (stopped + 1u64) failed
                 else stops_from (index + 1i32) count tree own ancestors stopped (failed + 1u64)
             | refusal =>
                 stdout_line (refusal_text word refusal)
                 stops_from (index + 1i32) count tree own ancestors stopped (failed + 1u64)
-    else (stopped, failed)
+    else stopped, failed
 
 let stop_run (~started : u64) : i32 =
     inl count = argument_count ()
     if count < 3i32 then
-        stdout_line (concat5 "usage: eoie " (process_usage ()) "" "" "")
+        stdout_line ("usage: eoie " ++# (process_usage ()))
         2i32
     else
-        inl stopped, failed = stops_from 2i32 count (flag_present "--tree" 2i32 count) (own_pid ()) (ancestor_pids ()) 0u64 0u64
-        inl counts = concat5 "stopped " (decimal_text stopped) "  failed " (decimal_text failed) ""
+        inl stopped, failed =
+            stops_from 2i32 count (flag_present "--tree" 2i32 count) (own_pid ()) (ancestor_pids ()) 0u64 0u64
+        inl counts = "stopped " ++# (decimal_text stopped) ++# "  failed " ++# (decimal_text failed)
         if failed = 0u64 then
             receipt_line Succeeded counts started
             0i32
@@ -57,7 +85,7 @@ let process_run () : i32 =
     | ListProcesses => list_run started
     | StopProcesses => stop_run started
     | ProcessUnknown =>
-        stdout_line (concat5 "usage: eoie " (process_usage ()) "" "" "")
+        stdout_line ("usage: eoie " ++# (process_usage ()))
         2i32
 
 inl main () : i32 =

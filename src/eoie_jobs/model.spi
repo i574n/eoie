@@ -6,52 +6,98 @@ open rust_std_string.model
 
 union job_command =
     | JobStart
+    | JobRun
     | JobSupervise
+    | JobHost
     | JobStatus
     | JobWait
     | JobList
     | JobTail
+    | JobStop
     | JobUnknown
 
 inl job_command_of (~word : string) : job_command =
     if word = "start" then JobStart
+    elif word = "run" then JobRun
     elif word = "supervise" then JobSupervise
+    elif word = "host" then JobHost
     elif word = "status" then JobStatus
     elif word = "wait" then JobWait
     elif word = "list" then JobList
     elif word = "tail" then JobTail
+    elif word = "stop" then JobStop
     else JobUnknown
 
-inl job_usage () : string = "job start [--heavy] <label> <timeout-ms> <program> [args...] | job status <id> | job wait <id> <max-ms> | job list [count] | job tail <id> [lines]"
+inl job_usage () : string = "job start [--after <id>|--after-ok <id>] [--heavy|--compile] [--max-private-mb <n>] [--slot-within <minutes>] [--done-within <minutes>] [--quiet [--quiet-hold <min>] [--quiet-wait <min>]] <label> <timeout-ms> <program> [args...] (the cap covers the whole job tree; reaching it stops the job as memory-capped, exit 137) | job run [--after <id>|--after-ok <id>] [--heavy|--compile] [--max-private-mb <n>] [--slot-within <minutes>] [--done-within <minutes>] [--quiet [--quiet-hold <min>] [--quiet-wait <min>]] <label> <timeout-ms> <program> [args...] (supervises in this process, so the job's processes stay in the caller's tree and end with it; exits with the job's code; for long runs from an agent shell that can be reaped, use job start plus a background job wait) | job status <id> | job wait <id> [max-ms, default until it settles] | job list [count] | job tail <id> [lines] | job stop <id>"
 
-union job_state =
+union job_live =
     | JobPending
     | JobRunning
+
+union job_settled =
     | JobFinished : i32
     | JobTimedOut
+    | JobStopped
     | JobSpawnFailed : string
+    | JobSkipped : string
     | JobLost
+    | JobMemoryCapped
+    | JobExpiredInQueue
 
-inl state_word = function
+union job_state =
+    | Live : job_live
+    | Settled : job_settled
+
+let live_word (live : job_live) : string =
+    match live with
     | JobPending => "pending"
     | JobRunning => "running"
+
+let settled_word (settled : job_settled) : string =
+    match settled with
     | JobFinished _ => "finished"
     | JobTimedOut => "timed-out"
+    | JobStopped => "stopped"
     | JobSpawnFailed _ => "spawn-failed"
+    | JobSkipped _ => "skipped"
     | JobLost => "lost"
+    | JobMemoryCapped => "memory-capped"
+    | JobExpiredInQueue => "expired-in-queue"
 
-inl state_exit = function
+let settled_exit (settled : job_settled) : i32 =
+    match settled with
     | JobFinished code => code
     | JobTimedOut => 124i32
+    | JobStopped => 143i32
     | JobSpawnFailed _ => 125i32
+    | JobSkipped _ => 125i32
     | JobLost => 125i32
-    | JobPending => 3i32
-    | JobRunning => 3i32
+    | JobMemoryCapped => 137i32
+    | JobExpiredInQueue => 75i32
 
-inl state_settled = function
-    | JobPending => false
-    | JobRunning => false
-    | _ => true
+inl still_running_exit () : i32 = 3i32
+
+let state_word (state : job_state) : string =
+    match state with
+    | Live live => live_word live
+    | Settled settled => settled_word settled
+
+let state_exit (state : job_state) : i32 =
+    match state with
+    | Live _ => still_running_exit ()
+    | Settled settled => settled_exit settled
+
+let state_settled (state : job_state) : bool =
+    match state with
+    | Live _ => false
+    | Settled _ => true
+
+inl state_shown (state : job_state) (gate_wait : bool) : string = if gate_wait && state_settled state = false then "queued" else state_word state
+
+inl exit_shown (state : job_state) : string =
+    match state with
+    | Live _ => "-"
+    | Settled settled => $'std::rc::Rc::<str>::from((!(settled_exit settled)).to_string())' : string
 
 inl silence_limit_ms () : u64 = 15000u64
 
@@ -72,18 +118,25 @@ inl silent_since (record : job_record) (since : u64) : bool = since + silence_li
 let job_state_of (record : job_record) : job_state =
     if record.exit_text <> "" then
         inl word = exit_word record.exit_text
-        if word = "finished" then JobFinished (exit_code record.exit_text)
-        elif word = "timed-out" then JobTimedOut
-        else JobSpawnFailed (exit_detail record.exit_text)
+        if word = "finished" then Settled (JobFinished (exit_code record.exit_text))
+        elif word = "timed-out" then Settled JobTimedOut
+        elif word = "stopped" then Settled JobStopped
+        elif word = "lost" then Settled JobLost
+        elif word = "memory-capped" then Settled JobMemoryCapped
+        elif word = "expired-in-queue" then Settled JobExpiredInQueue
+        elif word = "skipped" then Settled (JobSkipped (exit_detail record.exit_text))
+        else Settled (JobSpawnFailed (exit_detail record.exit_text))
     elif record.heartbeat_ms > 0u64 then
-        if silent_since record record.heartbeat_ms then JobLost else JobRunning
-    elif silent_since record record.started_ms then JobLost
-    else JobPending
+        if silent_since record record.heartbeat_ms then Settled JobLost else Live JobRunning
+    elif silent_since record record.started_ms then Settled JobLost
+    else Live JobPending
 
-inl exit_line (code : i32) (ended : u64) (state : job_state) (~detail : string) : string =
+inl exit_record (code : i32) (ended : u64) (~word : string) (~detail : string) : string =
     inl code_text = $'std::rc::Rc::<str>::from((!code).to_string())' : string
     inl ended_text = $'std::rc::Rc::<str>::from((!ended).to_string())' : string
-    concat5 code_text "\t" ended_text "\t" (concat5 (state_word state) "\t" detail "\n" "")
+    concat5 code_text "\t" ended_text "\t" (concat5 word "\t" detail "\n" "")
+
+inl exit_line (code : i32) (ended : u64) (settled : job_settled) (~detail : string) : string = exit_record code ended (settled_word settled) detail
 
 union tree_stop =
     | TreeStopped
@@ -91,9 +144,56 @@ union tree_stop =
 
 inl tree_stop_of (~survivors : u64) : tree_stop = if survivors = 0u64 then TreeStopped else SurvivorsLeft survivors
 
-inl timeout_detail = function
-    | TreeStopped => "wall-clock timeout; process tree stopped"
-    | SurvivorsLeft count => concat5 "wall-clock timeout; " ($'std::rc::Rc::<str>::from((!count).to_string())' : string) " processes left alive" "" ""
+inl tree_text = function
+    | TreeStopped => "process tree stopped"
+    | SurvivorsLeft count => concat5 ($'std::rc::Rc::<str>::from((!count).to_string())' : string) " processes left alive" "" "" ""
+
+union job_halt =
+    | KeepRunning
+    | HaltOnTimeout
+    | HaltOnRequest
+    | HaltOnMemory
+
+inl halt_of (expired : bool) (requested : bool) (capped : bool) : job_halt = if requested then HaltOnRequest elif capped then HaltOnMemory elif expired then HaltOnTimeout else KeepRunning
+
+inl halt_code = function
+    | HaltOnRequest => 143i32
+    | HaltOnMemory => 137i32
+    | _ => 124i32
+
+inl halt_word = function
+    | HaltOnRequest => "stopped"
+    | HaltOnMemory => "memory-capped"
+    | _ => "timed-out"
+
+inl halt_reason = function
+    | HaltOnRequest => "stopped on request"
+    | HaltOnMemory => "private memory cap reached"
+    | _ => "wall-clock timeout"
+
+inl halt_detail (halt : job_halt) (stop : tree_stop) : string = concat5 (halt_reason halt) "; " (tree_text stop) "" ""
+
+inl halt_terms = function
+    | HaltOnRequest => 143i32, "stopped", "stopped on request"
+    | HaltOnMemory => 137i32, "memory-capped", "private memory cap reached"
+    | _ => 124i32, "timed-out", "wall-clock timeout"
+
+inl halt_line (halt : job_halt) (ended : u64) (stop : tree_stop) : string =
+    inl code, word, reason = halt_terms halt
+    exit_record code ended word (concat5 reason "; " (tree_text stop) "" "")
+
+union stop_verdict =
+    | StopRequested
+    | StopRefused : string
+
+inl stop_verdict_of (state : job_state) : stop_verdict =
+    match state with
+    | Live _ => StopRequested
+    | Settled settled => StopRefused (concat5 "is already " (settled_word settled) "; nothing to stop" "" "")
+
+inl stop_reason = function
+    | StopRequested => ""
+    | StopRefused reason => reason
 
 inl label_safe (~label : string) : string =
     $'std::rc::Rc::<str>::from(!label.chars().map(|c| if c.is_ascii_alphanumeric() || c == char::from(45u8) { c } else { char::from(95u8) }).take(40).collect::<String>())' : string
@@ -112,14 +212,46 @@ test job_states_follow_the_registry_records =
     expect (state_exit (job_state_of (record_at "7\t5000\tfinished\t" 4000u64 1000u64 40000u64)) = 7i32) "finished code"
     expect (state_exit (job_state_of (record_at "1\t5000\ttimed-out\t" 4000u64 1000u64 40000u64)) = 124i32) "timeout code"
     expect (state_word (job_state_of (record_at "125\t5000\tspawn-failed\tno such program" 0u64 1000u64 40000u64)) = "spawn-failed") "spawn failure"
+    expect (state_word (job_state_of (record_at "75\t5000\texpired-in-queue\tno heavy slot within --slot-within" 0u64 1000u64 40000u64)) = "expired-in-queue") "a queue deadline settles before any start"
+    expect (state_exit (job_state_of (record_at "75\t5000\texpired-in-queue\tno heavy slot within --slot-within" 0u64 1000u64 40000u64)) = 75i32) "expired jobs exit 75"
 
 ///> rust
 test labels_become_safe_directory_names =
     expect (label_safe "eoie regen: batch 1/7" = "eoie_regen__batch_1_7") "unsafe characters"
     expect (job_command_of "wait" <> JobUnknown) "known verb"
+    expect (job_command_of "stop" = JobStop) "stop verb"
+    expect (job_command_of "run" = JobRun) "run verb"
+
+///> rust
+test a_running_job_shows_no_exit_code_and_a_gated_one_shows_queued =
+    expect (exit_shown (Live JobRunning) = "-") "running has no exit yet"
+    expect (exit_shown (Settled JobStopped) = "143") "stopped exit"
+    expect (state_shown (Live JobRunning) true = "queued") "waiting on the heavy gate"
+    expect (state_shown (Live JobRunning) false = "running") "admitted"
+    expect (state_shown (Settled (JobFinished 0i32)) true = "finished") "a settled job is never queued"
+    expect (state_exit (Live JobPending) = 3i32 && state_exit (Settled (JobSkipped "x")) = 125i32) "a live job waits with 3, a skipped one exits 125"
 
 ///> rust
 test a_timeout_names_what_survived_the_tree_stop =
-    expect (timeout_detail (tree_stop_of 0u64) = "wall-clock timeout; process tree stopped") "clean stop"
-    expect (timeout_detail (tree_stop_of 2u64) = "wall-clock timeout; 2 processes left alive") "survivors counted"
-    expect (exit_detail (exit_line 124i32 9u64 JobTimedOut (timeout_detail (tree_stop_of 2u64))) = "wall-clock timeout; 2 processes left alive") "detail round trip"
+    expect (halt_detail HaltOnTimeout (tree_stop_of 0u64) = "wall-clock timeout; process tree stopped") "clean stop"
+    expect (halt_detail HaltOnTimeout (tree_stop_of 2u64) = "wall-clock timeout; 2 processes left alive") "survivors counted"
+    expect (exit_detail (exit_line 124i32 9u64 JobTimedOut (halt_detail HaltOnTimeout (tree_stop_of 2u64))) = "wall-clock timeout; 2 processes left alive") "detail round trip"
+
+///> rust
+test a_stop_request_wins_over_the_deadline_and_settles_as_stopped =
+    expect (halt_of false false false = KeepRunning) "no reason to halt"
+    expect (halt_of true false false = HaltOnTimeout) "deadline passed"
+    expect (halt_of true true true = HaltOnRequest) "request wins"
+    expect (halt_of true false true = HaltOnMemory) "the cap wins over the deadline"
+    expect (halt_detail HaltOnRequest (tree_stop_of 0u64) = "stopped on request; process tree stopped") "request detail"
+    inl line = halt_line HaltOnRequest 9u64 (tree_stop_of 0u64)
+    inl settled = job_state_of (record_at line 4000u64 1000u64 40000u64)
+    expect (state_word settled = "stopped") "stopped round trip"
+    expect (state_exit settled = 143i32) "stopped exit"
+
+///> rust
+test only_unsettled_jobs_accept_a_stop =
+    expect (stop_reason (stop_verdict_of (Live JobRunning)) = "") "running"
+    expect (stop_reason (stop_verdict_of (Live JobPending)) = "") "pending"
+    expect (stop_reason (stop_verdict_of (Settled (JobFinished 0i32))) = "is already finished; nothing to stop") "finished"
+    expect (stop_reason (stop_verdict_of (Settled JobLost)) = "is already lost; nothing to stop") "lost"

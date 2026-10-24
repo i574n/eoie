@@ -1,4 +1,6 @@
-let argument (left : string) (right : string) : string = rust_std_string.model.concat5 left (host.separator ()) right "" ""
+open sm'_operators
+
+let argument (left : string) (right : string) : string = left ++# (host.separator ()) ++# right
 inl inspect (text : string) (names : string) (separator : string) : i32 =
     $'developer_metadata_domain::eoie_developer_requirements(&*!text,&*!names,&*!separator)' : i32
 let requirements (root : string) (names : string) (offline : bool) (timeout : u64) : i32 =

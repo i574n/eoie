@@ -1,3 +1,4 @@
+///- --package .
 union command_effect =
     | Inspect
     | Wrap
@@ -40,20 +41,40 @@ inl diagnostic_catalog_witness () : i32 =
     match status_arity_diagnostic (), help_arity_diagnostic (), unknown_verb_diagnostic () with
     | ActionableDiagnostic _, ActionableDiagnostic _, ActionableDiagnostic _ => 1i32
 
-inl command_code_value = function
-    | StatusSpec => 0u64
-    | PatchSpec => 1u64
-    | AgileSpec => 2u64
-    | BundleSpec => 3u64
-    | ProxySpec => 4u64
-    | HelpSpec => 5u64
-    | UnknownSpec => 6u64
+type verb_spec =
+    {
+        name : string
+        effect : command_effect
+        summary : string
+    }
 
-inl effect_code_value = function
-    | Inspect => 0u64
-    | Wrap => 1u64
-    | Mutate => 2u64
-    | Renew => 3u64
+inl verb_spec_of = function
+    | StatusSpec => { name = "status"; effect = Inspect; summary = "inspect migration evidence toolchain and authority state" }
+    | PatchSpec => { name = "patch"; effect = Mutate; summary = "rehearse gate and apply typed patch plans" }
+    | AgileSpec => { name = "agile"; effect = Mutate; summary = "manage typed backlog leases and turn receipts" }
+    | BundleSpec => { name = "bundle"; effect = Wrap; summary = "check create verify rehydrate and retain bundles" }
+    | ProxySpec => { name = "proxy"; effect = Mutate; summary = "execute bounded filesystem process archive toolchain and evidence capabilities" }
+    | HelpSpec => { name = "help"; effect = Inspect; summary = "render the public command catalog" }
+    | UnknownSpec => { name = "unknown"; effect = Inspect; summary = "unknown public verb" }
+
+inl effect_name = function
+    | Inspect => "inspect"
+    | Wrap => "wrap"
+    | Mutate => "mutate"
+    | Renew => "renew"
+
+inl declared_code forall case. (value : case) : u64 = $'(!(union_reflection.cases.union_case_index value) - 1) as u64' : u64
+inl missing_code () : u64 = $'u64::MAX' : u64
+
+inl command_code_value (spec : command_spec) : u64 = declared_code spec
+inl effect_code_value (effect : command_effect) : u64 = declared_code effect
+
+inl public_spec (spec : command_spec) : bool =
+    match spec with
+    | UnknownSpec => false
+    | _ => true
+
+inl public_spec_named (~input : string) (spec : command_spec) : bool = public_spec spec && (verb_spec_of spec).name = input
 
 inl handler_value = function
     | StatusSpec => StatusHandler
@@ -64,26 +85,11 @@ inl handler_value = function
     | HelpSpec => HelpHandler
     | UnknownSpec => UnknownHandler
 
-inl handler_code_value = function
-    | StatusHandler => 0i32
-    | PatchHandler => 1i32
-    | AgileHandler => 2i32
-    | BundleHandler => 3i32
-    | ProxyHandler => 4i32
-    | HelpHandler => 5i32
-    | UnknownHandler => 6i32
-    | LeaseDeniedHandler => 7i32
+inl lease_denied_code () : i32 = 7i32
 
 inl handler_from_code (code : i32) : command_handler =
-    match code with
-    | 0i32 => handler_value StatusSpec
-    | 1i32 => handler_value PatchSpec
-    | 2i32 => handler_value AgileSpec
-    | 3i32 => handler_value BundleSpec
-    | 4i32 => handler_value ProxySpec
-    | 5i32 => handler_value HelpSpec
-    | 7i32 => LeaseDeniedHandler
-    | _ => handler_value UnknownSpec
+    if code = lease_denied_code () then LeaseDeniedHandler
+    else handler_value (union_reflection.cases.union_case_at (code + 1i32) UnknownSpec)
 
 inl command_catalog_witness () : i32 =
     match handler_from_code 0i32,
@@ -95,18 +101,17 @@ inl command_catalog_witness () : i32 =
     | StatusHandler, PatchHandler, AgileHandler, BundleHandler, ProxyHandler, HelpHandler => 1i32
     | _ => 0i32
 
-let command_code (~input : string) : u64 =
-    if rust_std_string.model.pipe_member "-h|--help" input then command_code_value HelpSpec
-    else rust_std_string.model.pipe_index "status|patch|agile|bundle|proxy|help" input
+inl help_flag (~text : string) : bool = rust_std_string.model.pipe_member "--help|-h" text
 
+let command_code (~input : string) : u64 =
+    if help_flag input then command_code_value HelpSpec
+    else union_reflection.cases.union_case_where (public_spec_named input) command_code_value (missing_code ())
 
 let command_effect_code (~input : string) : u64 =
-    if rust_std_string.model.pipe_member "patch|agile|proxy" input then effect_code_value Mutate
-    elif rust_std_string.model.equals input "bundle" then effect_code_value Wrap
-    else effect_code_value Inspect
+    union_reflection.cases.union_case_where (public_spec_named input) (fun spec => effect_code_value (verb_spec_of spec).effect) (effect_code_value Inspect)
 
 let command_subcommand_effect_code (~input : string) : u64 =
-    if rust_std_string.model.pipe_member "patch:check|proxy:text-replace:check|proxy:fs-batch-write:preview|proxy:fs-actions:preview|proxy:source-author:preview|agile:list|agile:show|agile:todos|agile:migrate-tags:preview|agile:plan|agile:check|agile:lease|agile:status|agile:handoff|proxy:source-topology/1|proxy:plan-ir-inspect|proxy:plan-ir-check|proxy:legacy-surface|proxy:self-upgrade-check|proxy:fs-list|proxy:fs-read|proxy:fs-slice|proxy:fs-context|proxy:fs-search|proxy:parallel-search|proxy:parallel-manifest|proxy:product-diff|proxy:hash|proxy:hash-tree|proxy:source-stats|proxy:ingest-map|proxy:ingest-trim-check|proxy:ingest-extracted-manifest|proxy:ingest-targets|proxy:ingest-targets-derive|proxy:frontier-map|proxy:spi-map|proxy:spi-diff|proxy:source-recovery-diff|proxy:coverage-assess" input then effect_code_value Inspect
+    if rust_std_string.model.pipe_member "patch:check|proxy:text-replace:check|proxy:fs-batch-write:preview|proxy:fs-actions:preview|proxy:source-author:preview|agile:list|agile:show|agile:todos|agile:next|agile:migrate-tags:preview|agile:plan|agile:check|agile:lease|agile:status|agile:handoff|proxy:source-topology/1|proxy:plan-ir-inspect|proxy:plan-ir-check|proxy:legacy-surface|proxy:self-upgrade-check|proxy:fs-list|proxy:fs-read|proxy:fs-slice|proxy:fs-context|proxy:fs-search|proxy:parallel-search|proxy:parallel-manifest|proxy:product-diff|proxy:hash|proxy:hash-tree|proxy:source-stats|proxy:ingest-map|proxy:ingest-trim-check|proxy:ingest-extracted-manifest|proxy:ingest-targets|proxy:ingest-targets-derive|proxy:frontier-map|proxy:spi-map|proxy:spi-diff|proxy:source-recovery-diff|proxy:coverage-assess" input then effect_code_value Inspect
     elif rust_std_string.model.pipe_member "agile:record|proxy:release-closeout|proxy:spiral-session-shutdown" input then effect_code_value Wrap
     elif rust_std_string.model.pipe_member "agile:begin|agile:init" input then effect_code_value Renew
     elif rust_std_string.model.equals input "bundle:retention-apply" then effect_code_value Mutate
@@ -119,50 +124,49 @@ inl command_usages () : string =
         bundle: growth-baseline <predecessor.zip> <previous-root> <root> | growth-receipt <root> <reason> <reference> | check <root> [auto|generic|eoie] | create <root> <output.zip> [auto|generic|eoie] | create-flat <root> <output.zip> <max-bytes> | verify <archive.zip> [auto|generic|eoie] | verify-flat <archive.zip> <max-bytes> | rehydrate <archive.zip> <destination> [auto|generic|eoie] | retention-plan <directory> <current.zip> <receipt.spi> | retention-apply <directory> <current.zip> <receipt.spi> <fingerprint>
         proxy: plan-ir-inspect|plan-ir-check|legacy-surface|install-self|self-upgrade-check|restart-baton|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-list|fs-read|fs-slice|fs-context|fs-search|parallel-search|parallel-manifest|product-diff|fs-write|text-replace|fs-copy|fs-remove|fs-remove-tree|run|spiral-session-shutdown|archive-extract|zip-extract|hash|hash-tree|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|toolchain|portable-toolchain|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|spi-diff|source-recovery-diff|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|cold-rebuild-matrix|cold-rebuild-owner|source-map|source-diff|coverage-register|formal-receipts-renew
         help [verb|--completion|--json|--schema] | proxy <capability>
-        repo: state <root> [<root>...]
-        read <path>[:from-to]... [--max-lines n] | lines <path|glob>... | grep <root> <needle> [--glob pattern] [--context n] [--max n] [--ignore-case]
-        table: query <file> [--where col=value]... [--cols a,b] [--group col] [--limit n] | diff <left> <right> --key a,b [--cols x,y] [--limit n]
-        do <root> '<program>' | do <root> - (stdin); edit <path|glob> [dry-run] [expect files n replacements n] / replace once|all|<n> times "old" with "new" / show <path>; search [literal] "re" in <glob> [include a,b] [exclude glob] [context n[,m]] [first n per file] [paths] / read <path> around "text" [context n[,m]] / files <glob> / head <glob> n / tail <glob> n / wait <file> ~ "re" [timeout 5s]; hash <a,b,...> / env <A,B> / exists <a,b> / nearest "re" before lines n,m in <file> / json <file> get a.b,c.length / lines <file> count by "(re)" / files <glob> count by extension / table <file.tsv> [where col = "v"|col <> "v"] count by a,b / dirs <dir/*> having a and b + tag <name> = <file> ~ "re" [and|or|not ...] + count by <name> / diff <a.tsv> <b.tsv> by k1,k2 [on c1,c2]; run <cmd> [timeout 10s] [until output ~ "re" then stop] [background as name] / tail output n / search "re" in output / errors in output by "(re)" / processes where command ~ "re" / stop <name>; append <file> "line {clock:HH:mm}" / copy <glob> to <dir> [except *.tmp,...], then read statements; git init|commit <repo> all "msg" [at <iso>] / git history <repo> "text" in <file> / git status a, b group by state / git log <repo> [since <date>] count by day / search "re" in <glob> with git status; job start <cmd> as <name> timeout 30s [notify] / job wait <name> [timeout 5m]; lab audit <dir> against <backlog>
-        ps [regex] [--tree] | kill <pid>... [--tree] (never this eoie or its calling shells)
-        job: start [--heavy] <label> <timeout-ms> <program> [args...] | status <id> | wait <id> <max-ms> | list [count] | tail <id> [lines]
+        repo: state <root> [<root>...] | affected <src> <package>... (Cargo crates whose package.spiproj graph reaches a changed package)
+        read <path|glob>[:from-to|:-last]... [--max-lines n] [--json] | lines <path|glob>... | grep <root> <needle> [--glob pattern] [--context n] [--max n] [--ignore-case] [--regex] [--json]
+        table: query <file> [--where col=value|col!=value|col>value|col>=value|col<value|col<=value]... [--cols a,b] [--group col] [--mean|--sd|--sum|--min|--max|--count a,b]... [--limit n] [--quiet] | diff <left> <right> --key a,b [--cols x,y] [--latest-by col] [--limit n] | logs <file|dir>... [--glob *.log] [--since regex] (--count name=regex | --count-by name=regex | --sum name=regex | --last name=regex | --field name=regex-on-the-file-path)... | --values name=regex alone [--out file.tsv] [--quiet] | test <file.tsv> --test welch|one-sample|binomial|wilson|median|binomial-band --metric <column> [--arms a[,b] [--group <column>]] [--prediction x] [--confidence 0.95] [--where ...]...
+        standards: <package-dir>... [--json] (rules from the package's standards.spi rows, else no-comment-lines, line-width 120, lf-only, test-targets; exit 1 on findings) | --census <dir>... | --baseline <file.spi> <dir>... | --ratchet <file.spi> <dir>... (typefeatureset and drift counts per package; the ratchet fails when a package gets worse than its baseline or a new package misses the floor)
+        window: request <class> <minutes> [--label <text>] [--wait <minutes>] | release <id> | list | check <class> | run <class> <minutes> [--label <text>] [--wait <minutes>] -- <command> [args...] (machine windows shared by every session; live-gui and compiler-install exclude all other classes; exit 1 when blocked)
+        experiment: register <ledger> <ID> --test welch|one-sample|binomial|wilson|median|binomial-band --metric <col> --runs <n> --decision <rule> [--group <col> --arms a[,b]] [--prediction <x>] [--confidence 0.95] [--question <text>] [--time <col>] | analyze <ledger> <ID> <table.tsv> [--where col=value]... [--interim <reason>] | amend <ledger> <ID> --field <name> --value <v> --reason <text> | addendum <ledger> <ID> <text> | show <ledger> <ID> (pre-registered; one analysis at the planned count)
+        do <root> '<program>' | do <root> - (stdin); edit <path|glob> [dry-run] [expect files n replacements n] / replace [pattern] once|all|<n> times "old" with "new" / patch <<<hunks>>> / show <path>; search [literal] "re" in <glob> [include a,b] [exclude glob] [context n[,m]] [first n per file] [paths] / read <path> around "text" [context n[,m]] / files <glob> / head <glob> n / tail <glob> n / wait <file> ~ "re" [timeout 5s]; hash <a,b,...> / env <A,B> / exists <a,b> / nearest "re" before lines n,m in <file> / json <file> get a.b,c.length / lines <file> count by "(re)" / files <glob> count by extension / table <file.tsv> [where col = "v"|col <> "v"] count by a,b / dirs <dir/*> having a and b + tag <name> = <file> ~ "re" [and|or|not ...] + count by <name> / diff <a.tsv> <b.tsv> by k1,k2 [on c1,c2]; run <cmd> [timeout 10s] [until output ~ "re" then stop] [background as name] / tail output n / search "re" in output / errors in output by "(re)" / processes where command ~ "re" / stop <name>; append <file> "line {clock:HH:mm}" / copy <glob> to <dir> [except *.tmp,...] / move <path> to <path> (no overwrite; absolute paths reach other roots), then read statements; git init|commit <repo> all "msg" [at <iso>] / git history <repo> "text" in <file> / git status a, b group by state / git log <repo> [since <date>] count by day / search "re" in <glob> with git status; job start <cmd> as <name> timeout 30s [notify] / job wait <name> [timeout 5m] / job stop <name>; lab audit <dir> against <backlog>
+        ps [regex] [--tree] [--mine] | kill <pid>... [--tree] (never this eoie or its calling shells)
+        guide <spec/one-call.md> [--out <file.md>]
+        memory import <memory-dir> <data.spi> | render <data.spi> <out-dir> | check <data.spi> | list <data.spi> [--kind user|feedback|project|reference] | recall <data.spi> <words> [--limit n]
+        resume <backlog-root> [--team <team>] [--as <author>]
+        machine watch [--sample-seconds n]
+        adoption [--days n] [--out <file.tsv>]
+        job: start [--heavy] <label> <timeout-ms> <program> [args...] | run [--heavy] <label> <timeout-ms> <program> [args...] (attached: supervises in this process, ends with its caller, exits with the job's code; long runs from reapable agent shells use start + a background wait) | status <id> | wait <id> [max-ms] (default: until the job settles; a queued --heavy job's timeout starts when it is admitted) | list [count] | tail <id> [lines] | stop <id> (stops the job's own process tree)
         """))
 
 let command_more_usages () : string =
     inl usages = command_usages ()
     $'std::rc::Rc::<str>::from(!usages.lines().skip(6).collect::<Vec<_>>().join("\n"))' : string
 
-let command_descriptor_by_index (~input : string) : string * string * string * string * string =
-    inl keys = "0|1|2|3|4|5"
-    inl name = rust_std_string.model.pipe_lookup keys """
-        status
-        patch
-        agile
-        bundle
-        proxy
-        help
-        """ input
-    if rust_std_string.model.equals name "" then "unknown", "inspect", "unknown", "unknown public verb", "unknown"
-    else
-        name,
-        rust_std_string.model.pipe_lookup keys """
-            inspect
-            mutate
-            mutate
-            wrap
-            mutate
-            inspect
-            """ input,
-        rust_std_string.model.pipe_lookup keys (command_usages ()) input,
-        rust_std_string.model.pipe_lookup keys """
-            inspect migration evidence toolchain and authority state
-            rehearse gate and apply typed patch plans
-            manage typed backlog leases and turn receipts
-            check create verify rehydrate and retain bundles
-            execute bounded filesystem process archive toolchain and evidence capabilities
-            render the public command catalog
-            """ input,
-        name
+let direct_verb_usage (~target : string) : string =
+    inl usages = command_more_usages ()
+    $'std::rc::Rc::<str>::from((!usages).lines().find(|line| line.split(char::from(124u8)).any(|part| part.trim().split(|c: char| c == char::from(32u8) || c == char::from(58u8)).next() == Some(&*!target))).unwrap_or("").trim())' : string
 
+inl index_code (~input : string) : i32 = $'(!input).parse::<u8>().ok().filter(|index| index.to_string() == &*!input).map(|index| index as i32).unwrap_or(-1)' : i32
+inl usage_line (~usages : string) (index : i32) : string = $'std::rc::Rc::<str>::from((!usages).split(char::from(10u8)).nth(!index as usize).unwrap_or(""))' : string
+
+inl spec_at (code : i32) (spec : command_spec) : bool = public_spec spec && union_reflection.cases.union_case_index spec - 1i32 = code
+
+inl spec_descriptor (~usage : string) (spec : command_spec) : string * string * string * string * string =
+    inl described = verb_spec_of spec
+    described.name, effect_name described.effect, usage, described.summary, described.name
+
+inl public_descriptor (spec : command_spec) : string * string * string * string * string =
+    spec_descriptor (usage_line (command_usages ()) (union_reflection.cases.union_case_index spec - 1i32)) spec
+
+let command_descriptor_by_index (~input : string) : string * string * string * string * string =
+    inl unknown = verb_spec_of UnknownSpec
+    union_reflection.cases.union_case_where (spec_at (index_code input)) public_descriptor (spec_descriptor unknown.name UnknownSpec)
+
+let command_descriptor_named (~input : string) : string * string * string * string * string =
+    inl unknown = verb_spec_of UnknownSpec
+    union_reflection.cases.union_case_where (public_spec_named input) public_descriptor (spec_descriptor unknown.name UnknownSpec)
 let command_descriptor_json_by_index (~input : string) : string =
     inl name, effect, usage, summary, handler = command_descriptor_by_index input
     inl a = rust_std_string.model.concat5 "{\"name\":\"" name "\",\"effect\":\"" effect "\""
@@ -170,12 +174,9 @@ let command_descriptor_json_by_index (~input : string) : string =
     inl c = rust_std_string.model.concat5 ",\"usage\":\"" usage "\"}" "" ""
     rust_std_string.model.concat5 a b c "" ""
 
-let command_count () : i32 = 6i32
+let command_count () : i32 = union_reflection.cases.union_cases_fold (fun counted (spec : command_spec) => if public_spec spec then counted + 1i32 else counted) 0i32
 
-let command_schema_witness () : i32 =
-    match command_count (), command_catalog_witness () with
-    | 6i32, 1i32 => 1i32
-    | _ => 0i32
+let command_schema_witness () : i32 = command_catalog_witness ()
 
 let proxy_usage (~input : string) : string =
     rust_std_string.model.pipe_lookup
@@ -254,8 +255,28 @@ let proxy_usage (~input : string) : string =
             """
         input
 
+union toolchain_action =
+    | CargoLock
+    | CargoFmtCheck
+    | CargoCheck
+    | CargoTest
+    | CargoClippy
+    | CargoBuild
+    | CargoVersion
+    | SpiralVersion
+
+inl toolchain_action_name = function
+    | CargoLock => "cargo-lock"
+    | CargoFmtCheck => "cargo-fmt-check"
+    | CargoCheck => "cargo-check"
+    | CargoTest => "cargo-test"
+    | CargoClippy => "cargo-clippy"
+    | CargoBuild => "cargo-build"
+    | CargoVersion => "cargo-version"
+    | SpiralVersion => "spiral-version"
+
 let toolchain_action_code (~input : string) : u64 =
-    rust_std_string.model.pipe_index "cargo-lock|cargo-fmt-check|cargo-check|cargo-test|cargo-clippy|cargo-build|cargo-version|spiral-version" input
+    union_reflection.cases.union_case_where (fun (action : toolchain_action) => toolchain_action_name action = input) (fun matched => declared_code matched) (missing_code ())
 
 
 union proxy_route =
@@ -303,7 +324,6 @@ union help_request =
 inl process_argument (index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(!index as usize).unwrap_or_default())' : string
 inl process_argument_count () : i32 = $'std::env::args().count() as i32' : i32
 inl u64_text (value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
-inl help_flag (~text : string) : bool = rust_std_string.model.pipe_member "--help|-h" text
 inl proxy_capability (~name : string) : bool = if rust_std_string.model.equals name "" then false else if rust_std_string.model.equals (proxy_usage name) "" then false else true
 
 let rec help_flag_from (index : i32) (count : i32) : bool =
@@ -339,19 +359,73 @@ union help_flag =
     | SchemaHelp
     | TargetHelp
 
-inl help_flag_code_value = function
-    | CompletionHelp => 0u64
-    | JsonHelp => 1u64
-    | SchemaHelp => 2u64
-    | TargetHelp => 3u64
+inl help_flag_text = function
+    | CompletionHelp => "--completion"
+    | JsonHelp => "--json"
+    | SchemaHelp => "--schema"
+    | TargetHelp => ""
 
 let help_flag_code (~input : string) : u64 =
-    if rust_std_string.model.equals input "--completion" then help_flag_code_value CompletionHelp
-    elif rust_std_string.model.equals input "--json" then help_flag_code_value JsonHelp
-    elif rust_std_string.model.equals input "--schema" then help_flag_code_value SchemaHelp
-    else help_flag_code_value TargetHelp
+    union_reflection.cases.union_case_where (fun (flag : help_flag) => help_flag_text flag = input) (fun matched => declared_code matched) (declared_code TargetHelp)
 
 let help_flag_witness () : i32 =
     match help_flag_code "--completion", help_flag_code "--json", help_flag_code "--schema", help_flag_code "status" with
     | 0u64, 1u64, 2u64, 3u64 => 1i32
     | _ => 0i32
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl lease_denied (handler : command_handler) : bool =
+    match handler with
+    | LeaseDeniedHandler => true
+    | _ => false
+
+///> rust
+test public_verb_codes_and_descriptors_keep_their_wire_values =
+    expect (command_code "status" = 0u64) "status is code 0"
+    expect (command_code "help" = 5u64) "help is code 5"
+    expect (command_code "--help" = 5u64) "--help routes to help"
+    expect (command_code "nope" = missing_code ()) "an unknown verb misses with u64::MAX"
+    expect (command_effect_code "bundle" = 1u64) "bundle wraps"
+    expect (command_effect_code "agile" = 2u64) "agile mutates"
+    expect (command_effect_code "nope" = 0u64) "unknown inspects"
+    expect (command_count () = 6i32) "six public verbs"
+    expect (command_schema_witness () = 1i32) "schema witness"
+    expect (lease_denied (handler_from_code 7i32)) "code 7 is the lease denial"
+    inl name, effect, usage, summary, handler = command_descriptor_by_index "3"
+    expect (name = "bundle" && effect = "wrap" && handler = "bundle") "bundle descriptor"
+    expect (summary = "check create verify rehydrate and retain bundles") summary
+    expect (rust_std_string.model.starts_with usage "bundle: growth-baseline") usage
+    inl unknown, unknown_effect, unknown_usage, unknown_summary, _ = command_descriptor_by_index "6"
+    inl signed, _, _, _, _ = command_descriptor_by_index "+3"
+    expect (signed = "unknown") "only canonical index text selects a verb"
+    expect (unknown = "unknown" && unknown_effect = "inspect" && unknown_usage = "unknown" && unknown_summary = "unknown public verb") unknown_usage
+    expect (toolchain_action_code "cargo-check" = 2u64) "cargo-check is code 2"
+    expect (toolchain_action_code "spiral-version" = 7u64) "spiral-version is code 7"
+    expect (toolchain_action_code "make" = missing_code ()) "an unknown action misses with u64::MAX"
+    expect (help_flag_code "--schema" = 2u64) "--schema is code 2"
+    expect (help_flag_code "status" = 3u64) "a verb is a help target"
+    expect (help_flag_witness () = 1i32) "help flag witness"
+
+inl catalog_name (~catalog : string) (index : i32) : string = $'std::rc::Rc::<str>::from((!catalog).strip_prefix("proxy: ").unwrap_or("").trim_end_matches(" ...").split(char::from(124u8)).nth(!index as usize).unwrap_or(""))' : string
+inl usage_starts_with_name (~usage : string) (~name : string) : bool = $'{ let mut words = (!usage).split_whitespace(); words.next() == Some("proxy") && words.next() == Some(&*!name) }' : bool
+
+let rec proxy_usages_aligned (~catalog : string) (index : i32) (checked : i32) : i32 =
+    inl name = catalog_name catalog index
+    if name = "" then checked
+    elif usage_starts_with_name (proxy_usage name) name then proxy_usages_aligned catalog (index + 1i32) (checked + 1i32)
+    else -1i32 - index
+
+///> rust
+test every_advertised_proxy_has_its_own_usage_and_unknown_names_get_none =
+    inl _, _, catalog, _, _ = command_descriptor_by_index "4"
+    expect (50i32 < proxy_usages_aligned catalog 0i32 0i32) catalog
+    expect (proxy_usage "source-stats" = "proxy source-stats <root> [--crates]") (proxy_usage "source-stats")
+    expect (proxy_usage "source-topology" = "proxy source-topology <root> [state/authority_census.spi]") (proxy_usage "source-topology")
+    expect (proxy_usage "source-map" = "proxy source-map <root>") (proxy_usage "source-map")
+    expect (proxy_usage "source-diff" = "proxy source-diff <left-root> <right-root>") (proxy_usage "source-diff")
+    expect (proxy_usage "" = "") "empty name"
+    expect (proxy_usage "source-stat" = "") "prefix of a capability"
+    expect (proxy_usage "SOURCE-STATS" = "") "case matters"
+    expect (proxy_usage "source-stats extra" = "") "trailing words"
+    expect (proxy_usage "not-a-capability" = "") "unknown capability"

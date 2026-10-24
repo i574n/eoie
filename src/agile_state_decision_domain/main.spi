@@ -25,8 +25,17 @@ inl agile_state_module_name_class_code = function
     | StableStateModuleName => 0u64
     | TransientStateReceiptName => 1u64
 
+union transient_receipt =
+    | PatchResumeReceipt
+    | ToolchainProcessReceipt
+
+inl transient_receipt_file (receipt : transient_receipt) : string =
+    match receipt with
+    | PatchResumeReceipt => "patch_resume.spi"
+    | ToolchainProcessReceipt => "toolchain_process_receipt.spi"
+
 let agile_transient_state_name_code (~name : string) : u64 =
-    if rust_std_string.model.pipe_member "patch_resume.spi|toolchain_process_receipt.spi" name then
+    if union_reflection.cases.union_case_where (fun (receipt : transient_receipt) => name = transient_receipt_file receipt) (fun _ => true) false then
         agile_state_module_name_class_code TransientStateReceiptName
     else
         agile_state_module_name_class_code StableStateModuleName
@@ -37,6 +46,13 @@ union agile_record_requirement =
     | BenchStateRecord
     | MigrationStateRecord
 
+inl agile_record_file (record : agile_record_requirement) : string =
+    match record with
+    | HistoryStateRecord => "history.spi"
+    | RatingsStateRecord => "ratings.spi"
+    | BenchStateRecord => "bench.spi"
+    | MigrationStateRecord => "migration.spi"
+
 inl agile_record_requirement_bit = function
     | HistoryStateRecord => 1u64
     | RatingsStateRecord => 2u64
@@ -44,14 +60,10 @@ inl agile_record_requirement_bit = function
     | MigrationStateRecord => 8u64
 
 let agile_record_required_name_bit (~name : string) : u64 =
-    if rust_std_string.model.equals name "history.spi" then agile_record_requirement_bit HistoryStateRecord
-    elif rust_std_string.model.equals name "ratings.spi" then agile_record_requirement_bit RatingsStateRecord
-    elif rust_std_string.model.equals name "bench.spi" then agile_record_requirement_bit BenchStateRecord
-    elif rust_std_string.model.equals name "migration.spi" then agile_record_requirement_bit MigrationStateRecord
-    else 0u64
+    union_reflection.cases.union_case_where (fun (record : agile_record_requirement) => name = agile_record_file record) (fun record => agile_record_requirement_bit record) 0u64
 
 let agile_record_required_catalog (~version : string) : string =
-    if rust_std_string.model.equals version "v1" then "history.spi|ratings.spi|bench.spi|migration.spi" else ""
+    if version = "v1" then union_reflection.cases.union_cases_joined (fun (record : agile_record_requirement) => agile_record_file record) "|" else ""
 
 let agile_record_preflight_binding (observed_mask : i32) (reserved : i32) : i32 =
     if observed_mask < 0i32 || 15i32 < observed_mask || reserved < 0i32 || 0i32 < reserved then -1i32

@@ -476,29 +476,24 @@ fn closure4() -> Rc<dyn Fn(i32) -> i32> {
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn source_directory_kind_5(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".git"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: bool = v0 == v1 ;
-    if v2 {
+    let mut v1: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".git"); } LIT.with(|lit| lit.clone()) };
+    if v1 {
         0u64
     } else {
-        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("vendor"); } LIT.with(|lit| lit.clone()) };
-        let mut v4: bool = v0 == v3 ;
-        if v4 {
+        let mut v2: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("vendor"); } LIT.with(|lit| lit.clone()) };
+        if v2 {
             1u64
         } else {
-            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("target"); } LIT.with(|lit| lit.clone()) };
-            let mut v6: bool = v0 == v5 ;
-            if v6 {
+            let mut v3: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("target"); } LIT.with(|lit| lit.clone()) };
+            if v3 {
                 2u64
             } else {
-                let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cache"); } LIT.with(|lit| lit.clone()) };
-                let mut v8: bool = v0 == v7 ;
-                if v8 {
+                let mut v4: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(".cache"); } LIT.with(|lit| lit.clone()) };
+                if v4 {
                     4u64
                 } else {
-                    let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("_build"); } LIT.with(|lit| lit.clone()) };
-                    let mut v10: bool = v0 == v9 ;
-                    if v10 {
+                    let mut v5: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("_build"); } LIT.with(|lit| lit.clone()) };
+                    if v5 {
                         5u64
                     } else {
                         3u64

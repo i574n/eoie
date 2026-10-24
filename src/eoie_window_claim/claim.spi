@@ -1,0 +1,41 @@
+open sm'_operators
+open eoie_jobs.host
+open eoie_machine_windows.window_model
+open eoie_machine_windows.windows
+open eoie_tree_lease.lease
+
+inl reading_window (row : window_row) : bool =
+    match row.kind with
+    | TreeRead => true
+    | _ => false
+
+let rec leases_of_rows (~rows : string) (leases : stored_leases) : stored_leases =
+    if rows = "" then leases
+    else
+        inl rest = leases_of_rows (other_rows rows) leases
+        match row_of (first_row rows) with
+        | RowKnown row =>
+            if reading_window row
+            then LeaseThen (stored (ReadLease { root = row.label; holder = row.id; until_ms = row.until_ms }), rest)
+            else rest
+        | RowUnknown => rest
+
+let window_claim_run () : i32 =
+    inl path = argument 3i32
+    if path = "" then
+        stderr_line "eoie error: window claim <path> (refused while a tree-read window covers the path)"
+        2i32
+    else
+        inl now = now_ms ()
+        inl verdict = edit_verdict_of (claim_of (leases_of_rows (stored_rows (windows_root ())) NoLeases) path now)
+        match verdict with
+        | EditAllowed =>
+            stdout_line ("eoie window claim ok path=" ++# path ++# " " ++# verdict_text verdict now)
+            0i32
+        | EditRefused _ =>
+            stdout_line ("eoie window claim refused path=" ++# path ++# " " ++# verdict_text verdict now)
+            1i32
+
+inl main () : i32 =
+    !!!!Export("eoie_window_claim_run", ((fun () => window_claim_run ()) : () -> i32))
+    0i32

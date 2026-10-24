@@ -1,3 +1,5 @@
+open sm'_operators
+
 union effect_lookup =
     | ByOperandCount
     | BySubcommandMode
@@ -5,7 +7,7 @@ union effect_lookup =
     | ByVerb
 
 inl unknown_effect () : u64 = 4u64
-inl process_argument (index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(!index as usize).unwrap_or_default())' : string
+let process_argument (index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
 inl process_operand_count () : string = $'std::rc::Rc::<str>::from(std::env::args().count().saturating_sub(3).to_string())' : string
 inl known_effect (code : u64) : bool = $"!code <= 3"
 inl subcommand_effect (~key : string) : u64 = $"command_spec_domain::eoie_command_subcommand_effect_code(&!key)" : u64
@@ -14,10 +16,10 @@ inl effect_code_i32 (code : u64) : i32 = $"!code as i32" : i32
 
 inl effect_for (lookup : effect_lookup) : u64 =
     inl verb = process_argument 1i32
-    inl key = rust_std_string.model.concat5 verb ":" (process_argument 2i32) "" ""
+    inl key = verb ++# ":" ++# (process_argument 2i32)
     match lookup with
-    | ByOperandCount => subcommand_effect (rust_std_string.model.concat5 key "/" (process_operand_count ()) "" "")
-    | BySubcommandMode => subcommand_effect (rust_std_string.model.concat5 key ":" (process_argument 3i32) "" "")
+    | ByOperandCount => subcommand_effect (key ++# "/" ++# (process_operand_count ()))
+    | BySubcommandMode => subcommand_effect (key ++# ":" ++# (process_argument 3i32))
     | BySubcommand => subcommand_effect key
     | ByVerb => verb_effect verb
 
@@ -47,11 +49,11 @@ inl eoie_config_file (~name : string) : string =
     inl xdg_home = environment_text "XDG_CONFIG_HOME"
     inl app_data = environment_text "APPDATA"
     inl user_home = environment_text "USERPROFILE"
-    if present eoie_home then rust_std_string.model.concat5 eoie_home "/" name "" ""
-    elif present xdg_home then rust_std_string.model.concat5 xdg_home "/eoie/" name "" ""
-    elif present app_data then rust_std_string.model.concat5 app_data "/eoie/" name "" ""
-    elif present user_home then rust_std_string.model.concat5 user_home "/.config/eoie/" name "" ""
-    else rust_std_string.model.concat5 (environment_text "HOME") "/.config/eoie/" name "" ""
+    if present eoie_home then eoie_home ++# "/" ++# name
+    elif present xdg_home then xdg_home ++# "/eoie/" ++# name
+    elif present app_data then app_data ++# "/eoie/" ++# name
+    elif present user_home then user_home ++# "/.config/eoie/" ++# name
+    else (environment_text "HOME") ++# "/.config/eoie/" ++# name
 
 inl lease_policy_from (origin : lease_policy_origin) : string =
     match origin with
@@ -87,7 +89,7 @@ inl bool_flag (value : bool) : string = if value then "1" else "0"
 inl clock_now_ms () : u64 = $'std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)' : u64
 
 inl two_digits (value : u64) : string =
-    if u64_le value 9u64 then rust_std_string.model.concat5 "0" (u64_text value) "" "" ""
+    if u64_le value 9u64 then "0" ++# (u64_text value)
     else u64_text value
 
 inl duration_text (milliseconds : u64) : string =
@@ -95,13 +97,13 @@ inl duration_text (milliseconds : u64) : string =
     inl hours = seconds / 3600u64
     inl minutes = (seconds / 60u64) % 60u64
     inl rest = seconds % 60u64
-    if u64_positive hours then rust_std_string.model.concat5 (u64_text hours) "h" (two_digits minutes) "m" ""
-    elif u64_positive minutes then rust_std_string.model.concat5 (u64_text minutes) "m" (two_digits rest) "s" ""
-    else rust_std_string.model.concat5 (u64_text rest) "s" "" "" ""
+    if u64_positive hours then (u64_text hours) ++# "h" ++# (two_digits minutes) ++# "m"
+    elif u64_positive minutes then (u64_text minutes) ++# "m" ++# (two_digits rest) ++# "s"
+    else (u64_text rest) ++# "s"
 
 inl relative_text (now : u64) (moment : u64) : string =
-    if u64_le moment now then rust_std_string.model.concat5 (duration_text (u64_minus now moment)) "_ago" "" "" ""
-    else rust_std_string.model.concat5 "in_" (duration_text (u64_minus moment now)) "" "" ""
+    if u64_le moment now then (duration_text (u64_minus now moment)) ++# "_ago"
+    else "in_" ++# (duration_text (u64_minus moment now))
 
 inl policy_name () : string =
     inl configured = lease_policy_entry ()
@@ -109,13 +111,13 @@ inl policy_name () : string =
 
 let lease_status_entry (~root : string) (started : u64) (wrap_at : u64) (deadline : u64) (remaining : u64) (should_wrap : bool) (should_yield : bool) : string =
     inl now = clock_now_ms ()
-    inl head = rust_std_string.model.concat5 "eoie agile lease status root=" root " phase=" (lease_phase_text (lease_phase_of should_wrap should_yield)) " policy="
-    inl readable = rust_std_string.model.concat5 (policy_name ()) " started=" (relative_text now started) " wrap_at=" (relative_text now wrap_at)
-    inl remaining_text = rust_std_string.model.concat5 " deadline=" (relative_text now deadline) " remaining=" (duration_text remaining) ""
-    inl flags = rust_std_string.model.concat5 " should_wrap=" (bool_flag should_wrap) " should_yield=" (bool_flag should_yield) ""
-    inl raw_start = rust_std_string.model.concat5 " started_unix_ms=" (u64_text started) " wrap_at_unix_ms=" (u64_text wrap_at) ""
-    inl raw_end = rust_std_string.model.concat5 " deadline_unix_ms=" (u64_text deadline) " remaining_ms=" (u64_text remaining) ""
-    rust_std_string.model.concat5 (rust_std_string.model.concat5 head readable remaining_text "" "") flags raw_start raw_end ""
+    inl head = "eoie agile lease status root=" ++# root ++# " phase=" ++# (lease_phase_text (lease_phase_of should_wrap should_yield)) ++# " policy="
+    inl readable = (policy_name ()) ++# " started=" ++# (relative_text now started) ++# " wrap_at=" ++# (relative_text now wrap_at)
+    inl remaining_text = " deadline=" ++# (relative_text now deadline) ++# " remaining=" ++# (duration_text remaining)
+    inl flags = " should_wrap=" ++# (bool_flag should_wrap) ++# " should_yield=" ++# (bool_flag should_yield)
+    inl raw_start = " started_unix_ms=" ++# (u64_text started) ++# " wrap_at_unix_ms=" ++# (u64_text wrap_at)
+    inl raw_end = " deadline_unix_ms=" ++# (u64_text deadline) ++# " remaining_ms=" ++# (u64_text remaining)
+    (head ++# readable ++# remaining_text) ++# flags ++# raw_start ++# raw_end
 
 inl main () : i32 =
     !!!!Export("eoie_lease_effect_code", ((fun () => lease_effect_entry ()) : () -> i32))

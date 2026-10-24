@@ -1,5 +1,7 @@
 inl proxy_argument (index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(2 + !index as usize).unwrap_or_default())' : string
-inl proxy_argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+let proxy_argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
 inl rooted_path (~root : string) (~relative : string) : string =
     $'eoie_rust_std_fs::rooted_path(std::path::Path::new(&*!root), &*!relative).map(|path| std::rc::Rc::<str>::from(path.to_string_lossy().as_ref())).unwrap_or_else(|_| std::rc::Rc::<str>::from(""))' : string
 inl rooted_path_problem (~root : string) (~relative : string) : string =

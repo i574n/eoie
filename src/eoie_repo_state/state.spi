@@ -1,8 +1,6 @@
 ///- --package .
 test state static =
-    open rust_std_string.model
 
-open rust_std_string.model
 
 union entry_kind =
     | TrackedChange
@@ -13,11 +11,11 @@ union entry_kind =
     | OtherLine
 
 inl entry_kind_of (~line : string) : entry_kind =
-    if starts_with line "1 " then TrackedChange
-    elif starts_with line "2 " then RenamedChange
-    elif starts_with line "? " then UntrackedEntry
-    elif starts_with line "u " then UnmergedEntry
-    elif starts_with line "# " then HeaderLine
+    if sm'.starts_with "1 " line then TrackedChange
+    elif sm'.starts_with "2 " line then RenamedChange
+    elif sm'.starts_with "? " line then UntrackedEntry
+    elif sm'.starts_with "u " line then UnmergedEntry
+    elif sm'.starts_with "# " line then HeaderLine
     else OtherLine
 
 type change_counts =

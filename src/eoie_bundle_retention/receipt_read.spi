@@ -1,8 +1,8 @@
 ///- --package .
 test receipt_read static =
-    open rust_std_string.model
+    open sm'_operators
 
-open rust_std_string.model
+open sm'_operators
 
 union field_value =
     | Absent
@@ -57,8 +57,8 @@ let field_applied (fields : receipt_fields) (~field : string) : field_step =
         elif key = "current" then FieldTaken { fields with current = Present value }
         elif key = "candidates" || key = "deletes" || key = "remaining" then counted fields key value
         elif key = "status" then FieldTaken { fields with status = Present value }
-        else FieldRejected (concat5 "unknown retention receipt field: " key "" "" "")
-    else FieldRejected (concat5 "invalid retention receipt field: " field "" "" "")
+        else FieldRejected ("unknown retention receipt field: " ++# key)
+    else FieldRejected ("invalid retention receipt field: " ++# field)
 
 let rec fields_from (~line : string) (index : u64) (count : u64) (fields : receipt_fields) : field_step =
     if index < count then
@@ -99,8 +99,8 @@ let receipt_reading_of (~text : string) : receipt_reading =
                         | _, ReceiptRejected reason => ReceiptRejected reason
                         | ReceiptRead remaining, ReceiptRead status =>
                             if status = "planned" || status = "applied" then
-                                ReceiptRead (concat5 (concat5 fingerprint "\t" current "\t" candidates) "\t" (concat5 deletes "\t" remaining "\t" status) "" "")
-                            else ReceiptRejected (concat5 "invalid retention receipt status: " status "" "" "")
+                                ReceiptRead ((fingerprint ++# "\t" ++# current ++# "\t" ++# candidates) ++# "\t" ++# (deletes ++# "\t" ++# remaining ++# "\t" ++# status))
+                            else ReceiptRejected ("invalid retention receipt status: " ++# status)
 
 let receipt_error (~text : string) : string =
     match receipt_reading_of text with
@@ -114,7 +114,7 @@ let receipt_row (~text : string) : string =
 
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
 
-inl marker (~fields : string) : string = concat5 "// retention-receipt|" fields "\nunion retention_receipt_status =\n" "" ""
+inl marker (~fields : string) : string = "// retention-receipt|" ++# fields ++# "\nunion retention_receipt_status =\n"
 
 ///> rust
 test a_written_receipt_reads_back_as_one_row =

@@ -1,107 +1,15 @@
 #![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::collections::BTreeSet;
-use std::env;
-use std::fs;
-use std::path::Path;
-
-#[must_use]
-pub fn handoff_render() -> i32 {
-    match handoff_impl() {
-        Ok(()) => 0,
-        Err(error) => { eprintln!("eoie error: {error}"); 2 }
-    }
-}
-
-fn handoff_args() -> Vec<String> { env::args().skip(2).collect() }
-
-fn state_text(root: &Path, relative: &str) -> Result<Option<String>, String> {
-    let path = root.join(relative);
-    match fs::read_to_string(&path) {
-        Ok(source) => Ok(Some(source)),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(format!("read {}: {error}", path.display())),
-    }
-}
-
-fn required_projection(label: &str, value: std::rc::Rc<str>) -> Result<String, String> {
-    if value.is_empty() { Err(format!("{label} projection rejected typed state")) } else { Ok(value.to_string()) }
-}
-
-fn recorded_state_lines(root: &Path) -> Result<Vec<String>, String> {
-    let Some(ratings) = state_text(root, "state/ratings.spi")? else { return Ok(Vec::new()); };
-    let Some(census) = state_text(root, "state/authority_census.spi")? else { return Ok(Vec::new()); };
-    let ratings_line = required_projection("ratings", handoff_state_projection_domain::eoie_handoff_ratings_projection(&ratings))?;
-    let census_line = required_projection("authority census", handoff_state_projection_domain::eoie_handoff_census_projection(&census))?;
-    let authority_mask = authority_state_domain::eoie_authority_declared_mask(0, 0);
-    let authority_code = authority_state_domain::eoie_authority_state(authority_mask, 0);
-    if authority_mask < 0 || authority_code < 0 { return Err("compiled authority projection rejected".to_owned()); }
-    let authority = if authority_code == 1 { "exclusive" } else { "blocked" };
-    let mut lines = vec![ratings_line, format!("authority={authority} blocker_mask={authority_mask} {census_line}")];
-    if let Some(toolchain) = state_text(root, "state/toolchain_identity.spi")? {
-        lines.push(required_projection("toolchain", handoff_evidence_projection_domain::eoie_handoff_toolchain_projection(&toolchain))?);
-    }
-    if let Some(cold) = state_text(root, "state/cold_proof.spi")? {
-        lines.push(required_projection("cold proof", handoff_evidence_projection_domain::eoie_handoff_cold_projection(&cold))?);
-    }
-    Ok(lines)
-}
-
-fn active_work_lines(root: &Path) -> Result<Vec<String>, String> {
-    let Some(agile) = state_text(root, "state/agile.spi")? else { return Ok(Vec::new()); };
-    let raw = required_projection("active work", handoff_active_work_projection_domain::eoie_handoff_active_work_projection(&agile))?;
-    let payload = if raw == "ok" { "" } else { raw.strip_prefix("ok\n").ok_or_else(|| "active work projection returned invalid envelope".to_owned())? };
-    let mut items = payload.lines().filter(|line| !line.is_empty()).map(str::to_owned).collect::<Vec<_>>();
-    items.sort();
-    Ok(items)
-}
-
-fn handoff_impl_with_args(args: &[String]) -> Result<(), String> {
-    if args.len() != 2 || args.first().map(String::as_str) != Some("handoff") {
-        return Err("agile handoff expects handoff <root>".to_owned());
-    }
-    let root = Path::new(&args[1]);
-    let Some(handoff_state) = state_text(root, "state/handoff.spi")? else { return Err("state/handoff.spi is missing".to_owned()); };
-    let sections = required_projection("handoff sections", handoff_sections_projection_domain::eoie_handoff_sections_projection(&handoff_state))?;
-    let section_markdown = sections.strip_prefix("ok").ok_or_else(|| "handoff sections projection returned invalid envelope".to_owned())?;
-    let mut out = String::from("# EOIE handoff\n");
-    let recorded = recorded_state_lines(root)?;
-    if !recorded.is_empty() {
-        out.push_str("\n## Recorded state\n");
-        out.push_str("\nSaved ratings, census and receipts are shown below with compiled authority declarations. This command does not revalidate their freshness or certify a release.\n");
-        for line in recorded { out.push_str(&format!("\n{line}\n")); }
-    }
-    out.push_str(&format!("{section_markdown}\n"));
-    let work = active_work_lines(root)?;
-    if !work.is_empty() {
-        out.push_str("\n## Active work\n");
-        for item in work { out.push_str(&format!("\n- {item}\n")); }
-    }
-    let mut stdout = std::io::stdout().lock();
-    match std::io::Write::write_all(&mut stdout, out.as_bytes()).and_then(|()| std::io::Write::flush(&mut stdout)) { Err(error) if error.kind() != std::io::ErrorKind::BrokenPipe => Err(format!("write handoff: {error}")), _ => Ok(()) }
-}
-
-
-fn handoff_impl() -> Result<(), String> {
-    let args = handoff_args();
-    handoff_impl_with_args(&args)
-}
-
-#[must_use]
-pub fn handoff_render_owned(root: &str) -> i32 {
-    let args = vec!["handoff".to_owned(), root.to_owned()];
-    match handoff_impl_with_args(&args) {
-        Ok(()) => 0,
-        Err(error) => { eprintln!("eoie error: {error}"); 2 }
-    }
-}
-
 
 
 use eoie_rust_std_fs::atomic_write as binary_install_atomic_write;
 use eoie_rust_std_fs::{portable_mode, portable_set_mode, portable_mode_matches};
 use std::path::PathBuf;
+use std::collections::BTreeSet;
+use std::env;
+use std::fs;
+use std::path::Path;
 #[derive(Clone)] struct BinaryInstallOriginal{bytes:Vec<u8>,mode:u32}
 
 fn binary_install_arg<'a>(a:&'a[String],i:usize,n:&str)->Result<&'a str,String>{a.get(i).map(String::as_str).ok_or_else(||format!("missing argument: {n}"))}

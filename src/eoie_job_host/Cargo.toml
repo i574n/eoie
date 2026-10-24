@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "host_run.spi"
+output = "host_run.rs"
+
+[package]
+name = "eoie-job-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_job_host"
+path = "host_run.rs"

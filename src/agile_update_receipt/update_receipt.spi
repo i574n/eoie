@@ -1,11 +1,12 @@
 open workspace_primitives.numbers
+open sm'_operators
 open workspace_primitives.clock
 open workspace_primitives.files
 
 let agile_set_receipt_text (~id : string) (progress : i32) (~status : string) (before : u64) (after : u64) (started : u64) : string =
-    inl head = rust_std_string.model.concat5 "eoie agile set ok id=" id " progress=" (i32_text progress) " status="
-    inl attested = rust_std_string.model.concat5 head status " validation=runtime-attested compiler=not-required" "" ""
-    rust_std_string.model.concat5 attested (measured_sizes before after (ms_since started)) "" "" ""
+    inl head = "eoie agile set ok id=" ++# id ++# " progress=" ++# (i32_text progress) ++# " status="
+    inl attested = head ++# status ++# " validation=runtime-attested compiler=not-required"
+    attested ++# (measured_sizes before after (ms_since started))
 
 let agile_clock_ms () : u64 = unix_ms ()
 

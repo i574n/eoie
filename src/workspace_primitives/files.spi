@@ -17,7 +17,7 @@ inl file_replacement_problem = function
     | ReadbackMismatch => "readback did not match the written file"
 
 inl replace_file_checked (~path : string) (~text : string) : file_replacement =
-    inl temporary = rust_std_string.model.concat5 path ".pending" "" "" ""
+    inl temporary = rust_std_string.model.concat5 path "." ($'std::rc::Rc::<str>::from(std::process::id().to_string().as_str())' : string) ".pending" ""
     if write_text temporary text then
         if rename path temporary then
             if text_equals text path then Replaced else ReadbackMismatch

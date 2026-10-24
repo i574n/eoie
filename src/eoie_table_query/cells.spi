@@ -1,0 +1,42 @@
+nominal table_cells = $'std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>'
+
+nominal key_rows = $'std::rc::Rc<std::cell::RefCell<std::collections::HashMap<std::rc::Rc<str>, i32>>>'
+
+union table_load =
+    | TableLoaded : table_cells
+    | TableUnreadable : string
+
+inl table_read (~path : string) : table_load =
+    inl loaded, cells, problem =
+        $'{ let path = &*!path; match std::fs::read_to_string(path) { Ok(text) => { let separator = if path.ends_with(".csv") { char::from(44u8) } else { char::from(9u8) }; (true, std::rc::Rc::new(text.lines().map(|line| line.split(separator).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>()), std::rc::Rc::<str>::from("")) } Err(error) => (false, std::rc::Rc::new(Vec::new()), std::rc::Rc::<str>::from(format\!("{path}: {error}").as_str())) } }' : bool * table_cells * string
+    if loaded then TableLoaded cells else TableUnreadable problem
+
+inl row_total (cells : table_cells) : i32 = $'((!cells).len().max(1) - 1) as i32' : i32
+
+inl cell_at (cells : table_cells) (row : i32) (column : i32) : string =
+    $'std::rc::Rc::<str>::from((!cells).get(!row as usize).and_then(|cells| cells.get(!column as usize)).map(|cell| &**cell).unwrap_or(""))' : string
+
+inl column_of (cells : table_cells) (~name : string) : i32 =
+    $'(!cells).first().and_then(|header| header.iter().position(|item| &**item == &*!name)).map(|index| index as i32).unwrap_or(-1)' : i32
+
+inl header_joined (cells : table_cells) (~separator : string) : string =
+    $'std::rc::Rc::<str>::from((!cells).first().map(|header| header.iter().map(|item| &**item).collect::<Vec<_>>().join(&*!separator)).unwrap_or_default().as_str())' : string
+
+inl key_of (cells : table_cells) (row : i32) (~columns : string) : string =
+    $'std::rc::Rc::<str>::from((!columns).split(char::from(44u8)).map(|index| index.parse::<usize>().ok().and_then(|index| (!cells).get(!row as usize).and_then(|cells| cells.get(index))).map(|cell| cell.to_string()).unwrap_or_default()).collect::<Vec<_>>().join("|").as_str())' : string
+
+inl key_rows_new () : key_rows = $'std::rc::Rc::new(std::cell::RefCell::new(std::collections::HashMap::new()))' : key_rows
+inl key_row (rows : key_rows) (~key : string) : i32 = $'(!rows).borrow().get(&*!key).copied().unwrap_or(-1)' : i32
+inl key_row_set (rows : key_rows) (~key : string) (row : i32) : () = $'{ (!rows).borrow_mut().insert(!key.clone(), !row); }' : ()
+inl key_rows_count (rows : key_rows) : i32 = $'(!rows).borrow().len() as i32' : i32
+
+inl stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl i32_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+inl head_of (~list : string) (~separator : string) : string = $'std::rc::Rc::<str>::from((!list).split(&*!separator).next().unwrap_or(""))' : string
+inl tail_of (~list : string) (~separator : string) : string = $'std::rc::Rc::<str>::from((!list).split_once(&*!separator).map(|(_, rest)| rest).unwrap_or(""))' : string
+inl below_limit (count : i32) (limit : u64) : bool = $'(!count as u64) < !limit' : bool
+
+inl rejected (~message : string) : i32 =
+    stderr_line (rust_std_string.model.concat5 "eoie error: table " message "" "" "")
+    2i32

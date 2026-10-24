@@ -6,7 +6,7 @@ param(
     [switch]$IncludeAuxiliary,
     [string]$TargetDirectory,
     [string]$CompilerBundle = $env:EOIE_SPIRAL_BUNDLE,
-    [ValidateRange(1, 600)][int]$TimeoutSec = 180,
+    [ValidateRange(1, 1800)][int]$TimeoutSec = 180,
     [switch]$CargoCheck,
     [switch]$Test,
     [switch]$SkipRelease,
@@ -20,6 +20,11 @@ if ($TargetDirectory) { $TargetDirectory = [IO.Path]::GetFullPath($TargetDirecto
 if ($CompilerContracts -and -not $Test) { throw '-CompilerContracts requires -Test.' }
 if ($Publish -and -not ($CargoCheck -or $Test)) { throw '-Publish requires -CargoCheck or -Test.' }
 . $PSScriptRoot/workspace.ps1
+if ($Publish) {
+    $leaseDir = Join-Path ($env:LOCALAPPDATA ?? $HOME) 'eoie/tree-leases'
+    New-Item -ItemType Directory -Force $leaseDir | Out-Null
+    "root=$((Resolve-Path -LiteralPath ($EoieRoot ? $EoieRoot : (Split-Path $PSScriptRoot))).Path)`npid=$PID`nholder=eoie regeneration -Publish`nsince=$(Get-Date -Format HH:mm)" | Set-Content (Join-Path $leaseDir "regeneration-$PID.lease")
+}
 if (-not $EoieRoot) { $EoieRoot = Join-Path $PSScriptRoot '..' }
 $EoieRoot = (Resolve-Path -LiteralPath $EoieRoot).Path
 $selected = @(Get-EoieOwners -Root $EoieRoot -Package $Package -Filter $Filter -IncludeAuxiliary:$IncludeAuxiliary)
@@ -65,6 +70,19 @@ function Copy-Workspace([string]$From, [string]$To) {
     }
 }
 Copy-Workspace $EoieRoot $staged
+$spiralLib = Join-Path $CompilerBundle '../../../lib/spiral'
+$libReaders = @(Get-ChildItem -LiteralPath (Join-Path $staged 'src') -Directory | Where-Object { $project = Join-Path $_.FullName 'package.spiproj'; [IO.File]::Exists($project) -and [IO.File]::ReadAllText($project) -match '(?m)^\s*\|?spiral-\s*$' })
+$libPresent = Test-Path -LiteralPath (Join-Path $spiralLib 'package.spiproj')
+if ($libReaders.Count -and -not $libPresent) { throw "Spiral lib not found at $spiralLib; $($libReaders[0].Name) and $($libReaders.Count - 1) other packages reference it as spiral-." }
+$stagedLib = Join-Path $staged 'src/spiral'
+$libRoot = if ($libPresent) { (Resolve-Path -LiteralPath $spiralLib).Path } else { '' }
+foreach ($file in $(if ($libRoot) { Get-ChildItem -LiteralPath $libRoot -Recurse -File -Include *.spi, *.spir, package.spiproj })) {
+    $relative = $file.FullName.Substring($libRoot.Length).TrimStart('\', '/')
+    if ($relative -match '(^|[\\/])(target|node_modules|bench)[\\/]') { continue }
+    $destination = Join-Path $stagedLib $relative
+    New-Item -ItemType Directory -Path (Split-Path $destination) -Force | Out-Null
+    Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
+}
 $sourceRoot = Join-Path $staged 'src'
 if (-not $TargetDirectory) { $TargetDirectory = Join-Path $sourceRoot 'target' }
 $rows = @()

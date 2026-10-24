@@ -1,4 +1,4 @@
-///- --package ../eoie_cli_harness
+///- --package ../eoie_cli_harness --timeout 900000
 open cli
 
 inl bounded_hash (root : fixture_root) (~relative : string) : cli_run =

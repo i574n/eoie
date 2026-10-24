@@ -29,7 +29,9 @@ inl process_exit_code (code : i32) : i32 = if $"!code > 255" then 255i32 else co
 
 inl proxy_flags_follow (index : i32) : bool = $'std::env::args().nth(2 + !index as usize).is_some_and(|word| word.starts_with("--"))' : bool
 
-inl proxy_argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+let proxy_argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
 
 inl proxy_words (first : i32) (last : i32) : string =
     $'std::rc::Rc::<str>::from(std::env::args().skip(2 + !first as usize).take((!last - !first).max(0) as usize).map(|word| Some(word.clone()).filter(|plain| plain.is_empty() == false && plain.chars().enumerate().all(|(at, c)| c.is_ascii_alphanumeric() || "_-./:=+,".contains(c) || c == char::from(92u8) || (c == char::from(126u8) && at > 0))).unwrap_or_else(|| [String::from(char::from(39u8)), word.replace(char::from(39u8), &String::from_iter([char::from(39u8); 2])), String::from(char::from(39u8))].concat())).collect::<Vec<_>>().join(" ").as_str())' : string

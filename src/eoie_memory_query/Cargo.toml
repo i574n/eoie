@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "query.spi"
+output = "query.rs"
+
+[package]
+name = "eoie-memory-query"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_memory_query"
+path = "query.rs"

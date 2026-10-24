@@ -1,0 +1,191 @@
+///- --package .
+test experiment_stats static =
+
+inl ln (x : f64) : f64 = $'(!x).ln()' : f64
+inl exp_of (x : f64) : f64 = $'(!x).exp()' : f64
+inl sqrt_of (x : f64) : f64 = $'(!x).max(0.0).sqrt()' : f64
+inl abs_of (x : f64) : f64 = $'(!x).abs()' : f64
+inl as_f64 (value : i32) : f64 = $'!value as f64' : f64
+inl away_from_zero (x : f64) : f64 = if abs_of x < 0.000000000000000000000000000001f64 then 0.000000000000000000000000000001f64 else x
+
+let ln_gamma (x : f64) : f64 =
+    inl leading = 1.000000000190015f64 + 76.18009172947146f64 / (x + 1.0f64) - 86.50532032941677f64 / (x + 2.0f64) + 24.01409824083091f64 / (x + 3.0f64)
+    inl series = leading - 1.231739572450155f64 / (x + 4.0f64) + 0.001208650973866179f64 / (x + 5.0f64) - 0.000005395239384953f64 / (x + 6.0f64)
+    (x + 0.5f64) * ln (x + 5.5f64) - (x + 5.5f64) + ln (2.5066282746310005f64 * series / x)
+
+let rec fraction_step (a : f64) (b : f64) (x : f64) (m : i32) (c : f64) (d : f64) (h : f64) : f64 =
+    if m > 300i32 then h
+    else
+        inl step = as_f64 m
+        inl even = step * (b - step) * x / ((a - 1.0f64 + 2.0f64 * step) * (a + 2.0f64 * step))
+        inl d_even = 1.0f64 / away_from_zero (1.0f64 + even * d)
+        inl c_even = away_from_zero (1.0f64 + even / c)
+        inl h_even = h * d_even * c_even
+        inl odd = 0.0f64 - (a + step) * (a + b + step) * x / ((a + 2.0f64 * step) * (a + 1.0f64 + 2.0f64 * step))
+        inl d_odd = 1.0f64 / away_from_zero (1.0f64 + odd * d_even)
+        inl c_odd = away_from_zero (1.0f64 + odd / c_even)
+        inl delta = d_odd * c_odd
+        if abs_of (delta - 1.0f64) < 0.00000000000003f64 then h_even * delta
+        else fraction_step a b x (m + 1i32) c_odd d_odd (h_even * delta)
+
+let beta_fraction (a : f64) (b : f64) (x : f64) : f64 =
+    inl d = 1.0f64 / away_from_zero (1.0f64 - (a + b) * x / (a + 1.0f64))
+    fraction_step a b x 1i32 1.0f64 d d
+
+let regularized_beta (a : f64) (b : f64) (x : f64) : f64 =
+    if x <= 0.0f64 then 0.0f64
+    elif x >= 1.0f64 then 1.0f64
+    else
+        inl front = exp_of (ln_gamma (a + b) - ln_gamma a - ln_gamma b + a * ln x + b * ln (1.0f64 - x))
+        if x < (a + 1.0f64) / (a + b + 2.0f64) then front * beta_fraction a b x / a
+        else 1.0f64 - front * beta_fraction b a (1.0f64 - x) / b
+
+let two_sided_p (t : f64) (df : f64) : f64 = regularized_beta (df / 2.0f64) 0.5f64 (df / (df + t * t))
+
+let student_cdf (t : f64) (df : f64) : f64 =
+    inl tail = two_sided_p t df / 2.0f64
+    if t >= 0.0f64 then 1.0f64 - tail else tail
+
+let rec quantile_search (p : f64) (df : f64) (low : f64) (high : f64) (rounds : i32) : f64 =
+    inl middle = (low + high) / 2.0f64
+    if rounds = 0i32 then middle
+    elif student_cdf middle df < p then quantile_search p df middle high (rounds - 1i32)
+    else quantile_search p df low middle (rounds - 1i32)
+
+let student_quantile (p : f64) (df : f64) : f64 =
+    if p >= 0.5f64 then quantile_search p df 0.0f64 10000.0f64 120i32
+    else 0.0f64 - quantile_search (1.0f64 - p) df 0.0f64 10000.0f64 120i32
+
+let erfc_of (x : f64) : f64 =
+    inl z = abs_of x
+    inl t = 1.0f64 / (1.0f64 + 0.5f64 * z)
+    inl inner = 0.27886807f64 + t * (0.0f64 - 1.13520398f64 + t * (1.48851587f64 + t * (0.0f64 - 0.82215223f64 + t * 0.17087277f64)))
+    inl series = 0.0f64 - 1.26551223f64 + t * (1.00002368f64 + t * (0.37409196f64 + t * (0.09678418f64 + t * (0.0f64 - 0.18628806f64 + t * inner))))
+    inl tail = t * exp_of (0.0f64 - z * z + series)
+    if x >= 0.0f64 then tail else 2.0f64 - tail
+
+let normal_cdf (x : f64) : f64 = 1.0f64 - 0.5f64 * erfc_of (x / 1.4142135623730951f64)
+
+let rec normal_search (p : f64) (low : f64) (high : f64) (rounds : i32) : f64 =
+    inl middle = (low + high) / 2.0f64
+    if rounds = 0i32 then middle
+    elif normal_cdf middle < p then normal_search p middle high (rounds - 1i32)
+    else normal_search p low middle (rounds - 1i32)
+
+let normal_quantile (p : f64) : f64 = normal_search p (0.0f64 - 40.0f64) 40.0f64 100i32
+
+type sample =
+    {
+        count : f64
+        mean : f64
+        variance : f64
+    }
+
+type t_test =
+    {
+        difference : f64
+        t : f64
+        df : f64
+        p : f64
+        low : f64
+        high : f64
+    }
+
+let welch (left : sample) (right : sample) (confidence : f64) : t_test =
+    inl left_share = left.variance / left.count
+    inl right_share = right.variance / right.count
+    inl spread = sqrt_of (left_share + right_share)
+    inl difference = left.mean - right.mean
+    inl t = difference / spread
+    inl df = (left_share + right_share) * (left_share + right_share) / (left_share * left_share / (left.count - 1.0f64) + right_share * right_share / (right.count - 1.0f64))
+    inl margin = student_quantile (1.0f64 - (1.0f64 - confidence) / 2.0f64) df * spread
+    { difference = difference; t = t; df = df; p = two_sided_p t df; low = difference - margin; high = difference + margin }
+
+let one_sample (data : sample) (prediction : f64) (confidence : f64) : t_test =
+    inl spread = sqrt_of (data.variance / data.count)
+    inl difference = data.mean - prediction
+    inl t = difference / spread
+    inl df = data.count - 1.0f64
+    inl margin = student_quantile (1.0f64 - (1.0f64 - confidence) / 2.0f64) df * spread
+    { difference = difference; t = t; df = df; p = two_sided_p t df; low = data.mean - margin; high = data.mean + margin }
+
+let rec binomial_terms (n : i32) (k : i32) (i : i32) (p : f64) (sum : f64) : f64 =
+    if i > k then sum
+    else
+        inl ways = ln_gamma (as_f64 n + 1.0f64) - ln_gamma (as_f64 i + 1.0f64) - ln_gamma (as_f64 (n - i) + 1.0f64)
+        binomial_terms n k (i + 1i32) p (sum + exp_of (ways + as_f64 i * ln p + as_f64 (n - i) * ln (1.0f64 - p)))
+
+let binomial_at_most (k : i32) (n : i32) (p : f64) : f64 =
+    if k >= n then 1.0f64
+    elif k < 0i32 then 0.0f64
+    elif p <= 0.0f64 then 1.0f64
+    elif p >= 1.0f64 then 0.0f64
+    else binomial_terms n k 0i32 p 0.0f64
+
+let wilson (successes : i32) (n : i32) (z : f64) : f64 * f64 =
+    inl count = as_f64 n
+    inl share = as_f64 successes / count
+    inl scale = 1.0f64 + z * z / count
+    inl center = (share + z * z / (2.0f64 * count)) / scale
+    inl half = z * sqrt_of (share * (1.0f64 - share) / count + z * z / (4.0f64 * count * count)) / scale
+    center - half, center + half
+
+union band_edge =
+    | LowEdge
+    | HighEdge
+
+let rec edge_count (edge : band_edge) (k : i32) (n : i32) (p : f64) (alpha : f64) : i32 =
+    inl cumulative = binomial_at_most k n p
+    inl reached =
+        match edge with
+        | LowEdge => cumulative > alpha / 2.0f64
+        | HighEdge => cumulative >= 1.0f64 - alpha / 2.0f64
+    if k >= n || reached then k else edge_count edge (k + 1i32) n p alpha
+
+let binomial_band (n : i32) (p : f64) (confidence : f64) : i32 * i32 =
+    inl alpha = 1.0f64 - confidence
+    edge_count LowEdge 0i32 n p alpha, edge_count HighEdge 0i32 n p alpha
+
+inl near (actual : f64) (expected : f64) (tolerance : f64) : bool = abs_of (actual - expected) <= tolerance
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+inl shown (value : f64) : string = $'std::rc::Rc::<str>::from(format\!("{:.9}", !value).as_str())' : string
+
+///> rust
+test student_distribution_matches_the_tables =
+    expect (near (student_cdf 2.228138852f64 10.0f64) 0.975f64 0.0000001f64) (shown (student_cdf 2.228138852f64 10.0f64))
+    expect (near (student_quantile 0.975f64 10.0f64) 2.228138852f64 0.000001f64) (shown (student_quantile 0.975f64 10.0f64))
+    expect (near (student_quantile 0.975f64 1.0f64) 12.70620474f64 0.00001f64) (shown (student_quantile 0.975f64 1.0f64))
+    expect (near (student_quantile 0.975f64 30.0f64) 2.042272456f64 0.000001f64) (shown (student_quantile 0.975f64 30.0f64))
+    expect (near (student_quantile 0.025f64 30.0f64) (0.0f64 - 2.042272456f64) 0.000001f64) "lower tail is symmetric"
+    expect (near (normal_quantile 0.975f64) 1.959963985f64 0.000001f64) (shown (normal_quantile 0.975f64))
+
+///> rust
+test welch_matches_an_independent_integration =
+    inl result = welch { count = 5.0f64; mean = 3.0f64; variance = 2.5f64 } { count = 5.0f64; mean = 6.0f64; variance = 10.0f64 } 0.95f64
+    expect (near result.t (0.0f64 - 1.8973665961f64) 0.000000001f64) (shown result.t)
+    expect (near result.df 5.8823529412f64 0.000000001f64) (shown result.df)
+    expect (near result.p 0.1075311949f64 0.0000001f64) (shown result.p)
+    expect (result.low < result.difference && result.difference < result.high && result.high > 0.0f64) "the interval spans zero when p > 0.05"
+
+///> rust
+test one_sample_t_against_a_prediction =
+    inl result = one_sample { count = 6.0f64; mean = 12.833333333333334f64; variance = 2.1666666666666665f64 } 12.0f64 0.95f64
+    expect (near result.t 1.3867504906f64 0.000000001f64) (shown result.t)
+    expect (near result.p 0.2241632761f64 0.0000001f64) (shown result.p)
+
+///> rust
+test binomial_tail_and_wilson_band =
+    expect (near (binomial_at_most 2i32 10i32 0.5f64) 0.0546875f64 0.0000000001f64) (shown (binomial_at_most 2i32 10i32 0.5f64))
+    expect (near (binomial_at_most 3i32 20i32 0.35f64) 0.0443756034f64 0.0000000001f64) (shown (binomial_at_most 3i32 20i32 0.35f64))
+    expect (binomial_at_most 10i32 10i32 0.5f64 = 1.0f64) "k = n is certain"
+    inl low, high = wilson 8i32 10i32 1.959963984540054f64
+    expect (near low 0.4901624715f64 0.0000000001f64) (shown low)
+    expect (near high 0.9433178485f64 0.0000000001f64) (shown high)
+
+///> rust
+test the_binomial_band_is_the_central_interval_of_the_predicted_rate =
+    expect (binomial_band 20i32 0.74f64 0.95f64 = (11i32, 18i32)) "Binomial(20, 0.74) at 95% is 11..18"
+    expect (binomial_band 20i32 0.5f64 0.95f64 = (6i32, 14i32)) "Binomial(20, 0.5) at 95% is 6..14"
+    expect (binomial_band 10i32 0.9f64 0.95f64 = (7i32, 10i32)) "Binomial(10, 0.9) at 95% reaches n"
+    expect (binomial_band 30i32 0.35f64 0.9f64 = (6i32, 15i32)) "Binomial(30, 0.35) at 90% is 6..15"
+    expect (binomial_band 5i32 0.99f64 0.95f64 = (4i32, 5i32)) "Binomial(5, 0.99) at 95% is 4..5"

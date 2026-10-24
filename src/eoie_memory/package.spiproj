@@ -1,0 +1,7 @@
+packages:
+    |core-
+    rust_std_string
+    union_reflection
+    eoie_memory_model
+modules:
+    memory

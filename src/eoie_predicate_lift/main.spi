@@ -6,7 +6,7 @@ inl main () : i32 =
         inl name = host.argument 2i32
         inl input = host.argument 3i32
         inl output = host.argument 4i32
-        if rust_std_string.model.ends_with input ".spi" && rust_std_string.model.ends_with output ".spi" then
+        if sm'.ends_with ".spi" input && sm'.ends_with ".spi" output then
             match rewriter.rewrite (host.read input) name kind with
             | Rejected reason =>
                 host.print (predicate_rules.model.append reason "\n")

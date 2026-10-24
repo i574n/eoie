@@ -1,6 +1,6 @@
 packages:
     |core-
-    rust_std_string
+    spiral-
     state_receipt_codec_model-
     agile_mutation_policy
     union_reflection

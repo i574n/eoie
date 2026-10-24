@@ -1,25 +1,3 @@
-nominal record_list = $'std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>'
-
-let records_of (~encoded : string) : record_list =
-    $'std::rc::Rc::new((&*!encoded).split(char::from(30u8)).map(|record| record.split(char::from(31u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
-
-inl record_count (~records : record_list) : i32 = $'!records.len() as i32' : i32
-
-let field_at (~records : record_list) (~record : i32) (~field : i32) : string =
-    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).cloned().unwrap_or_default()' : string
-
-let field_index (~records : record_list) (~record : i32) (~word : string) : i32 =
-    $'!records.get(!record as usize).and_then(|fields| fields.iter().position(|field| field.len() > 1 && field.starts_with(char::from(119u8)) && &field[1..] == &*!word)).map(|index| index as i32).unwrap_or(-1)' : i32
-
-let body_at (~records : record_list) (~record : i32) (~field : i32) : string =
-    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).filter(|field| \!field.is_empty()).map(|field| std::rc::Rc::<str>::from(&field[1..])).unwrap_or_default()' : string
-
-let quoted_at (~records : record_list) (~record : i32) (~field : i32) : bool =
-    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).map(|field| field.starts_with(char::from(113u8))).unwrap_or(false)' : bool
-
-let items_span (~records : record_list) (~record : i32) (~from : i32) (~until : i32) : string =
-    $'{ let fields = !records.get(!record as usize).cloned().unwrap_or_default(); let until = if !until < 0 { fields.len() } else { (!until as usize).min(fields.len()) }; std::rc::Rc::<str>::from(fields.iter().take(until).skip(!from as usize).filter(|raw| raw.len() > 1).flat_map(|raw| raw[1..].split(|c: char| c == char::from(44u8) || c.is_whitespace()).filter(|item| \!item.is_empty()).map(str::to_owned).collect::<Vec<_>>()).collect::<Vec<_>>().join("\n")) }' : string
-
 let part_at (~text : string) (~index : i32) : string = $'std::rc::Rc::<str>::from(!text.split(char::from(30u8)).nth(!index as usize).unwrap_or(""))' : string
 
 let line_count (~text : string) : u64 = $'(!text).lines().filter(|line| \!line.is_empty()).count() as u64' : u64

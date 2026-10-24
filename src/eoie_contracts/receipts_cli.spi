@@ -1,4 +1,4 @@
-///- --package ../eoie_cli_harness
+///- --package ../eoie_cli_harness --timeout 900000
 open cli
 
 inl lease_drops () : cli_args = Arg ("EOIE_LEASE_ROOT", Arg ("EOIE_CONTROL_READ_ONLY", NoArgs))
@@ -42,6 +42,17 @@ test file_receipts_name_their_effect =
     expect (path_exists (fixture_path root "copy.txt") = false) "copy.txt survived fs-remove"
     same (proxy_receipt root "fs-remove-tree" (Arg ("dir", NoArgs))) "eoie proxy fs-remove-tree ok removed=2 missing_ok=0 elapsed_ms=N"
     expect (path_exists (fixture_path root "dir") = false) "dir survived fs-remove-tree"
+    fixture_root_remove root
+
+///> rust
+test an_empty_payload_never_wipes_a_nonempty_file =
+    inl root = proxy_fixture "empty payload"
+    inl refused = proxy root "fs-write" (Arg ("value.txt", Arg ("--create-or-replace", Arg ("--", Arg ("", NoArgs)))))
+    expect (refused.code <> 0i32) (cat "empty payload accepted, " refused.stdout)
+    shows refused.stderr "fs-write refuses an empty payload over a non-empty file without --expect-hash"
+    same (fixture_read root "value.txt") "alpha\nbeta\ngamma\n"
+    same (proxy_receipt root "fs-write" (Arg ("empty.txt", Arg ("", NoArgs)))) "eoie proxy fs-write ok mode=create path=<root>/empty.txt bytes=0 replace_existing=0 create_or_replace=0 expect_hash=0 expect_nonempty=0 elapsed_ms=N"
+    same (proxy_receipt root "fs-write" (Arg ("empty.txt", Arg ("--create-or-replace", Arg ("--", Arg ("", NoArgs)))))) "eoie proxy fs-write ok mode=replace path=<root>/empty.txt bytes=0 replace_existing=0 create_or_replace=1 expect_hash=0 expect_nonempty=0 elapsed_ms=N"
     fixture_root_remove root
 
 ///> rust
@@ -116,9 +127,10 @@ test agile_set_receipt_names_the_update_and_rejections_leave_state_untouched =
     same (receipt_shape set "eoie agile set " "bytes_before|bytes_after|elapsed_ms") "eoie agile set ok id=ID-A progress=40 status=Active validation=runtime-attested compiler=not-required bytes_before=N bytes_after=N elapsed_ms=N"
     shows (first_line_of (agile "show" (Arg ("ID-A", NoArgs)))) "40%  Active"
     inl before = agile_state root
-    set_refused root (Arg ("ID-A", Arg ("140", Arg ("Active", NoArgs)))) "progress must be 0..100" before
-    set_refused root (Arg ("ID-A", Arg ("40", Arg ("Sleeping", NoArgs)))) "invalid agile status" before
+    set_refused root (Arg ("ID-A", Arg ("140", Arg ("Active", NoArgs)))) "agile set: progress must be a whole number 0..100, received '140'" before
+    set_refused root (Arg ("ID-A", Arg ("40", Arg ("Sleeping", NoArgs)))) "agile set: status must be Planned, Active, Blocked, Paused or Done, received 'Sleeping'" before
     set_refused root (Arg ("NO-SUCH", Arg ("10", Arg ("Active", NoArgs)))) "agile task not found: NO-SUCH" before
+    set_refused root (Arg ("ID-A", Arg ("90", Arg ("Active", Arg ("--as", Arg ("main", NoArgs)))))) "agile set records no author (only agile note does); drop --as main, or add a note with --as to say who moved ID-A" before
     fixture_root_remove root
 
 inl matrix_row (~id : string) (~arg : string) : string =

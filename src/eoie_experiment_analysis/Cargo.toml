@@ -1,0 +1,19 @@
+[package.metadata.spiral]
+entry = "analysis.spi"
+output = "analysis.rs"
+
+[package]
+name = "eoie-experiment-analysis"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_experiment_analysis"
+path = "analysis.rs"
+
+[dependencies]
+agile-task-notes = { path = "../agile_task_notes" }
+eoie-experiment-stats = { path = "../eoie_experiment_stats" }
+eoie-table-query = { path = "../eoie_table_query" }

@@ -1,7 +1,9 @@
 packages:
     |core-
+    spiral-
     rust_std_string
     eoie_receipt
+    eoie_do_records
 modules:
     host
     grammar

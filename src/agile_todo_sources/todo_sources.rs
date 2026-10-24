@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 fn walked_names_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32, mut v4: Rc<str>) -> Rc<str> {
     loop {
-        let mut v5: i32 = v2.len() as i32;
+        let mut v5: i32 = (v2.clone().len() as i32);
         let mut v6: bool = v5 <= v3;
         if v6 {
             return v4.clone();
@@ -11,66 +11,69 @@ fn walked_names_2(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: i32
             let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
             let mut v8: i32 = v2.get(v3 as usize..).and_then(|rest| rest.find(&*v7)).map(|found| (found + v3 as usize) as i32).unwrap_or(-1);
             let mut v9: bool = v8 < 0i32;
-            let mut v11: i32 = if v9 {
-                let mut v10: i32 = v2.len() as i32;
-                v10
+            let mut v10: i32 = if v9 {
+                v5
             } else {
                 v8
             };
-            let mut v12: Rc<str> = std::rc::Rc::<str>::from(v2.get(v3 as usize..v11 as usize).unwrap_or(""));
-            let mut v13: i32 = v11.wrapping_add(1i32);
-            let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            let mut v15: bool = v0 == v14 ;
-            let mut v18: Rc<str> = if v15 {
-                v12.clone()
+            let mut v11: Rc<str> = std::rc::Rc::<str>::from(v2.get(v3 as usize..v10 as usize).unwrap_or(""));
+            let mut v12: i32 = v10.wrapping_add(1i32);
+            let mut v13: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            let mut v17: Rc<str> = if v13 {
+                v11.clone()
             } else {
-                let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
-                let mut v17: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v16, &*v12, &*v14, &*v14].concat());
-                v17.clone()
+                let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
+                let mut v15: Rc<str> = Rc::<str>::from(format!("{}{}", v0, v14));
+                let mut v16: Rc<str> = Rc::<str>::from(format!("{}{}", v15, v11));
+                v16.clone()
             };
-            let mut v19: bool = v1 == v14 ;
-            let mut v22: Rc<str> = if v19 {
-                v12.clone()
+            let mut v18: bool = v1.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            let mut v22: Rc<str> = if v18 {
+                v11.clone()
             } else {
-                let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
-                let mut v21: Rc<str> = std::rc::Rc::<str>::from([&*v1, &*v20, &*v12, &*v14, &*v14].concat());
+                let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
+                let mut v20: Rc<str> = Rc::<str>::from(format!("{}{}", v1, v19));
+                let mut v21: Rc<str> = Rc::<str>::from(format!("{}{}", v20, v11));
                 v21.clone()
             };
-            let mut v23: bool = v12 == v14 ;
-            let mut v43: Rc<str> = if v23 {
+            let mut v23: bool = v11.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            let mut v46: Rc<str> = if v23 {
                 v4.clone()
             } else {
-                let mut v24: i32 = std::fs::symlink_metadata(&*v18).map(|metadata| if metadata.file_type().is_symlink() { 3 } else if metadata.is_dir() { 2 } else if metadata.is_file() { 1 } else { 0 }).unwrap_or(0);
+                let mut v24: i32 = std::fs::symlink_metadata(&*v17).map(|metadata| if metadata.file_type().is_symlink() { 3 } else if metadata.is_dir() { 2 } else if metadata.is_file() { 1 } else { 0 }).unwrap_or(0);
                 let mut v25: bool = v24 == 2i32;
                 let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("node_modules|vendor|third_party|target|dist|_build|.zig-cache|zig-out|.lake|__pycache__|.venv|venv|.gradle|.next|bin|obj|deps|.git|.cache|elm-stuff|bower_components|.dart_tool|.mypy_cache|.pytest_cache|.tox"); } LIT.with(|lit| lit.clone()) };
-                let mut v27: bool = v26.split("|").any(|item| item == &*v12);
+                let mut v27: bool = v26.split("|").any(|item| item == &*v11);
                 let mut v28: bool = v25 && v27;
                 if v28 {
                     let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("."); } LIT.with(|lit| lit.clone()) };
-                    let mut v30: bool = v22 == v14 ;
-                    let mut v33: Rc<str> = if v30 {
+                    let mut v30: bool = v22.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                    let mut v34: Rc<str> = if v30 {
                         v29.clone()
                     } else {
                         let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("/"); } LIT.with(|lit| lit.clone()) };
-                        let mut v32: Rc<str> = std::rc::Rc::<str>::from([&*v22, &*v31, &*v29, &*v14, &*v14].concat());
-                        v32.clone()
+                        let mut v32: Rc<str> = Rc::<str>::from(format!("{}{}", v22, v31));
+                        let mut v33: Rc<str> = Rc::<str>::from(format!("{}{}", v32, v29));
+                        v33.clone()
                     };
-                    let mut v34: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
-                    let mut v35: Rc<str> = std::rc::Rc::<str>::from([&*v4, &*v33, &*v34, &*v14, &*v14].concat());
-                    v35.clone()
+                    let mut v35: Rc<str> = Rc::<str>::from(format!("{}{}", v4, v34));
+                    let mut v36: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
+                    let mut v37: Rc<str> = Rc::<str>::from(format!("{}{}", v35, v36));
+                    v37.clone()
                 } else {
-                    let mut v36: i32 = std::fs::symlink_metadata(&*v18).map(|metadata| if metadata.file_type().is_symlink() { 3 } else if metadata.is_dir() { 2 } else if metadata.is_file() { 1 } else { 0 }).unwrap_or(0);
-                    let mut v37: bool = v36 == 2i32;
-                    if v37 {
-                        walked_directory_1(v18.clone(), v22.clone(), v4.clone())
+                    let mut v38: i32 = std::fs::symlink_metadata(&*v17).map(|metadata| if metadata.file_type().is_symlink() { 3 } else if metadata.is_dir() { 2 } else if metadata.is_file() { 1 } else { 0 }).unwrap_or(0);
+                    let mut v39: bool = v38 == 2i32;
+                    if v39 {
+                        walked_directory_1(v17.clone(), v22.clone(), v4.clone())
                     } else {
-                        let mut v39: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
-                        let mut v40: Rc<str> = std::rc::Rc::<str>::from([&*v4, &*v22, &*v39, &*v14, &*v14].concat());
-                        v40.clone()
+                        let mut v41: Rc<str> = Rc::<str>::from(format!("{}{}", v4, v22));
+                        let mut v42: Rc<str> = std::rc::Rc::<str>::from(char::from(0u8).to_string());
+                        let mut v43: Rc<str> = Rc::<str>::from(format!("{}{}", v41, v42));
+                        v43.clone()
                     }
                 }
             };
-            (v0, v1, v2, v3, v4) = (v0.clone(), v1.clone(), v2.clone(), v13, v43.clone());
+            (v0, v1, v2, v3, v4) = (v0.clone(), v1.clone(), v2.clone(), v12, v46.clone());
             continue;
         }
     }

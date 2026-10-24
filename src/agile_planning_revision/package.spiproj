@@ -2,7 +2,7 @@ packages:
     |core-
     workspace_primitives
     rust_std_env
-    rust_std_string
+    spiral-
     rust_std_fs
     agile_mutation_policy
     agile_task_text

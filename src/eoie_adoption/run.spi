@@ -1,0 +1,99 @@
+open sm'_operators
+open model
+open host
+open classify
+
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
+let decimal_u64 (~text : string) : u64 = optionm'.default_value 0u64 (convert.try_convert text)
+inl u64_text (value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+inl share_text (value : f64) : string = $'std::rc::Rc::<str>::from(format\!("{:.3}", !value))' : string
+inl written (~path : string) (~text : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::write(&*!path, (&*!text).as_bytes()).err().map(|error| format\!("write {}: \
+        {error}", &*!path)).unwrap_or_default().as_str())'
+    : string
+
+union rec day_tallies =
+    | NoDays
+    | DayThen : string * day_tally * day_tallies
+
+let rec tally_added (~key : string) (call : shell_call) (days : day_tallies) : day_tallies =
+    match days with
+    | NoDays => DayThen (key, counted call (empty_tally ()), NoDays)
+    | DayThen (found, tally, rest) =>
+        if found = key then DayThen (found, counted call tally, rest)
+        else DayThen (found, tally, tally_added key call rest)
+
+let rec calls_tallied (client : agent_client) (~calls : string) (start : u64) (days : day_tallies) : day_tallies =
+    if start >= text_length calls then days
+    else
+        inl stop = line_end calls start
+        inl row = slice_of calls start stop
+        inl key = (client_word client) ++# "\t" ++# (field_at row 0i32)
+        calls_tallied client calls
+            (stop + 1u64)
+            (if row = "" then days else tally_added key (call_of_command (field_at row 1i32)) days)
+
+let rec files_tallied
+    (client : agent_client) (~files : string) (~cutoff : string) (start : u64) (days : day_tallies)
+    : day_tallies
+    =
+    if start >= text_length files then days
+    else
+        inl stop = line_end files start
+        inl path = slice_of files start stop
+        files_tallied client files cutoff
+            (stop + 1u64)
+            (if path = "" then days else calls_tallied client (file_calls path client cutoff) 0u64 days)
+
+inl client_tallied (days_back : u64) (client : agent_client) (days : day_tallies) : day_tallies =
+    files_tallied client (session_files (client_root client) days_back) (cutoff_day days_back) 0u64 days
+
+inl row_line (~key : string) (tally : day_tally) : string =
+    key ++# "\t" ++# (u64_text tally.shell) ++# "\t" ++# (
+        (u64_text tally.eoie) ++# "\t" ++# (u64_text tally.habit) ++# "\t" ++# (share_text (eoie_share tally)))
+
+let rec rows_of (days : day_tallies) (~acc : string) (total : day_tally) : string * day_tally =
+    match days with
+    | NoDays => acc, total
+    | DayThen (key, tally, rest) =>
+        rows_of rest (if acc = "" then row_line key tally else acc ++# "\n" ++# (row_line key tally)) {
+            shell = total.shell + tally.shell
+            eoie = total.eoie + tally.eoie
+            habit = total.habit + tally.habit
+        }
+
+inl sorted_lines (~text : string) : string = $'{ let mut lines = (&*!text).lines().filter(|line| \
+    \!line.is_empty()).collect::<Vec<_>>(); lines.sort(); std::rc::Rc::<str>::from(lines.join("\n")) }' : string
+
+let rec option_value (~name : string) (index : i32) : string =
+    if index + 1i32 >= argument_count () then ""
+    elif argument index = name then argument (index + 1i32)
+    else option_value name (index + 1i32)
+
+inl receipt_of (days_back : u64) (total : day_tally) (~out : string) : string =
+    inl counts =
+        " shell_calls=" ++# (u64_text total.shell) ++# " eoie_calls=" ++# (u64_text total.eoie) ++# (
+            " habit_calls=" ++# (u64_text total.habit) ++# " eoie_share=" ++# (share_text (eoie_share total)))
+    "eoie adoption ok days=" ++# (u64_text days_back) ++# counts ++# (if out = "" then "" else " out=") ++# out
+
+let adoption_run () : i32 =
+    inl asked = decimal_u64 (option_value "--days" 2i32)
+    inl days_back = if asked = 0u64 then 7u64 else asked
+    inl out = option_value "--out" 2i32
+    inl days = client_tallied days_back Codex (client_tallied days_back ClaudeCode NoDays)
+    inl rows, total = rows_of days "" (empty_tally ())
+    inl table = "client\tday\tshell_calls\teoie_calls\thabit_calls\teoie_share\n" ++# (sorted_lines rows) ++# "\n"
+    inl problem = if out = "" then "" else written out table
+    if problem <> "" then
+        inl _ = $'eprintln\!("eoie error: adoption: {}", &*!problem)' : ()
+        2i32
+    else
+        inl _ = if out = "" then $'print\!("{}", &*!table)' : () else ()
+        inl receipt = receipt_of days_back total out
+        inl _ = $'println\!("{}", &*!receipt)' : ()
+        0i32
+
+inl main () : i32 =
+    !!!!Export("eoie_adoption_run", ((fun () => adoption_run ()) : () -> i32))
+    0i32

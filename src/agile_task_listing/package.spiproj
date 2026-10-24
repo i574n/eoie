@@ -6,5 +6,6 @@ packages:
     rust_std_fs
     agile_mutation_policy
     agile_task_text
+    union_reflection
 modules:
     task_listing

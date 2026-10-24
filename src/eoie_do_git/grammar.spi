@@ -2,9 +2,11 @@
 test grammar static =
     open rust_std_string.model
     open host
+    open eoie_do_records.records
 
 open rust_std_string.model
 open host
+open eoie_do_records.records
 
 union git_step =
     | GitInit : string
@@ -32,7 +34,7 @@ let history_parsed (~records : record_list) (~record : i32) (~repo : string) : g
 
 let status_parsed (~records : record_list) (~record : i32) : git_parse =
     inl group_at = field_index records record "group"
-    inl repos = items_span records record 3i32 group_at
+    inl repos = words_span records record 3i32 group_at
     if repos = "" then GitRejected "git status: expected git status <repo>[, <repo>...] group by state"
     elif group_at < 0i32 || body_at records record (group_at + 2i32) <> "state" then GitRejected "git status: expected group by state"
     else GitParsed (GitStatus repos)
@@ -58,9 +60,6 @@ let git_parsed (~records : record_list) (~record : i32) : git_parse =
     else GitRejected (concat5 "git: unknown action " action "; expected init, commit, history, status or log" "" "")
 
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
-
-inl records_from_bars (~text : string) : record_list =
-    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
 
 inl rejection_at (~records : record_list) (~record : i32) : string =
     match git_parsed records record with

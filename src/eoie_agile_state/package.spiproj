@@ -1,6 +1,6 @@
 packages:
     |core-
     agile_state_runtime
-    rust_std_string
+    spiral-
 modules:
     state

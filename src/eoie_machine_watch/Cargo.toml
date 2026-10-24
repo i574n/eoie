@@ -1,0 +1,19 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "watch.rs"
+
+[package]
+name = "eoie-machine-watch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_machine_watch"
+path = "watch.rs"
+
+[dependencies]
+eoie-machine-crowding = { path = "../eoie_machine_crowding" }
+eoie-job-control = { path = "../eoie_job_control" }
+sysinfo = "0.38.4"

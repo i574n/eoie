@@ -1,8 +1,9 @@
-open rust_std_string.model
+open sm'_operators
 open eoie_receipt.receipt
 open eoie_do_model.model
 open host
 open grammar
+open eoie_do_records.records
 
 type query_tally =
     {
@@ -24,7 +25,7 @@ let empty_query_tally () : query_tally =
     { report = ""; failed = false; searched = 0u64; matched = 0u64; matches = 0u64; lines = 0u64; bytes = 0u64; searches = 0u64; arounds = 0u64; listings = 0u64; waits = 0u64; timed_out = 0u64 }
 
 let lines_joined (~left : string) (~right : string) : string =
-    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+    if right = "" then left elif left = "" then right else left ++# "\n" ++# right
 
 let query_step (~root : string) (~touched : touched_files) (~q : query) (~git : bool) : query_outcome =
     inl target = q.target
@@ -70,15 +71,15 @@ let rec first_rejection (~records : record_list) (~index : i32) : string =
 
 let receipt_counts (~state : query_tally) (~touched : u64) : string =
     inl head =
-        if state.searches > 0u64 then concat5 "files " (decimal_text state.searched) " searched  " (decimal_text state.matched) (concat5 " matched  matches " (decimal_text state.matches) "" "" "")
-        else concat5 "files " (decimal_text touched) "" "" ""
-    inl with_matches = if state.searches = 0u64 && state.arounds > 0u64 then concat5 head "  matches " (decimal_text state.matches) "" "" else head
-    inl with_lines = if state.arounds > 0u64 then concat5 with_matches "  lines " (decimal_text state.lines) "" "" else with_matches
-    inl with_bytes = if state.listings > 0u64 then concat5 with_lines "  bytes " (decimal_text state.bytes) "" "" else with_lines
-    inl waits = concat5 "waits " (decimal_text state.waits) "" "" ""
+        if state.searches > 0u64 then "files " ++# (decimal_text state.searched) ++# " searched  " ++# (decimal_text state.matched) ++# (" matched  matches " ++# (decimal_text state.matches))
+        else "files " ++# (decimal_text touched)
+    inl with_matches = if state.searches = 0u64 && state.arounds > 0u64 then head ++# "  matches " ++# (decimal_text state.matches) else head
+    inl with_lines = if state.arounds > 0u64 then with_matches ++# "  lines " ++# (decimal_text state.lines) else with_matches
+    inl with_bytes = if state.listings > 0u64 then with_lines ++# "  bytes " ++# (decimal_text state.bytes) else with_lines
+    inl waits = "waits " ++# (decimal_text state.waits)
     if state.waits = 0u64 then with_bytes
     elif state.timed_out = 0u64 then waits
-    else concat5 waits "  timed out " (decimal_text state.timed_out) "  exit 3" ""
+    else waits ++# "  timed out " ++# (decimal_text state.timed_out) ++# "  exit 3"
 
 let read_run (~root : string) (~encoded : string) : i32 =
     inl started = now_ms ()
@@ -97,7 +98,7 @@ let read_run (~root : string) (~encoded : string) : i32 =
             receipt_line Succeeded counts started
             0i32
     else
-        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        stdout_line ("program rejected: " ++# rejection)
         receipt_line Failed "files 0" started
         2i32
 
@@ -105,7 +106,7 @@ let report_text (~root : string) (~encoded : string) : string =
     inl records = records_of encoded
     inl state = queries_run root (touched_new ()) records 1i32 (empty_query_tally ())
     inl mark = $'std::rc::Rc::<str>::from(char::from(30u8).to_string())' : string
-    concat5 state.report mark (if state.failed then "1" else "0") "" ""
+    state.report ++# mark ++# (if state.failed then "1" else "0")
 
 let matching_text (~root : string) (~target : string) : string =
     inl paths = files_matching root target "" ""

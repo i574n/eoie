@@ -7,6 +7,10 @@ inl emit_runtime () : () =
         use eoie_rust_std_fs::atomic_write as binary_install_atomic_write;
         use eoie_rust_std_fs::{portable_mode, portable_set_mode, portable_mode_matches};
         use std::path::PathBuf;
+        use std::collections::BTreeSet;
+        use std::env;
+        use std::fs;
+        use std::path::Path;
         #[derive(Clone)] struct BinaryInstallOriginal{bytes:Vec<u8>,mode:u32}
 
         fn binary_install_arg<'a>(a:&'a[String],i:usize,n:&str)->Result<&'a str,String>{a.get(i).map(String::as_str).ok_or_else(||format!("missing argument: {n}"))}

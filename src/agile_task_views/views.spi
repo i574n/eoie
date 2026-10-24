@@ -1,0 +1,167 @@
+open rust_std_fs.model
+open sm'_operators
+open agile_task_text.model
+open agile_note_model.model
+open workspace_primitives.bytes
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+inl concat5 (~a : string) (~b : string) (~c : string) (~d : string) (~e : string) : string = a ++# b ++# c ++# d ++# e
+
+union view_verb =
+    | ViewList
+    | ViewNext
+
+inl view_verb_word = function
+    | ViewList => "list"
+    | ViewNext => "next"
+
+union view_verb_parse =
+    | VerbRead : view_verb
+    | VerbRefused
+
+inl view_verb_of (~word : string) : view_verb_parse =
+    union_reflection.cases.union_case_where (fun (verb : view_verb) => view_verb_word verb = word) (fun verb => VerbRead verb) VerbRefused
+
+inl view_verb_words () : string = union_reflection.cases.union_cases_joined view_verb_word "|"
+
+type saved_view =
+    {
+        name : string
+        verb : string
+        flags : string
+    }
+
+type views_file =
+    {
+        existed : bool
+        text : string
+    }
+
+inl views_path (~root : string) : string = concat5 root "/state/views.spi" "" "" ""
+inl view_schema () : string = "union agile_view =\n    | View :: string * string * string -> agile_view\n"
+inl view_constructor () : string = "View ("
+inl view_needle () : string = concat5 (view_constructor ()) "\"" "" "" ""
+inl view_anchor (~name : string) : string = concat5 (view_constructor ()) (spi_quoted name) "," "" ""
+inl view_binding (~name : string) : string = concat5 "view_" (sm'.replace "-" "_" name) "" "" ""
+
+inl view_row (view : saved_view) : string =
+    inl head = concat5 "inl " (view_binding view.name) " () = View (" (spi_quoted view.name) ", "
+    concat5 head (spi_quoted view.verb) ", " (spi_quoted view.flags) ")"
+
+inl view_field (text : string) (found : i32) (position : i32) : string =
+    unquoted (tuple_field text (found + byte_len (view_constructor ())) (byte_len text) position)
+
+let view_at (text : string) (found : i32) : saved_view =
+    { name = view_field text found 0i32; verb = view_field text found 1i32; flags = view_field text found 2i32 }
+
+let views_loaded (~root : string) : views_file =
+    match probe (unchecked (views_path root)) with
+    | FileMissing _ => { existed = false; text = "" }
+    | FileReadable file => { existed = true; text = loaded_string (read_text file) }
+
+let views_written (~path : string) (loaded : views_file) (~updated : string) : state_write =
+    inl unchanged = if loaded.existed then text_equals loaded.text path elif file_exists path then false else true
+    if unchanged then
+        match replace_file_checked path updated with
+        | Replaced => StateWritten
+        | problem => StateWriteFailed (file_replacement_problem problem)
+    else StateChangedSinceRead
+
+inl view_name_valid (~name : string) : bool =
+    $'\!(!name).is_empty() && (!name).bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == 45u8)' : bool
+
+inl flags_from (skip : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().skip(!skip as usize).collect::<Vec<_>>().join(" ").as_str())' : string
+inl flags_single_words (skip : i32) : bool = $'std::env::args().skip(!skip as usize).all(|argument| \!argument.is_empty() && \!argument.contains(char::is_whitespace))' : bool
+
+inl view_spawned (~verb : string) (~root : string) (~flags : string) (skip : i32) : i32 =
+    $'{ let extra = std::env::args().skip(!skip as usize).collect::<Vec<_>>(); match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).arg("agile").arg(&*!verb).arg(&*!root).args((!flags).split_whitespace()).args(&extra).status()) { Ok(status) => status.code().unwrap_or(1), Err(error) => { eprintln\!("eoie error: agile view could not start: {}", error); 2 } } }' : i32
+
+let rec views_listed (text : string) (offset : i32) (count : i32) : i32 =
+    inl found = declared_from text (view_needle ()) offset
+    if found < 0i32 then count
+    else
+        inl view = view_at text found
+        inl _ = stdout_line (concat5 view.name "  " view.verb "  " view.flags)
+        views_listed text (found + 1i32) (count + 1i32)
+
+let views_run () : i32 =
+    inl root = argument_owned 1i32
+    inl loaded = views_loaded root
+    inl count = views_listed loaded.text 0i32 0i32
+    stdout_line (concat5 "eoie agile views ok views=" ($'std::rc::Rc::<str>::from((!count).to_string().as_str())' : string) " path=" (views_path root) "")
+
+let view_run () : i32 =
+    inl root = argument_owned 1i32
+    inl name = argument_owned 2i32
+    if name = "" then stderr_failure "usage: agile view <root> <name> [extra flags...]"
+    else
+        inl loaded = views_loaded root
+        inl found = declared_from loaded.text (view_anchor name) 0i32
+        if found < 0i32 then stderr_failure (concat5 "agile view: no view named " name " in " (views_path root) "; agile views <root> lists them")
+        else
+            inl view = view_at loaded.text found
+            view_spawned view.verb root view.flags 5i32
+
+inl line_replaced (text : string) (found : i32) (~row : string) : string =
+    inl start = line_start_before text found
+    inl stop = line_end_after text found
+    concat5 (byte_slice text 0i32 start) row (byte_slice text stop (byte_len text)) "" ""
+
+inl view_appended (text : string) (~row : string) : string =
+    inl base = if text = "" then view_schema () else text
+    concat5 base (if sm'.ends_with "\n" base then "" else "\n") row "\n" ""
+
+let view_stored (~root : string) (view : saved_view) : i32 =
+    inl loaded = views_loaded root
+    inl found = declared_from loaded.text (view_anchor view.name) 0i32
+    inl replaced = if found < 0i32 then false else true
+    inl updated = if replaced then line_replaced loaded.text found (view_row view) else view_appended loaded.text (view_row view)
+    match views_written (views_path root) loaded updated with
+    | StateWritten =>
+        inl detail = concat5 " verb=" view.verb " flags='" view.flags "'"
+        stdout_line (concat5 "eoie agile view-add ok name=" view.name detail (if replaced then " replaced=yes" else " replaced=no") "")
+    | problem => stderr_failure (concat5 "agile view-add " view.name " rejected: " (state_write_problem problem) "")
+
+let view_add_run () : i32 =
+    inl root = argument_owned 1i32
+    inl name = argument_owned 2i32
+    if view_name_valid name then
+        match view_verb_of (argument_owned 3i32) with
+        | VerbRefused => stderr_failure (concat5 "agile view-add: view verbs are " (view_verb_words ()) "" "" "")
+        | VerbRead verb =>
+            if flags_single_words 6i32 then view_stored root { name = name; verb = view_verb_word verb; flags = flags_from 6i32 }
+            else stderr_failure "agile view-add: each stored flag must be one word without spaces"
+    else stderr_failure "agile view-add: view names are lowercase letters, digits and hyphens"
+
+union view_command =
+    | ViewsCommand
+    | ViewCommand
+    | ViewAddCommand
+
+inl view_command_word = function
+    | ViewsCommand => "views"
+    | ViewCommand => "view"
+    | ViewAddCommand => "view-add"
+
+union view_command_parse =
+    | CommandRead : view_command
+    | CommandUnknown
+
+inl view_command_of (~word : string) : view_command_parse =
+    union_reflection.cases.union_case_where (fun (command : view_command) => view_command_word command = word) (fun command => CommandRead command) CommandUnknown
+
+inl view_command_run = function
+    | ViewsCommand => views_run ()
+    | ViewCommand => view_run ()
+    | ViewAddCommand => view_add_run ()
+
+let views_entry () : i32 =
+    match view_command_of (argument_owned 0i32) with
+    | CommandRead command => view_command_run command
+    | CommandUnknown => stderr_failure "agile views: expected views, view or view-add"
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_views_run", ((fun () => views_entry ()) : () -> i32))
+    0i32

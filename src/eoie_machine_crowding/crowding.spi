@@ -1,0 +1,68 @@
+///- --package .
+test crowding static =
+    open sm'_operators
+    open eoie_machine_windows.window_model
+    open eoie_machine_windows.windows
+
+open sm'_operators
+open eoie_machine_windows.window_model
+open eoie_machine_windows.windows
+
+type crowd =
+    {
+        granted : u64
+        needed_mb : u64
+        free_mb : u64
+    }
+
+union crowding =
+    | Calm
+    | Crowded : crowd
+
+inl recent_grant_ms () : u64 = 180000u64
+
+inl fresh_grant (row : window_row) (now : u64) : bool =
+    match row.state with
+    | Held => now >= row.start_ms && now - row.start_ms <= recent_grant_ms ()
+    | Waiting => false
+
+let crowd_with (acc : crowd) (~text : string) (now : u64) : crowd =
+    match row_of text with
+    | RowUnknown => acc
+    | RowKnown row => if fresh_grant row now then { acc with granted = acc.granted + 1u64; needed_mb = acc.needed_mb + needed_mb row.kind } else acc
+
+let rec crowd_of (~rows : string) (now : u64) (acc : crowd) : crowd =
+    if rows = "" then acc else crowd_of (other_rows rows) now (crowd_with acc (first_row rows) now)
+
+inl crowding_of (found : crowd) : crowding = if found.granted >= 2u64 && found.needed_mb > found.free_mb then Crowded found else Calm
+
+inl crowding_text (verdict : crowding) : string =
+    match verdict with
+    | Calm => ""
+    | Crowded found => "== crowding: " ++# sm'.format found.granted ++# " windows granted in the last 3 min need " ++# sm'.format found.needed_mb ++# " MB, " ++# sm'.format found.free_mb ++# " MB free: hold new heavy work until they settle"
+
+let machine_crowding (~rows : string) (free : u64) (now : u64) : string = crowding_text (crowding_of (crowd_of rows now { granted = 0u64; needed_mb = 0u64; free_mb = free }))
+
+inl main () : i32 =
+    !!!!Export("eoie_machine_crowding", ((fun (rows, now) => machine_crowding rows (free_mb ()) now) : string * u64 -> string))
+    0i32
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else failwith detail
+
+inl held_at (kind : window_class) (~id : string) (granted : u64) : string = row_text { id = id; kind = kind; state = Held; label = "probe"; start_ms = granted; until_ms = granted + 3600000u64 }
+
+inl waiting_at (kind : window_class) (~id : string) (asked : u64) : string = row_text { id = id; kind = kind; state = Waiting; label = "probe"; start_ms = asked; until_ms = asked + 3600000u64 }
+
+inl block_end () : string = held_at HeavyBuild "win-1" 1000000u64 ++# "\n" ++# held_at HeavyBuild "win-2" 1030000u64 ++# "\n" ++# held_at TestSuite "win-3" 1060000u64 ++# "\n" ++# held_at Compile "win-4" 1090000u64
+
+///> rust
+test fresh_grants_beyond_free_memory_are_crowding =
+    expect (machine_crowding (block_end ()) 3690u64 1100000u64 = "== crowding: 4 windows granted in the last 3 min need 6144 MB, 3690 MB free: hold new heavy work until they settle") (machine_crowding (block_end ()) 3690u64 1100000u64)
+    expect (machine_crowding (block_end ()) 8000u64 1100000u64 = "") "enough memory for every fresh grant is calm"
+    expect (machine_crowding (block_end ()) 3690u64 1300000u64 = "") "grants older than 3 min have settled"
+
+///> rust
+test one_grant_or_waiting_rows_are_calm =
+    expect (machine_crowding (held_at LiveGui "win-9" 1000000u64) 1000u64 1010000u64 = "") "a single grant is no crowd"
+    inl asked = waiting_at HeavyBuild "win-5" 1000000u64 ++# "\n" ++# waiting_at HeavyBuild "win-6" 1000000u64
+    expect (machine_crowding asked 100u64 1010000u64 = "") "waiting rows reserve nothing"

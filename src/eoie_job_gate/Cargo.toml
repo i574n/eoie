@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "gate.spi"
+output = "gate.rs"
+
+[package]
+name = "eoie-job-gate"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_job_gate"
+path = "gate.rs"
+
+[dependencies]
+eoie-job-slot = { path = "../eoie_job_slot" }
+eoie-window-admission = { path = "../eoie_window_admission" }

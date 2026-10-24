@@ -1,4 +1,5 @@
 open workspace_primitives.numbers
+open sm'_operators
 
 union child_outcome =
     | ChildSucceeded
@@ -11,9 +12,9 @@ inl outcome_word = function
     | ChildFailed _ => "child-failed"
 
 let command_output_receipt_text (status : i32) (elapsed : u64) (stdout_bytes : u64) (stderr_bytes : u64) : string =
-    inl head = rust_std_string.model.concat5 "eoie proxy command-output " (outcome_word (child_outcome_of status)) " status=" (i32_text status) " elapsed_ms="
-    inl sizes = rust_std_string.model.concat5 " stdout_bytes=" (u64_text stdout_bytes) " stderr_bytes=" (u64_text stderr_bytes) ""
-    rust_std_string.model.concat5 head (u64_text elapsed) sizes "" ""
+    inl head = "eoie proxy command-output " ++# outcome_word (child_outcome_of status) ++# " status=" ++# i32_text status ++# " elapsed_ms="
+    inl sizes = " stdout_bytes=" ++# u64_text stdout_bytes ++# " stderr_bytes=" ++# u64_text stderr_bytes
+    head ++# u64_text elapsed ++# sizes
 
 inl main () : i32 =
     !!!!Export("eoie_command_output_receipt", ((fun (status, elapsed, stdout_bytes, stderr_bytes) => command_output_receipt_text status elapsed stdout_bytes stderr_bytes) : i32 * u64 * u64 * u64 -> string))

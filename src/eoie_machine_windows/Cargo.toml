@@ -1,0 +1,20 @@
+[package.metadata.spiral]
+entry = "windows.spi"
+output = "windows.rs"
+
+[package]
+name = "eoie-machine-windows"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_machine_windows"
+path = "windows.rs"
+
+[dependencies]
+eoie-window-run = { path = "../eoie_window_run" }
+eoie-window-query = { path = "../eoie_window_query" }
+eoie-window-claim = { path = "../eoie_window_claim" }
+eoie-window-admission = { path = "../eoie_window_admission" }

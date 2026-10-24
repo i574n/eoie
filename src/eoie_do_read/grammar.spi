@@ -1,12 +1,14 @@
 ///- --package .
 test grammar static =
-    open rust_std_string.model
+    open sm'_operators
     open eoie_do_model.model
     open host
+    open eoie_do_records.records
 
-open rust_std_string.model
+open sm'_operators
 open eoie_do_model.model
 open host
+open eoie_do_records.records
 
 union query_item =
     | Bare : string
@@ -37,12 +39,60 @@ inl duration_ms (~text : string) : u64 = $'{ let text = (&*!text).trim(); let (d
 inl all_digits (~text : string) : bool = $'\!!text.is_empty() && !text.bytes().all(|byte| byte.is_ascii_digit())' : bool
 
 let verb_of (~word : string) : query_verb =
-    if word = "search" then Search
-    elif word = "read" then ReadAround
-    elif word = "files" then ListFiles
-    elif word = "head" then Head
-    elif word = "wait" then Wait
-    else Tail
+    match query_verb_named word with
+    | Some verb => verb
+    | None => Tail
+
+union query_option =
+    | InOption
+    | ContextOption
+    | FirstOption
+    | IncludeOption
+    | ExcludeOption
+    | TimeoutOption
+
+inl query_option_word (option : query_option) : string =
+    match option with
+    | InOption => "in"
+    | ContextOption => "context"
+    | FirstOption => "first"
+    | IncludeOption => "include"
+    | ExcludeOption => "exclude"
+    | TimeoutOption => "timeout"
+
+inl query_option_applied (option : query_option) (~value : string) (~q : query) : query =
+    match option with
+    | InOption => { q with target = value }
+    | ContextOption => { q with before = first_number value; after = last_number value }
+    | FirstOption => { q with first = decimal_of value }
+    | IncludeOption => { q with include = value }
+    | ExcludeOption => { q with exclude = value }
+    | TimeoutOption => { q with timeout_ms = duration_ms value }
+
+union query_filler =
+    | AroundFiller
+    | PerFiller
+    | FileFiller
+    | TildeFiller
+    | WithFiller
+    | GitFiller
+    | StatusFiller
+
+inl query_filler_word (filler : query_filler) : string =
+    match filler with
+    | AroundFiller => "around"
+    | PerFiller => "per"
+    | FileFiller => "file"
+    | TildeFiller => "~"
+    | WithFiller => "with"
+    | GitFiller => "git"
+    | StatusFiller => "status"
+
+inl query_option_named (~word : string) : option query_option =
+    union_reflection.cases.union_case_where (fun (option : query_option) => word = query_option_word option) (fun option => Some option) None
+
+inl query_filler_named (~word : string) : bool =
+    union_reflection.cases.union_case_where (fun (filler : query_filler) => word = query_filler_word filler) (fun _ => true) false
 
 let opened_query (~verb : query_verb) : query =
     { verb = verb; needle = ""; literal = false; target = ""; before = 0u64; after = 0u64; first = 0u64; include = ""; exclude = ""; paths_only = false; count = 0u64; timeout_ms = 0u64 }
@@ -53,20 +103,18 @@ let rec query_options (~records : record_list) (~record : i32) (~field : i32) (~
     | Text text => query_options records record (field + 1i32) { q with needle = text }
     | Bare word =>
         inl value = value_at records record (field + 1i32)
-        inl valued = pipe_member "in|context|first|include|exclude|timeout" word
         if word = "literal" then query_options records record (field + 1i32) { q with literal = true }
         elif word = "paths" then query_options records record (field + 1i32) { q with paths_only = true }
-        elif pipe_member "around|per|file|~|with|git|status" word then query_options records record (field + 1i32) q
-        elif valued && value = "" then QueryRejected (concat5 word ": expected a value after it" "" "" "")
-        elif word = "in" then query_options records record (field + 2i32) { q with target = value }
-        elif word = "context" then query_options records record (field + 2i32) { q with before = first_number value; after = last_number value }
-        elif word = "first" then query_options records record (field + 2i32) { q with first = decimal_of value }
-        elif word = "include" then query_options records record (field + 2i32) { q with include = value }
-        elif word = "exclude" then query_options records record (field + 2i32) { q with exclude = value }
-        elif word = "timeout" then query_options records record (field + 2i32) { q with timeout_ms = duration_ms value }
-        elif all_digits word then query_options records record (field + 1i32) { q with count = decimal_of word }
-        elif q.target = "" then query_options records record (field + 1i32) { q with target = word }
-        else QueryRejected (concat5 "unexpected word: " word "" "" "")
+        elif query_filler_named word then query_options records record (field + 1i32) q
+        else
+            match query_option_named word with
+            | Some valued =>
+                if value = "" then QueryRejected (word ++# ": expected a value after it")
+                else query_options records record (field + 2i32) (query_option_applied valued value q)
+            | None =>
+                if all_digits word then query_options records record (field + 1i32) { q with count = decimal_of word }
+                elif q.target = "" then query_options records record (field + 1i32) { q with target = word }
+                else QueryRejected ("unexpected word: " ++# word)
 
 let query_problem (~q : query) : string =
     inl target = q.target
@@ -88,9 +136,6 @@ let query_parsed (~records : record_list) (~record : i32) : query_parse =
         if problem = "" then QueryParsed (if counted.timeout_ms = 0u64 then { counted with timeout_ms = 60000u64 } else counted) else QueryRejected problem
 
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
-
-inl records_from_bars (~text : string) : record_list =
-    $'std::rc::Rc::new((&*!text).split(char::from(10u8)).map(|record| record.split(char::from(124u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
 
 inl rejection_at (~records : record_list) (~record : i32) : string =
     match query_parsed records record with

@@ -1,4 +1,4 @@
-///- --package ../eoie_cli_harness
+///- --package ../eoie_cli_harness --timeout 900000
 open cli
 
 inl archive_fixture () : fixture_root =

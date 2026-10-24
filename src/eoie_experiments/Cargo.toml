@@ -1,0 +1,19 @@
+[package.metadata.spiral]
+entry = "experiments.spi"
+output = "experiments.rs"
+
+[package]
+name = "eoie-experiments"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_experiments"
+path = "experiments.rs"
+
+[dependencies]
+eoie-experiment-amend = { path = "../eoie_experiment_amend" }
+eoie-experiment-import = { path = "../eoie_experiment_import" }
+eoie-experiment-analysis = { path = "../eoie_experiment_analysis" }

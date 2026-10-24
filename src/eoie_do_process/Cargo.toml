@@ -14,5 +14,6 @@ name = "eoie_do_process"
 path = "do_process.rs"
 
 [dependencies]
+eoie-command-line = { path = "../eoie_command_line" }
 regex = "1.13.1"
 sysinfo = "0.38.4"

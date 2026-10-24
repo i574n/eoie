@@ -1,0 +1,190 @@
+open sm'_operators
+open logs_model
+
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
+let stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+let stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+let stdout_text (~text : string) : () = $'{ use std::io::Write; let mut out = std::io::stdout().lock(); let _ = out.write_all((!text).as_bytes()); }' : ()
+let count_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+
+let files_listed (~paths : string) (~glob : string) : string =
+    $'std::rc::Rc::<str>::from({ fn wildcard(pattern: &[u8], name: &[u8]) -> bool { match (pattern.first(), name.first()) { (None, None) => true, (Some(&42u8), _) => wildcard(&pattern[1..], name) || (\!name.is_empty() && wildcard(pattern, &name[1..])), (Some(&63u8), Some(_)) => wildcard(&pattern[1..], &name[1..]), (Some(a), Some(b)) if a.eq_ignore_ascii_case(b) => wildcard(&pattern[1..], &name[1..]), _ => false } } fn walk(path: &std::path::Path, found: &mut Vec<std::path::PathBuf>) { if path.is_dir() { let mut entries = std::fs::read_dir(path).into_iter().flatten().flatten().map(|entry| entry.path()).collect::<Vec<_>>(); entries.sort(); for entry in entries { walk(&entry, found); } } else if path.is_file() { found.push(path.to_path_buf()); } } let glob = &*!glob; let mut lines = Vec::new(); for raw in (!paths).split(char::from(10u8)).filter(|item| \!item.is_empty()) { let path = std::path::Path::new(raw); if \!path.exists() { lines.push(format\!("{}{raw}", char::from(1u8))); continue; } let mut found = Vec::new(); walk(path, &mut found); for file in found { let name = file.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default(); if glob.is_empty() || wildcard(glob.as_bytes(), name.as_bytes()) { lines.push(file.to_string_lossy().replace(char::from(92u8), "/")); } } } lines.join("\n") }.as_str())' : string
+
+let file_text (~path : string) : string = $'std::rc::Rc::<str>::from(String::from_utf8_lossy(&std::fs::read(&*!path).unwrap_or_default()).as_ref())' : string
+let pattern_error (~pattern : string) : string = $'std::rc::Rc::<str>::from(regex::Regex::new(&*!pattern).err().map(|error| error.to_string()).unwrap_or_default().as_str())' : string
+let match_count (~text : string) (~pattern : string) : i32 = $'regex::Regex::new(&*!pattern).map(|pattern| pattern.find_iter(&*!text).count() as i32).unwrap_or(0)' : i32
+let capture_sum (~text : string) (~pattern : string) : string =
+    $'std::rc::Rc::<str>::from(regex::Regex::new(&*!pattern).map(|pattern| { let sum: f64 = pattern.captures_iter(&*!text).filter_map(|found| found.get(1).and_then(|group| group.as_str().trim().parse::<f64>().ok())).sum(); let text = format\!("{:.6}", sum + 0.0); text.trim_end_matches(char::from(48u8)).trim_end_matches(char::from(46u8)).to_owned() }).unwrap_or_default().as_str())' : string
+let capture_at (~text : string) (~pattern : string) (last : bool) : string =
+    $'std::rc::Rc::<str>::from(regex::Regex::new(&*!pattern).ok().and_then(|pattern| { let mut found = pattern.captures_iter(&*!text); if !last { found.last() } else { found.next() } }.and_then(|found| found.get(1).or_else(|| found.get(0)).map(|group| group.as_str().replace(char::from(9u8), " ")))).unwrap_or_default().as_str())' : string
+let value_count (~text : string) (~pattern : string) (~value : string) : i32 = $'regex::Regex::new(&*!pattern).map(|pattern| pattern.captures_iter(&*!text).filter(|found| found.get(1).map(|group| group.as_str() == &*!value).unwrap_or(false)).count() as i32).unwrap_or(0)' : i32
+let capture_values (~files : string) (~pattern : string) : string =
+    $'std::rc::Rc::<str>::from(regex::Regex::new(&*!pattern).map(|pattern| { let mut values = std::collections::BTreeSet::new(); for file in (!files).split(char::from(10u8)).filter(|line| \!line.is_empty() && \!line.starts_with(char::from(1u8))) { let text = String::from_utf8_lossy(&std::fs::read(file).unwrap_or_default()).into_owned(); for found in pattern.captures_iter(&text) { if let Some(group) = found.get(1) { values.insert(group.as_str().replace(char::from(9u8), " ").replace(char::from(10u8), " ")); } } } values.into_iter().collect::<Vec<_>>().join("\n") }).unwrap_or_default().as_str())' : string
+let text_written (~path : string) (~text : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::write(&*!path, (!text).as_bytes()).err().map(|error| format\!("write {}: {error}", &*!path)).unwrap_or_default().as_str())' : string
+
+type request =
+    {
+        paths : string
+        glob : string
+        out : string
+        since : string
+        quiet : bool
+        list : measures
+    }
+
+union request_step =
+    | RequestTaken : request
+    | RequestRejected : string
+
+let rec options_from (index : i32) (count : i32) (acc : request) : request_step =
+    if index >= count then RequestTaken acc
+    else
+        inl word = argument index
+        if word = "--quiet" then options_from (index + 1i32) count { acc with quiet = true }
+        elif sm'.starts_with "--" word then
+            if index + 1i32 >= count then RequestRejected ("option " ++# word ++# " has no value")
+            elif word = "--glob" then options_from (index + 2i32) count { acc with glob = argument (index + 1i32) }
+            elif word = "--since" then options_from (index + 2i32) count { acc with since = argument (index + 1i32) }
+            elif word = "--out" then options_from (index + 2i32) count { acc with out = argument (index + 1i32) }
+            else
+                match kind_of word with
+                | KindUnknown => RequestRejected ("unknown option " ++# word)
+                | KindKnown kind =>
+                    match spec_applied acc.list kind (argument (index + 1i32)) with
+                    | SpecRejected reason => RequestRejected reason
+                    | SpecTaken list => options_from (index + 2i32) count { acc with list = list }
+        else options_from (index + 1i32) count { acc with paths = (if acc.paths = "" then word else acc.paths ++# "\n" ++# word) }
+
+let rec pattern_problem (list : measures) : string =
+    match list with
+    | NoMeasures => ""
+    | MeasureThen (_, name, pattern, _, rest) =>
+        inl problem = pattern_error pattern
+        if problem <> "" then "invalid pattern for " ++# name ++# ": " ++# problem else pattern_problem rest
+
+let rec row_cells (list : measures) (~path : string) (~text : string) : string =
+    match list with
+    | NoMeasures => ""
+    | MeasureThen (kind, _, pattern, value, rest) =>
+        inl cell =
+            match kind with
+            | CountMatches => count_text (match_count text pattern)
+            | CountByCapture => count_text (value_count text pattern value)
+            | SumCaptures => capture_sum text pattern
+            | PathField => capture_at path pattern false
+            | LastCapture => capture_at text pattern true
+            | ValuesPerMatch => ""
+        "\t" ++# cell ++# (row_cells rest path text)
+
+let text_since (~text : string) (~since : string) : string =
+    if since = "" then text else $'std::rc::Rc::<str>::from(regex::Regex::new(&*!since).ok().and_then(|marker| marker.find(&*!text)).map(|found| (&(!text)[found.end()..]).split_once(char::from(10u8)).map(|(_, after)| after).unwrap_or("")).unwrap_or(""))' : string
+
+let first_of (~lines : string) : string = $'std::rc::Rc::<str>::from((!lines).split(char::from(10u8)).next().unwrap_or(""))' : string
+let rest_of (~lines : string) : string = $'std::rc::Rc::<str>::from((!lines).split_once(char::from(10u8)).map(|(_, rest)| rest).unwrap_or(""))' : string
+let missing_marker (~line : string) : bool = $'(!line).starts_with(char::from(1u8))' : bool
+
+let rec rows_of (list : measures) (~since : string) (~files : string) (~acc : string) (count : i32) (~missing : string) : string * i32 * string =
+    if files = "" then acc, count, missing
+    else
+        inl path = first_of files
+        if missing_marker path then rows_of list since (rest_of files) acc count (missing ++# (if missing = "" then "" else ",") ++# ($'std::rc::Rc::<str>::from(&(!path)[1..])' : string))
+        else rows_of list since (rest_of files) (acc ++# path ++# (row_cells list path (text_since (file_text path) since)) ++# "\n") (count + 1i32) missing
+
+let rec expanded (list : measures) (~files : string) : measures =
+    match list with
+    | NoMeasures => NoMeasures
+    | MeasureThen (kind, name, pattern, value, rest) =>
+        match kind with
+        | CountByCapture => value_measures name pattern (capture_values files pattern) (expanded rest files)
+        | _ => MeasureThen (kind, name, pattern, value, expanded rest files)
+
+inl text_length (~text : string) : i32 = sm'.length text
+
+let capture_from (~text : string) (~pattern : string) (offset : i32) : string =
+    $'std::rc::Rc::<str>::from(regex::Regex::new(&*!pattern).ok().and_then(|p| p.captures_at(&*!text, !offset as usize)).and_then(|f| f.get(1).or(f.get(0))).map(|g| g.as_str()).unwrap_or(""))' : string
+
+let match_end_from (~text : string) (~pattern : string) (offset : i32) : i32 =
+    $'regex::Regex::new(&*!pattern).ok().and_then(|p| p.find_at(&*!text, !offset as usize)).map(|m| m.end().max(!offset as usize + 1) as i32).unwrap_or(-1)' : i32
+
+let rec matched_rows (~path : string) (~text : string) (~pattern : string) (offset : i32) (~rows : string) (count : i32) : string * i32 =
+    inl stop = match_end_from text pattern offset
+    if stop < 0i32 || stop > text_length text then rows, count
+    else
+        inl value = sm'.replace "\t" " " (capture_from text pattern offset)
+        matched_rows path text pattern stop (rows ++# path ++# "\t" ++# value ++# "\n") (count + 1i32)
+
+let rec values_rows (~pattern : string) (~since : string) (~files : string) (~acc : string) (count : i32) (rows : i32) (~missing : string) : string * i32 * i32 * string =
+    if files = "" then acc, count, rows, missing
+    else
+        inl path = first_of files
+        if missing_marker path then values_rows pattern since (rest_of files) acc count rows (missing ++# (if missing = "" then "" else ",") ++# ($'std::rc::Rc::<str>::from(&(!path)[1..])' : string))
+        else
+            inl body, found = matched_rows path (text_since (file_text path) since) pattern 0i32 "" 0i32
+            values_rows pattern since (rest_of files) (acc ++# body) (count + 1i32) (rows + found) missing
+
+let rec values_measure (list : measures) : string * string =
+    match list with
+    | NoMeasures => "", ""
+    | MeasureThen (ValuesPerMatch, name, pattern, _, _) => name, pattern
+    | MeasureThen (_, _, _, _, rest) => values_measure rest
+
+union table_shape =
+    | PerFile
+    | PerMatch : string * string
+    | MixedShapes
+
+let shape_of (list : measures) : table_shape =
+    inl name, pattern = values_measure list
+    if name = "" then PerFile
+    elif measure_count list 0i32 = 1i32 then PerMatch (name, pattern)
+    else MixedShapes
+
+let failed (~message : string) : i32 =
+    stderr_line ("eoie error: table logs " ++# message)
+    2i32
+
+let table_written (~out : string) (quiet : bool) (~table : string) (~receipt : string) : i32 =
+    inl full = receipt ++# (if out = "" then "" else " out=" ++# out)
+    if out = "" then
+        stdout_text table
+        inl _ = if quiet then () else stderr_line full
+        0i32
+    else
+        inl problem = text_written out table
+        if problem <> "" then failed problem
+        else
+            inl _ = if quiet then () else stdout_line full
+            0i32
+
+let values_run (~paths : string) (~glob : string) (~since : string) (~out : string) (quiet : bool) (~name : string) (~pattern : string) : i32 =
+    inl body, files, rows, missing = values_rows pattern since (files_listed paths glob) "" 0i32 0i32 ""
+    if missing <> "" then failed ("no such file or directory: " ++# missing)
+    else table_written out quiet ("file\t" ++# name ++# "\n" ++# body) ("eoie table logs ok files=" ++# (count_text files) ++# " rows=" ++# (count_text rows) ++# " columns=1")
+
+inl logs_usage () : string = "usage: table logs <file|dir>... [--glob *.log] [--since regex] (--count name=regex | --count-by name=regex | --sum name=regex | --last name=regex | --field name=regex-on-the-file-path)... | --values name=regex alone (one row per match) [--out file.tsv] [--quiet]"
+
+let logs_run () : i32 =
+    match options_from 3i32 (argument_count ()) { paths = ""; glob = ""; out = ""; since = ""; quiet = false; list = NoMeasures } with
+    | RequestRejected reason => failed (reason ++# "; " ++# (logs_usage ()))
+    | RequestTaken ask =>
+        inl list = ask.list
+        if ask.paths = "" then failed ("needs at least one file or directory; " ++# (logs_usage ()))
+        elif measure_count list 0i32 = 0i32 then failed ("needs at least one --count, --count-by, --sum, --last or --field; " ++# (logs_usage ()))
+        elif pattern_problem list <> "" then failed (pattern_problem list)
+        elif ask.since <> "" && pattern_error ask.since <> "" then failed ("invalid --since pattern: " ++# (pattern_error ask.since))
+        else
+            match shape_of list with
+            | MixedShapes => failed ("--values makes one row per match and cannot share the table with other measures; " ++# (logs_usage ()))
+            | PerMatch (name, pattern) => values_run ask.paths ask.glob ask.since ask.out ask.quiet name pattern
+            | PerFile =>
+                inl listed = files_listed ask.paths ask.glob
+                inl columns = expanded list listed
+                inl body, files, missing = rows_of columns ask.since listed "" 0i32 ""
+                if missing <> "" then failed ("no such file or directory: " ++# missing)
+                else table_written ask.out ask.quiet ("file" ++# (measure_header columns) ++# "\n" ++# body) ("eoie table logs ok files=" ++# (count_text files) ++# " columns=" ++# (count_text (measure_count columns 0i32)))
+
+inl main () : i32 =
+    !!!!Export("eoie_table_logs_run", ((fun () => logs_run ()) : () -> i32))
+    0i32

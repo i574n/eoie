@@ -1,16 +1,18 @@
-inl append (left : string) (right : string) : string = rust_std_string.model.concat5 left right "" "" ""
-inl arg (left : string) (right : string) : string = rust_std_string.model.concat5 left (host.separator ()) right "" ""
+open sm'_operators
+
+inl append (left : string) (right : string) : string = left ++# right
+inl arg (left : string) (right : string) : string = left ++# (host.separator ()) ++# right
 let write (root : string) (relative : string) (text : string) : () =
     $'{ let path=std::path::Path::new(&*!root).join(&*!relative); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path,!text.as_bytes()).unwrap(); }' : ()
 let require (condition : bool) (detail : string) : () =
     $'if !condition { () } else { std::panic::panic_any(!detail.to_string()) }' : ()
-inl contains (text : string) (part : string) : bool = rust_std_string.model.contains text part
-inl same (left : string) (right : string) : bool = rust_std_string.model.equals left right
+inl contains (text : string) (part : string) : bool = sm'.contains part text
+inl same (left : string) (right : string) : bool = (left = right)
 let capture (root : string) (args : string) : string =
     $'{ let mut command=std::process::Command::new(DEV_BIN); command.current_dir(&*!root).env_remove("RUSTFLAGS").env_remove("LLVM_PROFILE_FILE").args(!args.split(char::from(0u8))); let capture=eoie_process::run_bounded_capture_with_input(&mut command,120000,None).unwrap(); let status=if capture.status.success() { "success\n" } else { "failure\n" }; std::rc::Rc::<str>::from([status,&String::from_utf8_lossy(&capture.stdout),&String::from_utf8_lossy(&capture.stderr)].concat()) }' : string
 
 let client_manifest (requires : string) : string =
-    rust_std_string.model.concat5 """
+    """
         [package]
         name='eoie-coverage-prune'
         version='0.0.0'
@@ -19,7 +21,7 @@ let client_manifest (requires : string) : string =
         path='lib.rs'
         [package.metadata.eoie]
         test-requires-cli=
-        """ requires "\n" "" ""
+        """ ++# requires ++# "\n"
 
 let selected_args (name : string) : string =
     arg (arg (arg (arg (arg (arg "--test" "--skip-release") "--offline") "--package") name) "--target-dir") "target with spaces ü"
@@ -27,7 +29,7 @@ let selected_args (name : string) : string =
 let selected (root : string) (name : string) (success : bool) (message : string) : () =
     inl output = capture root (selected_args name)
     inl expected = if success then "success\n" else "failure\n"
-    require (rust_std_string.model.starts_with output expected) output
+    require (sm'.starts_with expected output) output
     require (contains output message) output
 
 let scenarios (root : string) : i32 =

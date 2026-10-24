@@ -1,0 +1,50 @@
+open rust_std_string.model
+open experiment_model
+open ledger_host
+
+let registered () : i32 =
+    inl ledger = argument 3i32
+    inl id = argument 4i32
+    if identifier_ok id = false then failed (concat5 "register: the ID must be letters, digits, '-' or '_', received '" id "'; " (experiment_usage ()) "")
+    else
+        match test_of (option_value "--test") with
+        | TestUnknown => failed (concat5 "register: --test must be " (test_words ()) ", received '" (option_value "--test") "'")
+        | TestKnown kind =>
+            inl runs = decimal_i32 (option_value "--runs")
+            match plan_checked kind (option_value "--arms") (option_value "--group") runs (option_value "--prediction") (option_value "--metric") (option_value "--decision") with
+            | PlanRejected reason => failed (concat5 "register: " reason "" "" "")
+            | PlanAccepted =>
+                inl at = agile_note_model.model.utc_stamp (now_ms ())
+                inl confidence = if option_value "--confidence" = "" then "0.95" else option_value "--confidence"
+                inl head = concat5 (field_line "id" id) (field_line "registered" at) (field_line "question" (option_value "--question")) (field_line "test" (test_word kind)) (field_line "metric" (option_value "--metric"))
+                inl body = concat5 (field_line "group" (option_value "--group")) (field_line "arms" (option_value "--arms")) (field_line "runs" (option_value "--runs")) (field_line "prediction" (option_value "--prediction")) (field_line "confidence" confidence)
+                inl problem = text_created (record_path ledger id "registration") (concat5 head body (field_line "decision" (option_value "--decision")) (field_line "time" (option_value "--time")) (field_line "registered_local" (local_stamp ())))
+                if problem <> "" then failed (concat5 "register: " id " is already registered or the ledger is unwritable (" problem ")")
+                else
+                    stdout_line (concat5 "eoie experiment register ok id=" id " test=" (test_word kind) (concat5 " runs=" (option_value "--runs") " registered=" at ""))
+                    0i32
+
+let shown () : i32 =
+    inl ledger = argument 3i32
+    inl id = argument 4i32
+    inl plan = file_text (record_path ledger id "registration")
+    if plan = "" then failed (concat5 "show: no registration for " id " in " ledger "")
+    else
+        stdout_line (concat5 "registration\n" plan "amendments\n" (file_text (record_path ledger id "amendments")) (concat5 "disclosures\n" (file_text (record_path ledger id "disclosures")) "verdict\n" (file_text (record_path ledger id "verdict")) (concat5 "addenda\n" (file_text (record_path ledger id "addenda")) "" "" "")))
+        stdout_line (concat5 "eoie experiment show ok id=" id (if path_exists (record_path ledger id "verdict") then " verdict=recorded" else " verdict=pending") "" "")
+        0i32
+
+let experiment_run () : i32 =
+    inl verb = argument 2i32
+    if verb = "register" then registered ()
+    elif verb = "analyze" then $'eoie_experiment_analysis::eoie_experiment_analyze_run()' : i32
+    elif verb = "show" then shown ()
+    elif verb = "amend" then $'eoie_experiment_amend::eoie_experiment_amend_run()' : i32
+    elif verb = "addendum" then $'eoie_experiment_amend::eoie_experiment_addendum_run()' : i32
+    elif verb = "import" then $'eoie_experiment_import::eoie_experiment_import_run()' : i32
+    elif verb = "record-verdict" then $'eoie_experiment_import::eoie_experiment_verdict_run()' : i32
+    else failed (concat5 "unknown verb '" verb "'; " (experiment_usage ()) "")
+
+inl main () : i32 =
+    !!!!Export("eoie_experiment_run", ((fun () => experiment_run ()) : () -> i32))
+    0i32

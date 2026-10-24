@@ -1,0 +1,131 @@
+open sm'_operators
+open links_model
+
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+inl i32_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+inl text_of (~path : string) : string = $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap_or_default().as_str())' : string
+let directory_exists (~path : string) : bool = file_system.path_buf_is_dir (file_system.new_path_buf (sm'.to_std_string path))
+inl joined (~base : string) (~name : string) : string = $'std::rc::Rc::<str>::from(std::path::Path::new(&*!base).join(&*!name).to_string_lossy().as_ref())' : string
+inl line_head (~text : string) : string = $'std::rc::Rc::<str>::from((!text).split(char::from(10u8)).next().unwrap_or(""))' : string
+inl line_rest (~text : string) : string = $'std::rc::Rc::<str>::from((!text).split_once(char::from(10u8)).map(|(_, rest)| rest).unwrap_or(""))' : string
+inl option_value (~name : string) : string = $'std::rc::Rc::<str>::from({ let args = std::env::args().collect::<Vec<_>>(); args.iter().position(|argument| argument == &*!name).and_then(|at| args.get(at + 1)).cloned().unwrap_or_default() }.as_str())' : string
+inl flag_present (~name : string) : bool = $'std::env::args().any(|argument| argument == &*!name)' : bool
+
+inl memory_files (~directory : string) : string =
+    $'std::rc::Rc::<str>::from({ let mut names = std::fs::read_dir(&*!directory).into_iter().flatten().flatten().map(|entry| entry.file_name().to_string_lossy().into_owned()).filter(|name| name.ends_with(".md") && name \!= "MEMORY.md").collect::<Vec<_>>(); names.sort(); names.join("\n") }.as_str())' : string
+
+inl front_value (~text : string) (~key : string) : string =
+    $'std::rc::Rc::<str>::from({ let text = &*!text; let front = text.strip_prefix("---").and_then(|rest| rest.split_once("\n---").map(|(front, _)| front)).unwrap_or(""); front.lines().find_map(|line| line.trim().strip_prefix(&*!key).and_then(|rest| rest.strip_prefix(char::from(58u8))).map(|value| value.trim().trim_matches(char::from(34u8)).to_owned())).unwrap_or_default() }.as_str())' : string
+
+inl backlog_prefixes (~state : string) : string =
+    $'std::rc::Rc::<str>::from({ let mut prefixes = (!state).match_indices("= Task (").filter_map(|(at, marker)| (!state)[at + marker.len()..].strip_prefix(char::from(34u8)).and_then(|rest| rest.split(char::from(45u8)).next()).map(str::to_owned)).collect::<Vec<_>>(); prefixes.sort(); prefixes.dedup(); prefixes.join("|") }.as_str())' : string
+
+inl cited_ids (~text : string) (~prefixes : string) : string =
+    $'std::rc::Rc::<str>::from({ let known = (!prefixes).split(char::from(124u8)).collect::<std::collections::HashSet<_>>(); let mut ids = (!text).split(|c: char| \!(c.is_ascii_alphanumeric() || c == char::from(45u8) || c == char::from(95u8))).map(|token| token.trim_matches(char::from(45u8))).filter(|token| token.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == char::from(45u8))).filter(|token| token.contains(char::from(45u8)) && token.split(char::from(45u8)).all(|part| \!part.is_empty()) && token.starts_with(|c: char| c.is_ascii_uppercase()) && known.contains(token.split(char::from(45u8)).next().unwrap_or(""))).map(str::to_owned).collect::<Vec<_>>(); ids.sort(); ids.dedup(); ids.join("\n") }.as_str())' : string
+
+inl wiki_links (~text : string) : string =
+    $'std::rc::Rc::<str>::from({ let mut links = (!text).split("[[").skip(1).filter_map(|rest| rest.split_once("]]").map(|(target, _)| target.trim().to_owned())).filter(|target| \!target.is_empty()).collect::<Vec<_>>(); links.sort(); links.dedup(); links.join("\n") }.as_str())' : string
+
+inl task_status (~state : string) (~id : string) : string = $'agile_task_census::eoie_agile_task_status(&*!state, &*!id)' : string
+
+type links_tally =
+    {
+        memories : i32
+        cited : i32
+        dangling : i32
+        done : i32
+        unwritten : i32
+        unknown : i32
+        report : string
+    }
+
+inl tally_with (tally : links_tally) (finding : link_finding) : links_tally =
+    match finding with
+    | NoFinding => tally
+    | DanglingId _ => { tally with dangling = (tally.dangling + 1i32); report = tally.report ++# (finding_text finding) }
+    | DoneCited _ => { tally with done = (tally.done + 1i32); report = tally.report ++# (finding_text finding) }
+    | UnwrittenLink _ => { tally with unwritten = (tally.unwritten + 1i32); report = tally.report ++# (finding_text finding) }
+    | UnknownMemory _ => { tally with unknown = (tally.unknown + 1i32); report = tally.report ++# (finding_text finding) }
+
+let rec ids_checked (~state : string) (kind : memory_kind) (~slug : string) (~ids : string) (tally : links_tally) : links_tally =
+    if ids = "" then tally
+    else
+        inl id = line_head ids
+        inl counted = { tally with cited = (tally.cited + 1i32) }
+        ids_checked state kind slug (line_rest ids) (tally_with counted (id_finding kind slug id (task_status state id)))
+
+let rec links_checked (~names : string) (~slug : string) (~links : string) (tally : links_tally) : links_tally =
+    if links = "" then tally
+    else links_checked names slug (line_rest links) (tally_with tally (link_finding_of names slug (line_head links)))
+
+inl slug_of (~text : string) (~file : string) : string =
+    inl named = front_value text "name"
+    if named = "" then $'std::rc::Rc::<str>::from((!file).trim_end_matches(".md"))' : string else named
+
+let rec names_from (~directory : string) (~files : string) (~names : string) : string =
+    if files = "" then names
+    else
+        inl file = line_head files
+        inl slug = slug_of (text_of (joined directory file)) file
+        names_from directory (line_rest files) (if names = "" then slug else names ++# "|" ++# slug)
+
+let rec memories_checked (~state : string) (~prefixes : string) (~names : string) (~directory : string) (~files : string) (tally : links_tally) : links_tally =
+    if files = "" then tally
+    else
+        inl file = line_head files
+        inl text = text_of (joined directory file)
+        inl slug = slug_of text file
+        inl kind = memory_kind_of (front_value text "type")
+        inl with_ids = ids_checked state kind slug (cited_ids text prefixes) { tally with memories = (tally.memories + 1i32) }
+        memories_checked state prefixes names directory (line_rest files) (links_checked names slug (wiki_links text) with_ids)
+
+inl next_note (~state : string) (offset : i32) : i32 = $'(!state).get(!offset as usize..).and_then(|rest| rest.find("= Note (")).map(|at| at as i32 + !offset).unwrap_or(-1)' : i32
+inl line_end_from (~state : string) (offset : i32) : i32 = $'(!state).get(!offset as usize..).and_then(|rest| rest.find(char::from(10u8))).map(|at| at as i32 + !offset).unwrap_or((!state).len() as i32)' : i32
+inl text_between (~text : string) (start : i32) (stop : i32) : string = $'std::rc::Rc::<str>::from((!text).get(!start as usize..!stop as usize).unwrap_or(""))' : string
+inl quoted_first (~line : string) : string = $'std::rc::Rc::<str>::from((!line).split(char::from(34u8)).nth(1).unwrap_or(""))' : string
+inl memory_word_at (~line : string) (offset : i32) : i32 = $'(!line).get(!offset as usize..).and_then(|rest| rest.find("memory ")).map(|at| at as i32 + !offset).unwrap_or(-1)' : i32
+inl slug_from (~line : string) (at : i32) : string = $'std::rc::Rc::<str>::from((!line).get(!at as usize..).unwrap_or("").chars().take_while(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == char::from(45u8)).collect::<String>().trim_end_matches(char::from(45u8)))' : string
+
+let rec cites_in (~names : string) (~id : string) (~line : string) (offset : i32) (tally : links_tally) : links_tally =
+    inl at = memory_word_at line offset
+    if at < 0i32 then tally
+    else cites_in names id line (at + 7i32) (tally_with tally (memory_cite_finding names id (slug_from line (at + 7i32))))
+
+let rec notes_checked (~names : string) (~state : string) (offset : i32) (tally : links_tally) : links_tally =
+    inl at = next_note state offset
+    if at < 0i32 then tally
+    else
+        inl stop = line_end_from state at
+        notes_checked names state stop (cites_in names (quoted_first (text_between state at stop)) (text_between state at stop) 0i32 tally)
+
+let links_start () : links_tally = { memories = 0i32; cited = 0i32; dangling = 0i32; done = 0i32; unwritten = 0i32; unknown = 0i32; report = "" }
+
+inl links_json (~report : string) : string =
+    $'std::rc::Rc::<str>::from({ let q = char::from(34u8); (!report).lines().filter_map(|line| { let mut parts = line.splitn(4, "  "); Some(format\!("{{{q}kind{q}:{q}{}{q},{q}memory{q}:{q}{}{q},{q}target{q}:{q}{}{q}}}", parts.next()?, parts.next()?, parts.next()?.trim_start_matches("[[").trim_end_matches("]]"))) }).collect::<Vec<_>>().join(",") }.as_str())' : string
+
+let links_run () : i32 =
+    inl root = argument 3i32
+    inl directory = option_value "--memory"
+    if directory = "" || directory_exists directory = false then
+        stderr_line "eoie error: agile links rejected: --memory <dir> must name a memory directory"
+        2i32
+    else
+        inl state = text_of (joined (joined root "state") "agile.spi")
+        inl files = memory_files directory
+        inl names = names_from directory files ""
+        inl tally = notes_checked names state 0i32 (memories_checked state (backlog_prefixes state) names directory files (links_start ()))
+        inl counts = "memories=" ++# (i32_text tally.memories) ++# " cited=" ++# (i32_text tally.cited) ++# (" dangling=" ++# (i32_text tally.dangling) ++# " done=" ++# (i32_text tally.done) ++# (" unwritten_links=" ++# (i32_text tally.unwritten) ++# " unknown_memories=" ++# (i32_text tally.unknown)))
+        inl report = tally.report
+        inl _ =
+            if flag_present "--json" then stdout_line ("{\"findings\":[" ++# (links_json report) ++# "],\"dangling\":" ++# (i32_text tally.dangling) ++# "}")
+            else
+                inl _ = if report <> "" then stdout_line ($'std::rc::Rc::<str>::from((!report).trim_end())' : string) else ()
+                stdout_line ("eoie agile links ok " ++# counts)
+        if tally.dangling = 0i32 then 0i32 else 1i32
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_links_run", ((fun () => links_run ()) : () -> i32))
+    0i32

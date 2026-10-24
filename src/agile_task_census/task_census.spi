@@ -1,4 +1,5 @@
 open agile_task_text.model
+open sm'_operators
 open agile_mutation_policy.model
 open workspace_primitives.outcome
 open workspace_primitives.numbers
@@ -14,22 +15,22 @@ let rec count_status (text : string) (offset : i32) (length : i32) (~status : st
     if found < 0i32 then counted
     else
         inl arguments = $"!found + !(task_arguments_offset ())" : i32
-        inl matching = if declared_task text found then rust_std_string.model.equals (tuple_field text arguments length 6i32) status else false
+        inl matching = if declared_task text found then ((tuple_field text arguments length 6i32) = status) else false
         inl next = if matching then counted + 1i32 else counted
         count_status text arguments length status next
 
 let status_count_text (text : string) (length : i32) (~status : string) : string =
-    rust_std_string.model.concat5 " " (ascii_lowercase status) "=" (i32_text (count_status text 0i32 length status 0i32)) ""
+    " " ++# (ascii_lowercase status) ++# "=" ++# (i32_text (count_status text 0i32 length status 0i32))
 
 let status_counts (text : string) (length : i32) : string =
     union_reflection.cases.union_cases_joined (fun (status : agile_status) => status_count_text text length (agile_case_text status)) ""
 
 let status_count_json (text : string) (length : i32) (~status : string) : string =
-    rust_std_string.model.concat5 "\"" (ascii_lowercase status) "\":" (i32_text (count_status text 0i32 length status 0i32)) ""
+    "\"" ++# (ascii_lowercase status) ++# "\":" ++# (i32_text (count_status text 0i32 length status 0i32))
 
 let status_counts_json (text : string) (length : i32) : string =
     inl counts = union_reflection.cases.union_cases_joined (fun (status : agile_status) => status_count_json text length (agile_case_text status)) ","
-    rust_std_string.model.concat5 ",\"counts\":{" counts "}" "" ""
+    ",\"counts\":{" ++# counts ++# "}"
 let census_text (text : string) : string = status_counts text (byte_len text)
 let census_json (text : string) : string = status_counts_json text (byte_len text)
 
@@ -42,12 +43,26 @@ let rec status_of_id (text : string) (~anchor : string) (offset : i32) (length :
         else status_of_id text anchor (found + 1i32) length
 
 let task_status_of (text : string) (~id : string) : string =
-    status_of_id text (rust_std_string.model.concat5 "Task (\"" id "\"," "" "") 0i32 (byte_len text)
+    status_of_id text ("Task (\"" ++# id ++# "\",") 0i32 (byte_len text)
+
+let rec unsettled_from (text : string) (offset : i32) (length : i32) (~ids : string) : string =
+    inl found = byte_find_from text (task_marker ()) offset
+    if found < 0i32 then ids
+    else
+        inl arguments = $"!found + !(task_arguments_offset ())" : i32
+        inl settled = if declared_task text found then ((tuple_field text arguments length 6i32) = "Done") else true
+        inl id = tuple_field text arguments length 0i32
+        unsettled_from text arguments length (if settled then ids else ids ++# (byte_slice id 1i32 (byte_len id - 1i32)) ++# "\n")
+
+let unsettled_ids (text : string) : string = unsettled_from text 0i32 (byte_len text) ""
 
 inl main () : i32 =
     !!!!Export("eoie_agile_status_counts", ((fun text => census_text text) : string -> string))
     !!!!Export("eoie_agile_status_counts_json", ((fun text => census_json text) : string -> string))
     !!!!Export("eoie_agile_task_status", ((fun (text, id) => task_status_of text id) : string * string -> string))
     inl _ = census_text ""
+    !!!!Export("eoie_agile_unsettled_ids", ((fun text => unsettled_ids text) : string -> string))
+    !!!!Export("eoie_agile_first_malformed_task", ((fun text => first_malformed_task text 0i32 (byte_len text)) : string -> i32))
     inl _ = task_status_of "" ""
+    inl _ = unsettled_ids ""
     0i32

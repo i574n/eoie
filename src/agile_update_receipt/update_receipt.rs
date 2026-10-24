@@ -12,24 +12,28 @@ fn closure0() -> Rc<dyn Fn() -> u64> {
 }
 fn agile_set_receipt_text_1(mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>, mut v3: u64, mut v4: u64, mut v5: u64) -> Rc<str> {
     let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie agile set ok id="); } LIT.with(|lit| lit.clone()) };
-    let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" progress="); } LIT.with(|lit| lit.clone()) };
-    let mut v8: Rc<str> = std::rc::Rc::<str>::from((v1).to_string());
-    let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" status="); } LIT.with(|lit| lit.clone()) };
-    let mut v10: Rc<str> = std::rc::Rc::<str>::from([&*v6, &*v0, &*v7, &*v8, &*v9].concat());
-    let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" validation=runtime-attested compiler=not-required"); } LIT.with(|lit| lit.clone()) };
-    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v13: Rc<str> = std::rc::Rc::<str>::from([&*v10, &*v2, &*v11, &*v12, &*v12].concat());
-    let mut v14: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v5);
-    let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_before="); } LIT.with(|lit| lit.clone()) };
-    let mut v16: Rc<str> = std::rc::Rc::<str>::from((v3).to_string());
-    let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_after="); } LIT.with(|lit| lit.clone()) };
-    let mut v18: Rc<str> = std::rc::Rc::<str>::from((v4).to_string());
-    let mut v19: Rc<str> = std::rc::Rc::<str>::from([&*v15, &*v16, &*v17, &*v18, &*v12].concat());
-    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
-    let mut v21: Rc<str> = std::rc::Rc::<str>::from((v14).to_string());
-    let mut v22: Rc<str> = std::rc::Rc::<str>::from([&*v19, &*v20, &*v21, &*v12, &*v12].concat());
-    let mut v23: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v22, &*v12, &*v12, &*v12].concat());
-    v23.clone()
+    let mut v7: Rc<str> = Rc::<str>::from(format!("{}{}", v6, v0));
+    let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" progress="); } LIT.with(|lit| lit.clone()) };
+    let mut v9: Rc<str> = Rc::<str>::from(format!("{}{}", v7, v8));
+    let mut v10: Rc<str> = std::rc::Rc::<str>::from((v1).to_string());
+    let mut v11: Rc<str> = Rc::<str>::from(format!("{}{}", v9, v10));
+    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" status="); } LIT.with(|lit| lit.clone()) };
+    let mut v13: Rc<str> = Rc::<str>::from(format!("{}{}", v11, v12));
+    let mut v14: Rc<str> = Rc::<str>::from(format!("{}{}", v13, v2));
+    let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" validation=runtime-attested compiler=not-required"); } LIT.with(|lit| lit.clone()) };
+    let mut v16: Rc<str> = Rc::<str>::from(format!("{}{}", v14, v15));
+    let mut v17: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v5);
+    let mut v18: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_before="); } LIT.with(|lit| lit.clone()) };
+    let mut v19: Rc<str> = std::rc::Rc::<str>::from((v3).to_string());
+    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes_after="); } LIT.with(|lit| lit.clone()) };
+    let mut v21: Rc<str> = std::rc::Rc::<str>::from((v4).to_string());
+    let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+    let mut v23: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v19, &*v20, &*v21, &*v22].concat());
+    let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
+    let mut v25: Rc<str> = std::rc::Rc::<str>::from((v17).to_string());
+    let mut v26: Rc<str> = std::rc::Rc::<str>::from([&*v23, &*v24, &*v25, &*v22, &*v22].concat());
+    let mut v27: Rc<str> = Rc::<str>::from(format!("{}{}", v16, v26));
+    v27.clone()
 }
 fn closure1() -> Rc<dyn Fn(Rc<str>, i32, Rc<str>, u64, u64, u64) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, i32, Rc<str>, u64, u64, u64) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>, mut v1: i32, mut v2: Rc<str>, mut v3: u64, mut v4: u64, mut v5: u64| -> Rc<str> {

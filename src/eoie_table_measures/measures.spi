@@ -1,0 +1,119 @@
+open sm'_operators
+open eoie_table_query.query
+open eoie_table_query.cells
+open eoie_table_query.stats
+
+union compare =
+    | Equal
+    | NotEqual
+    | Greater
+    | GreaterEqual
+    | Less
+    | LessEqual
+
+inl compare_of (~symbol : string) : compare =
+    if symbol = ">=" then GreaterEqual
+    elif symbol = "<=" then LessEqual
+    elif symbol = "!=" then NotEqual
+    elif symbol = ">" then Greater
+    elif symbol = "<" then Less
+    else Equal
+
+inl operator_at (~clause : string) : i32 = $'(!clause).find(|c: char| c == char::from(60u8) || c == char::from(62u8) || c == char::from(61u8) || c == char::from(33u8)).map(|at| at as i32).unwrap_or(-1)' : i32
+inl symbol_at (~clause : string) (at : i32) : string = $'std::rc::Rc::<str>::from({ let text = &(!clause)[!at as usize..]; let bytes = text.as_bytes(); if bytes.len() > 1 && bytes[1] == 61u8 && bytes[0] \!= 61u8 { &text[..2] } else { &text[..1] } })' : string
+inl text_until (~text : string) (stop : i32) : string = $'std::rc::Rc::<str>::from(&(!text)[..!stop as usize])' : string
+inl text_from (~text : string) (start : i32) : string = $'std::rc::Rc::<str>::from(&(!text)[!start as usize..])' : string
+inl text_bytes (~text : string) : i32 = sm'.length text
+let ordered (~cell : string) (~value : string) : i32 = $'match ((!cell).trim().parse::<f64>(), (!value).trim().parse::<f64>()) { (Ok(left), Ok(right)) => left.partial_cmp(&right).map(|order| order as i32).unwrap_or(0), _ => (!cell).cmp(&(!value)) as i32 }' : i32
+
+let compared (op : compare) (~cell : string) (~value : string) : bool =
+    match op with
+    | Equal => cell = value
+    | NotEqual => cell <> value
+    | Greater => ordered cell value > 0i32
+    | GreaterEqual => ordered cell value >= 0i32
+    | Less => ordered cell value < 0i32
+    | LessEqual => ordered cell value <= 0i32
+
+union rec filters =
+    | NoFilters
+    | FilterThen : i32 * compare * string * filters
+
+let rec filters_from (cells : table_cells) (~wheres : string) : filters * string =
+    if wheres = "" then NoFilters, ""
+    else
+        inl clause = head_of wheres "\n"
+        inl at = operator_at clause
+        inl symbol = if at < 0i32 then "=" else symbol_at clause at
+        inl name = if at < 0i32 then clause else text_until clause at
+        inl index = column_of cells name
+        inl rest, missing = filters_from cells (tail_of wheres "\n")
+        if index < 0i32 then rest, listed name missing
+        else FilterThen (index, compare_of symbol, text_from clause (at + text_bytes symbol), rest), missing
+
+let rec row_passes (list : filters) (cells : table_cells) (row : i32) : bool =
+    match list with
+    | NoFilters => true
+    | FilterThen (index, op, value, rest) => if compared op (cell_at cells row index) value then row_passes rest cells row else false
+let rec measures_from (cells : table_cells) (~items : string) : measures * string =
+    if items = "" then NoMeasures, ""
+    else
+        inl item = head_of items ","
+        inl word = head_of item ":"
+        inl name = tail_of item ":"
+        inl index = column_of cells name
+        inl rest, missing = measures_from cells (tail_of items ",")
+        if index < 0i32 then rest, listed name missing
+        else union_reflection.cases.union_cases_fold (fun found (kind : aggregate) => if word = aggregate_word kind then MeasureThen (kind, name, index, rest) else found) rest, missing
+
+let rec row_cells (list : measures) (cells : table_cells) (row : i32) : cell_texts =
+    match list with
+    | NoMeasures => NoCells
+    | MeasureThen (_, _, index, rest) => CellThen (cell_at cells row index, row_cells rest cells row)
+
+inl group_key (cells : table_cells) (row : i32) (group : i32) : string = if group < 0i32 then "all" else cell_at cells row group
+
+let rec grouped_from (cells : table_cells) (list : filters) (group : i32) (chosen : measures) (empty : measure_stats) (row : i32) (total : i32) (found : groups) (matched : i32) : groups * i32 =
+    if total < row then found, matched
+    elif row_passes list cells row then grouped_from cells list group chosen empty (row + 1i32) total (group_added found (group_key cells row group) empty (row_cells chosen cells row)) (matched + 1i32)
+    else grouped_from cells list group chosen empty (row + 1i32) total found matched
+
+let rec groups_printed (chosen : measures) (sorted : groups) (limit : u64) (shown : i32) : i32 =
+    match sorted with
+    | NoGroups => shown
+    | GroupThen (name, rows, stats, rest) =>
+        if below_limit shown limit then
+            stdout_line ((i32_text rows) ++# "\t" ++# name ++# (measure_cells chosen stats))
+            groups_printed chosen rest limit (shown + 1i32)
+        else shown
+
+let grouped_measures (cells : table_cells) (request : table_request) : i32 =
+    inl whole = request.group = ""
+    inl group = if whole then -1i32 else column_of cells request.group
+    inl list, missing_wheres = filters_from cells request.wheres
+    inl chosen, missing_measures = measures_from cells request.measured
+    inl missing_group = if whole = false && group < 0i32 then request.group else ""
+    inl missing = listed (listed missing_wheres missing_group) missing_measures
+    if missing <> "" then rejected ("unknown columns: " ++# missing ++# " (header: " ++# (header_joined cells ",") ++# ")")
+    else
+        inl found, matched = grouped_from cells list group chosen (stats_empty chosen) 1i32 (row_total cells) NoGroups 0i32
+        stdout_line ("count\t" ++# (if whole then "all" else request.group) ++# (measure_headers chosen))
+        inl shown = groups_printed chosen (groups_sorted found NoGroups) request.limit 0i32
+        inl counts = " matched=" ++# (i32_text matched) ++# " groups=" ++# (i32_text (group_count found 0i32)) ++# " shown="
+        if request.quiet then () else stdout_line ("eoie table query ok total=" ++# (i32_text (row_total cells)) ++# counts ++# (i32_text shown))
+        0i32
+
+inl measured (request : table_request) : bool = request.measured <> ""
+
+let measured_query (~file : string) (request : table_request) : i32 =
+    match table_read file with
+    | TableUnreadable problem => rejected problem
+    | TableLoaded cells => grouped_measures cells request
+
+let measured_entry (~file : string) (~wheres : string) (~group : string) (~measures : string) (limit : u64) (quiet : bool) : i32 =
+    inl base = no_request ()
+    measured_query file { base with wheres = wheres; group = group; measured = measures; limit = limit; quiet = quiet }
+
+inl main () : i32 =
+    !!!!Export("eoie_table_measured", ((fun (file, wheres, group, measures, limit, quiet) => measured_entry file wheres group measures limit quiet) : string * string * string * string * u64 * bool -> i32))
+    0i32

@@ -1,30 +1,16 @@
-nominal record_list = $'std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>'
+open eoie_do_model.model
+
+open eoie_do_records.records
 
 let compiled_text (~text : string) : string = $'eoie_do_program::eoie_do_program_compiled(&*!text)' : string
 
-let records_of (~encoded : string) : record_list =
-    $'std::rc::Rc::new((&*!encoded).split(char::from(30u8)).map(|record| record.split(char::from(31u8)).map(std::rc::Rc::<str>::from).collect::<Vec<_>>()).collect::<Vec<_>>())' : record_list
+inl has_edit (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| \
+    &**kind == "edit").unwrap_or(false))' : bool
 
-let field_at (~records : record_list) (~record : i32) (~field : i32) : string =
-    $'!records.get(!record as usize).and_then(|fields| fields.get(!field as usize)).cloned().unwrap_or_default()' : string
-inl has_query (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false))' : bool
-inl has_fact (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| ["hash", "env", "exists", "nearest", "json", "lines", "table", "dirs", "tag", "count", "diff"].contains(&&**verb) || (&**verb == "files" && fields.iter().any(|word| &**word == "wcount"))).unwrap_or(false))' : bool
-inl has_run (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| ["run", "errors", "processes", "stop"].contains(&&**verb)).unwrap_or(false))' : bool
-inl has_write (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "append" || &**verb == "copy").unwrap_or(false))' : bool
-inl has_git (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "git").unwrap_or(false))' : bool
-inl has_job (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "job").unwrap_or(false))' : bool
-inl has_lab (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "query").unwrap_or(false) && fields.get(1).map(|verb| &**verb == "lab").unwrap_or(false))' : bool
-inl has_edit (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| &**kind == "edit").unwrap_or(false))' : bool
-
-union program_family =
-    | Edits
-    | Reads
-    | Facts
-    | Runs
-    | Writes
-    | Git
-    | Jobs
-    | Labs
+let program_family_of (~encoded : string) : program_family =
+    match program_family_named ($'eoie_do_verbs::eoie_do_program_family(&*!encoded)' : string) with
+    | Some family => family
+    | None => Edits
 
 union compiled_program =
     | CompileRejected : string
@@ -34,11 +20,7 @@ let program_decoded (~text : string) : compiled_program =
     inl encoded = compiled_text text
     inl records = records_of encoded
     if field_at records 0i32 0i32 = "ok" then
-        if has_run records then Delegated ((if has_edit records then Edits else Runs), encoded)
-        elif has_job records then Delegated (Jobs, encoded)
-        elif has_lab records then Delegated (Labs, encoded)
-        elif has_git records then Delegated (Git, encoded)
-        elif has_write records then Delegated (Writes, encoded)
-        elif has_fact records then Delegated (Facts, encoded)
-        elif has_query records then Delegated (Reads, encoded) else Delegated (Edits, encoded)
+        match program_family_of encoded with
+        | Runs => Delegated ((if has_edit records then Edits else Runs), encoded)
+        | family => Delegated (family, encoded)
     else CompileRejected (field_at records 1i32 0i32)

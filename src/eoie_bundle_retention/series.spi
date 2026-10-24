@@ -1,8 +1,8 @@
 ///- --package .
 test series static =
-    open rust_std_string.model
+    open sm'_operators
 
-open rust_std_string.model
+open sm'_operators
 
 union series_rejection =
     | MissingZipSuffix
@@ -40,7 +40,7 @@ inl decimal_value (~digits : string) : u64 =
     $'!digits.parse::<u64>().unwrap_or(0)' : u64
 
 let read_series (~current : string) : series_reading =
-    if ends_with current (zip_suffix ()) then
+    if sm'.ends_with (zip_suffix ()) current then
         inl stem = without_suffix current (zip_suffix ())
         inl marker = last_index_of stem (alpha_marker ())
         if marker < 0i64 then SeriesRejected MissingAlphaSuffix
@@ -49,15 +49,15 @@ let read_series (~current : string) : series_reading =
             inl digits = from_index stem prefix_end
             if ascii_digits digits then
                 inl overflow = decimal_overflow digits
-                if equals overflow "" then SeriesMember (through_index stem prefix_end, decimal_value digits)
+                if (overflow = "") then SeriesMember (through_index stem prefix_end, decimal_value digits)
                 else SeriesRejected (AlphaOutOfRange overflow)
             else SeriesRejected InvalidAlphaSuffix
     else SeriesRejected MissingZipSuffix
 
 inl rejection_text (current : string) = function
-    | MissingZipSuffix => concat5 "retention current must end in .zip: " current "" "" ""
-    | MissingAlphaSuffix => concat5 "retention current has no alpha suffix: " current "" "" ""
-    | InvalidAlphaSuffix => concat5 "retention current has invalid alpha suffix: " current "" "" ""
+    | MissingZipSuffix => "retention current must end in .zip: " ++# current
+    | MissingAlphaSuffix => "retention current has no alpha suffix: " ++# current
+    | InvalidAlphaSuffix => "retention current has invalid alpha suffix: " ++# current
     | AlphaOutOfRange detail => detail
 
 let series_error (~current : string) : string =
@@ -78,12 +78,12 @@ let series_alpha (~current : string) : u64 =
 inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
 
 inl member (current : string) (prefix : string) (alpha : u64) : () =
-    expect (equals (series_error current) "") current
-    expect (equals (series_prefix current) prefix) current
+    expect (((series_error current) = "")) current
+    expect (((series_prefix current) = prefix)) current
     expect (series_alpha current = alpha) current
 
 inl rejected (current : string) (message : string) : () =
-    expect (equals (series_error current) message) current
+    expect (((series_error current) = message)) current
 
 ///> rust
 test series_members_split_at_the_last_alpha_marker =

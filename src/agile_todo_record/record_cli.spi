@@ -1,0 +1,31 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl marked (~text : string) : string = cat (cat "// " (cat "TO" "DO")) text
+
+inl task_row (~id : string) : string =
+    $'std::rc::Rc::<str>::from(format\!("inl task_{0} () = Task ({1}{0}{1}, {1}title{1}, Story, P1, D1, 0u32, Active, {1}{1}, {1}{1}, {1}current{1}, {1}current{1})\n", &*!id, char::from(34u8)).as_str())' : string
+
+inl record_fixture () : fixture_root =
+    inl root = fixture_root_create "todo record"
+    fixture_write root "state/agile.spi" (cat (task_row "A-1") (task_row "B-2"))
+    fixture_write root "repo/a.spi" (cat (cat "inl a = 1\n" (marked ": A-1 finish the slice")) "\n")
+    root
+
+inl recorded (root : fixture_root) : string = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("agile", Arg ("todos", Arg (fixture_text_of root, Arg ("--record", NoArgs))))))
+
+///> rust
+test recording_notes_blocks_that_appear_move_and_vanish =
+    inl root = record_fixture ()
+    shows (recorded root) "eoie agile todos record ok sites=1 appeared=1 moved=0 vanished=0 notes=1 bytes_before="
+    shows (fixture_read root "state/agile.spi") "todos: block appeared at "
+    shows (fixture_read root "state/agile.spi") "repo/a.spi:2"
+    shows (recorded root) "appeared=0 moved=0 vanished=0 notes=0 unchanged=true"
+    fixture_write root "repo/a.spi" (cat (cat "inl a = 1\n\n\n" (marked ": A-1 finish the slice")) "\n")
+    shows (recorded root) "moved=1"
+    shows (fixture_read root "state/agile.spi") "repo/a.spi:4"
+    fixture_write root "repo/a.spi" "inl a = 1\n"
+    shows (recorded root) "sites=0 appeared=0 moved=0 vanished=1 notes=1"
+    shows (fixture_read root "state/agile.spi") "(cut on purpose, or lost)"
+    hides (fixture_read root "state/agile.spi") "inl todo_site_"
+    fixture_root_remove root

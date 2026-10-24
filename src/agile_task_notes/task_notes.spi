@@ -1,4 +1,5 @@
 open rust_std_fs.model
+open sm'_operators
 open agile_task_text.model
 open agile_note_model.model
 open workspace_primitives.outcome
@@ -9,7 +10,9 @@ open workspace_primitives.console
 open workspace_primitives.files
 
 inl argument_owned index : string = rust_std_env.model.argument_owned index
-inl argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+let argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
 
 inl default_author () : string = "user"
 
@@ -20,10 +23,10 @@ union note_author_choice =
     | AuthorMalformed
 
 inl variable_set (name : string) : bool =
-    if rust_std_string.model.equals (rust_std_string.model.trim (rust_std_env.model.variable_or_empty name)) "" then false else true
+    if ((sm'.trim (rust_std_env.model.variable_or_empty name)) = "") then false else true
 
 inl unnamed_choice () : note_author_choice =
-    if variable_set "EOIE_AUTHOR" then AuthorNamed (rust_std_string.model.trim (rust_std_env.model.variable_or_empty "EOIE_AUTHOR"))
+    if variable_set "EOIE_AUTHOR" then AuthorNamed (sm'.trim (rust_std_env.model.variable_or_empty "EOIE_AUTHOR"))
     elif variable_set "AI_AGENT" || variable_set "CLAUDECODE" then AuthorUnnamedAgent
     else AuthorDefault
 
@@ -31,18 +34,18 @@ inl author_choice () : note_author_choice =
     inl count = argument_count ()
     if count = 4i32 then unnamed_choice ()
     elif count = 6i32 then
-        if rust_std_string.model.equals (argument_owned 4i32) "--as" then
-            inl named = rust_std_string.model.trim (argument_owned 5i32)
-            if rust_std_string.model.equals named "" then AuthorMalformed else AuthorNamed named
+        if ((argument_owned 4i32) = "--as") then
+            inl named = sm'.trim (argument_owned 5i32)
+            if (named = "") then AuthorMalformed else AuthorNamed named
         else AuthorMalformed
     else AuthorMalformed
 
-inl note_failure (~reason : string) (~id : string) : i32 = stderr_failure (rust_std_string.model.concat5 "agile note " id " rejected: " reason "")
+inl note_failure (~reason : string) (~id : string) : i32 = stderr_failure ("agile note " ++# id ++# " rejected: " ++# reason)
 
 inl note_success (~id : string) (seq : i32) (note : task_note) (before : u64) (after : u64) (elapsed : u64) : i32 =
-    inl head = rust_std_string.model.concat5 "eoie agile note ok id=" id " note=" (i32_text seq) " at="
-    inl middle = rust_std_string.model.concat5 note.at " author=" (spi_quoted note.author) " text_bytes=" (i32_text (byte_len note.text))
-    stdout_line (rust_std_string.model.concat5 head middle (measured_sizes before after elapsed) "" "")
+    inl head = "eoie agile note ok id=" ++# id ++# " note=" ++# (i32_text seq) ++# " at="
+    inl middle = note.at ++# " author=" ++# (spi_quoted note.author) ++# " text_bytes=" ++# (i32_text (byte_len note.text))
+    stdout_line (head ++# middle ++# (measured_sizes before after elapsed))
 
 let note_added (~root : string) (~id : string) (~author : string) (~body : string) : i32 =
     inl started = unix_ms ()
@@ -63,8 +66,8 @@ let note_added (~root : string) (~id : string) (~author : string) (~body : strin
 
 let note_entry () : i32 =
     inl id = argument_owned 2i32
-    inl body = rust_std_string.model.trim (argument_owned 3i32)
-    if rust_std_string.model.equals body "" then note_failure "the note text is empty" id
+    inl body = sm'.trim (argument_owned 3i32)
+    if (body = "") then note_failure "the note text is empty" id
     else
         match author_choice () with
         | AuthorDefault => note_added (argument_owned 1i32) id (default_author ()) body
@@ -72,7 +75,32 @@ let note_entry () : i32 =
         | AuthorUnnamedAgent => note_failure "an agent session must name the note's author: agile note <root> <id> <text> --as <author> (or set EOIE_AUTHOR)" id
         | AuthorMalformed => note_failure "usage: agile note <root> <id> <text> [--as <author>]" id
 
+union groomed =
+    | GroomedText : string
+    | GroomedRefused : string
+
+inl groomed_from (code, detail) : groomed = if code = 0i32 then GroomedText detail else GroomedRefused detail
+
+let planned (step : groomed) (~id : string) (~field_name : string) (~value : string) : groomed =
+    match step with
+    | GroomedRefused _ => step
+    | GroomedText text =>
+        if value = "" then step
+        else
+            match groomed_from ($'agile_planning_values::eoie_agile_planning_value_token(&*!field_name, &*!value)' : i32 * string) with
+            | GroomedRefused reason => GroomedRefused reason
+            | GroomedText token => groomed_from ($'agile_planning_rewrite::eoie_agile_planning_rewrite(&*!text, &*!id, &*!field_name, &*!token)' : i32 * string)
+
+let groomed_text (~text : string) (~id : string) (~estimate : string) (~load : string) (~assignee : string) (~body : string) (~author : string) : i32 * string =
+    match planned (planned (planned (GroomedText text) id "estimate" estimate) id "load" load) id "assignee" assignee with
+    | GroomedRefused reason => 1i32, reason
+    | GroomedText planned_text =>
+        if body = "" then 0i32, planned_text
+        else 0i32, notes_appended (note_schema_ensured planned_text) id (note_row id 1i32 { at = utc_stamp (unix_ms ()); author = author; text = body })
+
 inl main () : i32 =
     !!!!Export("eoie_agile_note_run", ((fun () => note_entry ()) : () -> i32))
+    !!!!Export("eoie_agile_groomed", ((fun (text, id, estimate, load, assignee, body, author) => groomed_text text id estimate load assignee body author) : string * string * string * string * string * string * string -> i32 * string))
+    !!!!Export("eoie_utc_stamp", ((fun stamped => utc_stamp stamped) : u64 -> string))
     inl _ = note_entry ()
     0i32

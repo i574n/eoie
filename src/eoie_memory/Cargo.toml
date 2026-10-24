@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "memory.spi"
+output = "memory.rs"
+
+[package]
+name = "eoie-memory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_memory"
+path = "memory.rs"
+
+[dependencies]
+eoie-memory-query = { path = "../eoie_memory_query" }
+eoie-memory-import = { path = "../eoie_memory_import" }

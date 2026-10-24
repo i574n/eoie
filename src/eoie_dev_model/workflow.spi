@@ -1,6 +1,8 @@
-inl equal (left : string) (right : string) : bool = rust_std_string.model.equals left right
-let append (left : string) (right : string) : string = rust_std_string.model.concat5 left right "" "" ""
-let arg (left : string) (right : string) : string = rust_std_string.model.concat5 left (host.separator ()) right "" ""
+open sm'_operators
+
+inl equal (left : string) (right : string) : bool = (left = right)
+let append (left : string) (right : string) : string = left ++# right
+let arg (left : string) (right : string) : string = left ++# (host.separator ()) ++# right
 inl empty (value : string) : bool = equal value ""
 inl not (value : bool) : bool = if value then false else true
 inl flag_name (name : string) : bool =
@@ -27,7 +29,7 @@ let rec validate (index : i32) (length : i32) : bool =
             if next < length then
                 inl value = host.argument next
                 if empty value then false
-                elif rust_std_string.model.starts_with value "--" then false
+                elif sm'.starts_with "--" value then false
                 else validate (index + 2i32) length
             else false
         else false
@@ -69,10 +71,10 @@ let rec quoted_arguments (args : string) (cursor : i32) (separator : char) : str
     inl next = find_char args cursor separator
     inl current = predicate_lex.model.encode (slice_exclusive args cursor next)
     if (=.) next (sm.length args : i32) then current
-    else rust_std_string.model.concat5 current " " (quoted_arguments args ((+.) next 1i32) separator) "" ""
+    else current ++# " " ++# (quoted_arguments args ((+.) next 1i32) separator)
 inl show (args : string) : () =
     inl text = quoted_arguments args 0i32 (sm.index (host.separator ()) 0i32)
-    host.print (rust_std_string.model.concat5 "cargo " text "\n" "" "")
+    host.print ("cargo " ++# text ++# "\n")
 
 union request result =
     | Cargo :: string -> request i32

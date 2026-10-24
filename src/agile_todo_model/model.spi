@@ -22,13 +22,16 @@ union syntax_lookup =
     | KnownSyntax : comment_syntax
     | UnknownSyntax
 
-union path_verdict =
-    | ScanPath : comment_syntax
+union path_skip =
     | SkipNestedRepository
     | SkipVendorDirectory
     | SkipUnknownSyntax
     | SkipGeneratedOutput
     | SkipLinkedEntry
+
+union path_verdict =
+    | ScanPath : comment_syntax
+    | SkipPath : path_skip
 
 union content_verdict =
     | ScanContent
@@ -173,63 +176,26 @@ inl spiral_source (~relative : string) : bool =
     rust_std_string.model.pipe_member "spi|spir" (extension_of (ascii_lowercase (file_name relative)))
 
 let path_verdict (~relative : string) (spiral_sibling : bool) : path_verdict =
-    if rust_std_string.model.ends_with relative "/" then SkipNestedRepository
-    elif vendor_segment_from relative 0i32 then SkipVendorDirectory
+    if rust_std_string.model.ends_with relative "/" then SkipPath SkipNestedRepository
+    elif vendor_segment_from relative 0i32 then SkipPath SkipVendorDirectory
     else
         match syntax_of_path relative with
-        | UnknownSyntax => SkipUnknownSyntax
+        | UnknownSyntax => SkipPath SkipUnknownSyntax
         | KnownSyntax syntax =>
-            if both spiral_sibling (negated (spiral_source relative)) then SkipGeneratedOutput
+            if both spiral_sibling (negated (spiral_source relative)) then SkipPath SkipGeneratedOutput
             else ScanPath syntax
 
-inl syntax_code (syntax : comment_syntax) : i32 =
-    match syntax with
-    | CFamily => 1i32
-    | HashFamily => 2i32
-    | DashFamily => 3i32
-    | HaskellFamily => 4i32
-    | LeanFamily => 5i32
-    | LispFamily => 6i32
-    | ErlangFamily => 7i32
-    | MarkupFamily => 8i32
-    | MlFamily => 9i32
-    | PascalFamily => 10i32
-    | BatchFamily => 11i32
+inl case_index forall case_type. (value : case_type) : i32 = union_reflection.cases.union_case_index value
 
-let syntax_of_code (code : i32) : comment_syntax =
-    match code with
-    | 2i32 => HashFamily
-    | 3i32 => DashFamily
-    | 4i32 => HaskellFamily
-    | 5i32 => LeanFamily
-    | 6i32 => LispFamily
-    | 7i32 => ErlangFamily
-    | 8i32 => MarkupFamily
-    | 9i32 => MlFamily
-    | 10i32 => PascalFamily
-    | 11i32 => BatchFamily
-    | _ => CFamily
-
-inl scanned_code_base () : i32 = 100i32
+inl case_at forall case_type. (code : i32) (fallback : case_type) : case_type = union_reflection.cases.union_case_at code fallback
 
 inl path_verdict_code (verdict : path_verdict) : i32 =
     match verdict with
-    | ScanPath syntax => i32_add (scanned_code_base ()) (syntax_code syntax)
-    | SkipNestedRepository => 1i32
-    | SkipVendorDirectory => 2i32
-    | SkipUnknownSyntax => 3i32
-    | SkipGeneratedOutput => 4i32
-    | SkipLinkedEntry => 5i32
+    | ScanPath syntax => case_index syntax
+    | SkipPath skip => 0i32 - case_index skip
 
 let path_verdict_of_code (code : i32) : path_verdict =
-    if scanned_code_base () <= code then ScanPath (syntax_of_code (i32_sub code (scanned_code_base ())))
-    else
-        match code with
-        | 1i32 => SkipNestedRepository
-        | 2i32 => SkipVendorDirectory
-        | 4i32 => SkipGeneratedOutput
-        | 5i32 => SkipLinkedEntry
-        | _ => SkipUnknownSyntax
+    if 0i32 < code then ScanPath (case_at code CFamily) else SkipPath (case_at (0i32 - code) SkipUnknownSyntax)
 inl size_verdict (size : u64) : content_verdict =
     if $"!size > !(largest_scanned_bytes ())" : bool then SkipLarge else ScanContent
 
@@ -241,10 +207,9 @@ inl identifier_byte (code : i32) : bool =
     elif both (48i32 <= code) (code <= 57i32) then true
     else code = 95i32
 
-inl outside_strings (syntax : comment_syntax) (~line : string) (~stop : i32) : bool =
-    inl doubles = count_of_byte line (ascii_double_quote ()) 0i32 stop 0i32
-    inl even_doubles = i32_remainder doubles 2i32 = 0i32
-    if single_quote_strings syntax then both even_doubles (i32_remainder (count_of_byte line (ascii_single_quote ()) 0i32 stop 0i32) 2i32 = 0i32)
+inl outside_quotes (single : bool) (~line : string) (~stop : i32) : bool =
+    inl even_doubles = i32_remainder (count_of_byte line (ascii_double_quote ()) 0i32 stop 0i32) 2i32 = 0i32
+    if single then both even_doubles (i32_remainder (count_of_byte line (ascii_single_quote ()) 0i32 stop 0i32) 2i32 = 0i32)
     else even_doubles
 
 let rec leader_before (~leaders : string) (~before : string) (~offset : i32) : string =
@@ -254,6 +219,14 @@ let rec leader_before (~leaders : string) (~before : string) (~offset : i32) : s
     if rust_std_string.model.ends_with before leader then leader
     elif bar < 0i32 then ""
     else leader_before leaders before (bar + 1i32)
+
+let rec earlier_comment (single : bool) (~leaders : string) (~before : string) (~offset : i32) : bool =
+    inl bar = byte_find_from leaders "|" offset
+    inl stop = if bar < 0i32 then byte_len leaders else bar
+    inl at = byte_find before (byte_slice leaders offset stop)
+    if both (0i32 <= at) (outside_quotes single before at) then true
+    elif bar < 0i32 then false
+    else earlier_comment single leaders before (bar + 1i32)
 
 inl directive_line (~line : string) : bool =
     if rust_std_string.model.starts_with line "///>" then true else rust_std_string.model.starts_with line "///-"
@@ -275,7 +248,8 @@ let todo_in_line (syntax : comment_syntax) (~line : string) : todo_match =
     elif identifier_byte (byte_at line (i32_add marker 4i32)) then NoTodo
     else
         inl before = byte_slice line 0i32 (visible_end line marker)
-        inl leader = leader_before (comment_leaders syntax) before 0i32
+        inl leaders = comment_leaders syntax
+        inl leader = leader_before leaders before 0i32
         inl line_leader = line_start_leaders syntax
         inl leader_start = i32_sub (byte_len before) (byte_len leader)
         inl first_visible = first_visible_offset line 0i32
@@ -285,8 +259,10 @@ let todo_in_line (syntax : comment_syntax) (~line : string) : todo_match =
             else NoTodo
         else
             inl start = leader_run_start line leader_start (byte_at leader 0i32)
-            if outside_strings syntax line start then TodoComment (comment_text (byte_slice line start (byte_len line)))
-            else NoTodo
+            inl single = single_quote_strings syntax
+            if negated (outside_quotes single line start) then NoTodo
+            elif earlier_comment single leaders (byte_slice line 0i32 start) 0i32 then NoTodo
+            else TodoComment (comment_text (byte_slice line start (byte_len line)))
 
 inl empty_tally () : scan_tally = { files = 0i32; scanned = 0i32; todos = 0i32; nested = 0i32; vendor = 0i32; syntax = 0i32; generated = 0i32; binary = 0i32; large = 0i32; links = 0i32; unreadable = 0i32 }
 
@@ -294,11 +270,11 @@ let counted_path (tally : scan_tally) (verdict : path_verdict) : scan_tally =
     inl listed = { tally with files = (tally.files + 1i32) }
     match verdict with
     | ScanPath _ => listed
-    | SkipNestedRepository => { listed with nested = (listed.nested + 1i32) }
-    | SkipVendorDirectory => { listed with vendor = (listed.vendor + 1i32) }
-    | SkipUnknownSyntax => { listed with syntax = (listed.syntax + 1i32) }
-    | SkipGeneratedOutput => { listed with generated = (listed.generated + 1i32) }
-    | SkipLinkedEntry => { listed with links = (listed.links + 1i32) }
+    | SkipPath (SkipNestedRepository) => { listed with nested = (listed.nested + 1i32) }
+    | SkipPath (SkipVendorDirectory) => { listed with vendor = (listed.vendor + 1i32) }
+    | SkipPath (SkipUnknownSyntax) => { listed with syntax = (listed.syntax + 1i32) }
+    | SkipPath (SkipGeneratedOutput) => { listed with generated = (listed.generated + 1i32) }
+    | SkipPath (SkipLinkedEntry) => { listed with links = (listed.links + 1i32) }
 
 let counted_content (tally : scan_tally) (verdict : content_verdict) : scan_tally =
     match verdict with
@@ -325,7 +301,11 @@ let rec id_end (~comment : string) (offset : i32) : i32 =
     elif id_byte (byte_at comment offset) then id_end comment (offset + 1i32)
     else offset
 
-let todo_id (~comment : string) : string =
+inl declared_id (~backlog : string) (~token : string) : bool =
+    if 0i32 <= byte_find token "-" then true
+    else rust_std_string.model.contains backlog (rust_std_string.model.concat5 "Task (\"" token "\"," "" "")
+
+let todo_id (~backlog : string) (~comment : string) : string =
     inl marker = byte_find comment (todo_marker ())
     inl colon = i32_add marker 4i32
     if marker < 0i32 then ""
@@ -335,13 +315,13 @@ let todo_id (~comment : string) : string =
         inl token = byte_slice comment start stop
         inl closed = if byte_len comment <= stop then true else byte_at comment stop = 32i32
         inl capital = if stop <= start then false else both (65i32 <= byte_at comment start) (byte_at comment start <= 90i32)
-        if both closed capital then token else ""
+        if both (both closed capital) (declared_id backlog token) then token else ""
     else ""
 inl finding_line (~path : string) (line : i32) (~text : string) : string =
     rust_std_string.model.concat5 path ":" (i32_text line) "  " text
 
-let finding_json (~path : string) (line : i32) (~text : string) : string =
-    inl id = todo_id text
+let finding_json (~backlog : string) (~path : string) (line : i32) (~text : string) : string =
+    inl id = todo_id backlog text
     inl id_field = if rust_std_string.model.equals id "" then "" else rust_std_string.model.concat5 "\"id\":\"" (json_escaped id) "\"," "" ""
     inl head = rust_std_string.model.concat5 "{\"path\":\"" (json_escaped path) "\",\"line\":" (i32_text line) ","
     rust_std_string.model.concat5 head id_field "\"text\":\"" (json_escaped text) "\"}"
@@ -377,23 +357,48 @@ let rec block_from (syntax : comment_syntax) (~text : string) (~column : i32) (~
             block_from syntax text column (stop + 1i32) (rust_std_string.model.concat5 block "\n" body "" "") (lines + 1i32)
         else block, offset, lines
 
-let rec findings_from (syntax : comment_syntax) (~text : string) (~path : string) (json : bool) (~offset : i32) (~number : i32) (~rendered : string) (~count : i32) : string * i32 =
-    if byte_len text <= offset then rendered, count
+union todo_filter =
+    | AllTodos
+    | TaggedTodos
+    | TodosOf : string
+
+inl todo_filter_of (~text : string) : todo_filter =
+    if rust_std_string.model.equals text "" then AllTodos
+    elif rust_std_string.model.equals text "*" then TaggedTodos
+    else TodosOf text
+
+inl selected (filter : todo_filter) (~id : string) : bool =
+    match filter with
+    | AllTodos => true
+    | TaggedTodos => negated (rust_std_string.model.equals id "")
+    | TodosOf wanted => rust_std_string.model.equals id wanted
+
+inl wide_limit () : i32 = 120i32
+inl widest_line (~segment : string) : i32 = $'(!segment).lines().map(|line| line.trim_end().chars().count()).max().unwrap_or(0) as i32' : i32
+
+inl wides_with (spiral : bool) (~wides : string) (~path : string) (number : i32) (~segment : string) : string =
+    if both spiral (wide_limit () < widest_line segment) then rust_std_string.model.concat5 wides path ":" (i32_text number) "\n" else wides
+
+let rec findings_from (syntax : comment_syntax) (filter : todo_filter) (spiral : bool) (~backlog : string) (~text : string) (~path : string) (json : bool) (~offset : i32) (~number : i32) (~rendered : string) (~count : i32) (~wides : string) : string * i32 * string =
+    if byte_len text <= offset then rendered, count, wides
     else
         inl newline = byte_find_from text "\n" offset
         inl stop = if newline < 0i32 then byte_len text else newline
         inl line = byte_slice text offset stop
         inl next = stop + 1i32
         match todo_in_line syntax line with
-        | NoTodo => findings_from syntax text path json next (number + 1i32) rendered count
+        | NoTodo => findings_from syntax filter spiral backlog text path json next (number + 1i32) rendered count wides
         | TodoComment comment =>
             inl block, after, extra = if comment_starts_line syntax line then block_from syntax text (first_visible_offset line 0i32) next comment 0i32 else comment, next, 0i32
-            inl entry = if json then finding_json path number block else finding_line path number block
-            inl joined = if rust_std_string.model.equals rendered "" then entry elif json then rust_std_string.model.concat5 rendered ",\n" entry "" "" else rust_std_string.model.concat5 rendered "\n" entry "" ""
-            findings_from syntax text path json after (i32_add (number + 1i32) extra) joined (count + 1i32)
+            inl following = i32_add (number + 1i32) extra
+            if selected filter (todo_id backlog block) then
+                inl entry = if json then finding_json backlog path number block else finding_line path number block
+                inl joined = if rust_std_string.model.equals rendered "" then entry elif json then rust_std_string.model.concat5 rendered ",\n" entry "" "" else rust_std_string.model.concat5 rendered "\n" entry "" ""
+                findings_from syntax filter spiral backlog text path json after following joined (count + 1i32) (wides_with spiral wides path number (byte_slice text offset after))
+            else findings_from syntax filter spiral backlog text path json after following rendered count wides
 
-inl findings (syntax : comment_syntax) (~text : string) (~path : string) (json : bool) : string * i32 =
-    findings_from syntax text path json 0i32 1i32 "" 0i32
+inl findings (syntax : comment_syntax) (filter : todo_filter) (~backlog : string) (~text : string) (~path : string) (json : bool) : string * i32 * string =
+    findings_from syntax filter (spiral_source path) backlog text path json 0i32 1i32 "" 0i32 ""
 
 inl tally_skips (tally : scan_tally) : string =
     inl a = rust_std_string.model.concat5 "nested:" (i32_text tally.nested) ",vendor:" (i32_text tally.vendor) ",generated:"
@@ -407,7 +412,7 @@ inl tally_receipt (roots : i32) (tally : scan_tally) (elapsed : u64) : string =
 
 inl tally_json_tail (roots : i32) (tally : scan_tally) (elapsed : u64) : string =
     inl head = rust_std_string.model.concat5 "],\"roots\":" (i32_text roots) ",\"files\":" (i32_text tally.files) ",\"scanned\":"
-    inl middle = rust_std_string.model.concat5 (i32_text tally.scanned) ",\"todos\":" (i32_text tally.todos) ",\"skipped\":{\"nested\":" (i32_text tally.nested)
+    inl middle = rust_std_string.model.concat5 (i32_text tally.scanned) ",\"todo_count\":" (i32_text tally.todos) ",\"skipped\":{\"nested\":" (i32_text tally.nested)
     inl skips = rust_std_string.model.concat5 ",\"vendor\":" (i32_text tally.vendor) ",\"generated\":" (i32_text tally.generated) ",\"syntax\":"
     inl rest = rust_std_string.model.concat5 (i32_text tally.syntax) ",\"binary\":" (i32_text tally.binary) ",\"large\":" (rust_std_string.model.concat5 (i32_text tally.large) ",\"links\":" (i32_text tally.links) ",\"unreadable\":" (i32_text tally.unreadable))
     rust_std_string.model.concat5 (rust_std_string.model.concat5 head middle skips rest "") "},\"elapsed_ms\":" (u64_text elapsed) "}" ""
@@ -428,11 +433,11 @@ inl syntax_label (syntax : comment_syntax) : string =
 inl path_label (verdict : path_verdict) : string =
     match verdict with
     | ScanPath syntax => rust_std_string.model.concat5 "scan " (syntax_label syntax) "" "" ""
-    | SkipNestedRepository => "nested"
-    | SkipVendorDirectory => "vendor"
-    | SkipUnknownSyntax => "syntax"
-    | SkipGeneratedOutput => "generated"
-    | SkipLinkedEntry => "link"
+    | SkipPath (SkipNestedRepository) => "nested"
+    | SkipPath (SkipVendorDirectory) => "vendor"
+    | SkipPath (SkipUnknownSyntax) => "syntax"
+    | SkipPath (SkipGeneratedOutput) => "generated"
+    | SkipPath (SkipLinkedEntry) => "link"
 
 inl content_label (verdict : content_verdict) : string =
     match verdict with
@@ -457,7 +462,7 @@ test leaders_are_chosen_per_language =
 ///> rust
 test strings_markdown_and_directives_are_not_comments =
     expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "inl s = \"// " ": no\""))) "<none>") "a leader inside a string"
-    expect (rust_std_string.model.equals (comment_found (todo_in_line MarkupFamily (marked "**Alphabet** is a tool (" ")."))) "<none>") "markdown prose"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line MarkupFamily (marked "**Widget** is a tool (" ")."))) "<none>") "markdown prose"
     expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "a * " " b"))) "<none>") "multiplication is not a block continuation"
     expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "///> rust " ""))) "<none>") "spiral target directive"
     expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "// " "LIST: words"))) "<none>") "marker inside a longer word"
@@ -478,13 +483,13 @@ test paths_skip_vendor_generated_and_unknown_files =
 ///> rust
 test findings_render_with_line_numbers_and_json =
     inl text = rust_std_string.model.concat5 "inl a = 1\n" (marked "// " " split") "\r\nlet b = 2\n" (marked "    // " ": \"quoted\"") "\n"
-    inl lines, count = findings CFamily text "repo/a.spi" false
+    inl lines, count, _ = findings CFamily AllTodos "" text "repo/a.spi" false
     expect (count = 2i32) "two findings"
     expect (rust_std_string.model.equals lines (rust_std_string.model.concat5 (marked "repo/a.spi:2  // " " split") "\n" (marked "repo/a.spi:4  // " ": \"quoted\"") "" "")) lines
-    inl json, json_count = findings CFamily text "repo/a.spi" true
+    inl json, json_count, _ = findings CFamily AllTodos "" text "repo/a.spi" true
     expect (json_count = 2i32) "two json findings"
     expect (rust_std_string.model.contains json (marked "{\"path\":\"repo/a.spi\",\"line\":4,\"text\":\"// " ": \\\"quoted\\\"\"}")) json
-    inl tally = counted_todos (counted_content (counted_path (counted_path (empty_tally ()) (ScanPath CFamily)) SkipGeneratedOutput) ScanContent) 2i32
+    inl tally = counted_todos (counted_content (counted_path (counted_path (empty_tally ()) (ScanPath CFamily)) (SkipPath SkipGeneratedOutput)) ScanContent) 2i32
     expect (rust_std_string.model.equals (tally_skips tally) "nested:0,vendor:0,generated:1,syntax:0,binary:0,large:0,links:0,unreadable:0") (tally_skips tally)
     expect (rust_std_string.model.starts_with (tally_receipt 1i32 tally 5u64) "eoie agile todos ok roots=1 files=2 scanned=1 todos=2 skipped=") (tally_receipt 1i32 tally 5u64)
 
@@ -504,28 +509,60 @@ test todo_blocks_keep_their_spiral_lines_and_ids =
         // not part of it
 
         """
-    inl lines, count = findings CFamily text "repo/a.spi" false
+    inl lines, count, _ = findings CFamily AllTodos "" text "repo/a.spi" false
     expect (count = 2i32) "a block and a trailing comment"
     expect (rust_std_string.model.contains lines (rust_std_string.model.concat5 "repo/a.spi:2  " block "" "" "")) lines
     expect (rust_std_string.model.contains lines (marked "repo/a.spi:6  // " " trailing")) lines
     expect (negated (rust_std_string.model.contains lines "not part of it")) lines
-    inl json, json_count = findings CFamily text "repo/a.spi" true
+    inl json, json_count, _ = findings CFamily AllTodos "" text "repo/a.spi" true
     expect (json_count = 2i32) "two json findings"
     expect (rust_std_string.model.contains json "\"line\":2,\"id\":\"EOIE-MEMORY-LINKS\",\"text\":") json
     expect (rust_std_string.model.contains json "\\n//     inl links root = ()\\n//     links \\\"backlog\\\"") json
-    expect (rust_std_string.model.equals (todo_id (marked "// " " plain")) "") "no id without a tag"
-    expect (rust_std_string.model.equals (todo_id (marked "// " ": TIBIA tune the arena")) "TIBIA") "a single upper-case word is an id"
-    expect (rust_std_string.model.equals (todo_id (marked "// " ": split the crate")) "") "lower-case text is not an id"
-    expect (rust_std_string.model.equals (todo_id (marked "// " ": EOIE-JOBS wire it")) "EOIE-JOBS") "the tag after the colon"
-    expect (rust_std_string.model.equals (todo_id (marked "# " ": DIB-MODERNIZE")) "DIB-MODERNIZE") "a tag at the end of the line"
+    expect (rust_std_string.model.equals (todo_id "" (marked "// " " plain")) "") "no id without a tag"
+    expect (rust_std_string.model.equals (todo_id "inl deploy () = Task (\"DEPLOY\", \"x\")" (marked "// " ": DEPLOY tune the rollout")) "DEPLOY") "a single upper-case word is an id when the backlog declares it"
+    expect (rust_std_string.model.equals (todo_id "" (marked "// " ": split the crate")) "") "lower-case text is not an id"
+    expect (rust_std_string.model.equals (todo_id "" (marked "// " ": EOIE-JOBS wire it")) "EOIE-JOBS") "the tag after the colon"
+    expect (rust_std_string.model.equals (todo_id "" (marked "# " ": DOC-REFRESH")) "DOC-REFRESH") "a tag at the end of the line"
+
+///> rust
+test undeclared_words_and_commented_out_code_are_not_harvested =
+    expect (rust_std_string.model.equals (todo_id "inl deploy () = Task (\"DEPLOY\", \"x\")" (marked "// " ": I am doing it like this")) "") "an undeclared single word is prose"
+    expect (rust_std_string.model.equals (todo_id "inl dep () = Task (\"DEP\", \"x\")" (marked "// " ": DEPLOY tune")) "") "a declared id must match the whole word"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "    //if seen.Add b then () // " ": I reuse this later"))) "<none>") "a comment inside commented-out code"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "    // // " ": nested"))) "<none>") "a commented-out comment"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line CFamily (marked "let url = \"http://a\" // " ": fetch"))) (marked "// " ": fetch")) "a leader inside an earlier string does not hide the comment"
+    expect (rust_std_string.model.equals (comment_found (todo_in_line HashFamily (marked "$x = 1 # " ": wire it"))) (marked "# " ": wire it")) "code before a comment is fine"
+
+///> rust
+test filters_keep_tagged_blocks_or_one_item =
+    inl text = rust_std_string.model.concat5 (marked "// " ": EOIE-JOBS stop\n") (marked "// " " plain\n") (marked "// " ": TODO-AS-SOURCE harvest\n") "" ""
+    inl _, all, _ = findings CFamily (todo_filter_of "") "" text "a.spi" false
+    expect (all = 3i32) "every block"
+    inl _, tagged, _ = findings CFamily (todo_filter_of "*") "" text "a.spi" false
+    expect (tagged = 2i32) "tagged blocks only"
+    inl one, only, _ = findings CFamily (todo_filter_of "EOIE-JOBS") "" text "a.spi" false
+    expect (only = 1i32) "one item"
+    expect (rust_std_string.model.contains one "a.spi:1  ") one
+    inl none, missing, _ = findings CFamily (todo_filter_of "EOIE") "" text "a.spi" false
+    expect (missing = 0i32) none
+
+///> rust
+test blocks_wider_than_120_columns_in_spiral_files_are_flagged =
+    inl long = $'std::rc::Rc::<str>::from("x".repeat(110).as_str())' : string
+    inl text = rust_std_string.model.concat5 (marked "// " ": short\n") (marked "// " ": EOIE-JOBS ") long "\n" ""
+    inl _, count, wides = findings CFamily AllTodos "" text "src/a.spi" false
+    expect (count = 2i32) "two blocks"
+    expect (rust_std_string.model.equals wides "src/a.spi:2\n") wides
+    inl _, _, rust_wides = findings CFamily AllTodos "" text "src/a.rs" false
+    expect (rust_std_string.model.equals rust_wides "") "only Spiral files are rewrapped by the formatter"
 
 ///> rust
 test verdicts_survive_the_crate_boundary_as_codes =
     labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "lib/a.ps1" false)))) "scan hash"
     labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "samples/a/main.c" true)))) "generated"
-    labelled (path_label (path_verdict_of_code (path_verdict_code SkipLinkedEntry))) "link"
+    labelled (path_label (path_verdict_of_code (path_verdict_code (SkipPath SkipLinkedEntry)))) "link"
     labelled (path_label (path_verdict_of_code (path_verdict_code (path_verdict "deps/x/" false)))) "nested"
-    expect (syntax_code (syntax_of_code 11i32) = 11i32) "batch syntax code"
+    expect (case_index (case_at 11i32 CFamily) = 11i32 && case_index BatchFamily = 11i32) "batch syntax code"
 
 ///> rust
 test files_up_to_32_mib_are_scanned_and_larger_ones_are_skipped =

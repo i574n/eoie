@@ -1,0 +1,33 @@
+
+union shell_call =
+    | EoieCall
+    | HabitCall
+    | OtherCall
+
+union agent_client =
+    | ClaudeCode
+    | Codex
+
+inl client_word = function
+    | ClaudeCode => "claude"
+    | Codex => "codex"
+
+type day_tally =
+    {
+        shell : u64
+        eoie : u64
+        habit : u64
+    }
+
+inl empty_tally () : day_tally = { shell = 0u64; eoie = 0u64; habit = 0u64 }
+
+inl counted (call : shell_call) (tally : day_tally) : day_tally =
+    match call with
+    | EoieCall => { tally with shell = tally.shell + 1u64; eoie = tally.eoie + 1u64 }
+    | HabitCall => { tally with shell = tally.shell + 1u64; habit = tally.habit + 1u64 }
+    | OtherCall => { tally with shell = tally.shell + 1u64 }
+
+let eoie_share (tally : day_tally) : f64 =
+    inl eoie = tally.eoie
+    inl shell = tally.shell
+    if shell = 0u64 then 0.0f64 else $'(!eoie as f64) / (!shell as f64)' : f64

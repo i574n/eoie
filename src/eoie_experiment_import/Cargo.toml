@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "import.spi"
+output = "import.rs"
+
+[package]
+name = "eoie-experiment-import"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_experiment_import"
+path = "import.rs"

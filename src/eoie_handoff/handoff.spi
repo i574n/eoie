@@ -17,7 +17,6 @@ inl readable_handoff () : handoff_plan handoff_idle handoff_rendered =
     HandoffThen (exists (HandoffStep LoadTypedHandoff, HandoffStep RenderReadableHandoff))
 
 inl main () : i32 =
-    render_terminal.emit_runtime ()
     binary_install_terminal.emit_runtime ()
     release_closeout_terminal.emit_runtime ()
     inl _ = binary_install_shape_binding 1i32 1i32

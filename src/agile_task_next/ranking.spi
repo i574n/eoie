@@ -1,0 +1,211 @@
+///- --package .
+test ranking static =
+    open rust_std_string.model
+    open workspace_primitives.bytes
+
+open workspace_primitives.bytes
+
+union rank_role =
+    | MainAgent
+    | Subagent
+
+type backlog_task =
+    {
+        id : string
+        title : string
+        priority : i32
+        difficulty : i32
+        status : string
+        deps : string
+        tags : string
+        estimate : i32
+        progress : i32
+    }
+
+union rec task_list =
+    | NoTasks
+    | TaskThen : backlog_task * task_list
+
+type ranked_task =
+    {
+        id : string
+        title : string
+        priority : i32
+        difficulty : i32
+        minutes : i32
+        estimated : bool
+        unblocks : i32
+        key : i32
+    }
+
+union rec ranked_list =
+    | NoRanked
+    | RankedThen : ranked_task * ranked_list
+
+inl rank_role_word = function
+    | MainAgent => "main"
+    | Subagent => "subagent"
+
+inl level_of (~token : string) : i32 = $'(!token).get(1..).and_then(|digits| digits.parse::<i32>().ok()).unwrap_or(9)' : i32
+
+inl priority_weight (priority : i32) : i32 = $'1i32 << (2 * (5 - (!priority).clamp(0, 5)))' : i32
+
+inl fallback_minutes (difficulty : i32) : i32 =
+    match difficulty with
+    | 0i32 => 15i32
+    | 1i32 => 30i32
+    | 2i32 => 60i32
+    | 3i32 => 180i32
+    | 4i32 => 300i32
+    | 5i32 => 600i32
+    | 6i32 => 1200i32
+    | 7i32 => 2400i32
+    | _ => 3600i32
+
+inl remaining_share (minutes : i32) (progress : i32) : i32 = $'((!minutes as i64) * (100 - (!progress).clamp(0, 100)) as i64 / 100).max(15) as i32' : i32
+
+inl task_minutes (task : backlog_task) : i32 = if 0i32 < task.estimate then task.estimate else remaining_share (fallback_minutes task.difficulty) task.progress
+
+let task_open (task : backlog_task) : bool =
+    union_reflection.cases.union_case_where
+        (fun (status : agile_mutation_policy.model.agile_status) => task.status = agile_mutation_policy.model.agile_case_text status)
+        agile_mutation_policy.model.agile_status_open
+        false
+
+inl listed_in (~items : string) (~item : string) : bool = rust_std_string.model.pipe_member (rust_std_string.model.replace (rust_std_string.model.replace items ", " "|") "," "|") item
+
+inl query_passes (~query : string) (~id : string) (~tags : string) (~status : string) : bool = if query = "" then true else $'agile_task_query::eoie_query_passes(&*!query, &*!id, &*!tags, &*!status, true)' : bool
+
+inl task_passes (query : string) (task : backlog_task) : bool = query_passes query task.id task.tags task.status
+
+let rec status_of (tasks : task_list) (~id : string) : string =
+    match tasks with
+    | NoTasks => ""
+    | TaskThen (task, rest) => if task.id = id then task.status else status_of rest id
+
+let rec deps_settled (tasks : task_list) (~deps : string) (offset : i32) : bool =
+    if byte_len deps <= offset then true
+    else
+        inl comma = byte_find_from deps "," offset
+        inl stop = if comma < 0i32 then byte_len deps else comma
+        inl status = status_of tasks (rust_std_string.model.trim (byte_slice deps offset stop))
+        if status = "" || status = "Done" then deps_settled tasks deps (stop + 1i32) else false
+
+let rec open_deps (tasks : task_list) (~deps : string) (offset : i32) (count : i32) : i32 =
+    if byte_len deps <= offset then count
+    else
+        inl comma = byte_find_from deps "," offset
+        inl stop = if comma < 0i32 then byte_len deps else comma
+        inl status = status_of tasks (rust_std_string.model.trim (byte_slice deps offset stop))
+        open_deps tasks deps (stop + 1i32) (if status = "" || status = "Done" then count else count + 1i32)
+
+let rec unblocked_weight (tasks : task_list) (~id : string) (sum : i32) : i32 =
+    match tasks with
+    | NoTasks => sum
+    | TaskThen (task, rest) =>
+        inl gained =
+            if task_open task && listed_in task.deps id then
+                inl waiting = open_deps tasks task.deps 0i32 0i32
+                priority_weight task.priority / (if waiting < 1i32 then 1i32 else waiting)
+            else 0i32
+        unblocked_weight rest id (sum + gained)
+
+inl rank_key (role : rank_role) (weight : i32) (minutes : i32) (priority : i32) : i32 =
+    match role with
+    | MainAgent => $'((!weight as i64) * 6000 / (!minutes).max(1) as i64).min(i32::MAX as i64) as i32' : i32
+    | Subagent => minutes * 8i32 + 5i32 - priority
+
+let ranked_of (role : rank_role) (tasks : task_list) (task : backlog_task) : ranked_task =
+    inl minutes = task_minutes task
+    inl unblocks = unblocked_weight tasks task.id 0i32
+    {
+        id = task.id
+        title = task.title
+        priority = task.priority
+        difficulty = task.difficulty
+        minutes = minutes
+        estimated = 0i32 < task.estimate
+        unblocks = unblocks
+        key = rank_key role (priority_weight task.priority + unblocks) minutes task.priority
+    }
+
+inl candidate (passes : backlog_task -> bool) (tasks : task_list) (task : backlog_task) : bool = task_open task && deps_settled tasks task.deps 0i32 && passes task
+
+let rec inserted (item : ranked_task) (list : ranked_list) : ranked_list =
+    match list with
+    | NoRanked => RankedThen (item, NoRanked)
+    | RankedThen (head, rest) => if head.key < item.key then RankedThen (item, list) else RankedThen (head, inserted item rest)
+
+let rec ranked_from (role : rank_role) (passes : backlog_task -> bool) (tasks : task_list) (remaining : task_list) (list : ranked_list) : ranked_list =
+    match remaining with
+    | NoTasks => list
+    | TaskThen (task, rest) =>
+        if candidate passes tasks task then ranked_from role passes tasks rest (inserted (ranked_of role tasks task) list)
+        else ranked_from role passes tasks rest list
+
+inl ranking_where (role : rank_role) (passes : backlog_task -> bool) (tasks : task_list) : ranked_list = ranked_from role passes tasks tasks NoRanked
+
+inl ranking (role : rank_role) (tasks : task_list) : ranked_list = ranking_where role (fun _ => true) tasks
+
+inl ranking_filtered (role : rank_role) (filters : string) (tasks : task_list) : ranked_list = ranking_where role (fun task => task_passes filters task) tasks
+
+let rec ranked_ids (list : ranked_list) : string =
+    match list with
+    | NoRanked => ""
+    | RankedThen (head, NoRanked) => head.id
+    | RankedThen (head, rest) => rust_std_string.model.concat5 head.id " " (ranked_ids rest) "" ""
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl task_at (~id : string) (priority : i32) (difficulty : i32) (~status : string) (~deps : string) (~tags : string) (estimate : i32) : backlog_task =
+    { id = id; title = id; priority = priority; difficulty = difficulty; status = status; deps = deps; tags = tags; estimate = estimate; progress = 0i32 }
+
+inl sample_backlog () : task_list =
+    TaskThen (task_at "BIG-P0" 0i32 8i32 "Active" "" "" 0i32,
+        TaskThen (task_at "SMALL-P2" 2i32 2i32 "Planned" "" "" 0i32,
+            TaskThen (task_at "WAITS" 1i32 2i32 "Planned" "GATE" "" 0i32,
+                TaskThen (task_at "GATE" 3i32 3i32 "Active" "" "" 0i32,
+                    TaskThen (task_at "EOIE-SIDE" 1i32 4i32 "Planned" "" "eoie,agile" 0i32,
+                        TaskThen (task_at "SHIPPED" 0i32 1i32 "Done" "" "" 0i32,
+                            TaskThen (task_at "PARKED" 0i32 1i32 "Paused" "" "" 0i32, NoTasks)))))))
+
+///> rust
+test priorities_weigh_four_times_per_step_and_estimates_fall_back_to_difficulty =
+    expect (priority_weight 0i32 = 1024i32) "P0"
+    expect (priority_weight 2i32 = 64i32) "P2"
+    expect (priority_weight 5i32 = 1i32) "P5"
+    expect (level_of "D6" = 6i32) "difficulty token"
+    expect (task_minutes (task_at "A" 0i32 6i32 "Active" "" "" 0i32) = 1200i32) "difficulty fallback"
+    expect (task_minutes (task_at "A" 0i32 6i32 "Active" "" "" 45i32) = 45i32) "estimate wins"
+
+///> rust
+test main_ranks_ready_open_items_by_weight_over_duration =
+    inl tasks = sample_backlog ()
+    expect (ranked_ids (ranking MainAgent tasks) = "GATE SMALL-P2 EOIE-SIDE BIG-P0") (ranked_ids (ranking MainAgent tasks))
+    expect (deps_settled tasks "GATE" 0i32 = false) "an open dependency blocks"
+    expect (deps_settled tasks "SHIPPED, MISSING" 0i32) "done and unknown dependencies do not block"
+    expect (unblocked_weight tasks "GATE" 0i32 = 256i32) "GATE unblocks a P1"
+
+///> rust
+test an_epic_shares_its_weight_across_the_open_items_it_waits_on =
+    inl tasks = TaskThen (task_at "EPIC" 1i32 7i32 "Planned" "A,B,C,D,DONE" "" 0i32, TaskThen (task_at "A" 4i32 2i32 "Planned" "" "" 0i32, TaskThen (task_at "B" 1i32 2i32 "Active" "" "" 0i32, TaskThen (task_at "C" 1i32 2i32 "Planned" "" "" 0i32, TaskThen (task_at "D" 1i32 2i32 "Planned" "" "" 0i32, TaskThen (task_at "DONE" 1i32 1i32 "Done" "" "" 0i32, NoTasks))))))
+    expect (open_deps tasks "A,B,C,D,DONE" 0i32 0i32 = 4i32) "four open, one done"
+    expect (unblocked_weight tasks "A" 0i32 = 64i32) "a P1 epic waiting on four open items gives each a quarter"
+
+///> rust
+test subagents_take_the_longest_items_first =
+    inl elsewhere = fun (task : backlog_task) => rust_std_string.model.starts_with task.id "EOIE-" = false
+    expect (ranked_ids (ranking_where Subagent elsewhere (sample_backlog ())) = "BIG-P0 GATE SMALL-P2") (ranked_ids (ranking_where Subagent elsewhere (sample_backlog ())))
+
+///> rust
+test teams_filter_the_ranking_and_progress_shrinks_the_fallback_estimate =
+    inl tasks = sample_backlog ()
+    expect (ranked_ids (ranking_where MainAgent (fun task => rust_std_string.model.starts_with task.id "EOIE-") tasks) = "EOIE-SIDE") "a predicate narrows the ranking"
+    expect (ranked_ids (ranking_where MainAgent (fun task => rust_std_string.model.starts_with task.id "SMALL") tasks) = "SMALL-P2") "prefix predicate"
+
+    inl half = task_at "HALF" 1i32 6i32 "Active" "" "" 0i32
+    inl nearly = task_at "NEARLY" 1i32 1i32 "Active" "" "" 0i32
+    inl set = task_at "SET" 1i32 6i32 "Active" "" "" 45i32
+    expect (task_minutes { half with progress = 50i32 } = 600i32) "half done halves the difficulty fallback"
+    expect (task_minutes { nearly with progress = 99i32 } = 15i32) "never below 15 minutes"
+    expect (task_minutes { set with progress = 90i32 } = 45i32) "an explicit estimate is already the remaining time"

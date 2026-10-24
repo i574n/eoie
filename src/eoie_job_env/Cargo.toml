@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "env_adopt.spi"
+output = "env_adopt.rs"
+
+[package]
+name = "eoie-job-env"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_job_env"
+path = "env_adopt.rs"

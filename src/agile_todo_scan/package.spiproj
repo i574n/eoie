@@ -1,5 +1,6 @@
 packages:
     |core-
+    spiral-
     workspace_primitives
     rust_std_env
     rust_std_string

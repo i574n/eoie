@@ -1,0 +1,160 @@
+///- --package .
+test experiment_plan static =
+    open rust_std_string.model
+    open experiment_model
+
+open rust_std_string.model
+open experiment_model
+
+nominal mean_test = ()
+nominal rate_test = ()
+nominal median_test = ()
+
+union test_plan result =
+    | WelchPlan :: string -> test_plan mean_test
+    | OneSamplePlan :: f64 -> test_plan mean_test
+    | BinomialPlan :: f64 -> test_plan rate_test
+    | WilsonPlan :: f64 -> test_plan rate_test
+    | BinomialBandPlan :: f64 -> test_plan rate_test
+    | MedianPlan :: f64 * f64 -> test_plan median_test
+
+union tested =
+    | TestedMean : test_plan mean_test
+    | TestedRate : test_plan rate_test
+    | TestedMedian : test_plan median_test
+
+type plan =
+    {
+        id : string
+        metric : string
+        arm : string
+        kind : test_kind
+        group : string
+        runs : i32
+        confidence : f64
+        decision : string
+        time : string
+        since : string
+        test : tested
+    }
+
+union plan_read =
+    | PlanRead : plan
+    | PlanBroken : string
+
+let number_of (~text : string) : f64 = $'(!text).trim().parse::<f64>().unwrap_or(f64::NAN)' : f64
+let whole_of (~text : string) : i32 = $'(!text).trim().parse::<i32>().unwrap_or(-1)' : i32
+let first_item (~list : string) : string = $'std::rc::Rc::<str>::from((!list).split(char::from(44u8)).next().unwrap_or("").trim())' : string
+let second_item (~list : string) : string = $'std::rc::Rc::<str>::from((!list).split(char::from(44u8)).nth(1).unwrap_or("").trim())' : string
+
+let test_plan_of (kind : test_kind) (~arms : string) (~prediction : string) : tested =
+    match kind with
+    | WelchTwoSided => TestedMean (WelchPlan (second_item arms))
+    | OneSampleT => TestedMean (OneSamplePlan (number_of prediction))
+    | BinomialAtMost => TestedRate (BinomialPlan (number_of prediction))
+    | WilsonBand => TestedRate (WilsonPlan (number_of prediction))
+    | BinomialBand => TestedRate (BinomialBandPlan (number_of prediction))
+    | MedianBand => TestedMedian (MedianPlan (number_of (first_item prediction), number_of (second_item prediction)))
+
+inl plan_record (kind : test_kind) (~text : string) : plan =
+    inl runs = whole_of (field_of text "runs")
+    inl confidence = number_of (field_of text "confidence")
+    { kind = kind; id = field_of text "id"; metric = field_of text "metric"; arm = (if field_of text "arms" = "" then "all" else first_item (field_of text "arms")); group = field_of text "group"; runs = runs; confidence = (if confidence = confidence then confidence else 0.95f64); decision = field_of text "decision"; time = field_of text "time"; since = field_of text "registered_local"; test = test_plan_of kind (field_of text "arms") (field_of text "prediction") }
+
+let plan_of (~text : string) : plan_read =
+    match test_of (field_of text "test") with
+    | TestUnknown => PlanBroken "the registration names an unknown test"
+    | TestKnown kind =>
+        inl runs = whole_of (field_of text "runs")
+        match plan_checked kind (field_of text "arms") (field_of text "group") runs (field_of text "prediction") (field_of text "metric") (field_of text "decision") with
+        | PlanRejected reason => PlanBroken reason
+        | PlanAccepted =>
+            PlanRead (plan_record kind text)
+
+let plan_trusted (~text : string) : plan_read =
+    match test_of (field_of text "test") with
+    | TestUnknown => PlanBroken "the registration names an unknown test"
+    | TestKnown kind => PlanRead (plan_record kind text)
+
+inl predicted_rate (which : test_plan rate_test) : f64 =
+    match which with
+    | BinomialPlan rate => rate
+    | WilsonPlan rate => rate
+    | BinomialBandPlan rate => rate
+
+let kind_of_plan (test : tested) : test_kind =
+    match test with
+    | TestedMean (WelchPlan _) => WelchTwoSided
+    | TestedMean (OneSamplePlan _) => OneSampleT
+    | TestedRate (BinomialPlan _) => BinomialAtMost
+    | TestedRate (WilsonPlan _) => WilsonBand
+    | TestedRate (BinomialBandPlan _) => BinomialBand
+    | TestedMedian (MedianPlan _) => MedianBand
+
+union second_arm =
+    | OneArm
+    | AgainstArm : string
+
+let second_arm_of (test : tested) : second_arm =
+    match test with
+    | TestedMean (WelchPlan arm) => AgainstArm arm
+    | _ => OneArm
+
+let prediction_of (test : tested) : f64 =
+    match test with
+    | TestedMean (OneSamplePlan value) => value
+    | TestedRate which => predicted_rate which
+    | _ => 0.0f64
+
+union band =
+    | NoBand
+    | Band : f64 * f64
+
+let band_of (test : tested) : band =
+    match test with
+    | TestedMedian (MedianPlan (low, high)) => Band (low, high)
+    | _ => NoBand
+
+inl against_text (arm : second_arm) : string =
+    match arm with
+    | AgainstArm name => name
+    | OneArm => "-"
+
+inl band_text (range : band) : string =
+    match range with
+    | Band (low, high) => concat5 ($'std::rc::Rc::<str>::from((!low).to_string().as_str())' : string) ".." ($'std::rc::Rc::<str>::from((!high).to_string().as_str())' : string) "" ""
+    | NoBand => "-"
+
+inl broken_reason (read : plan_read) : string =
+    match read with
+    | PlanBroken reason => reason
+    | PlanRead _ => ""
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl registration (~test : string) (~arms : string) (~prediction : string) : string =
+    concat5 (field_line "id" "PR-1") (field_line "test" test) (field_line "metric" "retries") (field_line "arms" arms) (concat5 (field_line "runs" "5") (field_line "prediction" prediction) (field_line "decision" "d") "" "")
+
+inl read_plan (~text : string) : plan =
+    match plan_of text with
+    | PlanRead found => found
+    | PlanBroken reason => failwith reason
+
+///> rust
+test a_registration_reads_into_a_typed_plan_with_its_parameters =
+    inl welch = read_plan (registration "welch" "fast,base" "")
+    expect (welch.arm = "fast") "first arm"
+    expect (against_text (second_arm_of welch.test) = "base") "second arm"
+    expect (welch.confidence = 0.95f64) "default confidence"
+    inl median = read_plan (registration "median" "fast" "28,32")
+    expect (band_text (band_of median.test) = "28..32") "band"
+    inl binomial = read_plan (registration "binomial" "fast" "0.35")
+    expect (prediction_of binomial.test = 0.35f64) "rate"
+    expect (test_word (kind_of_plan binomial.test) = "binomial") "kind round trip"
+    inl band = read_plan (registration "binomial-band" "fast" "0.74")
+    expect (prediction_of band.test = 0.74f64) "band rate"
+    expect (test_word (kind_of_plan band.test) = "binomial-band") "band kind round trip"
+
+///> rust
+test a_broken_registration_names_the_problem =
+    expect (broken_reason (plan_of (registration "anova" "a" "")) = "the registration names an unknown test") "unknown test"
+    expect (broken_reason (plan_of (registration "one-sample" "a" "")) = "one-sample needs --prediction (the model value or rate it is tested against)") "missing prediction"

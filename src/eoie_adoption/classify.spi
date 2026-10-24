@@ -1,0 +1,42 @@
+///- --package .
+test classify static =
+    open sm'_operators
+
+open sm'_operators
+open model
+open host
+
+let call_of_command (~command : string) : shell_call =
+    if eoie_named command then EoieCall
+    elif habit_named command then HabitCall
+    else OtherCall
+
+inl call_word (call : shell_call) : string =
+    match call with
+    | EoieCall => "eoie"
+    | HabitCall => "habit"
+    | OtherCall => "other"
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+inl expect_call (~command : string) (wanted : shell_call) : () =
+    expect (call_word (call_of_command command) = call_word wanted) ("call kind of: " ++# command)
+
+///> rust
+test tallies_count_every_shell_call_and_split_eoie_from_habits =
+    inl tally = counted OtherCall (counted HabitCall (counted EoieCall (counted EoieCall (empty_tally ()))))
+    expect (tally.shell = 4u64 && tally.eoie = 2u64 && tally.habit = 1u64) "four calls, two eoie, one habit"
+    expect (eoie_share tally = 0.5f64) "half of the shell calls are eoie"
+    expect (eoie_share (empty_tally ()) = 0.0f64) "no calls, no share"
+    expect (client_word Codex = "codex") "client words"
+
+///> rust
+test commands_split_into_eoie_habit_and_other_calls =
+    expect_call "eoie read src/x.spi" EoieCall
+    expect_call "C:\\work\\tools\\eoie.exe job list" EoieCall
+    expect_call "cd C:\\work\\repo && cargo build" OtherCall
+    expect_call "Get-Content C:\\work\\x.txt -TotalCount 5" HabitCall
+    expect_call "git -C C:\\work\\repo status" OtherCall
+    expect_call "python3 -I lab/x.py" HabitCall
+    expect_call "& eoie do edit a.spi" EoieCall
+    expect_call "& \"C:\\work\\tools\\eoie.exe\" window list" EoieCall
+    expect_call "Set-Location C:\\work\\repo; dir" OtherCall

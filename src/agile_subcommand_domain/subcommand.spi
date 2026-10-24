@@ -18,6 +18,12 @@ union agile_subcommand =
     | AgileNotes
     | AgileRename
     | AgileTodos
+    | AgileNext
+    | AgileRoots
+    | AgileLinks
+    | AgileViews
+    | AgileView
+    | AgileViewAdd
 
 inl agile_subcommand_spec = function
     | AgileInit => { name = "init"; shape = "<root>" }
@@ -26,21 +32,27 @@ inl agile_subcommand_spec = function
     | AgileStatus => { name = "status"; shape = "<root>" }
     | AgileHandoff => { name = "handoff"; shape = "<root>" }
     | AgileList =>
-        { name = "list"; shape = "<root> [all|Planned|Active|Blocked|Paused|Done] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json]" }
+        { name = "list"; shape = "<root> [all|Planned|Active|Blocked|Paused|Done] [--team <team>] [--tag <tag>] [--prefix <ID prefix>] [--open] [--ready] [--blocked] [--sort priority|difficulty|progress] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json]" }
     | AgileCheck => { name = "check"; shape = "<root> [--compiler <absolute>]" }
     | AgileRecord => { name = "record"; shape = "<root>" }
     | AgileSet => { name = "set"; shape = "<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>" }
-    | AgileAdd => { name = "add"; shape = "<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags>" }
+    | AgileAdd => { name = "add"; shape = "<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags> [--estimate <m>] [--load <l>] [--assignee <a>] [--deps <A,B>] [--note <text> --as <author>]" }
     | AgileEdit =>
         { name = "edit"; shape = "<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>" }
     | AgileShow => { name = "show"; shape = "<root> <id> [--json]" }
     | AgilePlan => { name = "plan"; shape = "<root> [--json]" }
     | AgileMigrateTags => { name = "migrate-tags"; shape = "preview|apply <root>" }
     | AgileNote => { name = "note"; shape = "<root> <id> <text> [--as <author>]" }
-    | AgileNoteEdit => { name = "note-edit"; shape = "<root> <id> <note-number> <text>" }
+    | AgileNoteEdit => { name = "note-edit"; shape = "<root> <id> <note-number> <text> [--as <author>]" }
     | AgileNotes => { name = "notes"; shape = "from-title <root> <id>" }
     | AgileRename => { name = "rename"; shape = "<root> <old-id> <new-id>" }
-    | AgileTodos => { name = "todos"; shape = "<root> [<path>...] [--json]" }
+    | AgileTodos => { name = "todos"; shape = "<root> [<path>...] [--json] [--tagged | --id <ID>] | <root> --record" }
+    | AgileNext => { name = "next"; shape = "<root> [--as main|subagent] [--team <team>] [--tag <tag>] [--prefix <ID prefix>] [--open] [--ready] [--blocked] [count]" }
+    | AgileRoots => { name = "roots"; shape = "<root> [add|drop <path>...]" }
+    | AgileLinks => { name = "links"; shape = "<root> --memory <dir> [--json]" }
+    | AgileViews => { name = "views"; shape = "<root>" }
+    | AgileView => { name = "view"; shape = "<root> <name> [extra flags...]" }
+    | AgileViewAdd => { name = "view-add"; shape = "<root> <name> <list|next> [flags...]" }
 
 union agile_parsed =
     | AgileKnown : agile_subcommand

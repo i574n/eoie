@@ -1,0 +1,59 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl standards (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("standards", args))
+
+inl typed_module () : string = "union kind k =\n    | Small :: kind i32\n    | Large :: kind i64\n\ninl size forall k. (which : kind k) : i32 = 1\n"
+
+inl macro_lines (~count : i32) : string =
+    $'std::rc::Rc::<str>::from((0..!count).map(|k| format\!("inl host_{k} () : i32 =\n    ${q}{k}i32{q} : i32\n", q = char::from(39u8))).collect::<String>().as_str())' : string
+
+///> rust
+test the_census_counts_typefeatureset_use_and_drift_per_package =
+    inl root = fixture_root_create "census"
+    fixture_write root "pkgs/old/a.spi" (typed_module ())
+    fixture_write root "pkgs/fresh/b.spi" "inl legacy () = rust_global 1\n"
+    inl census = succeeded (standards root (Arg ("--census", Arg (fixture_path root "pkgs", NoArgs))))
+    shows census "old  lines=5 gadt-case=2"
+    shows census "indexed-union=1"
+    shows census "fresh  lines=1"
+    shows census "rust-global=1"
+    shows census "eoie standards census ok packages=2"
+    fixture_root_remove root
+
+///> rust
+test the_ratchet_holds_old_packages_to_their_baseline_and_new_ones_to_the_floor =
+    inl root = fixture_root_create "ratchet"
+    fixture_write root "pkgs/old/a.spi" (typed_module ())
+    inl baseline = fixture_path root "census.spi"
+    shows (succeeded (standards root (Arg ("--baseline", Arg (baseline, Arg (fixture_path root "pkgs", NoArgs)))))) "eoie standards baseline ok packages=1"
+    shows (fixture_read root "census.spi") "inl census_old_gadt_case () = CensusCount ("
+    shows (succeeded (standards root (Arg ("--ratchet", Arg (baseline, Arg (fixture_path root "pkgs", NoArgs)))))) "eoie standards ratchet ok packages=1 regressions=0"
+    fixture_write root "pkgs/old/b.spi" (macro_lines 20i32)
+    fixture_write root "pkgs/fresh/c.spi" "inl legacy () = rust_global 1\n"
+    fixture_write root "pkgs/typed/d.spi" (typed_module ())
+    inl ratchet = standards root (Arg ("--ratchet", Arg (baseline, Arg (fixture_path root "pkgs", NoArgs))))
+    expect (ratchet.code = 1i32) (run_text ratchet)
+    shows ratchet.stdout "old  host-macro  0/5 -> 20/"
+    shows ratchet.stdout "fresh  new  a new package carries rust_global"
+    hides ratchet.stdout "typed  new"
+    shows ratchet.stdout "eoie standards ratchet failed packages=3 regressions=2"
+    fixture_root_remove root
+
+///> rust
+test a_merged_baseline_replaces_only_the_walked_packages =
+    inl root = fixture_root_create "ratchet merge"
+    fixture_write root "pkgs/old/a.spi" (typed_module ())
+    fixture_write root "pkgs/typed/d.spi" (typed_module ())
+    inl baseline = fixture_path root "census.spi"
+    shows (succeeded (standards root (Arg ("--baseline", Arg (baseline, Arg (fixture_path root "pkgs", NoArgs)))))) "eoie standards baseline ok packages=2"
+    fixture_write root "pkgs/old/b.spi" (macro_lines 20i32)
+    fixture_write root "pkgs/typed/e.spi" (macro_lines 3i32)
+    shows (succeeded (standards root (Arg ("--baseline-merge", Arg (baseline, Arg (fixture_path root "pkgs/typed", NoArgs)))))) "eoie standards baseline ok packages=1"
+    shows (fixture_read root "census.spi") "inl census_old_gadt_case () = CensusCount ("
+    inl ratchet = standards root (Arg ("--ratchet", Arg (baseline, Arg (fixture_path root "pkgs", NoArgs))))
+    expect (ratchet.code = 1i32) (run_text ratchet)
+    shows ratchet.stdout "old  host-macro  0/5 -> 20/"
+    hides ratchet.stdout "typed  host-macro"
+    shows ratchet.stdout "eoie standards ratchet failed packages=2 regressions=1"
+    fixture_root_remove root

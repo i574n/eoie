@@ -54,55 +54,54 @@ fn table_parsed_5(mut v0: std::rc::Rc<Vec<Vec<std::rc::Rc<str>>>>, mut v1: i32) 
     let mut v12: bool = v3.clone() != { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("diff"); } LIT.with(|lit| lit.clone()) };
     if v12 {
         let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" cannot share one program with diff yet; run it as its own call"); } LIT.with(|lit| lit.clone()) };
-        let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        let mut v15: Rc<str> = std::rc::Rc::<str>::from([&*v3, &*v13, &*v14, &*v14, &*v14].concat());
-        US0::US0_TableRejected(v15.clone())
+        let mut v14: Rc<str> = Rc::<str>::from(format!("{}{}", v3, v13));
+        US0::US0_TableRejected(v14.clone())
     } else {
-        let mut v17: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        let mut v19: bool = if v17 {
+        let mut v16: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        let mut v18: bool = if v16 {
             true
         } else {
-            let mut v18: bool = v7.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            v18
+            let mut v17: bool = v7.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            v17
         };
-        let mut v21: bool = if v19 {
+        let mut v20: bool = if v18 {
             true
         } else {
-            let mut v20: bool = v7.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("by"); } LIT.with(|lit| lit.clone()) };
-            v20
+            let mut v19: bool = v7.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("by"); } LIT.with(|lit| lit.clone()) };
+            v19
         };
-        if v21 {
-            let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("diff: expected two tables"); } LIT.with(|lit| lit.clone()) };
-            US0::US0_TableRejected(v22.clone())
+        if v20 {
+            let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("diff: expected two tables"); } LIT.with(|lit| lit.clone()) };
+            US0::US0_TableRejected(v21.clone())
         } else {
-            let mut v24: bool = v9 < 0i32;
-            if v24 {
-                let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("diff: expected by <key,...>"); } LIT.with(|lit| lit.clone()) };
-                US0::US0_TableRejected(v25.clone())
+            let mut v23: bool = v9 < 0i32;
+            if v23 {
+                let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("diff: expected by <key,...>"); } LIT.with(|lit| lit.clone()) };
+                US0::US0_TableRejected(v24.clone())
             } else {
-                let mut v27: i32 = v9.wrapping_add(1i32);
-                let mut v28: bool = v11 < 0i32;
-                let mut v29: i32 = if v28 {
+                let mut v26: i32 = v9.wrapping_add(1i32);
+                let mut v27: bool = v11 < 0i32;
+                let mut v28: i32 = if v27 {
                     -1i32
                 } else {
                     v11
                 };
-                let mut v30: Rc<str> = items_span_8(v0.clone(), v1, v27, v29);
-                let mut v35: Rc<str> = if v28 {
-                    let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                    v31.clone()
+                let mut v29: Rc<str> = items_span_8(v0.clone(), v1, v26, v28);
+                let mut v34: Rc<str> = if v27 {
+                    let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                    v30.clone()
                 } else {
-                    let mut v32: i32 = v11.wrapping_add(1i32);
-                    let mut v33: i32 = -1i32;
-                    items_span_8(v0.clone(), v1, v32, v33)
+                    let mut v31: i32 = v11.wrapping_add(1i32);
+                    let mut v32: i32 = -1i32;
+                    items_span_8(v0.clone(), v1, v31, v32)
                 };
-                let mut v36: bool = v30.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                if v36 {
-                    let mut v37: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("by: expected a value after it"); } LIT.with(|lit| lit.clone()) };
-                    US0::US0_TableRejected(v37.clone())
+                let mut v35: bool = v29.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                if v35 {
+                    let mut v36: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("by: expected a value after it"); } LIT.with(|lit| lit.clone()) };
+                    US0::US0_TableRejected(v36.clone())
                 } else {
-                    let mut v39: US1 = US1::US1_TablesDiffed(v5.clone(), v7.clone(), v30.clone(), v35.clone());
-                    US0::US0_TableParsed(v39.clone())
+                    let mut v38: US1 = US1::US1_TablesDiffed(v5.clone(), v7.clone(), v29.clone(), v34.clone());
+                    US0::US0_TableParsed(v38.clone())
                 }
             }
         }
@@ -159,8 +158,8 @@ fn lines_joined_12(mut v0: Rc<str>, mut v1: Rc<str>) -> Rc<str> {
             v1.clone()
         } else {
             let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-            let mut v6: Rc<str> = std::rc::Rc::<str>::from([&*v0, &*v4, &*v1, &*v5, &*v5].concat());
+            let mut v5: Rc<str> = Rc::<str>::from(format!("{}{}", v0, v4));
+            let mut v6: Rc<str> = Rc::<str>::from(format!("{}{}", v5, v1));
             v6.clone()
         }
     }
@@ -228,23 +227,28 @@ fn decimal_text_14(mut v0: u64) -> Rc<str> {
     v1.clone()
 }
 fn receipt_counts_13(mut v0: Rc<str>, mut v1: bool, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: u64) -> Rc<str> {
-    let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rows a "); } LIT.with(|lit| lit.clone()) };
-    let mut v7: Rc<str> = decimal_text_14(v2);
-    let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  b "); } LIT.with(|lit| lit.clone()) };
-    let mut v9: Rc<str> = decimal_text_14(v3);
-    let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v11: Rc<str> = std::rc::Rc::<str>::from([&*v6, &*v7, &*v8, &*v9, &*v10].concat());
-    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  changed "); } LIT.with(|lit| lit.clone()) };
-    let mut v13: Rc<str> = decimal_text_14(v4);
-    let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  added "); } LIT.with(|lit| lit.clone()) };
-    let mut v15: u64 = v3.wrapping_sub(v5);
-    let mut v16: Rc<str> = decimal_text_14(v15);
-    let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  removed "); } LIT.with(|lit| lit.clone()) };
-    let mut v18: u64 = v2.wrapping_sub(v5);
-    let mut v19: Rc<str> = decimal_text_14(v18);
-    let mut v20: Rc<str> = std::rc::Rc::<str>::from([&*v14, &*v16, &*v17, &*v19, &*v10].concat());
-    let mut v21: Rc<str> = std::rc::Rc::<str>::from([&*v11, &*v12, &*v13, &*v20, &*v10].concat());
-    v21.clone()
+    let mut v6: Rc<str> = decimal_text_14(v2);
+    let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rows a "); } LIT.with(|lit| lit.clone()) };
+    let mut v8: Rc<str> = Rc::<str>::from(format!("{}{}", v7, v6));
+    let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  b "); } LIT.with(|lit| lit.clone()) };
+    let mut v10: Rc<str> = Rc::<str>::from(format!("{}{}", v8, v9));
+    let mut v11: Rc<str> = decimal_text_14(v3);
+    let mut v12: Rc<str> = Rc::<str>::from(format!("{}{}", v10, v11));
+    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  changed "); } LIT.with(|lit| lit.clone()) };
+    let mut v14: Rc<str> = Rc::<str>::from(format!("{}{}", v12, v13));
+    let mut v15: Rc<str> = decimal_text_14(v4);
+    let mut v16: Rc<str> = Rc::<str>::from(format!("{}{}", v14, v15));
+    let mut v17: u64 = v3.wrapping_sub(v5);
+    let mut v18: Rc<str> = decimal_text_14(v17);
+    let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  added "); } LIT.with(|lit| lit.clone()) };
+    let mut v20: Rc<str> = Rc::<str>::from(format!("{}{}", v19, v18));
+    let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("  removed "); } LIT.with(|lit| lit.clone()) };
+    let mut v22: Rc<str> = Rc::<str>::from(format!("{}{}", v20, v21));
+    let mut v23: u64 = v2.wrapping_sub(v5);
+    let mut v24: Rc<str> = decimal_text_14(v23);
+    let mut v25: Rc<str> = Rc::<str>::from(format!("{}{}", v22, v24));
+    let mut v26: Rc<str> = Rc::<str>::from(format!("{}{}", v16, v25));
+    v26.clone()
 }
 fn elapsed_text_16(mut v0: u64) -> Rc<str> {
     let mut v1: Rc<str> = { let millis = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_millis() as u64).unwrap_or(0).saturating_sub(v0); std::rc::Rc::<str>::from(if millis < 10000 { format!("{millis}ms") } else { format!("{:.1}s", millis as f64 / 1000.0) }) };
@@ -309,12 +313,11 @@ fn tables_program_run_0(mut v0: Rc<str>, mut v1: Rc<str>) -> i32 {
         }
     } else {
         let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("program rejected: "); } LIT.with(|lit| lit.clone()) };
-        let mut v27: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        let mut v28: Rc<str> = std::rc::Rc::<str>::from([&*v26, &*v5, &*v27, &*v27, &*v27].concat());
-        println!("{}", &*v28);
-        let mut v29: US2 = US2::US2_Failed;
-        let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rows a 0  b 0"); } LIT.with(|lit| lit.clone()) };
-        receipt_line_15(v29.clone(), v30.clone(), v2);
+        let mut v27: Rc<str> = Rc::<str>::from(format!("{}{}", v26, v5));
+        println!("{}", &*v27);
+        let mut v28: US2 = US2::US2_Failed;
+        let mut v29: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("rows a 0  b 0"); } LIT.with(|lit| lit.clone()) };
+        receipt_line_15(v28.clone(), v29.clone(), v2);
         2i32
     }
 }

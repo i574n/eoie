@@ -1,4 +1,4 @@
-///- --package ../eoie_cli_harness
+///- --package ../eoie_cli_harness --timeout 900000
 open cli
 
 inl renewing (root : fixture_root) : cli_args = Arg ("EOIE_LEASE_POLICY=renewing", Arg (cat "EOIE_CONFIG_HOME=" (fixture_text_of root), NoArgs))

@@ -1,9 +1,10 @@
 open workspace_primitives.numbers
 open workspace_primitives.clock
+open sm'_operators
 
 let file_clock_ms () : u64 = unix_ms ()
 
-inl elapsed_text (started : u64) : string = rust_std_string.model.concat5 " elapsed_ms=" (u64_text (ms_since started)) "" "" ""
+inl elapsed_text (started : u64) : string = " elapsed_ms=" ++# u64_text (ms_since started)
 
 let elapsed_field (started : u64) : string = elapsed_text started
 

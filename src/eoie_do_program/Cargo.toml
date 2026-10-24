@@ -14,3 +14,4 @@ name = "eoie_do_program"
 path = "do_program.rs"
 
 [dependencies]
+eoie-do-verbs = { path = "../eoie_do_verbs" }

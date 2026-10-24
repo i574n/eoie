@@ -2,6 +2,7 @@ packages:
     |core-
     workspace_primitives
     rust_std_string
+    eoie_receipt
     rust_std_fs
     agile_mutation_policy
     agile_task_text

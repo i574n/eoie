@@ -1,4 +1,5 @@
 open agile_task_text.model
+open sm'_operators
 open agile_note_model.model
 open workspace_primitives.outcome
 open workspace_primitives.numbers
@@ -94,17 +95,17 @@ type stamped_piece =
         body : string
     }
 
-inl rest_from (text : string) (offset : i32) : string = rust_std_string.model.trim (byte_slice text offset (byte_len text))
+inl rest_from (text : string) (offset : i32) : string = sm'.trim (byte_slice text offset (byte_len text))
 
 let stamped (~piece : string) (~day : string) (~previous : string) (~fallback : string) : stamped_piece =
     if dated_clock piece then { at = byte_slice piece 0i32 16i32; day = byte_slice piece 0i32 10i32; body = rest_from piece 16i32 }
     elif dated_day piece then { at = byte_slice piece 0i32 10i32; day = byte_slice piece 0i32 10i32; body = rest_from piece 10i32 }
     elif bare_clock piece then
         inl clock = byte_slice piece 0i32 5i32
-        inl at = if rust_std_string.model.equals day "" then clock else rust_std_string.model.concat5 day " " clock "" ""
+        inl at = if (day = "") then clock else day ++# " " ++# clock
         { at = at; day = day; body = rest_from piece 5i32 }
     else
-        inl at = if rust_std_string.model.equals previous "" then fallback else previous
+        inl at = if (previous = "") then fallback else previous
         { at = at; day = day; body = piece }
 
 type moved_notes =
@@ -119,14 +120,14 @@ let rec moved_from (~title : string) (~offset : i32) (~length : i32) (~id : stri
         inl found = stamped_separator_from title offset
         inl stop = if found < 0i32 then length else found
         inl next = if found < 0i32 then length else $"!found + 2" : i32
-        inl piece = rust_std_string.model.trim (byte_slice title offset stop)
-        if rust_std_string.model.equals piece "" then moved_from title next length id seq day previous fallback moved
+        inl piece = sm'.trim (byte_slice title offset stop)
+        if (piece = "") then moved_from title next length id seq day previous fallback moved
         else
             inl stamp = stamped piece day previous fallback
-            inl body = if rust_std_string.model.equals stamp.body "" then piece else stamp.body
+            inl body = if (stamp.body = "") then piece else stamp.body
             inl row = note_row id seq { at = stamp.at; author = migrated_author (); text = body }
-            inl joint = if rust_std_string.model.equals moved.rows "" then "" else "\n"
-            moved_from title next length id (seq + 1i32) stamp.day stamp.at fallback { rows = rust_std_string.model.concat5 moved.rows joint row "" ""; moved = (moved.moved + 1i32) }
+            inl joint = if (moved.rows = "") then "" else "\n"
+            moved_from title next length id (seq + 1i32) stamp.day stamp.at fallback { rows = moved.rows ++# joint ++# row; moved = (moved.moved + 1i32) }
 
 let tail_rows (~title : string) (~id : string) (~seq : i32) (~fallback : string) : i32 * string =
     inl first = stamped_separator_from title 0i32

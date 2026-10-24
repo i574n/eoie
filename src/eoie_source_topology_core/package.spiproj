@@ -1,6 +1,6 @@
 packages:
     |core-
-    rust_std_string
+    spiral-
 modules:
     model
     terminal

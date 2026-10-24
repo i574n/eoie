@@ -1,0 +1,6 @@
+packages:
+    |core-
+    spiral-
+    eoie_memory_model
+modules:
+    import

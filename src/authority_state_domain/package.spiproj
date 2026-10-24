@@ -1,6 +1,7 @@
 packages:
     |core-
-    rust_std_string
+    spiral-
+    union_reflection
 modules:
     model-
     main

@@ -1,0 +1,65 @@
+open rust_std_fs.model
+open sm'_operators
+open agile_task_text.model
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+open agile_todo_model.roots
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+let argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
+
+inl roots_failure (~reason : string) : i32 = stderr_failure ("agile roots rejected: " ++# reason)
+
+let rec roots_printed (~listing : string) (offset : i32) (counted : i32) : i32 =
+    if byte_len listing <= offset then counted
+    else
+        inl newline = byte_find_from listing "\n" offset
+        inl stop = if newline < 0i32 then byte_len listing else newline
+        inl _ = stdout_line ("root " ++# (byte_slice listing offset stop))
+        roots_printed listing (stop + 1i32) (counted + 1i32)
+
+let rec edits_applied (~text : string) (adding : bool) (index : i32) (count : i32) : roots_edit =
+    if count <= index then RootsEdited text
+    else
+        inl path = argument_owned index
+        match (if adding then root_added text path else root_dropped text path) with
+        | RootsEdited next => edits_applied next adding (index + 1i32) count
+        | RootsRefused reason => RootsRefused reason
+
+let roots_receipt (~action : string) (~text : string) (~sizes : string) : i32 =
+    inl counted = roots_printed (harvest_roots text) 0i32 0i32
+    stdout_line ("eoie agile roots ok action=" ++# action ++# " roots=" ++# (i32_text counted) ++# sizes)
+
+let roots_written (~state : string) (~action : string) (~original : string) (~updated : string) (started : u64) : i32 =
+    match replace_file_checked state updated with
+    | Replaced => roots_receipt action updated (measured_sizes (text_bytes original) (text_bytes updated) (ms_since started))
+    | problem => roots_failure (file_replacement_problem problem)
+
+let roots_edited (~state : string) (~action : string) (~text : string) (started : u64) : i32 =
+    if argument_count () <= 3i32 then roots_failure "add and drop need at least one path"
+    else
+        match edits_applied text (action = "add") 3i32 (argument_count ()) with
+        | RootsRefused reason => roots_failure reason
+        | RootsEdited updated => roots_written state action text updated started
+
+let roots_entry () : i32 =
+    inl started = unix_ms ()
+    inl state = backlog_state_path (argument_owned 1i32)
+    match probe (unchecked state) with
+    | FileMissing _ => roots_failure "state/agile.spi is missing"
+    | FileReadable file =>
+        inl text = loaded_string (read_text file)
+        inl action = argument_owned 2i32
+        if action = "" then roots_receipt "list" text (" elapsed_ms=" ++# (u64_text (ms_since started)))
+        elif action = "add" || action = "drop" then roots_edited state action text started
+        else roots_failure ("unknown action " ++# action ++# " (expected add or drop)")
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_roots_run", ((fun () => roots_entry ()) : () -> i32))
+    inl _ = roots_entry ()
+    0i32

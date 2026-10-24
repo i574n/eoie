@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "task_next.spi"
+output = "task_next.rs"
+
+[package]
+name = "agile-task-next"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_task_next"
+path = "task_next.rs"
+
+[dependencies]
+agile-task-query = { path = "../agile_task_query" }
+agile-planning-fields = { path = "../agile_planning_fields" }

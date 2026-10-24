@@ -1,8 +1,8 @@
 ///- --package .
 test lcov static =
-    open rust_std_string.model
+    open sm'_operators
 
-open rust_std_string.model
+open sm'_operators
 
 union lcov_line =
     | SourceLine : string
@@ -39,10 +39,10 @@ inl after_prefix (~text : string) (~prefix : string) : string =
     $'std::rc::Rc::<str>::from(!text.strip_prefix(&*!prefix).unwrap_or(""))' : string
 
 inl lcov_line_of (~raw : string) : lcov_line =
-    if starts_with raw "SF:" then SourceLine (after_prefix raw "SF:")
-    elif starts_with raw "DA:" then HitLine (after_prefix raw "DA:")
+    if sm'.starts_with "SF:" raw then SourceLine (after_prefix raw "SF:")
+    elif sm'.starts_with "DA:" raw then HitLine (after_prefix raw "DA:")
     elif raw = "end_of_record" then EndLine
-    elif starts_with raw "DA" || starts_with raw "SF" then MalformedLine
+    elif sm'.starts_with "DA" raw || sm'.starts_with "SF" raw then MalformedLine
     else OtherLine
 
 union hit_reading =
@@ -64,7 +64,7 @@ let hit_reading_of (~value : string) : hit_reading =
     if fields_valid value then
         inl line = hit_line_number value
         if line = 0u64 then HitRejected InvalidHitLine
-        elif hit_count_valid value then HitRead (concat5 (decimal_text line) "\t" (hit_count_text value) "" "")
+        elif hit_count_valid value then HitRead ((decimal_text line) ++# "\t" ++# (hit_count_text value))
         else HitRejected InvalidHitCount
     else HitRejected InvalidHitFields
 
@@ -79,7 +79,7 @@ union lcov_reading =
 inl line_at (~text : string) (~index : u64) : string = $'std::rc::Rc::<str>::from(!text.lines().nth(!index as usize).unwrap_or(""))' : string
 inl line_count (~text : string) : u64 = $'!text.lines().count() as u64' : u64
 inl slashes_normalized (~source : string) : string = $'std::rc::Rc::<str>::from(!source.replace(char::from(92u8), "/"))' : string
-inl appended (~rows : string) (~row : string) : string = if rows = "" then row else concat5 rows "\n" row "" ""
+inl appended (~rows : string) (~row : string) : string = if rows = "" then row else rows ++# "\n" ++# row
 
 let rec lcov_from (~text : string) (index : u64) (count : u64) (state : lcov_state) (~rows : string) : lcov_reading =
     if index < count then
@@ -87,14 +87,14 @@ let rec lcov_from (~text : string) (index : u64) (count : u64) (state : lcov_sta
         match lcov_line_of (line_at text index), state with
         | SourceLine _, InSource _ => LcovRejected SourceBeforeEnd
         | SourceLine source, BetweenSources =>
-            if trim source = "" then LcovRejected EmptySource
+            if sm'.trim source = "" then LcovRejected EmptySource
             else
                 inl normalized = slashes_normalized source
                 lcov_from text next count (InSource normalized) (appended rows normalized)
         | HitLine _, BetweenSources => LcovRejected HitBeforeSource
         | HitLine value, InSource source =>
             match hit_reading_of value with
-            | HitRead hit => lcov_from text next count state (appended rows (concat5 source "\t" hit "" ""))
+            | HitRead hit => lcov_from text next count state (appended rows (source ++# "\t" ++# hit))
             | HitRejected rejection => LcovRejected rejection
         | EndLine, BetweenSources => LcovRejected EndBeforeSource
         | EndLine, InSource _ => lcov_from text next count BetweenSources rows
@@ -103,7 +103,7 @@ let rec lcov_from (~text : string) (index : u64) (count : u64) (state : lcov_sta
     else
         match state with
         | InSource _ => LcovRejected UnterminatedSource
-        | BetweenSources => if contains rows "\t" then LcovRecords rows else LcovRejected NoLineRecords
+        | BetweenSources => if sm'.contains "\t" rows then LcovRecords rows else LcovRejected NoLineRecords
 
 let lcov_reading_of (~text : string) : lcov_reading = lcov_from text 0u64 (line_count text) BetweenSources ""
 

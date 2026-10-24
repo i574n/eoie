@@ -1,4 +1,4 @@
-///- --package ../eoie_cli_harness
+///- --package ../eoie_cli_harness --timeout 900000
 open cli
 
 inl agile_drops () : cli_args = Arg ("EOIE_LEASE_ROOT", Arg ("EOIE_CONTROL_READ_ONLY", Arg ("EOIE_AGILE_TEST_PAUSE_MS", Arg ("AI_AGENT", Arg ("CLAUDECODE", NoArgs)))))
@@ -23,6 +23,8 @@ inl unchanged_after (root : fixture_root) (run : cli_run) (~message : string) (~
     rejected_with run 2i32 message
     same (state_text root) before
 
+inl lease_file () : string = "union lease_status = | LeaseActive :: lease_status | LeaseClosed :: lease_status\nunion prompt_lease = | PromptLease :: string * string * u64 * u64 * u64 * u64 * lease_status -> prompt_lease\ninl current () : prompt_lease = PromptLease (\"current\", \"groomed add fixture\", 4500000u64, 600000u64, 1791453217263u64, 1791458317263u64, LeaseActive)\ninl main () : i32 = 0i32\n"
+
 inl volatile () : string = "bytes_before|bytes_after|elapsed_ms|at"
 
 inl backlog_new (~label : string) : fixture_root =
@@ -35,6 +37,41 @@ inl backlog_new (~label : string) : fixture_root =
     inl _ = accepted root "edit" (Arg ("ID-C", Arg ("title", Arg ("follow-up to ID-A", NoArgs))))
     root
 
+inl raced_notes (root : fixture_root) (~count : i32) : i32 =
+    inl binary = eoie_binary ()
+    inl path = fixture_text_of root
+    inl home = fixture_text_of root
+    $'{ let children = (0..!count).map(|k| { let mut command = std::process::Command::new(&*!binary); command.current_dir(std::env::temp_dir()).args(["agile", "note", &*!path, "ID-A", &format\!("race note {k}"), "--as", "racer"]).env("EOIE_LEASE_POLICY", "renewing").env("EOIE_CONFIG_HOME", &*!home).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()); for name in ["EOIE_LEASE_ROOT", "EOIE_CONTROL_READ_ONLY", "EOIE_AGILE_TEST_PAUSE_MS", "AI_AGENT", "CLAUDECODE"] { command.env_remove(name); } command.spawn().unwrap() }).collect::<Vec<_>>(); children.into_iter().map(|mut child| child.wait().map(|status| status.success()).unwrap_or(false)).filter(|ok| *ok).count() as i32 }' : i32
+
+///> rust
+test agile_add_lands_a_groomed_item_in_one_call =
+    inl root = backlog_new "add-groomed"
+    fixture_write root "state/prompt.spi" (lease_file ())
+    inl before = state_text root
+    inl options (rest : cli_args) : cli_args = Arg ("PR-17", Arg ("TaskKind", Arg ("P0", Arg ("D2", Arg ("Block", Arg ("ops", rest))))))
+    unchanged_after root (agile root "add" (options (Arg ("--size", Arg ("2", NoArgs))))) "agile add PR-17 rejected: unknown option --size (expected --estimate, --load, --assignee, --deps, --note, --as)" before
+    unchanged_after root (agile_with (renewing root) (Arg ("EOIE_AUTHOR", agile_drops ())) root "add" (options (Arg ("--note", Arg ("why", NoArgs))))) "a note needs its author" before
+    unchanged_after root (agile root "add" (options (Arg ("--load", NoArgs)))) "--load needs a value" before
+    unchanged_after root (agile root "add" (options (Arg ("--estimate", Arg ("abc", NoArgs))))) "estimate must be" before
+    inl added = accepted root "add" (options (Arg ("--estimate", Arg ("2h", Arg ("--load", Arg ("light", Arg ("--assignee", Arg ("agent", Arg ("--deps", Arg ("ID-A,ID-B", Arg ("--note", Arg ("groomed at intake", Arg ("--as", Arg ("ops", NoArgs))))))))))))))
+    shows added "eoie agile add ok id=PR-17 binding=pr_17 status=Planned progress=0 deps=ID-A,ID-B planned=estimate,load,assignee notes=1 bytes_before="
+    inl shown = accepted root "show" (Arg ("PR-17", NoArgs))
+    shows shown "deps: ID-A,ID-B"
+    shows shown "planning: estimate=120m load=light assignee=agent"
+    shows shown "ops  groomed at intake"
+    shows (accepted root "check" NoArgs) "eoie agile check ok"
+    fixture_root_remove root
+
+///> rust
+test parallel_writers_queue_on_the_state_lock_and_every_note_lands =
+    inl root = backlog_new "race"
+    expect (raced_notes root 8i32 = 8i32) "every parallel note call succeeded"
+    inl state = state_text root
+    expect (lines_starting_count state "inl note_of_id_a_" = 8i32) state
+    shows state "race note 0"
+    shows state "race note 7"
+    expect (path_exists (fixture_path root "state/agile.spi.lock") = false) "the lock is released"
+    fixture_root_remove root
 ///> rust
 test agile_note_appends_dated_notes_shown_under_the_title_and_in_json =
     inl root = backlog_new "note"
@@ -70,8 +107,10 @@ test notes_from_title_moves_each_tail_into_a_dated_note =
     inl show = accepted root "show" (Arg ("ID-A", NoArgs))
     same (line_after show "base work (a; b)" 1i32) "notes (4)"
     expect (ends (line_after show "base work (a; b)" 2i32) "  user  kept note") (cat "kept note line: " show)
-    same (line_after show "base work (a; b)" 3i32) "2026-10-13 22:10  migrated  found the gap"
-    same (line_after show "base work (a; b)" 4i32) "2026-10-13 23:05  migrated  fixed it; plain tail"
+    inl gap = line_after show "base work (a; b)" 3i32
+    expect (starts gap "2026-10-13 22:10" && ends gap "  migrated  found the gap") (cat "found the gap note keeps its UTC stamp, local time aside: " gap)
+    inl fix = line_after show "base work (a; b)" 4i32
+    expect (starts fix "2026-10-13 23:05" && ends fix "  migrated  fixed it; plain tail") (cat "fixed it note keeps its UTC stamp, local time aside: " fix)
     same (line_after show "base work (a; b)" 5i32) "2026-10-14  migrated  next day"
     inl before = state_text root
     unchanged_after root (from_title root "ID-A") "the title has no \"; \" tail starting with a date or time to move" before
@@ -136,4 +175,13 @@ test agile_add_rejects_an_id_that_starts_with_a_digit =
     inl before = state_text root
     unchanged_after root (agile root "add" (Arg ("2FA-LOGIN", Arg ("TaskKind", Arg ("P1", Arg ("D3", Arg ("Two factor", Arg ("eoie", NoArgs)))))))) "agile add 2FA-LOGIN rejected: the id must start with a letter, so its inl name is a valid identifier" before
     expect (starts (accepted root "add" (Arg ("FA2-LOGIN", Arg ("TaskKind", Arg ("P1", Arg ("D3", Arg ("Two factor", Arg ("eoie", NoArgs)))))))) "eoie agile add ok id=FA2-LOGIN binding=fa2_login ") "FA2-LOGIN add receipt"
+    fixture_root_remove root
+
+///> rust
+test a_root_fresh_from_init_takes_a_groomed_add_without_a_hand_written_lease =
+    inl root = fixture_root_create "agile init lease"
+    shows (accepted root "init" NoArgs) "files=3"
+    shows (fixture_read root "state/prompt.spi") "LeaseActive)"
+    shows (accepted root "add" (Arg ("PR-1", Arg ("TaskKind", Arg ("P1", Arg ("D2", Arg ("First item", Arg ("ops", Arg ("--estimate", Arg ("1h", NoArgs)))))))))) "eoie agile add ok id=PR-1"
+    failed_with (agile root "init" NoArgs) "already exists"
     fixture_root_remove root

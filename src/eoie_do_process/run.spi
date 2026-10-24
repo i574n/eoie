@@ -2,6 +2,7 @@ open rust_std_string.model
 open eoie_receipt.receipt
 open host
 open grammar
+open eoie_do_records.records
 
 type run_tally =
     {
@@ -41,18 +42,21 @@ let foreground_run (~runs : run_state) (~state : run_tally) (~records : record_l
     | Exited code => { counted with exit_known = true; exit_code = code }
     | _ => counted
 
+let run_started (~runs : run_state) (~root : string) (~command : string) (~name : string) : string =
+    run_spawned runs root (launch_argv_via root command) (launch_line_via root command) name
+
 let step_run (~root : string) (~runs : run_state) (~records : record_list) (~record : i32) (~state : run_tally) (step : process_step) : run_tally =
     match step with
     | RunForeground (command, timeout) =>
-        inl problem = run_spawned runs root command ""
+        inl problem = run_started runs root command ""
         if problem = "" then foreground_run runs state records record command "" timeout
         else { (reported state (concat5 "run " command "  " problem "") true) with runs = state.runs + 1u64 }
     | RunUntil (command, needle, timeout) =>
-        inl problem = run_spawned runs root command ""
+        inl problem = run_started runs root command ""
         if problem = "" then foreground_run runs state records record command needle timeout
         else { (reported state (concat5 "run " command "  " problem "") true) with runs = state.runs + 1u64 }
     | RunBackground (command, name) =>
-        inl problem = run_spawned runs root command name
+        inl problem = run_started runs root command name
         inl line = if problem = "" then concat5 "run " command "  background as " name (concat5 "  pid " (decimal_text (background_pid runs)) "" "" "") else concat5 "run " command "  " problem ""
         { (reported state line (problem <> "")) with runs = state.runs + 1u64 }
     | TailOutput count => reported state (output_lines runs count true) false

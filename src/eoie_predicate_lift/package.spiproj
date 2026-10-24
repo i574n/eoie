@@ -1,7 +1,7 @@
 packages:
     |core-
     state_receipt_codec_model-
-    rust_std_string
+    spiral-
     predicate_lex
     predicate_rules
 modules:

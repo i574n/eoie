@@ -2,7 +2,7 @@ packages:
     |core-
     state_receipt_codec_model-
     predicate_lex
-    rust_std_string
+    spiral-
 modules:
     host
     metadata

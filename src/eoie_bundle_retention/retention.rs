@@ -81,24 +81,23 @@ fn read_series_1(mut v0: Rc<str>) -> US0 {
             let mut v11: bool = !v10.is_empty() && v10.bytes().all(|byte| byte.is_ascii_digit());
             if v11 {
                 let mut v12: Rc<str> = std::rc::Rc::<str>::from(v10.parse::<u64>().err().map(|error| error.to_string()).unwrap_or_default());
-                let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                let mut v14: bool = v12 == v13 ;
-                if v14 {
-                    let mut v15: Rc<str> = std::rc::Rc::<str>::from(&(&*v3)[..v9 as usize]);
-                    let mut v16: u64 = v10.parse::<u64>().unwrap_or(0);
-                    US0::US0_SeriesMember(v15.clone(), v16)
+                let mut v13: bool = v12.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                if v13 {
+                    let mut v14: Rc<str> = std::rc::Rc::<str>::from(&(&*v3)[..v9 as usize]);
+                    let mut v15: u64 = v10.parse::<u64>().unwrap_or(0);
+                    US0::US0_SeriesMember(v14.clone(), v15)
                 } else {
-                    let mut v18: US1 = US1::US1_AlphaOutOfRange(v12.clone());
-                    US0::US0_SeriesRejected(v18.clone())
+                    let mut v17: US1 = US1::US1_AlphaOutOfRange(v12.clone());
+                    US0::US0_SeriesRejected(v17.clone())
                 }
             } else {
-                let mut v21: US1 = US1::US1_InvalidAlphaSuffix;
-                US0::US0_SeriesRejected(v21.clone())
+                let mut v20: US1 = US1::US1_InvalidAlphaSuffix;
+                US0::US0_SeriesRejected(v20.clone())
             }
         }
     } else {
-        let mut v25: US1 = US1::US1_MissingZipSuffix;
-        US0::US0_SeriesRejected(v25.clone())
+        let mut v24: US1 = US1::US1_MissingZipSuffix;
+        US0::US0_SeriesRejected(v24.clone())
     }
 }
 fn series_error_0(mut v0: Rc<str>) -> Rc<str> {
@@ -113,27 +112,24 @@ fn series_error_0(mut v0: Rc<str>) -> Rc<str> {
         US0::US0_SeriesRejected(v5) => {
             let mut v5: US1 = v5.clone();
             match &v5 {
-                US1::US1_AlphaOutOfRange(v15) => {
-                    let mut v15: Rc<str> = v15.clone();
-                    v15.clone()
+                US1::US1_AlphaOutOfRange(v12) => {
+                    let mut v12: Rc<str> = v12.clone();
+                    v12.clone()
                 }
                 US1::US1_InvalidAlphaSuffix => {
-                    let mut v12: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("retention current has invalid alpha suffix: "); } LIT.with(|lit| lit.clone()) };
-                    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                    let mut v14: Rc<str> = std::rc::Rc::<str>::from([&*v12, &*v0, &*v13, &*v13, &*v13].concat());
-                    v14.clone()
+                    let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("retention current has invalid alpha suffix: "); } LIT.with(|lit| lit.clone()) };
+                    let mut v11: Rc<str> = Rc::<str>::from(format!("{}{}", v10, v0));
+                    v11.clone()
                 }
                 US1::US1_MissingAlphaSuffix => {
-                    let mut v9: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("retention current has no alpha suffix: "); } LIT.with(|lit| lit.clone()) };
-                    let mut v10: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                    let mut v11: Rc<str> = std::rc::Rc::<str>::from([&*v9, &*v0, &*v10, &*v10, &*v10].concat());
-                    v11.clone()
+                    let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("retention current has no alpha suffix: "); } LIT.with(|lit| lit.clone()) };
+                    let mut v9: Rc<str> = Rc::<str>::from(format!("{}{}", v8, v0));
+                    v9.clone()
                 }
                 US1::US1_MissingZipSuffix => {
                     let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("retention current must end in .zip: "); } LIT.with(|lit| lit.clone()) };
-                    let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                    let mut v8: Rc<str> = std::rc::Rc::<str>::from([&*v6, &*v0, &*v7, &*v7, &*v7].concat());
-                    v8.clone()
+                    let mut v7: Rc<str> = Rc::<str>::from(format!("{}{}", v6, v0));
+                    v7.clone()
                 }
             }
         }
@@ -246,19 +242,17 @@ fn field_applied_7(mut v0: US3, mut v1: US3, mut v2: US3, mut v3: US3, mut v4: U
                             US4::US4_FieldTaken(v0.clone(), v1.clone(), v2.clone(), v3.clone(), v4.clone(), v5.clone(), v42.clone())
                         } else {
                             let mut v44: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("unknown retention receipt field: "); } LIT.with(|lit| lit.clone()) };
-                            let mut v45: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                            let mut v46: Rc<str> = std::rc::Rc::<str>::from([&*v44, &*v9, &*v45, &*v45, &*v45].concat());
-                            US4::US4_FieldRejected(v46.clone())
+                            let mut v45: Rc<str> = Rc::<str>::from(format!("{}{}", v44, v9));
+                            US4::US4_FieldRejected(v45.clone())
                         }
                     }
                 }
             }
         }
     } else {
-        let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid retention receipt field: "); } LIT.with(|lit| lit.clone()) };
-        let mut v54: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        let mut v55: Rc<str> = std::rc::Rc::<str>::from([&*v53, &*v7, &*v54, &*v54, &*v54].concat());
-        US4::US4_FieldRejected(v55.clone())
+        let mut v52: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid retention receipt field: "); } LIT.with(|lit| lit.clone()) };
+        let mut v53: Rc<str> = Rc::<str>::from(format!("{}{}", v52, v7));
+        US4::US4_FieldRejected(v53.clone())
     }
 }
 fn fields_from_6(mut v0: Rc<str>, mut v1: u64, mut v2: u64, mut v3: US3, mut v4: US3, mut v5: US3, mut v6: US3, mut v7: US3, mut v8: US3, mut v9: US3) -> US4 {
@@ -458,16 +452,21 @@ fn receipt_reading_of_5(mut v0: Rc<str>) -> US2 {
                                                                                                                     };
                                                                                                                     if v87 {
                                                                                                                         let mut v88: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\t"); } LIT.with(|lit| lit.clone()) };
-                                                                                                                        let mut v89: Rc<str> = std::rc::Rc::<str>::from([&*v47, &*v88, &*v48, &*v88, &*v65].concat());
-                                                                                                                        let mut v90: Rc<str> = std::rc::Rc::<str>::from([&*v66, &*v88, &*v83, &*v88, &*v84].concat());
-                                                                                                                        let mut v91: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                                                                                                                        let mut v92: Rc<str> = std::rc::Rc::<str>::from([&*v89, &*v88, &*v90, &*v91, &*v91].concat());
-                                                                                                                        US2::US2_ReceiptRead(v92.clone())
+                                                                                                                        let mut v89: Rc<str> = Rc::<str>::from(format!("{}{}", v47, v88));
+                                                                                                                        let mut v90: Rc<str> = Rc::<str>::from(format!("{}{}", v89, v48));
+                                                                                                                        let mut v91: Rc<str> = Rc::<str>::from(format!("{}{}", v90, v88));
+                                                                                                                        let mut v92: Rc<str> = Rc::<str>::from(format!("{}{}", v91, v65));
+                                                                                                                        let mut v93: Rc<str> = Rc::<str>::from(format!("{}{}", v92, v88));
+                                                                                                                        let mut v94: Rc<str> = Rc::<str>::from(format!("{}{}", v66, v88));
+                                                                                                                        let mut v95: Rc<str> = Rc::<str>::from(format!("{}{}", v94, v83));
+                                                                                                                        let mut v96: Rc<str> = Rc::<str>::from(format!("{}{}", v95, v88));
+                                                                                                                        let mut v97: Rc<str> = Rc::<str>::from(format!("{}{}", v96, v84));
+                                                                                                                        let mut v98: Rc<str> = Rc::<str>::from(format!("{}{}", v93, v97));
+                                                                                                                        US2::US2_ReceiptRead(v98.clone())
                                                                                                                     } else {
-                                                                                                                        let mut v94: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid retention receipt status: "); } LIT.with(|lit| lit.clone()) };
-                                                                                                                        let mut v95: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-                                                                                                                        let mut v96: Rc<str> = std::rc::Rc::<str>::from([&*v94, &*v84, &*v95, &*v95, &*v95].concat());
-                                                                                                                        US2::US2_ReceiptRejected(v96.clone())
+                                                                                                                        let mut v100: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("invalid retention receipt status: "); } LIT.with(|lit| lit.clone()) };
+                                                                                                                        let mut v101: Rc<str> = Rc::<str>::from(format!("{}{}", v100, v84));
+                                                                                                                        US2::US2_ReceiptRejected(v101.clone())
                                                                                                                     }
                                                                                                                 }
                                                                                                                 _ => unreachable!(),
@@ -544,49 +543,65 @@ fn closure4() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
 }
 fn receipt_source_9(mut v0: Rc<str>, mut v1: Rc<str>, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: Rc<str>) -> Rc<str> {
     let mut v6: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("// retention-receipt|schema=1|fingerprint="); } LIT.with(|lit| lit.clone()) };
-    let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|current="); } LIT.with(|lit| lit.clone()) };
-    let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|candidates="); } LIT.with(|lit| lit.clone()) };
-    let mut v9: Rc<str> = std::rc::Rc::<str>::from([&*v6, &*v0, &*v7, &*v1, &*v8].concat());
-    let mut v10: Rc<str> = std::rc::Rc::<str>::from((v2).to_string());
-    let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|deletes="); } LIT.with(|lit| lit.clone()) };
-    let mut v12: Rc<str> = std::rc::Rc::<str>::from((v3).to_string());
-    let mut v13: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|remaining="); } LIT.with(|lit| lit.clone()) };
-    let mut v14: Rc<str> = std::rc::Rc::<str>::from((v4).to_string());
-    let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|status="); } LIT.with(|lit| lit.clone()) };
-    let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
-    let mut v17: Rc<str> = std::rc::Rc::<str>::from([&*v13, &*v14, &*v15, &*v5, &*v16].concat());
-    let mut v18: Rc<str> = std::rc::Rc::<str>::from([&*v9, &*v10, &*v11, &*v12, &*v17].concat());
-    let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union retention_receipt_status =\n    | RetentionDryRun\n    | RetentionApplied\n\nunion retention_receipt =\n    | RetentionReceipt :: string * string * i32 * i32 * i32 * retention_receipt_status -> retention_receipt\n\ninl latest_retention_receipt () : retention_receipt =\n    RetentionReceipt (\""); } LIT.with(|lit| lit.clone()) };
-    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\", \""); } LIT.with(|lit| lit.clone()) };
-    let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("planned"); } LIT.with(|lit| lit.clone()) };
-    let mut v22: bool = v5 == v21 ;
-    let mut v25: US5 = if v22 {
+    let mut v7: Rc<str> = Rc::<str>::from(format!("{}{}", v6, v0));
+    let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|current="); } LIT.with(|lit| lit.clone()) };
+    let mut v9: Rc<str> = Rc::<str>::from(format!("{}{}", v7, v8));
+    let mut v10: Rc<str> = Rc::<str>::from(format!("{}{}", v9, v1));
+    let mut v11: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|candidates="); } LIT.with(|lit| lit.clone()) };
+    let mut v12: Rc<str> = Rc::<str>::from(format!("{}{}", v10, v11));
+    let mut v13: Rc<str> = std::rc::Rc::<str>::from((v2).to_string());
+    let mut v14: Rc<str> = Rc::<str>::from(format!("{}{}", v12, v13));
+    let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|deletes="); } LIT.with(|lit| lit.clone()) };
+    let mut v16: Rc<str> = Rc::<str>::from(format!("{}{}", v14, v15));
+    let mut v17: Rc<str> = std::rc::Rc::<str>::from((v3).to_string());
+    let mut v18: Rc<str> = Rc::<str>::from(format!("{}{}", v16, v17));
+    let mut v19: Rc<str> = std::rc::Rc::<str>::from((v4).to_string());
+    let mut v20: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|remaining="); } LIT.with(|lit| lit.clone()) };
+    let mut v21: Rc<str> = Rc::<str>::from(format!("{}{}", v20, v19));
+    let mut v22: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("|status="); } LIT.with(|lit| lit.clone()) };
+    let mut v23: Rc<str> = Rc::<str>::from(format!("{}{}", v21, v22));
+    let mut v24: Rc<str> = Rc::<str>::from(format!("{}{}", v23, v5));
+    let mut v25: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\n"); } LIT.with(|lit| lit.clone()) };
+    let mut v26: Rc<str> = Rc::<str>::from(format!("{}{}", v24, v25));
+    let mut v27: Rc<str> = Rc::<str>::from(format!("{}{}", v18, v26));
+    let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("union retention_receipt_status =\n    | RetentionDryRun\n    | RetentionApplied\n\nunion retention_receipt =\n    | RetentionReceipt :: string * string * i32 * i32 * i32 * retention_receipt_status -> retention_receipt\n\ninl latest_retention_receipt () : retention_receipt =\n    RetentionReceipt (\""); } LIT.with(|lit| lit.clone()) };
+    let mut v29: Rc<str> = Rc::<str>::from(format!("{}{}", v27, v28));
+    let mut v30: Rc<str> = Rc::<str>::from(format!("{}{}", v29, v0));
+    let mut v31: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\", \""); } LIT.with(|lit| lit.clone()) };
+    let mut v32: Rc<str> = Rc::<str>::from(format!("{}{}", v30, v31));
+    let mut v33: bool = v5.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("planned"); } LIT.with(|lit| lit.clone()) };
+    let mut v36: US5 = if v33 {
         US5::US5_PlannedReceipt
     } else {
         US5::US5_AppliedReceipt
     };
-    let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\", "); } LIT.with(|lit| lit.clone()) };
-    let mut v27: Rc<str> = std::rc::Rc::<str>::from((v2).to_string());
-    let mut v28: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("i32, "); } LIT.with(|lit| lit.clone()) };
-    let mut v29: Rc<str> = std::rc::Rc::<str>::from((v3).to_string());
-    let mut v30: Rc<str> = std::rc::Rc::<str>::from([&*v26, &*v27, &*v28, &*v29, &*v28].concat());
-    let mut v31: Rc<str> = std::rc::Rc::<str>::from((v4).to_string());
-    let mut v35: Rc<str> = match &v25 {
+    let mut v37: Rc<str> = std::rc::Rc::<str>::from((v2).to_string());
+    let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("\", "); } LIT.with(|lit| lit.clone()) };
+    let mut v39: Rc<str> = Rc::<str>::from(format!("{}{}", v38, v37));
+    let mut v40: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("i32, "); } LIT.with(|lit| lit.clone()) };
+    let mut v41: Rc<str> = Rc::<str>::from(format!("{}{}", v39, v40));
+    let mut v42: Rc<str> = std::rc::Rc::<str>::from((v3).to_string());
+    let mut v43: Rc<str> = Rc::<str>::from(format!("{}{}", v41, v42));
+    let mut v44: Rc<str> = Rc::<str>::from(format!("{}{}", v43, v40));
+    let mut v45: Rc<str> = std::rc::Rc::<str>::from((v4).to_string());
+    let mut v46: Rc<str> = Rc::<str>::from(format!("{}{}", v44, v45));
+    let mut v47: Rc<str> = Rc::<str>::from(format!("{}{}", v46, v40));
+    let mut v51: Rc<str> = match &v36 {
         US5::US5_AppliedReceipt => {
-            let mut v33: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("RetentionApplied"); } LIT.with(|lit| lit.clone()) };
-            v33.clone()
+            let mut v49: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("RetentionApplied"); } LIT.with(|lit| lit.clone()) };
+            v49.clone()
         }
         US5::US5_PlannedReceipt => {
-            let mut v32: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("RetentionDryRun"); } LIT.with(|lit| lit.clone()) };
-            v32.clone()
+            let mut v48: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("RetentionDryRun"); } LIT.with(|lit| lit.clone()) };
+            v48.clone()
         }
     };
-    let mut v36: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(")\n\ninl main () : i32 = 0i32\n"); } LIT.with(|lit| lit.clone()) };
-    let mut v37: Rc<str> = std::rc::Rc::<str>::from([&*v30, &*v31, &*v28, &*v35, &*v36].concat());
-    let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-    let mut v39: Rc<str> = std::rc::Rc::<str>::from([&*v1, &*v37, &*v38, &*v38, &*v38].concat());
-    let mut v40: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v19, &*v0, &*v20, &*v39].concat());
-    v40.clone()
+    let mut v52: Rc<str> = Rc::<str>::from(format!("{}{}", v47, v51));
+    let mut v53: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(")\n\ninl main () : i32 = 0i32\n"); } LIT.with(|lit| lit.clone()) };
+    let mut v54: Rc<str> = Rc::<str>::from(format!("{}{}", v52, v53));
+    let mut v55: Rc<str> = Rc::<str>::from(format!("{}{}", v1, v54));
+    let mut v56: Rc<str> = Rc::<str>::from(format!("{}{}", v32, v55));
+    v56.clone()
 }
 fn closure5() -> Rc<dyn Fn(Rc<str>, Rc<str>, u64, u64, u64, Rc<str>) -> Rc<str>> {
     thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>, Rc<str>, u64, u64, u64, Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>, mut v1: Rc<str>, mut v2: u64, mut v3: u64, mut v4: u64, mut v5: Rc<str>| -> Rc<str> {

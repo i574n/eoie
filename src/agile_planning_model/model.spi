@@ -1,4 +1,5 @@
 open workspace_primitives.outcome
+open sm'_operators
 open workspace_primitives.numbers
 open workspace_primitives.bytes
 open agile_task_text.model
@@ -41,7 +42,7 @@ inl unplanned () : task_planning = { estimate = Unestimated; load = LoadUnset; a
 
 inl parse_case_named forall t. (name : t -> string) (~text : string) : validation_result t =
     union_reflection.cases.union_cases_fold
-        (fun parsed (case_value : t) => if rust_std_string.model.equals text (name case_value) then Valid case_value else parsed)
+        (fun parsed (case_value : t) => if (text = (name case_value)) then Valid case_value else parsed)
         Invalid
 
 inl task_load_case (load : task_load) : string = union_reflection.cases.union_case_suffix "Load" load
@@ -51,7 +52,16 @@ inl task_assignee_name (assignee : task_assignee) : string = ascii_lowercase (ta
 
 inl planning_field_name (field : planning_field) : string = ascii_lowercase (union_reflection.cases.union_case_suffix "Field" field)
 inl parse_planning_field (~text : string) : validation_result planning_field = parse_case_named planning_field_name text
-inl cleared_value (~text : string) : bool = rust_std_string.model.pipe_member "none|-" text
+union cleared_word =
+    | ClearedNone
+    | ClearedDash
+
+inl cleared_text (word : cleared_word) : string =
+    match word with
+    | ClearedNone => "none"
+    | ClearedDash => "-"
+
+inl cleared_value (~text : string) : bool = union_reflection.cases.union_case_where (fun (word : cleared_word) => text = cleared_text word) (fun _ => true) false
 
 let parse_planned_load (~text : string) : validation_result planned_load =
     inl lowered = ascii_lowercase text
@@ -107,11 +117,11 @@ let decimal_value (~digits : string) : validation_result i32 =
     else Invalid
 
 inl estimate_unit_of (~text : string) : estimate_unit =
-    if rust_std_string.model.ends_with text "h" then HourUnit else MinuteUnit
+    if sm'.ends_with "h" text then HourUnit else MinuteUnit
 
 inl estimate_digits (~text : string) : string =
-    if rust_std_string.model.ends_with text "h" then byte_slice text 0i32 (byte_len text - 1i32)
-    elif rust_std_string.model.ends_with text "m" then byte_slice text 0i32 (byte_len text - 1i32)
+    if sm'.ends_with "h" text then byte_slice text 0i32 (byte_len text - 1i32)
+    elif sm'.ends_with "m" text then byte_slice text 0i32 (byte_len text - 1i32)
     else text
 
 inl estimate_minute_ceiling () : i32 = 999999i32
@@ -159,7 +169,7 @@ inl estimate_known = function
 
 inl estimate_text = function
     | Unestimated => "-"
-    | EstimateMinutes minutes => rust_std_string.model.concat5 (i32_text minutes) "m" "" "" ""
+    | EstimateMinutes minutes => (i32_text minutes) ++# "m"
 
 inl load_text = function
     | LoadUnset => "-"
@@ -169,7 +179,7 @@ inl assignee_text = function
     | Unassigned => "-"
     | PlannedAssignee assignee => task_assignee_name assignee
 
-inl json_quoted (~text : string) : string = rust_std_string.model.concat5 "\"" text "\"" "" ""
+inl json_quoted (~text : string) : string = "\"" ++# text ++# "\""
 
 inl estimate_json = function
     | Unestimated => "null"
@@ -184,54 +194,54 @@ inl assignee_json = function
     | PlannedAssignee assignee => json_quoted (task_assignee_name assignee)
 
 let planning_json_fields (plan : task_planning) : string =
-    inl estimate = rust_std_string.model.concat5 "\"estimate_minutes\":" (estimate_json plan.estimate) ",\"load\":" (load_json plan.load) ""
-    rust_std_string.model.concat5 estimate ",\"assignee\":" (assignee_json plan.assignee) "" ""
+    inl estimate = "\"estimate_minutes\":" ++# (estimate_json plan.estimate) ++# ",\"load\":" ++# (load_json plan.load)
+    estimate ++# ",\"assignee\":" ++# (assignee_json plan.assignee)
 
 let planning_summary (plan : task_planning) : string =
-    inl estimate = rust_std_string.model.concat5 "estimate=" (estimate_text plan.estimate) " load=" (load_text plan.load) ""
-    rust_std_string.model.concat5 estimate " assignee=" (assignee_text plan.assignee) "" ""
+    inl estimate = "estimate=" ++# (estimate_text plan.estimate) ++# " load=" ++# (load_text plan.load)
+    estimate ++# " assignee=" ++# (assignee_text plan.assignee)
 
 inl estimate_state_token = function
     | Unestimated => "Unestimated"
-    | EstimateMinutes minutes => rust_std_string.model.concat5 "Minutes " (i32_text minutes) "u32" "" ""
+    | EstimateMinutes minutes => "Minutes " ++# (i32_text minutes) ++# "u32"
 
 inl load_state_token = function
     | LoadUnset => "LoadUnset"
-    | PlannedLoad load => rust_std_string.model.concat5 "Load " (task_load_case load) "" "" ""
+    | PlannedLoad load => "Load " ++# (task_load_case load)
 
 inl assignee_state_token = function
     | Unassigned => "Unassigned"
-    | PlannedAssignee assignee => rust_std_string.model.concat5 "Assigned " (task_assignee_case assignee) "" "" ""
+    | PlannedAssignee assignee => "Assigned " ++# (task_assignee_case assignee)
 
 inl estimate_of_token (~token : string) : planned_estimate =
-    if rust_std_string.model.starts_with token "Minutes " then
-        match decimal_value (rust_std_string.model.replace (byte_slice token 8i32 (byte_len token)) "u32" "") with
+    if sm'.starts_with "Minutes " token then
+        match decimal_value (sm'.replace "u32" "" (byte_slice token 8i32 (byte_len token))) with
         | Valid minutes => EstimateMinutes minutes
         | Invalid => Unestimated
     else Unestimated
 
 inl load_of_token (~token : string) : planned_load =
-    if rust_std_string.model.starts_with token "Load " then planned_or_unset (parse_planned_load (byte_slice token 5i32 (byte_len token)))
+    if sm'.starts_with "Load " token then planned_or_unset (parse_planned_load (byte_slice token 5i32 (byte_len token)))
     else LoadUnset
 
 inl assignee_of_token (~token : string) : planned_assignee =
-    if rust_std_string.model.starts_with token "Assigned " then assigned_or_unset (parse_planned_assignee (byte_slice token 9i32 (byte_len token)))
+    if sm'.starts_with "Assigned " token then assigned_or_unset (parse_planned_assignee (byte_slice token 9i32 (byte_len token)))
     else Unassigned
 
 inl schema_cases forall t. (case_text : t -> string) (type_name : string) : string =
     union_reflection.cases.union_cases_joined (fun (case_value : t) => !!!!StaticStringConcat(case_text case_value, !!!!StaticStringConcat(" :: ", type_name))) " | "
 
 inl planning_schema () : string =
-    inl loads = rust_std_string.model.concat5 "union task_load =\n    | " (schema_cases task_load_case "task_load") """
+    inl loads = "union task_load =\n    | " ++# (schema_cases task_load_case "task_load") ++# """
 
 
 
-        """ "" ""
-    inl assignees = rust_std_string.model.concat5 "union task_assignee =\n    | " (schema_cases task_assignee_case "task_assignee") """
+        """
+    inl assignees = "union task_assignee =\n    | " ++# (schema_cases task_assignee_case "task_assignee") ++# """
 
 
 
-        """ "" ""
+        """
     inl estimates = """
         union planned_estimate =
             | Unestimated :: planned_estimate | Minutes :: u32 -> planned_estimate
@@ -247,15 +257,15 @@ inl planning_schema () : string =
 
 
         """
-    rust_std_string.model.concat5 loads assignees estimates options "union task_planning =\n    | Planning :: string * planned_estimate * planned_load * planned_assignee -> task_planning"
+    loads ++# assignees ++# estimates ++# options ++# "union task_planning =\n    | Planning :: string * planned_estimate * planned_load * planned_assignee -> task_planning"
 
 inl planning_schema_marker () : string = "union task_planning ="
 inl agile_item_marker () : string = "-> agile_item"
 inl planning_arguments_offset () : i32 = 10i32
 
-inl planning_anchor (~id : string) : string = rust_std_string.model.concat5 "Planning (\"" id "\"," "" ""
-inl task_anchor (~id : string) : string = rust_std_string.model.concat5 "Task (\"" id "\"," "" ""
-inl planning_binding (~id : string) : string = rust_std_string.model.concat5 "planning_of_" (ascii_lowercase (rust_std_string.model.replace id "-" "_")) "" "" ""
+inl planning_anchor (~id : string) : string = "Planning (\"" ++# id ++# "\","
+inl task_anchor (~id : string) : string = "Task (\"" ++# id ++# "\","
+inl planning_binding (~id : string) : string = "planning_of_" ++# (ascii_lowercase (sm'.replace "-" "_" id))
 
 type planning_tokens =
     {
@@ -273,9 +283,9 @@ inl tokens_with (field : planning_field) (~token : string) (tokens : planning_to
     | FieldAssignee => { tokens with assignee_token = token }
 
 let planning_row (~id : string) (tokens : planning_tokens) : string =
-    inl head = rust_std_string.model.concat5 "inl " (planning_binding id) " () = Planning (" (spi_quoted id) ", "
-    inl tail = rust_std_string.model.concat5 tokens.estimate_token ", " tokens.load_token ", " tokens.assignee_token
-    rust_std_string.model.concat5 head tail ")" "" ""
+    inl head = "inl " ++# (planning_binding id) ++# " () = Planning (" ++# (spi_quoted id) ++# ", "
+    inl tail = tokens.estimate_token ++# ", " ++# tokens.load_token ++# ", " ++# tokens.assignee_token
+    head ++# tail ++# ")"
 
 let rec declared_from (text : string) (~needle : string) (offset : i32) : i32 =
     inl found = byte_find_from text needle offset
@@ -285,12 +295,23 @@ let rec declared_from (text : string) (~needle : string) (offset : i32) : i32 =
 
 inl planning_offset (text : string) (~id : string) : i32 = declared_from text (planning_anchor id) 0i32
 
+let byte_find_between (text : string) (~needle : string) (start : i32) (stop : i32) : i32 =
+    $'(!text).get(!start as usize..!stop as usize).and_then(|slice| slice.find(&*!needle)).map(|at| at as i32 + !start).unwrap_or(-1)' : i32
+
+let planning_offset_near (text : string) (~id : string) (start : i32) : i32 =
+    inl next = byte_find_from text "Task (\"" (start + 1i32)
+    inl found = byte_find_between text (planning_anchor id) start (if next < 0i32 then byte_len text else next)
+    if found >= 0i32 && declared_task text found then found else (-1i32)
 let planning_at (text : string) (found : i32) : task_planning =
     inl field = tuple_field text ($"!found + !(planning_arguments_offset ())" : i32) (byte_len text)
     { estimate = estimate_of_token (field 1i32); load = load_of_token (field 2i32); assignee = assignee_of_token (field 3i32) }
 
 let planning_of (text : string) (~id : string) : task_planning =
     inl found = planning_offset text id
+    if found < 0i32 then unplanned () else planning_at text found
+
+let planning_near (text : string) (~id : string) (start : i32) : task_planning =
+    inl found = planning_offset_near text id start
     if found < 0i32 then unplanned () else planning_at text found
 
 let planning_tokens_of (text : string) (~id : string) : planning_tokens =
@@ -305,7 +326,7 @@ inl line_end_after (text : string) (offset : i32) : i32 =
     if found < 0i32 then byte_len text else found
 
 inl spliced (text : string) (start : i32) (stop : i32) (~middle : string) : string =
-    rust_std_string.model.concat5 (byte_slice text 0i32 start) middle (byte_slice text stop (byte_len text)) "" ""
+    (byte_slice text 0i32 start) ++# middle ++# (byte_slice text stop (byte_len text))
 
 let planning_upserted (text : string) (~id : string) (tokens : planning_tokens) : validation_result string =
     inl task = byte_find text (task_anchor id)
@@ -314,22 +335,22 @@ let planning_upserted (text : string) (~id : string) (tokens : planning_tokens) 
         inl existing = planning_offset text id
         if existing < 0i32 then
             inl stop = line_end_after text task
-            Valid (spliced text stop stop (rust_std_string.model.concat5 "\n" (planning_row id tokens) "" "" ""))
+            Valid (spliced text stop stop ("\n" ++# (planning_row id tokens)))
         else Valid (spliced text (line_start_before text existing) (line_end_after text existing) (planning_row id tokens))
 
 let planning_schema_ensured (text : string) : string =
     if byte_find text (planning_schema_marker ()) < 0i32 then
         inl item = byte_find text (agile_item_marker ())
-        if item < 0i32 then rust_std_string.model.concat5 (planning_schema ()) """
+        if item < 0i32 then (planning_schema ()) ++# """
 
 
 
-            """ text "" ""
+            """ ++# text
         else
             inl stop = line_end_after text item
-            spliced text stop stop (rust_std_string.model.concat5 """
+            spliced text stop stop ("""
 
 
 
-                """ (planning_schema ()) "" "" "")
+                """ ++# (planning_schema ()))
     else text

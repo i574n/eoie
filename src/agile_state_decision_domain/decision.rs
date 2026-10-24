@@ -131,9 +131,14 @@ fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn agile_transient_state_name_code_11(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("patch_resume.spi|toolchain_process_receipt.spi"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: bool = v1.split("|").any(|item| item == &*v0);
-    if v2 {
+    let mut v1: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("patch_resume.spi"); } LIT.with(|lit| lit.clone()) };
+    let mut v3: bool = if v1 {
+        true
+    } else {
+        let mut v2: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("toolchain_process_receipt.spi"); } LIT.with(|lit| lit.clone()) };
+        v2
+    };
+    if v3 {
         1u64
     } else {
         0u64
@@ -145,24 +150,20 @@ fn closure6() -> Rc<dyn Fn(Rc<str>) -> u64> {
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn agile_record_required_name_bit_12(mut v0: Rc<str>) -> u64 {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("history.spi"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: bool = v0 == v1 ;
-    if v2 {
+    let mut v1: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("history.spi"); } LIT.with(|lit| lit.clone()) };
+    if v1 {
         1u64
     } else {
-        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("ratings.spi"); } LIT.with(|lit| lit.clone()) };
-        let mut v4: bool = v0 == v3 ;
-        if v4 {
+        let mut v2: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("ratings.spi"); } LIT.with(|lit| lit.clone()) };
+        if v2 {
             2u64
         } else {
-            let mut v5: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("bench.spi"); } LIT.with(|lit| lit.clone()) };
-            let mut v6: bool = v0 == v5 ;
-            if v6 {
+            let mut v3: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("bench.spi"); } LIT.with(|lit| lit.clone()) };
+            if v3 {
                 4u64
             } else {
-                let mut v7: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("migration.spi"); } LIT.with(|lit| lit.clone()) };
-                let mut v8: bool = v0 == v7 ;
-                if v8 {
+                let mut v4: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("migration.spi"); } LIT.with(|lit| lit.clone()) };
+                if v4 {
                     8u64
                 } else {
                     0u64
@@ -177,14 +178,13 @@ fn closure7() -> Rc<dyn Fn(Rc<str>) -> u64> {
     }); } CLOSURE.with(|closure| closure.clone())
 }
 fn agile_record_required_catalog_13(mut v0: Rc<str>) -> Rc<str> {
-    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("v1"); } LIT.with(|lit| lit.clone()) };
-    let mut v2: bool = v0 == v1 ;
-    if v2 {
-        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("history.spi|ratings.spi|bench.spi|migration.spi"); } LIT.with(|lit| lit.clone()) };
-        v3.clone()
+    let mut v1: bool = v0.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("v1"); } LIT.with(|lit| lit.clone()) };
+    if v1 {
+        let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("history.spi|ratings.spi|bench.spi|migration.spi"); } LIT.with(|lit| lit.clone()) };
+        v2.clone()
     } else {
-        let mut v4: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        v4.clone()
+        let mut v3: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        v3.clone()
     }
 }
 fn closure8() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {

@@ -1,0 +1,7 @@
+packages:
+    |core-
+    spiral-
+    rust_std_string
+modules:
+    probes
+    census

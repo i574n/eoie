@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "claim.spi"
+output = "claim.rs"
+
+[package]
+name = "eoie-window-claim"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_window_claim"
+path = "claim.rs"

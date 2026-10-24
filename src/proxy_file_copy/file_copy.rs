@@ -12,31 +12,35 @@ fn file_copy_outcome_1(mut v0: i32, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc
     if v5 {
         let mut v6: Rc<str> = std::rc::Rc::<str>::from(eoie_rust_std_fs::rooted_path(std::path::Path::new(&*v1), &*v2).err().unwrap_or_default().as_str());
         let mut v7: Rc<str> = std::rc::Rc::<str>::from(eoie_rust_std_fs::rooted_path(std::path::Path::new(&*v1), &*v3).err().unwrap_or_default().as_str());
-        let mut v8: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
-        let mut v9: bool = v6 == v8 ;
-        if v9 {
-            let mut v10: bool = v7 == v8 ;
-            if v10 {
-                let mut v11: Rc<str> = eoie_rust_std_fs::rooted_path(std::path::Path::new(&*v1), &*v2).map(|path| std::rc::Rc::<str>::from(path.to_string_lossy().as_ref())).unwrap_or_else(|_| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-                let mut v12: Rc<str> = eoie_rust_std_fs::rooted_path(std::path::Path::new(&*v1), &*v3).map(|path| std::rc::Rc::<str>::from(path.to_string_lossy().as_ref())).unwrap_or_else(|_| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
-                let mut v13: Rc<str> = std::rc::Rc::<str>::from(eoie_rust_std_fs::copy_regular_atomic_preserve(std::path::Path::new(&*v11), std::path::Path::new(&*v12)).err().unwrap_or_default().as_str());
-                let mut v14: bool = v13 == v8 ;
-                if v14 {
-                    let mut v15: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy fs-copy ok source="); } LIT.with(|lit| lit.clone()) };
+        let mut v8: bool = v6.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+        if v8 {
+            let mut v9: bool = v7.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+            if v9 {
+                let mut v10: Rc<str> = eoie_rust_std_fs::rooted_path(std::path::Path::new(&*v1), &*v2).map(|path| std::rc::Rc::<str>::from(path.to_string_lossy().as_ref())).unwrap_or_else(|_| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+                let mut v11: Rc<str> = eoie_rust_std_fs::rooted_path(std::path::Path::new(&*v1), &*v3).map(|path| std::rc::Rc::<str>::from(path.to_string_lossy().as_ref())).unwrap_or_else(|_| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+                let mut v12: Rc<str> = std::rc::Rc::<str>::from(eoie_rust_std_fs::copy_regular_atomic_preserve(std::path::Path::new(&*v10), std::path::Path::new(&*v11)).err().unwrap_or_default().as_str());
+                let mut v13: bool = v12.clone() == { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) };
+                if v13 {
+                    let mut v14: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("eoie proxy fs-copy ok source="); } LIT.with(|lit| lit.clone()) };
+                    let mut v15: Rc<str> = Rc::<str>::from(format!("{}{}", v14, v10));
                     let mut v16: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" target="); } LIT.with(|lit| lit.clone()) };
-                    let mut v17: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes="); } LIT.with(|lit| lit.clone()) };
-                    let mut v18: Rc<str> = std::rc::Rc::<str>::from([&*v15, &*v11, &*v16, &*v12, &*v17].concat());
-                    let mut v19: u64 = std::fs::symlink_metadata(&*v12).map(|meta| meta.len()).unwrap_or(0);
-                    let mut v20: Rc<str> = std::rc::Rc::<str>::from((v19).to_string());
-                    let mut v21: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
-                    let mut v22: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v4);
-                    let mut v23: Rc<str> = std::rc::Rc::<str>::from((v22).to_string());
-                    let mut v24: Rc<str> = std::rc::Rc::<str>::from([&*v18, &*v20, &*v21, &*v23, &*v8].concat());
-                    US0::US0_CopyReceipt(v24.clone())
+                    let mut v17: Rc<str> = Rc::<str>::from(format!("{}{}", v15, v16));
+                    let mut v18: Rc<str> = Rc::<str>::from(format!("{}{}", v17, v11));
+                    let mut v19: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" bytes="); } LIT.with(|lit| lit.clone()) };
+                    let mut v20: Rc<str> = Rc::<str>::from(format!("{}{}", v18, v19));
+                    let mut v21: u64 = std::fs::symlink_metadata(&*v11).map(|meta| meta.len()).unwrap_or(0);
+                    let mut v22: Rc<str> = std::rc::Rc::<str>::from((v21).to_string());
+                    let mut v23: Rc<str> = Rc::<str>::from(format!("{}{}", v20, v22));
+                    let mut v24: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from(" elapsed_ms="); } LIT.with(|lit| lit.clone()) };
+                    let mut v25: Rc<str> = Rc::<str>::from(format!("{}{}", v23, v24));
+                    let mut v26: u64 = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0).saturating_sub(v4);
+                    let mut v27: Rc<str> = std::rc::Rc::<str>::from((v26).to_string());
+                    let mut v28: Rc<str> = Rc::<str>::from(format!("{}{}", v25, v27));
+                    US0::US0_CopyReceipt(v28.clone())
                 } else {
-                    let mut v26: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-copy failed: "); } LIT.with(|lit| lit.clone()) };
-                    let mut v27: Rc<str> = std::rc::Rc::<str>::from([&*v26, &*v13, &*v8, &*v8, &*v8].concat());
-                    US0::US0_CopyRejected(v27.clone())
+                    let mut v30: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-copy failed: "); } LIT.with(|lit| lit.clone()) };
+                    let mut v31: Rc<str> = Rc::<str>::from(format!("{}{}", v30, v12));
+                    US0::US0_CopyRejected(v31.clone())
                 }
             } else {
                 US0::US0_CopyRejected(v7.clone())
@@ -45,8 +49,8 @@ fn file_copy_outcome_1(mut v0: i32, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc
             US0::US0_CopyRejected(v6.clone())
         }
     } else {
-        let mut v34: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-copy expects root, source, target"); } LIT.with(|lit| lit.clone()) };
-        US0::US0_CopyRejected(v34.clone())
+        let mut v38: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("fs-copy expects root, source, target"); } LIT.with(|lit| lit.clone()) };
+        US0::US0_CopyRejected(v38.clone())
     }
 }
 fn file_copy_report_0(mut v0: i32, mut v1: Rc<str>, mut v2: Rc<str>, mut v3: Rc<str>) -> (i32, Rc<str>) {

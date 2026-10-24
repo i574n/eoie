@@ -98,12 +98,12 @@ let rec packages (text : string) (cursor : i32) (members_at : i32) (wanted : str
 
 let rec selected (text : string) (names : string) (cursor : i32) (separator : char) (packages_at : i32) (members_at : i32) (need_cli : i32) : i32 =
     inl end_name = find_char names cursor separator
-    inl wanted = cut names cursor end_name
+    inl wanted = predicate_lex_core.model.cut names cursor end_name
     inl result = packages text packages_at members_at wanted false 0i32
     if (<) result 0i32 then result
     else
         inl next_need = if (=.) result 1i32 then 1i32 else need_cli
-        if (=.) end_name (length names) then next_need
+        if (=.) end_name (predicate_lex_core.model.length names) then next_need
         else selected text names ((+.) end_name 1i32) separator packages_at members_at next_need
 
 let inspect (text : string) (names : string) (separator : string) : i32 =
@@ -114,5 +114,5 @@ let inspect (text : string) (names : string) (separator : string) : i32 =
         inl _, packages_after, package_kind, packages_ok = token text package_at
         inl _, members_after, member_kind, members_ok = token text member_at
         if packages_ok && members_ok && (=.) package_kind "[" && (=.) member_kind "[" then
-            selected text names 0i32 (at separator 0i32) packages_after members_after 0i32
+            selected text names 0i32 (predicate_lex_core.model.at separator 0i32) packages_after members_after 0i32
         else -5i32
