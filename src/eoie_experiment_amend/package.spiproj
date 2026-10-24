@@ -1,0 +1,8 @@
+packages:
+    |core-
+    rust_std_string
+    union_reflection
+    agile_note_model
+    eoie_experiments
+modules:
+    amend

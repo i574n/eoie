@@ -1,0 +1,6 @@
+packages:
+    |core-
+    spiral-
+modules:
+    model
+    terminal

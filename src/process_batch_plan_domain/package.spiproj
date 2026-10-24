@@ -1,0 +1,8 @@
+packages:
+    |core-
+modules:
+    model
+    bridge
+    matrix
+    terminal
+    main

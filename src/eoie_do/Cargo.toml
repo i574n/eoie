@@ -1,0 +1,26 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "do_run.rs"
+
+[package]
+name = "eoie-do"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do"
+path = "do_run.rs"
+
+[dependencies]
+eoie-do-verbs = { path = "../eoie_do_verbs" }
+eoie-do-program = { path = "../eoie_do_program" }
+eoie-do-edit = { path = "../eoie_do_edit" }
+eoie-do-facts = { path = "../eoie_do_facts" }
+eoie-do-git = { path = "../eoie_do_git" }
+eoie-do-jobs = { path = "../eoie_do_jobs" }
+eoie-do-lab = { path = "../eoie_do_lab" }
+eoie-do-process = { path = "../eoie_do_process" }
+eoie-do-read = { path = "../eoie_do_read" }
+eoie-do-write = { path = "../eoie_do_write" }

@@ -1,0 +1,8 @@
+packages:
+    |core-
+    workspace_primitives
+    rust_std_string
+    union_reflection
+modules:
+    model
+    roots

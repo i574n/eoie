@@ -1,0 +1,127 @@
+open agile_mutation_policy.model
+open sm'_operators
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+
+union agile_edit_field =
+    | EditTitle
+    | AppendTitle
+    | EditKind
+    | EditPriority
+    | EditDifficulty
+    | EditDeps
+    | EditTags
+
+inl edit_field_name = function
+    | EditTitle => "title"
+    | AppendTitle => "title-append"
+    | EditKind => "kind"
+    | EditPriority => "priority"
+    | EditDifficulty => "difficulty"
+    | EditDeps => "deps"
+    | EditTags => "tags"
+
+let parse_edit_field (~text : string) : validation_result agile_edit_field =
+    union_reflection.cases.union_cases_fold
+        (fun parsed (field : agile_edit_field) =>
+            if text = edit_field_name field then Valid field else parsed)
+        Invalid
+
+inl task_tuple_position = function
+    | EditTitle => 1i32
+    | AppendTitle => 1i32
+    | EditKind => 2i32
+    | EditPriority => 3i32
+    | EditDifficulty => 4i32
+    | EditDeps => 7i32
+    | EditTags => 8i32
+inl unknown_field_position () : i32 = -1i32
+
+union title_continuation =
+    | OpeningSentence
+    | FollowingSentence
+    | CallerPunctuated
+
+inl ascii_semicolon () : i32 = 59i32
+inl ascii_comma () : i32 = 44i32
+inl ascii_period () : i32 = 46i32
+inl ascii_space () : i32 = 32i32
+
+inl caller_punctuated (~value : string) : bool =
+    inl first = byte_at value 0i32
+    if first = ascii_semicolon () then true
+    elif first = ascii_comma () then true
+    elif first = ascii_period () then true
+    elif first = ascii_space () then true
+    else false
+
+inl title_continuation_of (~open_title : string) (~value : string) : title_continuation =
+    if byte_len open_title <= 1i32 then OpeningSentence
+    elif caller_punctuated value then CallerPunctuated
+    else FollowingSentence
+
+inl title_joint (continuation : title_continuation) : string =
+    match continuation with
+    | OpeningSentence => ""
+    | CallerPunctuated => ""
+    | FollowingSentence => "; "
+
+inl validated_text parsed render : validation_result string =
+    match parsed with
+    | Valid value => Valid (render value)
+    | Invalid => Invalid
+
+let quoted_field_value (~value : string) : validation_result string = Valid (spi_quoted value)
+
+inl rendered_field (field : agile_edit_field) (~current : string) (~value : string) : validation_result string =
+    match field with
+    | EditTitle => quoted_field_value value
+    | EditDeps => quoted_field_value value
+    | EditTags => quoted_field_value value
+    | AppendTitle =>
+        inl open_title = byte_slice current 0i32 (byte_len current - 1i32)
+        Valid (open_title ++# title_joint (title_continuation_of open_title value) ++# spi_escaped value ++# "\"")
+    | EditKind => validated_text (parse_task_kind value) agile_case_text
+    | EditPriority => validated_text (parse_priority value) agile_case_text
+    | EditDifficulty => validated_text (parse_difficulty value) agile_case_text
+
+inl field_value_rule = function
+    | EditKind => "kind must be Epic, Feature, Story or TaskKind"
+    | EditPriority => "priority must be P0..P5"
+    | EditDifficulty => "difficulty must be D0..D8"
+    | _ => "the value was rejected"
+
+inl unknown_field_rule () : string =
+    inl names = union_reflection.cases.union_cases_joined (fun (field : agile_edit_field) => edit_field_name field) ", "
+    "field must be " ++# names ++# ", estimate, load or assignee"
+
+inl rejected_token () : string = ""
+
+let edit_field_position (~field_name : string) : i32 =
+    match parse_edit_field field_name with
+    | Valid field => task_tuple_position field
+    | Invalid => unknown_field_position ()
+
+let edit_field_token (~field_name : string) (~current : string) (~value : string) : string =
+    match parse_edit_field field_name with
+    | Invalid => rejected_token ()
+    | Valid field =>
+        match rendered_field field current value with
+        | Valid token => token
+        | Invalid => rejected_token ()
+
+let edit_field_rule (~field_name : string) : string =
+    match parse_edit_field field_name with
+    | Valid field => field_value_rule field
+    | Invalid => unknown_field_rule ()
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_edit_field_position", ((fun field_name => edit_field_position field_name) : string -> i32))
+    !!!!Export("eoie_agile_edit_field_token", ((fun (field_name, current, value) => edit_field_token field_name current value) : string * string * string -> string))
+    !!!!Export("eoie_agile_edit_field_rule", ((fun field_name => edit_field_rule field_name) : string -> string))
+    inl _ = edit_field_position "title-append"
+    inl _ = edit_field_token "title-append" "\"first\"" "second"
+    inl _ = edit_field_rule "kind"
+    0i32

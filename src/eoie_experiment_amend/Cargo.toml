@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "amend.spi"
+output = "amend.rs"
+
+[package]
+name = "eoie-experiment-amend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_experiment_amend"
+path = "amend.rs"

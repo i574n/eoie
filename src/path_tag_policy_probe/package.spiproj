@@ -1,0 +1,5 @@
+packages:
+    |core-
+    path_tag_contract
+modules:
+    main

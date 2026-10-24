@@ -1,0 +1,14 @@
+open differential_normalization_contract.model
+
+inl main () : i32 =
+    inl bad_normalize = normalization_binding 0i32 1i32
+    inl mismatch = comparison_binding 0i32 1i32
+    inl invalid_mismatch = comparison_binding 0i32 0i32
+    inl bad_receipt = receipt_binding mismatch 1i32
+    if bad_normalize = 0i32 then
+        if mismatch = 2i32 then
+            if invalid_mismatch = 0i32 then
+                if bad_receipt = 0i32 then 0i32 else 1i32
+            else 1i32
+        else 1i32
+    else 1i32

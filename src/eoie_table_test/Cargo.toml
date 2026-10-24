@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "table_test.spi"
+output = "table_test.rs"
+
+[package]
+name = "eoie-table-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_table_test"
+path = "table_test.rs"
+
+[dependencies]
+eoie-experiment-stats = { path = "../eoie_experiment_stats" }
+eoie-table-query = { path = "../eoie_table_query" }

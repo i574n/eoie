@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "task_notes.spi"
+output = "task_notes.rs"
+
+[package]
+name = "agile-task-notes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_task_notes"
+path = "task_notes.rs"
+
+[dependencies]
+agile-planning-values = { path = "../agile_planning_values" }
+agile-planning-rewrite = { path = "../agile_planning_rewrite" }

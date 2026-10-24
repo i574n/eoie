@@ -1,0 +1,8 @@
+packages:
+    |core-
+    spiral-
+    rust_std_string
+modules:
+    model
+    host
+    jobs

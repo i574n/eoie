@@ -1,0 +1,112 @@
+///- --package .
+test ledger static =
+    open sm'_operators
+    open workspace_primitives.bytes
+
+open sm'_operators
+open workspace_primitives.bytes
+
+union site_change =
+    | SitesKept
+    | SitesAppeared : string
+    | SitesMoved : string * string
+    | SitesVanished : string
+
+inl site_row_marker () : string = " () = TodoSite "
+inl site_schema () : string = "union todo_site =\n    | TodoSite :: string * string -> todo_site\n\n"
+inl site_schema_head () : string = "union todo_site ="
+
+inl lines_sorted (~text : string) : string =
+    $'std::rc::Rc::<str>::from({ let mut lines = (!text).lines().filter(|line| \!line.is_empty()).collect::<Vec<_>>(); lines.sort(); lines.dedup(); lines.join("\n") }.as_str())' : string
+
+inl first_fields (~text : string) : string =
+    $'std::rc::Rc::<str>::from({ let mut ids = (!text).lines().filter_map(|line| line.split(char::from(9u8)).next()).filter(|id| \!id.is_empty()).collect::<Vec<_>>(); ids.sort(); ids.dedup(); ids.join("\n") }.as_str())' : string
+
+inl line_head (~text : string) : string = $'std::rc::Rc::<str>::from((!text).split(char::from(10u8)).next().unwrap_or(""))' : string
+inl line_rest (~text : string) : string = $'std::rc::Rc::<str>::from((!text).split_once(char::from(10u8)).map(|(_, rest)| rest).unwrap_or(""))' : string
+
+let rec sites_of (~ledger : string) (~id : string) (~found : string) : string =
+    if ledger = "" then found
+    else
+        inl line = line_head ledger
+        inl prefix = id ++# "\t"
+        inl next = if sm'.starts_with prefix line then (if found = "" then byte_slice line (byte_len prefix) (byte_len line) else found ++# ", " ++# (byte_slice line (byte_len prefix) (byte_len line))) else found
+        sites_of (line_rest ledger) id next
+
+inl site_change_of (~before : string) (~after : string) : site_change =
+    if before = after then SitesKept
+    elif before = "" then SitesAppeared after
+    elif after = "" then SitesVanished before
+    else SitesMoved (before, after)
+
+inl change_note = function
+    | SitesKept => ""
+    | SitesAppeared after => "todos: block appeared at " ++# after
+    | SitesMoved (before, after) => "todos: block moved from " ++# before ++# " to " ++# after
+    | SitesVanished before => "todos: block vanished from " ++# before ++# " (cut on purpose, or lost)"
+
+let rec ledger_from_rows (~text : string) (offset : i32) (~found : string) : string =
+    inl at = byte_find_from text (site_row_marker ()) offset
+    if at < 0i32 then lines_sorted found
+    else
+        inl id_start = at + byte_len (site_row_marker ()) + 2i32
+        inl id_stop = byte_find_from text "\"" id_start
+        inl site_start = byte_find_from text "\"" (id_stop + 1i32) + 1i32
+        inl site_stop = byte_find_from text "\"" site_start
+        inl entry = (byte_slice text id_start id_stop) ++# "\t" ++# (byte_slice text site_start site_stop) ++# "\n"
+        ledger_from_rows text (site_stop + 1i32) (found ++# entry)
+
+let rec rows_removed (~text : string) : string =
+    inl at = byte_find text (site_row_marker ())
+    if at < 0i32 then text
+    else
+        inl start = line_start_before text at
+        inl newline = byte_find_from text "\n" at
+        inl stop = if newline < 0i32 then byte_len text else newline + 1i32
+        rows_removed ((byte_slice text 0i32 start) ++# (byte_slice text stop (byte_len text)))
+
+let rec site_rows (~ledger : string) (index : i32) (~rows : string) : string =
+    if ledger = "" then rows
+    else
+        inl line = line_head ledger
+        inl marker = site_row_marker ()
+        inl item = $'std::rc::Rc::<str>::from((!line).split(char::from(9u8)).next().unwrap_or(""))' : string
+        inl site = $'std::rc::Rc::<str>::from((!line).split_once(char::from(9u8)).map(|(_, site)| site).unwrap_or(""))' : string
+        inl row = $'std::rc::Rc::<str>::from(format\!("inl todo_site_{:04}{}({}{}{}, {}{}{})\n", !index, &*(!marker), char::from(34u8), &*!item, char::from(34u8), char::from(34u8), &*!site, char::from(34u8)).as_str())' : string
+        site_rows (line_rest ledger) (index + 1i32) (rows ++# row)
+
+inl first_item_offset (~text : string) : i32 =
+    if sm'.starts_with "inl " text then 0i32
+    else
+        inl found = byte_find text "\ninl "
+        if found < 0i32 then byte_len text else found + 1i32
+
+let ledger_written (~text : string) (~ledger : string) : string =
+    inl cleared = rows_removed text
+    inl ensured = if sm'.contains (site_schema_head ()) cleared then cleared else (byte_slice cleared 0i32 (first_item_offset cleared)) ++# (site_schema ()) ++# (byte_slice cleared (first_item_offset cleared) (byte_len cleared))
+    inl after_schema = byte_find_from ensured "\n\n" (byte_find ensured (site_schema_head ())) + 2i32
+    (byte_slice ensured 0i32 after_schema) ++# (site_rows ledger 0i32 "") ++# (byte_slice ensured after_schema (byte_len ensured))
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl state_sample () : string = "union task_note =\n    | Note :: string -> task_note\n\ninl a () = Task (\"A-1\")\n"
+
+///> rust
+test changes_name_what_appeared_moved_or_vanished =
+    inl before = lines_sorted "A-1\tx.spi:3\nB-2\ty.spi:9\n"
+    inl after = lines_sorted "B-2\ty.spi:12\nC-3\tz.spi:1\nC-3\tz.spi:1\n"
+    expect (first_fields (before ++# "\n" ++# after) = "A-1\nB-2\nC-3") "ids from both sides"
+    expect (change_note (site_change_of (sites_of before "A-1" "") (sites_of after "A-1" "")) = "todos: block vanished from x.spi:3 (cut on purpose, or lost)") "vanished"
+    expect (change_note (site_change_of (sites_of before "B-2" "") (sites_of after "B-2" "")) = "todos: block moved from y.spi:9 to y.spi:12") "moved"
+    expect (change_note (site_change_of (sites_of before "C-3" "") (sites_of after "C-3" "")) = "todos: block appeared at z.spi:1") "appeared once"
+    expect (change_note (site_change_of "q.spi:1" "q.spi:1") = "") "kept"
+
+///> rust
+test the_ledger_round_trips_through_state_rows =
+    inl ledger = "A-1\tC:/repo/x.spi:3\nB-2\ty.spi:9"
+    inl written = ledger_written (state_sample ()) ledger
+    expect (ledger_from_rows written 0i32 "" = ledger) written
+    expect (sm'.contains "union todo_site =\n    | TodoSite :: string * string -> todo_site\n\ninl todo_site_0000 () = TodoSite (\"A-1\", \"C:/repo/x.spi:3\")\ninl todo_site_0001 () = TodoSite (\"B-2\", \"y.spi:9\")\ninl a () = Task" written) written
+    inl rewritten = ledger_written written "B-2\ty.spi:10"
+    expect (ledger_from_rows rewritten 0i32 "" = "B-2\ty.spi:10") rewritten
+    expect (byte_find_from rewritten "union todo_site" (byte_find rewritten "union todo_site" + 1i32) < 0i32) "one schema"

@@ -1,0 +1,74 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl table_run (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("table", args))
+
+inl runs_root () : fixture_root =
+    inl root = fixture_root_create "table"
+    fixture_write root "runs.tsv" "timestamp\tvariant\tretries\tlatency_ms\n1\tfast\t5\t52240\n2\tfast\t2\t\n3\tfast\t9\t40000\n4\tbase\t4\t60000\n"
+    fixture_write root "left.tsv" "timestamp\tfile\tseconds\tsummary\n1\tparser\t30\tok\n2\tparser\t31\tok\n3\tparser\t29\tfail\n4\tlexer\t26\tok\n5\tonly-left\t1\tok\n"
+    fixture_write root "right.tsv" "timestamp\tfile\tseconds\tsummary\n1\tparser\t29\tok\n2\tlexer\t26\tok\n3\tonly-right\t1\tok\n"
+    root
+
+///> rust
+test group_queries_report_mean_sd_and_sum_per_group =
+    inl root = runs_root ()
+    inl out = succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--group", Arg ("variant", Arg ("--mean", Arg ("retries,latency_ms", Arg ("--sd", Arg ("retries", Arg ("--sum", Arg ("latency_ms", NoArgs))))))))))))
+    same (line_starting out "count") "count\tvariant\tmean_retries\tmean_latency_ms\tsd_retries\tsum_latency_ms"
+    same (line_starting out "3\t") "3\tfast\t5.333\t46120\t3.512\t92240"
+    same (line_starting out "1\t") "1\tbase\t4\t60000\t0\t60000"
+    shows out "eoie table query ok total=4 matched=4 groups=2 shown=2"
+    inl counts = succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--group", Arg ("variant", NoArgs))))))
+    same (line_starting counts "count") "count\tvariant"
+    inl whole = succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--mean", Arg ("retries", Arg ("--count", Arg ("latency_ms", NoArgs))))))))
+    same (line_starting whole "count") "count\tall\tmean_retries\tcount_latency_ms"
+    same (line_starting whole "4\t") "4\tall\t5\t3"
+    shows whole "eoie table query ok total=4 matched=4 groups=1 shown=1"
+    inl quiet = succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--quiet", Arg ("--group", Arg ("variant", NoArgs)))))))
+    same (line_starting quiet "count") "count\tvariant"
+    hides quiet "eoie table query ok"
+    hides (succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--cols", Arg ("variant", Arg ("--quiet", NoArgs)))))))) "eoie table query ok"
+    rejected_with (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--group", Arg ("variant", Arg ("--mean", Arg ("nope", NoArgs)))))))) 2i32 "unknown columns: nope (header: timestamp,variant,retries,latency_ms)"
+    fixture_root_remove root
+
+///> rust
+test group_queries_report_extremes_and_filled_counts_in_option_order =
+    inl root = runs_root ()
+    inl out = succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--group", Arg ("variant", Arg ("--count", Arg ("latency_ms", Arg ("--min", Arg ("retries", Arg ("--max", Arg ("retries", NoArgs))))))))))))
+    same (line_starting out "count") "count\tvariant\tcount_latency_ms\tmin_retries\tmax_retries"
+    same (line_starting out "3\t") "3\tfast\t2\t2\t9"
+    same (line_starting out "1\t") "1\tbase\t1\t4\t4"
+    shows (succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("help", Arg ("table", NoArgs))))) "usage: eoie table: query <file>"
+    shows (succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("help", Arg ("window", NoArgs))))) "usage: eoie window: request <class> <minutes>"
+    shows (succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("help", Arg ("kill", NoArgs))))) "usage: eoie ps [regex] [--tree] [--mine] | kill <pid>"
+    fixture_root_remove root
+
+///> rust
+test diff_keeps_every_left_row_unless_latest_by_picks_one_per_key =
+    inl root = runs_root ()
+    inl plain = succeeded (table_run root (Arg ("diff", Arg ("left.tsv", Arg ("right.tsv", Arg ("--key", Arg ("file", Arg ("--cols", Arg ("seconds,summary", NoArgs)))))))))
+    shows plain "column seconds differs=2"
+    shows plain "column summary differs=1"
+    shows plain "eoie table diff ok left_rows=5 right_rows=3 only_left=1 only_right=1 differing_cells=3"
+    inl latest = succeeded (table_run root (Arg ("diff", Arg ("left.tsv", Arg ("right.tsv", Arg ("--key", Arg ("file", Arg ("--cols", Arg ("seconds,summary", Arg ("--latest-by", Arg ("timestamp", NoArgs)))))))))))
+    shows latest "parser\tsummary\tfail\tok"
+    hides latest "column seconds"
+    shows latest "eoie table diff ok left_rows=3 right_rows=3 only_left=1 only_right=1 differing_cells=1 latest_by=timestamp"
+    rejected_with (table_run root (Arg ("diff", Arg ("left.tsv", Arg ("right.tsv", Arg ("--key", Arg ("nope", NoArgs))))))) 2i32 "table diff unknown columns: nope"
+    rejected_with (table_run root (Arg ("diff", Arg ("left.tsv", Arg ("right.tsv", Arg ("--cols", Arg ("seconds", NoArgs))))))) 2i32 "table diff needs --key a,b"
+    fixture_root_remove root
+
+///> rust
+test where_compares_numbers_and_keeps_equality_exact =
+    inl root = runs_root ()
+    inl rows = succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--where", Arg ("retries>4", Arg ("--cols", Arg ("variant,retries", NoArgs))))))))
+    shows rows "fast\t5"
+    shows rows "fast\t9"
+    hides rows "base\t4"
+    shows rows "eoie table query ok total=4 matched=2 shown=2"
+    inl grouped = succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--where", Arg ("retries>=4", Arg ("--group", Arg ("variant", Arg ("--mean", Arg ("retries", NoArgs))))))))))
+    same (line_starting grouped "2\t") "2\tfast\t7"
+    same (line_starting grouped "1\t") "1\tbase\t4"
+    shows (succeeded (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--where", Arg ("variant!=base", Arg ("--group", Arg ("variant", NoArgs))))))))) "matched=3"
+    rejected_with (table_run root (Arg ("query", Arg ("runs.tsv", Arg ("--where", Arg ("retries", NoArgs)))))) 2i32 "--where expects col=value (or col!=value"
+    fixture_root_remove root

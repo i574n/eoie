@@ -1,0 +1,146 @@
+open rust_std_string.model
+open eoie_receipt.receipt
+open host
+open grammar
+open eoie_do_records.records
+
+type run_tally =
+    {
+        report : string
+        failed : bool
+        runs : u64
+        exit_known : bool
+        exit_code : i64
+        processes : u64
+        listings : u64
+        stopped : u64
+        stops : u64
+        errors : u64
+        groupings : u64
+        matches : u64
+        searches : u64
+    }
+
+let empty_run_tally () : run_tally =
+    { report = ""; failed = false; runs = 0u64; exit_known = false; exit_code = 0i64; processes = 0u64; listings = 0u64; stopped = 0u64; stops = 0u64; errors = 0u64; groupings = 0u64; matches = 0u64; searches = 0u64 }
+
+let lines_joined (~left : string) (~right : string) : string =
+    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+
+let reported (~state : run_tally) (~text : string) (~failed : bool) : run_tally =
+    { state with report = lines_joined state.report text; failed = state.failed || failed }
+
+let foreground_run (~runs : run_state) (~state : run_tally) (~records : record_list) (~record : i32) (~command : string) (~needle : string) (~timeout : u64) : run_tally =
+    inl raw = run_ended runs needle timeout
+    inl finish = run_end_of (raw_kind raw) (raw_value raw)
+    inl line = run_end_text command needle timeout (raw_elapsed raw) (raw_lines raw) finish
+    inl shown = match finish with
+                | Exited _ => if later_reads_output records record then line else lines_joined line (output_lines runs 40u64 false)
+                | _ => line
+    inl counted = { (reported state shown (run_end_failed finish)) with runs = state.runs + 1u64 }
+    match finish with
+    | Exited code => { counted with exit_known = true; exit_code = code }
+    | _ => counted
+
+let run_started (~runs : run_state) (~root : string) (~command : string) (~name : string) : string =
+    run_spawned runs root (launch_argv_via root command) (launch_line_via root command) name
+
+let step_run (~root : string) (~runs : run_state) (~records : record_list) (~record : i32) (~state : run_tally) (step : process_step) : run_tally =
+    match step with
+    | RunForeground (command, timeout) =>
+        inl problem = run_started runs root command ""
+        if problem = "" then foreground_run runs state records record command "" timeout
+        else { (reported state (concat5 "run " command "  " problem "") true) with runs = state.runs + 1u64 }
+    | RunUntil (command, needle, timeout) =>
+        inl problem = run_started runs root command ""
+        if problem = "" then foreground_run runs state records record command needle timeout
+        else { (reported state (concat5 "run " command "  " problem "") true) with runs = state.runs + 1u64 }
+    | RunBackground (command, name) =>
+        inl problem = run_started runs root command name
+        inl line = if problem = "" then concat5 "run " command "  background as " name (concat5 "  pid " (decimal_text (background_pid runs)) "" "" "") else concat5 "run " command "  " problem ""
+        { (reported state line (problem <> "")) with runs = state.runs + 1u64 }
+    | TailOutput count => reported state (output_lines runs count true) false
+    | SearchOutput needle =>
+        inl outcome = output_searched runs needle
+        { (reported state (outcome_report outcome) (outcome_failed outcome)) with matches = state.matches + outcome_count outcome; searches = state.searches + 1u64 }
+    | ErrorsBy needle =>
+        inl outcome = errors_grouped runs needle
+        { (reported state (outcome_report outcome) (outcome_failed outcome)) with errors = state.errors + outcome_count outcome; groupings = state.groupings + 1u64 }
+    | ProcessesMatching needle =>
+        inl outcome = processes_listed needle (local_offset_minutes ())
+        { (reported state (outcome_report outcome) (outcome_failed outcome)) with processes = state.processes + outcome_count outcome; listings = state.listings + 1u64 }
+    | StopNamed name =>
+        inl found = run_stopped runs name
+        inl line = if found then concat5 "stop " name "  stopped (tree)" "" "" else concat5 "stop " name "  no run by that name" "" ""
+        { (reported state line (found = false)) with stopped = state.stopped + (if found then 1u64 else 0u64); stops = state.stops + 1u64 }
+
+let rec steps_run (~root : string) (~runs : run_state) (~records : record_list) (~index : i32) (~state : run_tally) : run_tally =
+    if index < record_count records then
+        match step_parsed records index with
+        | StepParsed step => steps_run root runs records (index + 1i32) (step_run root runs records index state step)
+        | StepRejected _ => steps_run root runs records (index + 1i32) state
+    else state
+
+let rec first_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        if field_at records index 0i32 <> "query" then "edit and run statements cannot share one program yet; run them as two calls"
+        else
+            match step_parsed records index with
+            | StepRejected message => message
+            | StepParsed _ => first_rejection records (index + 1i32)
+    else ""
+
+let segments_joined (~left : string) (~right : string) : string =
+    if left = "" then right else concat5 left "  " right "" ""
+
+let counted_segment (~shown : bool) (~text : string) (~label : string) (~value : u64) : string =
+    if shown then segments_joined text (concat5 label " " (decimal_text value) "" "") else text
+
+let receipt_counts (~state : run_tally) : string =
+    inl runs = concat5 "runs " (decimal_text state.runs) "" "" ""
+    inl exit = if state.exit_known then concat5 runs "  exit " (signed_text state.exit_code) "" "" else runs
+    inl processes = counted_segment (state.listings > 0u64) exit "processes" state.processes
+    inl stopped = counted_segment (state.stops > 0u64) processes "stopped" state.stopped
+    inl errors = counted_segment (state.groupings > 0u64) stopped "errors" state.errors
+    counted_segment (state.searches > 0u64) errors "matches" state.matches
+
+let run_program_run (~root : string) (~encoded : string) : i32 =
+    inl started = now_ms ()
+    inl records = records_of encoded
+    inl rejection = first_rejection records 1i32
+    if rejection = "" then
+        inl state = steps_run root (state_new ()) records 1i32 (empty_run_tally ())
+        inl report = state.report
+        if report = "" then () else stdout_line report
+        inl counts = receipt_counts state
+        if state.failed then
+            receipt_line Failed counts started
+            1i32
+        else
+            receipt_line Succeeded counts started
+            0i32
+    else
+        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        receipt_line Failed "runs 0" started
+        2i32
+
+let rec query_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        if field_at records index 0i32 <> "query" then query_rejection records (index + 1i32)
+        else
+            match step_parsed records index with
+            | StepRejected message => message
+            | StepParsed _ => query_rejection records (index + 1i32)
+    else ""
+
+inl record_separator () : string = $'std::rc::Rc::<str>::from(char::from(30u8).to_string())' : string
+
+let after_edits_run (~root : string) (~encoded : string) : string =
+    inl state = steps_run root (state_new ()) (records_of encoded) 1i32 (empty_run_tally ())
+    concat5 state.report (record_separator ()) (receipt_counts state) (record_separator ()) (if state.failed then "1" else "0")
+
+inl main () : i32 =
+    !!!!Export("eoie_do_process_rejection", ((fun encoded => query_rejection (records_of encoded) 1i32) : string -> string))
+    !!!!Export("eoie_do_process_after_edits", ((fun (root, encoded) => after_edits_run root encoded) : string * string -> string))
+    !!!!Export("eoie_do_process_run", ((fun (root, encoded) => run_program_run root encoded) : string * string -> i32))
+    0i32

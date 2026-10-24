@@ -1,0 +1,7 @@
+packages:
+    |core-
+    typed_predicate
+modules:
+    model
+    terminal
+    main

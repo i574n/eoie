@@ -1,0 +1,10 @@
+packages:
+    |core-
+    canonical_plan_ir_types-
+    spiral-
+    union_reflection
+    state_receipt_codec_model-
+modules:
+    model-
+    transport_terminal-
+    main

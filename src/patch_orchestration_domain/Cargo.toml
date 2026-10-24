@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "orchestration.rs"
+
+[package]
+name = "eoie-patch-orchestration-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_patch_orchestration_domain"
+path = "orchestration.rs"

@@ -1,0 +1,15 @@
+open workspace_primitives.numbers
+open workspace_primitives.clock
+open sm'_operators
+
+let file_clock_ms () : u64 = unix_ms ()
+
+inl elapsed_text (started : u64) : string = " elapsed_ms=" ++# u64_text (ms_since started)
+
+let elapsed_field (started : u64) : string = elapsed_text started
+
+inl main () : i32 =
+    !!!!Export("eoie_file_clock_ms", ((fun () => file_clock_ms ()) : () -> u64))
+    !!!!Export("eoie_elapsed_field", ((fun started => elapsed_field started) : u64 -> string))
+    inl _ = elapsed_field (file_clock_ms ())
+    0i32

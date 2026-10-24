@@ -1,0 +1,375 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+inl emit_runtime () : () = rust_global """
+    use eoie_backup_domain::{
+        eoie_patch_backup_binding_slot, eoie_patch_backup_next_count,
+        eoie_patch_backup_should_capture, eoie_patch_backup_slot, eoie_patch_capture_authorized,
+        eoie_patch_capture_binding_slot, 
+        eoie_patch_promotion_slot_authorized,
+        
+        eoie_patch_restoration_select, eoie_patch_restoration_bind,
+        eoie_patch_restoration_complete, eoie_patch_restoration_attempt_count,
+        eoie_patch_restoration_attempt_authorized, eoie_patch_restoration_counter_next,
+        eoie_patch_restoration_accumulator_outcome,
+    };
+    use eoie_patch_control_domain::{ eoie_patch_restoration_payload_identity, eoie_patch_restoration_payload_slot_binding, eoie_patch_restoration_payload_outcome_binding, parse_patch_exact_source, patch_occurrence_count, patch_rooted, patch_target_max_bytes};
+    use eoie_patch_effect_domain::{eoie_patch_authority_pair, eoie_patch_read_limit_binding, eoie_patch_read_receipt_binding, eoie_patch_remove_receipt_binding, eoie_patch_rename_slot_authorized, eoie_patch_rename_slot_binding, eoie_patch_rename_stage_authorized, eoie_patch_stage_identity, eoie_patch_write_bytes_authorized, eoie_patch_write_slot_binding};
+    use eoie_patch_orchestration_domain::{eoie_patch_orchestration_complete_binding, eoie_patch_orchestration_guard_identity, eoie_patch_orchestration_guard_match_binding, eoie_patch_orchestration_guard_needle_binding, eoie_patch_orchestration_operation_binding, eoie_patch_orchestration_promotion_binding, eoie_patch_orchestration_stage_binding, eoie_patch_orchestration_witness_binding};
+    use eoie_patch_source_adapter::prepare_patch_source;
+    use eoie_rust_std_fs::{
+        discard_stage, promote_stage_receipted, read_regular_text_limited, restore_text, stage_text_receipted_bound,
+        StagedWriteReceipt,
+    };
+    use std::collections::BTreeMap;
+    use std::env;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    pub use eoie_patch_control_domain::patch_plan_error;
+
+    fn patch_finish(result: Result<(), String>) -> i32 {
+        if let Err(error) = result {
+            eprintln!("eoie error: {error}");
+            2
+        } else {
+            0
+        }
+    }
+
+    fn read_patch_target_text(path: &Path, max_bytes: usize) -> Result<String, String> {
+        let text = read_regular_text_limited(path, max_bytes).map_err(|error| {
+            if error.contains("exceeds limit") {
+                format!("patch target exceeds typed capture limit: {}: {error}", path.display())
+            } else {
+                error
+            }
+        })?;
+        let observed = text.len();
+        let observed_i32 = i32::try_from(observed).unwrap_or(i32::MAX);
+        let limit_i32 = i32::try_from(max_bytes)
+            .map_err(|_| "typed capture limit does not fit i32".to_owned())?;
+        if eoie_patch_read_limit_binding(limit_i32, observed_i32) != observed_i32 {
+            return Err(format!("patch target exceeds typed capture limit: {} bytes={} limit={}", path.display(), observed, max_bytes));
+        }
+        if eoie_patch_read_receipt_binding(observed_i32, observed_i32) != observed_i32 {
+            return Err(format!("patch target read receipt mismatch: {}", path.display()));
+        }
+        Ok(text)
+    }
+
+    fn authorize_staged_write(
+        backup_slot: usize,
+        expected_bytes: usize,
+        observed_bytes: usize,
+    ) -> Result<usize, String> {
+        let slot = i32::try_from(backup_slot)
+            .map_err(|_| "temporary write backup slot does not fit i32".to_owned())?;
+        let expected = i32::try_from(expected_bytes)
+            .map_err(|_| "expected temporary write length does not fit i32".to_owned())?;
+        let observed = i32::try_from(observed_bytes)
+            .map_err(|_| "observed temporary write length does not fit i32".to_owned())?;
+        let authorized = eoie_patch_write_bytes_authorized(expected, observed);
+        let bound_slot = eoie_patch_write_slot_binding(slot, authorized);
+        if bound_slot != slot {
+            return Err(format!(
+                "typed temporary write receipt mismatch: expected={expected_bytes} observed={observed_bytes}"
+            ));
+        }
+        usize::try_from(bound_slot)
+            .map_err(|_| "typed temporary write slot is negative".to_owned())
+    }
+
+    fn authorize_promotion_identity(
+        expected_stage: usize,
+        observed_stage: i32,
+        expected_slot: usize,
+        observed_slot: i32,
+    ) -> Result<usize, String> {
+        let expected_stage_i32 = i32::try_from(expected_stage)
+            .map_err(|_| "expected promotion stage does not fit i32".to_owned())?;
+        let expected_slot_i32 = i32::try_from(expected_slot)
+            .map_err(|_| "expected promotion slot does not fit i32".to_owned())?;
+        let stage_authorized =
+            eoie_patch_rename_stage_authorized(expected_stage_i32, observed_stage);
+        let slot_authorized =
+            eoie_patch_rename_slot_authorized(expected_slot_i32, observed_slot);
+        let authorized = eoie_patch_authority_pair(stage_authorized, slot_authorized);
+        let bound_slot = eoie_patch_rename_slot_binding(expected_slot_i32, authorized);
+        if bound_slot != expected_slot_i32 {
+            return Err(format!(
+                "typed promotion identity mismatch: expected_stage={expected_stage} observed_stage={observed_stage} expected_slot={expected_slot} observed_slot={observed_slot}"
+            ));
+        }
+        usize::try_from(bound_slot)
+            .map_err(|_| "typed promotion slot is negative".to_owned())
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum PatchFault {
+        CheckOnly,
+        BetweenPromotions,
+        BetweenPromotionsRollbackFailure,
+        RehearseRollback,
+    }
+
+
+    fn patch_fault_from_env() -> Option<PatchFault> {
+        match env::var("EOIE_PATCH_FAULT").ok().as_deref() {
+            Some("between-promotions") => Some(PatchFault::BetweenPromotions),
+            Some("between-promotions-rollback-failure") => {
+                Some(PatchFault::BetweenPromotionsRollbackFailure)
+            }
+            _ => None,
+        }
+    }
+
+
+    fn apply_patch_context(root: &Path, source: &str, validated_count: i32) -> Result<(), String> {
+        apply_patch_context_with_fault(root, source, validated_count, patch_fault_from_env(), None)
+    }
+
+    fn apply_patch_context_with_fault(
+        root: &Path,
+        source: &str,
+        validated_count: i32,
+        fault: Option<PatchFault>,
+        mut postgate: Option<&mut dyn FnMut() -> Result<(), String>>,
+    ) -> Result<(), String> {
+        if validated_count <= 0 {
+            return Err("typed patch witness must be positive".to_owned());
+        }
+        let patches = parse_patch_exact_source(source)?;
+        if patches.is_empty() {
+            return Err("typed patch plan contains no PatchExact values".to_owned());
+        }
+        let parsed_count = i32::try_from(patches.len())
+            .map_err(|_| "patch plan operation count overflow".to_owned())?;
+        let driver_expected_operations = eoie_patch_orchestration_witness_binding(validated_count, parsed_count);
+        if driver_expected_operations != parsed_count {
+            return Err(format!(
+                "patch plan witness mismatch: spiral={validated_count} host={parsed_count}"
+            ));
+        }
+
+        let target_max_bytes = patch_target_max_bytes()?;
+        let mut backups = TypedBackups::default();
+        let mut current: BTreeMap<PathBuf, (String, usize)> = BTreeMap::new();
+        let mut operation_cursor = 0i32;
+        for (operation_index, patch) in patches.iter().enumerate() {
+            let observed_operation = i32::try_from(operation_index).map_err(|_| "patch operation index does not fit i32".to_owned())?;
+            let next_operation_cursor = eoie_patch_orchestration_operation_binding(operation_cursor, observed_operation);
+            let operation_authorized = if next_operation_cursor < 0 { 0 } else { 1 };
+            if operation_authorized != 1 {
+                return Err(format!("typed patch operation order mismatch: expected={operation_cursor} observed={operation_index}"));
+            }
+            let path = patch_rooted(root, &patch.relative)?;
+            let text = if let Some((text, _)) = current.get(&path) {
+                text.clone()
+            } else {
+                read_patch_target_text(&path, target_max_bytes)?
+            };
+            let backup_slot = backups.observe(&path, &text, target_max_bytes)?;
+            let count = patch_occurrence_count(&text, &patch.before);
+            let guard_payload_invalid = { let path_slot = i32::try_from(backup_slot).unwrap_or(-1); let guard = eoie_patch_orchestration_guard_identity(observed_operation, path_slot); let guard = eoie_patch_orchestration_guard_needle_binding(guard, i32::try_from(patch.before.len()).unwrap_or(i32::MAX)); let guard = eoie_patch_orchestration_guard_match_binding(guard, i32::try_from(count).unwrap_or(i32::MAX));   guard != observed_operation }; if guard_payload_invalid {
+                return Err(format!(
+                    "patch precondition failed: {} has {count} matches",
+                    path.display()
+                ));
+            }
+            current.insert(path, (text.replacen(&patch.before, &patch.after, 1), backup_slot));
+            
+            if operation_cursor < 0 { return Err("typed patch driver operation receipt mismatch".to_owned()); }
+            operation_cursor = next_operation_cursor;
+            if operation_cursor < 0 {
+                return Err("typed patch operation cursor became invalid".to_owned());
+            }
+        }
+
+        if eoie_patch_orchestration_complete_binding(driver_expected_operations, operation_cursor) != 1 {
+            return Err("typed patch driver operation completion mismatch".to_owned());
+        }
+        if eoie_patch_orchestration_complete_binding(parsed_count, operation_cursor) != 1 {
+            return Err(format!("typed patch commit witness mismatch: expected={parsed_count} observed={operation_cursor}"));
+        }
+        if fault == Some(PatchFault::CheckOnly) {
+            return Ok(());
+        }
+
+        let mut staged = Vec::new();
+        for (stage_index, (path, (text, backup_slot))) in current.iter().enumerate() {
+            let slot = i32::try_from(*backup_slot).map_err(|error| error.to_string())?;
+            let stage_index = i32::try_from(stage_index).map_err(|error| error.to_string())?;
+            let bound_slot = eoie_patch_backup_binding_slot(slot, stage_index);
+            if bound_slot != slot {
+                return Err(path.display().to_string());
+            }
+            let bound_slot = usize::try_from(bound_slot).map_err(|error| error.to_string())?;
+            let bound_slot_i32 = i32::try_from(bound_slot)
+                .map_err(|_| "bound stage slot does not fit i32".to_owned())?;
+            if eoie_patch_stage_identity(stage_index, bound_slot_i32) != bound_slot_i32 { return Err(path.display().to_string()); } let receipt = stage_text_receipted_bound(path, text, stage_index, bound_slot_i32)?;
+            let write_slot = match authorize_staged_write(
+                bound_slot,
+                text.len(),
+                receipt.bytes_written(),
+            ) {
+                Ok(slot) => slot,
+                Err(error) => {
+                    let remove_outcome = if discard_stage(receipt.temporary()).is_ok() { 1 } else { 0 };
+                    if eoie_patch_remove_receipt_binding(receipt.stage_index(), remove_outcome) != receipt.stage_index() { return Err("typed remove receipt mismatch".to_owned()); }
+                    return Err(error);
+                }
+            };
+            staged.push((receipt, write_slot));
+        }
+        let driver_expected_files = i32::try_from(current.len()).map_err(|_| "typed patch driver file count overflow".to_owned())?;
+        let driver_observed_stages = i32::try_from(staged.len()).map_err(|_| "typed patch driver stage count overflow".to_owned())?;
+        let driver_stage_count = eoie_patch_orchestration_stage_binding(driver_expected_files, driver_observed_stages);
+        if driver_stage_count != driver_expected_files { return Err("typed patch driver stage receipt mismatch".to_owned()); }
+
+        fn rollback_error(
+            backups: &TypedBackups,
+            committed_count: usize,
+            staged: &[(StagedWriteReceipt, usize)],
+            original: String,
+        ) -> String {
+            patch_error_with_rollback(
+                original,
+                rollback_by_spiral(backups, committed_count, staged),
+            )
+        }
+
+
+        let mut committed_count = 0usize;
+        let mut driver_promotion_cursor = 0i32;
+        for (index, (receipt, expected_slot)) in staged.iter().enumerate() {
+            if let Err(error) = authorize_promotion_identity(
+                index,
+                receipt.stage_index(),
+                *expected_slot,
+                receipt.backup_slot(),
+            ) {
+                return Err(rollback_error(
+                    &backups,
+                    committed_count,
+                    &staged,
+                    error,
+                ));
+            }
+            let promotion = match promote_stage_receipted(receipt) {
+                Ok(promotion) => promotion,
+                Err(error) => {
+                    return Err(rollback_error(
+                        &backups,
+                        committed_count,
+                        &staged,
+                        format!("commit {}: {error}", receipt.target().display()),
+                    ));
+                }
+            };
+            let promoted_count = match committed_count.checked_add(1) {
+                Some(value) => value,
+                None => {
+                    return Err(rollback_error(
+                        &backups,
+                        committed_count,
+                        &staged,
+                        "committed promotion count overflow".to_owned(),
+                    ));
+                }
+            };
+            if let Err(error) = authorize_promotion_identity(
+                index,
+                promotion.stage_index(),
+                *expected_slot,
+                promotion.backup_slot(),
+            ) {
+                return Err(rollback_error(
+                    &backups,
+                    promoted_count,
+                    &staged,
+                    error,
+                ));
+            }
+            if promotion.target() != receipt.target()
+                || promotion.temporary() != receipt.temporary()
+            {
+                return Err(rollback_error(
+                    &backups,
+                    promoted_count,
+                    &staged,
+                    "promotion receipt path identity mismatch".to_owned(),
+                ));
+            }
+            let next_driver_promotion_cursor = eoie_patch_orchestration_promotion_binding(driver_promotion_cursor, promotion.stage_index());
+            if next_driver_promotion_cursor < 0 {
+                return Err(rollback_error(&backups, promoted_count, &staged, "typed patch driver promotion receipt mismatch".to_owned()));
+            }
+            driver_promotion_cursor = next_driver_promotion_cursor;
+            committed_count = promoted_count;
+            if index == 0
+                && staged.len() > 1
+                && matches!(
+                    fault,
+                    Some(PatchFault::BetweenPromotions)
+                        | Some(PatchFault::BetweenPromotionsRollbackFailure)
+                )
+            {
+                let original = "injected patch fault between promotions".to_owned();
+                if fault == Some(PatchFault::BetweenPromotionsRollbackFailure)
+                    && let Err(error) =
+                        fs::remove_file(receipt.target()).and_then(|_| fs::create_dir(receipt.target()))
+                {
+                    return Err(rollback_error(
+                        &backups,
+                        committed_count,
+                        &staged,
+                        format!("{original}; restoration fault setup: {error}"),
+                    ));
+                }
+                return Err(rollback_error(
+                    &backups,
+                    committed_count,
+                    &staged,
+                    original,
+                ));
+            }
+        }
+        if eoie_patch_orchestration_complete_binding(driver_stage_count, driver_promotion_cursor) != 1 {
+            return Err(rollback_error(&backups, committed_count, &staged, "typed patch driver completion mismatch".to_owned()));
+        }
+        if let Some(gate) = postgate.as_mut()
+            && let Err(error) = gate()
+        {
+            return Err(rollback_error(
+                &backups,
+                committed_count,
+                &staged,
+                format!("patch executable postgate rejected: {error}"),
+            ));
+        }
+        if fault == Some(PatchFault::RehearseRollback) {
+            let receipt = rollback_by_spiral(&backups, committed_count, &staged)
+                .map_err(|failure| format!("patch rehearsal rollback failed; {}", failure.public_context()))?;
+            for (path, (_, slot)) in &current {
+                let original = backups.original(*slot).ok_or_else(|| "patch rehearsal selected a missing backup".to_owned())?;
+                let observed = read_patch_target_text(path, target_max_bytes)?;
+                if &observed != original {
+                    return Err(format!("patch rehearsal byte verification failed: {}", path.display()));
+                }
+            }
+            println!(
+                "eoie patch rehearse ok operations={} files={} {}",
+                patches.len(),
+                current.len(),
+                receipt.public_context()
+            );
+            return Ok(());
+        }
+
+        println!(
+            "eoie patch ok operations={} files={} witness=spiral",
+            patches.len(),
+            current.len()
+        );
+        Ok(())
+    }
+
+    """

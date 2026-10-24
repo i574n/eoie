@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "file_reading.spi"
+output = "file_reading.rs"
+
+[package]
+name = "proxy-file-reading"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "proxy_file_reading"
+path = "file_reading.rs"
+
+[dependencies]
+eoie-rust-std-fs = { path = "../rust_std_fs" }

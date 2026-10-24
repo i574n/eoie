@@ -1,0 +1,17 @@
+[package.metadata.eoie]
+test-requires-cli = true
+
+[package.metadata.spiral]
+entry = "main.spi"
+output = "agile_contracts.rs"
+
+[package]
+name = "eoie-agile-contracts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_agile_contracts"
+path = "agile_contracts.rs"

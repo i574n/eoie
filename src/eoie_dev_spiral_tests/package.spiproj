@@ -1,0 +1,8 @@
+packages:
+    |core-
+    spiral-
+modules:
+    registry
+    notebook
+    failures
+    main

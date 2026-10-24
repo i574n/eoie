@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "search_receipt.spi"
+output = "search_receipt.rs"
+
+[package]
+name = "proxy-search-receipt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "proxy_search_receipt"
+path = "search_receipt.rs"

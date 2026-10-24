@@ -1,0 +1,91 @@
+///- --package .
+test grammar static =
+    open rust_std_string.model
+    open host
+    open eoie_do_records.records
+
+open rust_std_string.model
+open host
+open eoie_do_records.records
+
+union git_step =
+    | GitInit : string
+    | GitCommit : string * string * string
+    | GitHistory : string * string * string
+    | GitStatus : string
+    | GitDays : string * string
+    | Blank
+
+union git_parse =
+    | GitParsed : git_step
+    | GitRejected : string
+
+let commit_parsed (~records : record_list) (~record : i32) (~repo : string) : git_parse =
+    inl at = field_index records record "at"
+    if body_at records record 4i32 <> "all" then GitRejected "git commit: expected git commit <repo> all \"message\" [at <iso time>]"
+    elif quoted_at records record 5i32 = false then GitRejected "git commit: expected the quoted message after all"
+    else GitParsed (GitCommit (repo, body_at records record 5i32, if at < 0i32 then "" else body_at records record (at + 1i32)))
+
+let history_parsed (~records : record_list) (~record : i32) (~repo : string) : git_parse =
+    inl in_at = field_index records record "in"
+    if quoted_at records record 4i32 = false then GitRejected "git history: expected git history <repo> \"text\" in <file>"
+    elif in_at < 0i32 then GitRejected "git history: expected in <file>"
+    else GitParsed (GitHistory (repo, body_at records record 4i32, body_at records record (in_at + 1i32)))
+
+let status_parsed (~records : record_list) (~record : i32) : git_parse =
+    inl group_at = field_index records record "group"
+    inl repos = words_span records record 3i32 group_at
+    if repos = "" then GitRejected "git status: expected git status <repo>[, <repo>...] group by state"
+    elif group_at < 0i32 || body_at records record (group_at + 2i32) <> "state" then GitRejected "git status: expected group by state"
+    else GitParsed (GitStatus repos)
+
+let days_parsed (~records : record_list) (~record : i32) (~repo : string) : git_parse =
+    inl since_at = field_index records record "since"
+    inl by_at = field_index records record "by"
+    if by_at < 0i32 || body_at records record (by_at + 1i32) <> "day" then GitRejected "git log: expected git log <repo> [since <date>] count by day"
+    else GitParsed (GitDays (repo, if since_at < 0i32 then "" else body_at records record (since_at + 1i32)))
+
+let git_parsed (~records : record_list) (~record : i32) : git_parse =
+    inl kind = field_at records record 0i32
+    inl action = body_at records record 2i32
+    inl repo = body_at records record 3i32
+    if kind = "" then GitParsed Blank
+    elif kind <> "query" || field_at records record 1i32 <> "git" then GitRejected (concat5 (field_at records record 1i32) " cannot share one program with git yet; run it as its own call" "" "" "")
+    elif action = "status" then status_parsed records record
+    elif repo = "" then GitRejected (concat5 "git " action ": expected a repo folder" "" "")
+    elif action = "init" then GitParsed (GitInit repo)
+    elif action = "commit" then commit_parsed records record repo
+    elif action = "history" then history_parsed records record repo
+    elif action = "log" then days_parsed records record repo
+    else GitRejected (concat5 "git: unknown action " action "; expected init, commit, history, status or log" "" "")
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl rejection_at (~records : record_list) (~record : i32) : string =
+    match git_parsed records record with
+    | GitRejected message => message
+    | GitParsed _ => ""
+
+///> rust
+test git_statements_parse_into_one_domain =
+    inl records = records_from_bars "ok\nquery|git|wcommit|wrepo|wall|qfirst|wat|w2026-10-01T10:00:00Z\nquery|git|whistory|wrepo|qinl b|win|wlib.spi\nquery|git|wstatus|wa,|wb|wgroup|wby|wstate\nquery|git|wlog|wrepo|wsince|w2026-10-01|wcount|wby|wday"
+    match git_parsed records 1i32 with
+    | GitParsed (GitCommit (repo, message, date)) => expect (repo = "repo" && message = "first" && date = "2026-10-01T10:00:00Z") "commit parts"
+    | _ => expect false "commit"
+    match git_parsed records 2i32 with
+    | GitParsed (GitHistory (repo, needle, path)) => expect (repo = "repo" && needle = "inl b" && path = "lib.spi") "history parts"
+    | _ => expect false "history"
+    match git_parsed records 3i32 with
+    | GitParsed (GitStatus repos) => expect (repos = "a\nb") "status repos"
+    | _ => expect false "status"
+    match git_parsed records 4i32 with
+    | GitParsed (GitDays (repo, since)) => expect (repo = "repo" && since = "2026-10-01") "log parts"
+    | _ => expect false "log"
+
+///> rust
+test incomplete_git_statements_are_rejected =
+    inl records = records_from_bars "ok\nquery|git|wcommit|wrepo|qmissing all\nquery|git|wstatus|wa|wgroup|wby|wpath\nquery|git|wpush|wrepo\nquery|hash|wa,|wb"
+    expect (rejection_at records 1i32 = "git commit: expected git commit <repo> all \"message\" [at <iso time>]") "commit without all"
+    expect (rejection_at records 2i32 = "git status: expected group by state") "status grouping"
+    expect (rejection_at records 3i32 = "git: unknown action push; expected init, commit, history, status or log") "unknown action"
+    expect (rejection_at records 4i32 = "hash cannot share one program with git yet; run it as its own call") "foreign family"

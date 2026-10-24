@@ -1,0 +1,18 @@
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open agile_planning_model.model
+
+let field_token_rewrite (~text : string) (~id : string) (field : planning_field) (~token : string) : i32 * string =
+    match planning_upserted (planning_schema_ensured text) id (tokens_with field token (planning_tokens_of text id)) with
+    | Valid updated => 0i32, updated
+    | Invalid => 2i32, "no task with this id"
+
+let planning_rewrite (~text : string) (~id : string) (~field_name : string) (~token : string) : i32 * string =
+    match parse_planning_field field_name with
+    | Valid field => field_token_rewrite text id field token
+    | Invalid => 1i32, "field must be estimate, load or assignee"
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_planning_rewrite", ((fun (text, id, field_name, token) => planning_rewrite text id field_name token) : string * string * string * string -> i32 * string))
+    inl _ = planning_rewrite "" "ID" "load" "Load Heavy"
+    0i32

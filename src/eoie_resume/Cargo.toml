@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "resume.spi"
+output = "resume.rs"
+
+[package]
+name = "eoie-resume"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_resume"
+path = "resume.rs"

@@ -1,0 +1,12 @@
+open launch
+
+let launch_argv_of (~cwd : string) (~line : string) : string = (launch_parts_of cwd (words_of_line line)).argv
+
+let shell_line_of (~cwd : string) (~line : string) : string = (launch_parts_of cwd (words_of_line line)).line
+
+inl main () : i32 =
+    !!!!Export("eoie_launch_argv", ((fun (cwd, line) => launch_argv_of cwd line) : string * string -> string))
+    !!!!Export("eoie_launch_line", ((fun (cwd, line) => shell_line_of cwd line) : string * string -> string))
+    inl _ = launch_argv_of "." "where.exe"
+    inl _ = shell_line_of "." "where.exe"
+    0i32

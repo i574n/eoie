@@ -1,0 +1,93 @@
+///- --package .
+test logs_model static =
+    open sm'_operators
+
+open sm'_operators
+
+union measure_kind =
+    | CountMatches
+    | SumCaptures
+    | PathField
+    | CountByCapture
+    | LastCapture
+    | ValuesPerMatch
+
+inl kind_flag (kind : measure_kind) : string =
+    match kind with
+    | CountMatches => "--count"
+    | SumCaptures => "--sum"
+    | PathField => "--field"
+    | CountByCapture => "--count-by"
+    | LastCapture => "--last"
+    | ValuesPerMatch => "--values"
+
+union kind_parse =
+    | KindKnown : measure_kind
+    | KindUnknown
+
+let kind_of (~flag : string) : kind_parse =
+    union_reflection.cases.union_case_where (fun (kind : measure_kind) => flag = kind_flag kind) (fun kind => KindKnown kind) KindUnknown
+
+union rec measures =
+    | NoMeasures
+    | MeasureThen : measure_kind * string * string * string * measures
+
+let rec measure_count (list : measures) (count : i32) : i32 =
+    match list with
+    | NoMeasures => count
+    | MeasureThen (_, _, _, _, rest) => measure_count rest (count + 1i32)
+
+let rec measure_header (list : measures) : string =
+    match list with
+    | NoMeasures => ""
+    | MeasureThen (_, name, _, _, rest) => "\t" ++# name ++# (measure_header rest)
+
+let rec value_measures (~name : string) (~pattern : string) (~values : string) (rest : measures) : measures =
+    if values = "" then rest
+    else
+        inl value = $'std::rc::Rc::<str>::from((!values).split(char::from(10u8)).next().unwrap_or(""))' : string
+        inl others = $'std::rc::Rc::<str>::from((!values).split_once(char::from(10u8)).map(|(_, rest)| rest).unwrap_or(""))' : string
+        MeasureThen (CountByCapture, name ++# "_" ++# value, pattern, value, value_measures name pattern others rest)
+
+let rec measures_appended (list : measures) (kind : measure_kind) (~name : string) (~pattern : string) : measures =
+    match list with
+    | NoMeasures => MeasureThen (kind, name, pattern, "", NoMeasures)
+    | MeasureThen (other, other_name, other_pattern, other_value, rest) => MeasureThen (other, other_name, other_pattern, other_value, measures_appended rest kind name pattern)
+
+union spec_step =
+    | SpecTaken : measures
+    | SpecRejected : string
+
+let name_ok (~name : string) : bool = $'\!(!name).is_empty() && (!name).chars().all(|c| c.is_ascii_alphanumeric() || c == char::from(95u8) || c == char::from(45u8))' : bool
+
+let spec_applied (list : measures) (kind : measure_kind) (~value : string) : spec_step =
+    inl name = $'std::rc::Rc::<str>::from((!value).split_once(char::from(61u8)).map(|(name, _)| name).unwrap_or(""))' : string
+    inl pattern = $'std::rc::Rc::<str>::from((!value).split_once(char::from(61u8)).map(|(_, pattern)| pattern).unwrap_or(""))' : string
+    if name_ok name = false || pattern = "" then SpecRejected ((kind_flag kind) ++# " expects name=regex with a letters/digits/_/- name, received '" ++# value ++# "'")
+    elif name = "file" then SpecRejected "the column name 'file' is taken by the file path"
+    else SpecTaken (measures_appended list kind name pattern)
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl taken_header (step : spec_step) : string =
+    match step with
+    | SpecTaken list => measure_header list
+    | SpecRejected reason => "rejected: " ++# reason
+
+inl flag_known (~flag : string) : bool =
+    match kind_of flag with
+    | KindKnown _ => true
+    | KindUnknown => false
+
+///> rust
+test columns_follow_option_order_and_names_are_checked =
+    inl first = spec_applied NoMeasures SumCaptures "millis=Request took (\\d+) ms"
+    inl both =
+        match first with
+        | SpecTaken list => spec_applied list CountMatches "misses=Miss on a"
+        | rejected => rejected
+    expect (taken_header both = "\tmillis\tmisses") (taken_header both)
+    expect (taken_header (spec_applied NoMeasures CountMatches "misses") = "rejected: --count expects name=regex with a letters/digits/_/- name, received 'misses'") "no pattern"
+    expect (taken_header (spec_applied NoMeasures PathField "file=run-(\\d+)") = "rejected: the column name 'file' is taken by the file path") "reserved"
+    expect (flag_known "--sum") "known flag"
+    expect (flag_known "--avg" = false) "unknown flag"

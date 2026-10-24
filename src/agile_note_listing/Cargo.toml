@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "note_listing.spi"
+output = "note_listing.rs"
+
+[package]
+name = "agile-note-listing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_note_listing"
+path = "note_listing.rs"

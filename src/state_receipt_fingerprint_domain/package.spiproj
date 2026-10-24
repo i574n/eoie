@@ -1,0 +1,7 @@
+packages:
+    |core-
+    rust_std_env
+modules:
+    model
+    bridge-
+    main

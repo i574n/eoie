@@ -1,0 +1,6 @@
+packages:
+    |core-
+    legacy_operations_entry
+modules:
+    restart_baton_terminal
+    operations

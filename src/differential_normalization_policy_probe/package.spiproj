@@ -1,0 +1,5 @@
+packages:
+    |core-
+    differential_normalization_contract
+modules:
+    main

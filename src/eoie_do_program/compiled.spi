@@ -1,0 +1,57 @@
+open rust_std_string.model
+open eoie_do_model.model
+open program
+
+inl record_separator () : string = $'std::rc::Rc::<str>::from(char::from(30u8).to_string())' : string
+inl separator_free (~text : string) : bool = $'\!!text.contains(char::from(30u8)) && \!!text.contains(char::from(31u8))' : bool
+let decimal_text (~value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+
+let fields (~a : string) (~b : string) (~c : string) (~d : string) (~e : string) : string =
+    $'std::rc::Rc::<str>::from([&*!a, &*!b, &*!c, &*!d, &*!e].join(&char::from(31u8).to_string()))' : string
+
+let records_joined (~text : string) (~record : string) : string =
+    if text = "" then record else concat5 text (record_separator ()) record "" ""
+
+let rule_record (~rule : rule) : string =
+    inl anchor = rule.anchor
+    inl replacement = rule.replacement
+    inl kind = match rule.matcher with | Literal => "replace" | Pattern => "pattern"
+    match rule.count with
+    | Once => fields kind "once" "1" anchor replacement
+    | Every => fields kind "all" "0" anchor replacement
+    | Exactly wanted => fields kind "times" (decimal_text wanted) anchor replacement
+
+let rec rules_encoded (~rules : rule_list) (~text : string) : string =
+    match rules with
+    | NoRules => text
+    | Rule (rule, rest) => rules_encoded rest (records_joined text (rule_record rule))
+
+let edit_record (~block : edit_block) : string =
+    inl target = block.target
+    inl mode = match block.mode with | Apply => "apply" | Preview => "preview"
+    match block.expectation with
+    | Unchecked => fields "edit" target mode "-" "-"
+    | Expected (files, count) => fields "edit" target mode (decimal_text files) (decimal_text count)
+
+let excluded_encoded (~excluded : string) (~text : string) : string =
+    if excluded = "" then text else records_joined text (fields "except" excluded "" "" "")
+
+let rec steps_encoded (~steps : steps) (~text : string) : string =
+    match steps with
+    | Done => text
+    | Step (step, rest) =>
+        match step with
+        | EditStep block => steps_encoded rest (rules_encoded block.rules (excluded_encoded block.excluded (records_joined text (edit_record block))))
+        | ShowStep path => steps_encoded rest (records_joined text (fields "show" path "" "" ""))
+        | QueryStep (verb, words) => steps_encoded rest (records_joined text (fields "query" verb words "" ""))
+
+let compiled (~text : string) : string =
+    if separator_free text then
+        match program_of text with
+        | Rejected message => concat5 "rejected" (record_separator ()) message "" ""
+        | Parsed (steps, _) => concat5 "ok" (record_separator ()) (steps_encoded steps "") "" ""
+    else concat5 "rejected" (record_separator ()) "control characters 30 and 31 are reserved" "" ""
+
+inl main () : i32 =
+    !!!!Export("eoie_do_program_compiled", ((fun text => compiled text) : string -> string))
+    0i32

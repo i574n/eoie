@@ -1,0 +1,37 @@
+[package.metadata.spiral]
+entry = "agile_mutation.spi"
+output = "agile_mutation.rs"
+
+[package]
+name = "eoie-agile-mutation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_agile_mutation"
+path = "agile_mutation.rs"
+
+[dependencies]
+eoie-agile-state = { path = "../eoie_agile_state" }
+eoie-agile-lease = { path = "../eoie_agile_lease" }
+eoie-handoff-render = { path = "../eoie_handoff_render" }
+agile-task-creation = { path = "../agile_task_creation" }
+agile-task-revision = { path = "../agile_task_revision" }
+agile-task-listing = { path = "../agile_task_listing" }
+agile-task-inspection = { path = "../agile_task_inspection" }
+agile-backlog-scaffold = { path = "../agile_backlog_scaffold" }
+agile-planning-revision = { path = "../agile_planning_revision" }
+agile-planning-rollup = { path = "../agile_planning_rollup" }
+agile-planning-migration = { path = "../agile_planning_migration" }
+agile-task-notes = { path = "../agile_task_notes" }
+agile-note-edit = { path = "../agile_note_edit" }
+agile-title-notes = { path = "../agile_title_notes" }
+agile-task-rename = { path = "../agile_task_rename" }
+agile-todo-scan = { path = "../agile_todo_scan" }
+agile-task-next = { path = "../agile_task_next" }
+agile-todo-roots = { path = "../agile_todo_roots" }
+agile-todo-record = { path = "../agile_todo_record" }
+agile-memory-links = { path = "../agile_memory_links" }
+agile-task-views = { path = "../agile_task_views" }

@@ -1,0 +1,11 @@
+open eoie_process_observation.process_observation
+
+inl main () : i32 =
+    inl plan = smoke_plan ()
+    inl observation = smoke_observation ()
+    match plan, observation with
+    | ProcessLaunch (label, budget), ProcessObservation (ProcessStatusPassed status, ProcessExited exit_code, ElapsedMilliseconds elapsed, ProcessStdout stdout_text, ProcessStderr stderr_text) =>
+        if label = "process-observation-smoke" && budget = 1u64 && status = 0i32 && exit_code = 0i32 && elapsed = 1u64 && stdout_text = "" && stderr_text = ""
+        then 0i32
+        else 1i32
+    | _ => 1i32

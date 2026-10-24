@@ -1,0 +1,5 @@
+open eoie_jobs.jobs
+
+inl main () : i32 =
+    !!!!Export("eoie_job_environment_adopted", ((fun id => job_environment_adopted id) : string -> ()))
+    0i32

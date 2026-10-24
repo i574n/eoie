@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "do_lab.rs"
+
+[package]
+name = "eoie-do-lab"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do_lab"
+path = "do_lab.rs"
+
+[dependencies]
+regex = "1.13.1"
+serde_json = "1.0.151"

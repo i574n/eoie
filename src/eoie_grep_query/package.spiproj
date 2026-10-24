@@ -1,0 +1,8 @@
+packages:
+    |core-
+    spiral-
+    eoie_receipt
+    eoie_read_query
+modules:
+    search
+    grep

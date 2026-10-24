@@ -1,0 +1,10 @@
+open model
+
+let rewrite_result (source : string) (name : string) (kind : string) : bool * string =
+    match rewrite source name kind with
+    | Candidate text => true, text
+    | Rejected reason => false, reason
+
+inl main () : i32 =
+    !!!!Export("eoie_predicate_rewrite", ((fun (source,name,kind) => rewrite_result source name kind) : string * string * string -> bool * string))
+    0i32

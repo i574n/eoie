@@ -1,0 +1,156 @@
+open rust_std_string.model
+open eoie_receipt.receipt
+open host
+open grammar
+open eoie_do_records.records
+
+type git_tally =
+    {
+        report : string
+        failed : bool
+        initialized : u64
+        committed : u64
+        commits : u64
+        matches : u64
+        histories : u64
+        repos : u64
+        changed : u64
+        untracked : u64
+        statuses : u64
+        days : u64
+        day_steps : u64
+    }
+
+let empty_git_tally () : git_tally = { report = ""; failed = false; initialized = 0u64; committed = 0u64; commits = 0u64; matches = 0u64; histories = 0u64; repos = 0u64; changed = 0u64; untracked = 0u64; statuses = 0u64; days = 0u64; day_steps = 0u64 }
+
+let lines_joined (~left : string) (~right : string) : string =
+    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+
+let row (~cells : string) (~next : string) : string = concat5 cells (column ()) next "" ""
+
+let succeeded (~outcome : string) : bool = part_at outcome 0i32 = "0"
+
+let failure_row (~head : string) (~outcome : string) : string = concat5 head "  failed: " (part_at outcome 2i32) "" ""
+
+let reported (~state : git_tally) (~text : string) (~failed : bool) : git_tally =
+    { state with report = lines_joined state.report text; failed = state.failed || failed }
+
+let init_run (~root : string) (~repo : string) (~state : git_tally) : git_tally =
+    inl outcome = git_run root "" (concat5 "init\n-q\n-b\nmain\n" repo "" "" "") ""
+    inl head = concat5 "git init " repo "" "" ""
+    if succeeded outcome then reported ({ state with initialized = state.initialized + 1u64 }) head false
+    else reported state (failure_row head outcome) true
+
+let commit_run (~root : string) (~repo : string) (~message : string) (~date : string) (~state : git_tally) : git_tally =
+    inl head = concat5 "git commit " repo "  " message ""
+    inl added = git_run root repo "add\n-A" ""
+    if succeeded added then
+        inl outcome = git_run root repo (concat5 "commit\n-q\n-m\n" message "" "" "") date
+        if succeeded outcome then reported ({ state with committed = state.committed + 1u64 }) head false
+        else reported state (failure_row head outcome) true
+    else reported state (failure_row head added) true
+
+let rec history_rows (~root : string) (~repo : string) (~needle : string) (~path : string) (~log : string) (~index : u64) (~rows : string) : string =
+    if index < line_count log then
+        inl entry = line_at log index
+        inl hash = tab_part entry 0i32
+        inl after = occurrences (part_at (git_run root repo (concat5 "show\n" hash ":" path "") "") 1i32) needle
+        inl before = occurrences (part_at (git_run root repo (concat5 "show\n" hash "^:" path "") "") 1i32) needle
+        inl change = if after < before then "removed" else "added"
+        inl next = row hash (row (tab_part entry 1i32) (row change (tab_part entry 2i32)))
+        history_rows root repo needle path log (index + 1u64) (lines_joined rows next)
+    else rows
+
+let history_run (~root : string) (~repo : string) (~needle : string) (~path : string) (~state : git_tally) : git_tally =
+    inl outcome = git_run root repo (concat5 "log\n--abbrev=8\n--format=%h%x09%ad%x09%s\n--date=short\n-S" needle "\n--\n" path "") ""
+    if succeeded outcome then
+        inl log = part_at outcome 1i32
+        inl table = history_rows root repo needle path log 0u64 (row "commit" (row "date" (row "change" "subject")))
+        inl found = matching_lines root (concat5 repo "/" path "" "") needle
+        inl counted = { state with commits = state.commits + line_count log; matches = state.matches + line_count found; histories = state.histories + 1u64 }
+        reported counted (lines_joined (aligned table) found) false
+    else reported state (failure_row (concat5 "git history " repo "" "" "") outcome) true
+
+let state_row (~repo : string) (~label : string) (~paths : string) : string =
+    if paths = "" then "" else row repo (row label (row (decimal_text (line_count paths)) (replace paths "\n" ", ")))
+
+let rec repos_status (~root : string) (~repos : string) (~index : u64) (~rows : string) (~state : git_tally) : git_tally =
+    if index < line_count repos then
+        inl repo = line_at repos index
+        inl outcome = git_run root repo "status\n--porcelain\n--untracked-files=all" ""
+        if succeeded outcome then
+            inl lines = part_at outcome 1i32
+            inl modified = porcelain_paths lines false
+            inl untracked = porcelain_paths lines true
+            inl shown = if lines = "" then row repo (row "clean" "0") else lines_joined (state_row repo "modified" modified) (state_row repo "untracked" untracked)
+            inl counted = { state with repos = state.repos + 1u64; changed = state.changed + line_count modified; untracked = state.untracked + line_count untracked }
+            repos_status root repos (index + 1u64) (lines_joined rows shown) counted
+        else repos_status root repos (index + 1u64) (lines_joined rows (row repo (row "failed" (row "-" (part_at outcome 2i32))))) { state with failed = true }
+    else reported ({ state with statuses = state.statuses + 1u64 }) (aligned rows) false
+
+let days_run (~root : string) (~repo : string) (~since : string) (~state : git_tally) : git_tally =
+    inl bare_date = $'(!since).len() == 10' : bool
+    inl window = if since = "" then "" else concat5 "\n--since=" since (if bare_date then " 00:00:00" else "") "" ""
+    inl outcome = git_run root repo (concat5 "log\n--format=%ad\n--date=short" window "" "" "") ""
+    if succeeded outcome then
+        inl dates = part_at outcome 1i32
+        inl counted = days_counted dates
+        inl tallied = { state with commits = state.commits + line_count dates; days = state.days + line_count counted; day_steps = state.day_steps + 1u64 }
+        reported tallied (aligned (lines_joined (row "day" "commits") counted)) false
+    else reported state (failure_row (concat5 "git log " repo "" "" "") outcome) true
+
+let step_run (~root : string) (step : git_step) (~state : git_tally) : git_tally =
+    match step with
+    | GitInit repo => init_run root repo state
+    | GitCommit (repo, message, date) => commit_run root repo message date state
+    | GitHistory (repo, needle, path) => history_run root repo needle path state
+    | GitStatus repos => repos_status root repos 0u64 (row "repo" (row "state" (row "count" "paths"))) state
+    | GitDays (repo, since) => days_run root repo since state
+    | Blank => state
+
+let rec gits_run (~root : string) (~records : record_list) (~index : i32) (~state : git_tally) : git_tally =
+    if index < record_count records then
+        match git_parsed records index with
+        | GitParsed step => gits_run root records (index + 1i32) (step_run root step state)
+        | GitRejected _ => gits_run root records (index + 1i32) state
+    else state
+
+let rec first_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        match git_parsed records index with
+        | GitRejected message => message
+        | GitParsed _ => first_rejection records (index + 1i32)
+    else ""
+
+let segments_joined (~left : string) (~right : string) : string =
+    if left = "" then right elif right = "" then left else concat5 left "  " right "" ""
+
+let receipt_counts (~state : git_tally) : string =
+    inl made = if state.initialized + state.committed > 0u64 then concat5 "initialized " (decimal_text state.initialized) "  committed " (decimal_text state.committed) "" else ""
+    inl history = if state.histories > 0u64 then concat5 "commits " (decimal_text state.commits) "  matches " (decimal_text state.matches) "" else ""
+    inl status = if state.statuses > 0u64 then concat5 "repos " (decimal_text state.repos) "  changed " (decimal_text state.changed) (concat5 "  untracked " (decimal_text state.untracked) "" "" "") else ""
+    inl days = if state.day_steps > 0u64 && state.histories = 0u64 then concat5 "commits " (decimal_text state.commits) "  days " (decimal_text state.days) "" else ""
+    segments_joined (segments_joined made history) (segments_joined status days)
+
+let git_program_run (~root : string) (~encoded : string) : i32 =
+    inl started = now_ms ()
+    inl records = records_of encoded
+    inl rejection = first_rejection records 1i32
+    if rejection = "" then
+        inl state = gits_run root records 1i32 (empty_git_tally ())
+        inl report = state.report
+        if report = "" then () else stdout_line report
+        if state.failed then
+            receipt_line Failed (receipt_counts state) started
+            1i32
+        else
+            receipt_line Succeeded (receipt_counts state) started
+            0i32
+    else
+        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        receipt_line Failed "repos 0" started
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_do_git_run", ((fun (root, encoded) => git_program_run root encoded) : string * string -> i32))
+    0i32

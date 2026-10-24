@@ -1,0 +1,233 @@
+///- --package .
+test query static =
+    open sm'_operators
+
+open sm'_operators
+
+inl team_word_valid (~word : string) : bool = word <> "" && sm'.to_lower word = word && sm'.index_of " " word < 0 && sm'.index_of "," word < 0
+
+let tag_listed (~tags : string) (~tag : string) : bool = sm'.index_of ("," ++# tag ++# ",") ("," ++# (sm'.replace " " "" tags) ++# ",") >= 0
+
+inl team_id_prefix (~word : string) : string = (sm'.to_upper word) ++# "-"
+
+let on_team (~word : string) (~id : string) (~tags : string) : bool = tag_listed tags word || sm'.starts_with (team_id_prefix word) id
+
+inl open_status (~status : string) : bool = status = "Planned" || status = "Active"
+
+union query_filter =
+    | OnTeam : string
+    | WithTag : string
+    | WithPrefix : string
+    | OnlyOpen
+    | OnlyReady
+    | OnlyBlocked
+
+union rec query_filters =
+    | NoFilters
+    | FilterThen : query_filter * query_filters
+
+let filter_passes (filter : query_filter) (~id : string) (~tags : string) (~status : string) (settled : bool) : bool =
+    match filter with
+    | OnTeam word => on_team word id tags
+    | WithTag tag => tag_listed tags tag
+    | WithPrefix prefix => sm'.starts_with prefix id
+    | OnlyOpen => open_status status
+    | OnlyReady => open_status status && settled
+    | OnlyBlocked => status = "Blocked" || (open_status status && settled = false)
+
+let rec filters_pass (filters : query_filters) (~id : string) (~tags : string) (~status : string) (settled : bool) : bool =
+    match filters with
+    | NoFilters => true
+    | FilterThen (filter, rest) => if filter_passes filter id tags status settled then filters_pass rest id tags status settled else false
+
+inl filter_reads_deps (filter : query_filter) : bool =
+    match filter with
+    | OnlyReady => true
+    | OnlyBlocked => true
+    | _ => false
+
+let rec filters_read_deps (filters : query_filters) : bool =
+    match filters with
+    | NoFilters => false
+    | FilterThen (filter, rest) => if filter_reads_deps filter then true else filters_read_deps rest
+
+inl query_filter_text (filter : query_filter) : string =
+    match filter with
+    | OnTeam word => "team=" ++# word
+    | WithTag tag => "tag=" ++# tag
+    | WithPrefix prefix => "prefix=" ++# prefix
+    | OnlyOpen => "open"
+    | OnlyReady => "ready"
+    | OnlyBlocked => "blocked"
+
+let rec filters_text (filters : query_filters) (~acc : string) : string =
+    match filters with
+    | NoFilters => acc
+    | FilterThen (filter, rest) => filters_text rest (" " ++# (query_filter_text filter) ++# acc)
+
+union query_flag value =
+    | FlagTeam :: query_flag string
+    | FlagTag :: query_flag string
+    | FlagPrefix :: query_flag string
+    | FlagOpen :: query_flag ()
+    | FlagReady :: query_flag ()
+    | FlagBlocked :: query_flag ()
+
+nominal any_flag = exists value. query_flag value
+
+inl each_flag forall state. (step : state -> any_flag -> state) (initial : state) : state =
+    inl s = step initial (any_flag (exists FlagTeam))
+    inl s = step s (any_flag (exists FlagTag))
+    inl s = step s (any_flag (exists FlagPrefix))
+    inl s = step s (any_flag (exists FlagOpen))
+    inl s = step s (any_flag (exists FlagReady))
+    step s (any_flag (exists FlagBlocked))
+
+inl flag_word forall value. (flag : query_flag value) : string =
+    match flag with
+    | FlagTeam => "--team"
+    | FlagTag => "--tag"
+    | FlagPrefix => "--prefix"
+    | FlagOpen => "--open"
+    | FlagReady => "--ready"
+    | FlagBlocked => "--blocked"
+
+inl flag_usage forall value. (flag : query_flag value) : string =
+    match flag with
+    | FlagTeam => "--team <team>"
+    | FlagTag => "--tag <tag>"
+    | FlagPrefix => "--prefix <ID prefix>"
+    | FlagOpen => "--open"
+    | FlagReady => "--ready"
+    | FlagBlocked => "--blocked"
+
+inl any_usage (any_flag f : any_flag) : string =
+    inl exists value. flag = f
+    flag_usage flag
+
+inl query_usage () : string = each_flag (fun acc f => if acc = "" then any_usage f else acc ++# ", " ++# (any_usage f)) ""
+
+union value_read value =
+    | ValueRead : value
+    | ValueRefused : string
+
+inl value_of forall value. (flag : query_flag value) (~raw : string) : value_read value =
+    match flag with
+    | FlagTeam => if team_word_valid raw then ValueRead raw else ValueRefused ("--team expects a lower-case team word, got " ++# raw)
+    | FlagTag => if raw = "" then ValueRefused "--tag expects a tag" else ValueRead raw
+    | FlagPrefix => if raw = "" then ValueRefused "--prefix expects an ID prefix" else ValueRead raw
+    | FlagOpen => ValueRead ()
+    | FlagReady => ValueRead ()
+    | FlagBlocked => ValueRead ()
+
+inl filter_of forall value. (flag : query_flag value) (given : value) : query_filter =
+    match flag with
+    | FlagTeam => OnTeam given
+    | FlagTag => WithTag given
+    | FlagPrefix => WithPrefix given
+    | FlagOpen => OnlyOpen
+    | FlagReady => OnlyReady
+    | FlagBlocked => OnlyBlocked
+
+inl width_of forall value. (flag : query_flag value) : i32 =
+    match flag with
+    | FlagOpen => 1i32
+    | FlagReady => 1i32
+    | FlagBlocked => 1i32
+    | _ => 2i32
+
+union flag_read =
+    | FilterRead : query_filter * i32
+    | FlagRefused : string
+    | NotQueryFlag
+
+inl flag_filter forall value. (flag : query_flag value) (~raw : string) : flag_read =
+    match value_of flag raw with
+    | ValueRead given => FilterRead (filter_of flag given, width_of flag)
+    | ValueRefused reason => FlagRefused reason
+
+inl flag_step (found : flag_read) (any_flag f : any_flag) (~argument : string) (~raw : string) : flag_read =
+    inl exists value. flag = f
+    match found with
+    | NotQueryFlag => if argument = flag_word flag then flag_filter flag raw else found
+    | _ => found
+
+let flag_read_of (~argument : string) (~value : string) : flag_read = each_flag (fun found f => flag_step found f argument value) NotQueryFlag
+
+let query_token (~query : string) (index : i32) : string = $'std::rc::Rc::<str>::from((!query).split_whitespace().nth(!index as usize).unwrap_or(""))' : string
+
+let rec filters_of_query (~query : string) (index : i32) (acc : query_filters) : query_filters =
+    inl argument = query_token query index
+    if argument = "" then acc
+    else
+        match flag_read_of argument (query_token query (index + 1i32)) with
+        | FilterRead (filter, used) => filters_of_query query (index + used) (FilterThen (filter, acc))
+        | _ => filters_of_query query (index + 1i32) acc
+
+let query_passes (~query : string) (~id : string) (~tags : string) (~status : string) (settled : bool) : bool = filters_pass (filters_of_query query 0i32 NoFilters) id tags status settled
+
+let query_reads_deps (~query : string) : bool = filters_read_deps (filters_of_query query 0i32 NoFilters)
+
+let flag_width (~argument : string) (~value : string) : i32 =
+    match flag_read_of argument value with
+    | FilterRead (_, used) => used
+    | FlagRefused _ => -1i32
+    | NotQueryFlag => 0i32
+
+let flag_refusal (~argument : string) (~value : string) : string =
+    match flag_read_of argument value with
+    | FlagRefused reason => reason
+    | _ => ""
+
+let query_shown_of (~query : string) : string = filters_text (filters_of_query query 0i32 NoFilters) ""
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl flag_read_shown (read : flag_read) : string =
+    match read with
+    | FilterRead (filter, used) => (query_filter_text filter) ++# " used=" ++# ($'std::rc::Rc::<str>::from((!used).to_string().as_str())' : string)
+    | FlagRefused reason => reason
+    | NotQueryFlag => "-"
+
+///> rust
+test teams_are_tags_or_upper_case_id_prefixes =
+    expect (on_team "ops" "CI-A" "ops,deploy") "a tag names the team"
+    expect (on_team "ops" "OPS-A" "") "an upper-case ID prefix names the team"
+    expect (on_team "ops" "OPSX-A" "" = false) "the prefix ends at its dash"
+    expect (on_team "ops" "CI-A" "devops" = false) "a tag is a whole item, not a substring"
+    expect (on_team "web" "OPS-A" "web" && on_team "ops" "OPS-A" "web") "an item can sit on several teams"
+    expect (team_word_valid "ops" && team_word_valid "team-2" && team_word_valid "Ops" = false && team_word_valid "" = false) "team words are lower-case"
+
+///> rust
+test query_flags_read_into_typed_filters =
+    expect (flag_read_shown (flag_read_of "--team" "ops") = "team=ops used=2") "team"
+    expect (flag_read_shown (flag_read_of "--open" "P1") = "open used=1") "open takes no value"
+    expect (flag_read_shown (flag_read_of "--team" "Ops") = "--team expects a lower-case team word, got Ops") "malformed team"
+    expect (flag_read_shown (flag_read_of "Active" "") = "-") "not a query flag"
+    expect (query_usage () = "--team <team>, --tag <tag>, --prefix <ID prefix>, --open, --ready, --blocked") "usage comes from the flag union"
+    inl filters = FilterThen (OnlyOpen, FilterThen (WithPrefix "OPS-", NoFilters))
+    expect (filters_pass filters "OPS-A" "" "Active" true) "open ops item passes"
+    expect (filters_pass filters "OPS-A" "" "Done" true = false) "done item fails open"
+    expect (filters_text filters "" = " prefix=OPS- open") (filters_text filters "")
+    expect (query_passes "--team ops --open" "OPS-A" "" "Active" true) "a query text reads back into the same filters"
+    expect (query_passes "--team ops --open" "CI-A" "" "Active" true = false) "the team filter holds after the round trip"
+    expect (flag_width "--team" "Ops" = -1i32 && flag_width "--tag" "x" = 2i32 && flag_width "Done" "" = 0i32) "flag widths"
+
+///> rust
+test ready_and_blocked_read_settled_dependencies =
+    expect (query_passes "--ready" "A" "" "Planned" true) "open with settled dependencies is ready"
+    expect (query_passes "--ready" "A" "" "Planned" false = false) "an open dependency keeps an item from ready"
+    expect (query_passes "--ready" "A" "" "Done" true = false) "a done item is not ready"
+    expect (query_passes "--blocked" "A" "" "Active" false) "open with an open dependency is blocked"
+    expect (query_passes "--blocked" "A" "" "Blocked" true) "the Blocked status is blocked"
+    expect (query_passes "--blocked" "A" "" "Active" true = false) "settled open work is not blocked"
+    expect (query_reads_deps "--team ops --ready" && query_reads_deps "--open" = false) "only ready and blocked read dependencies"
+    expect (query_shown_of "--blocked --team web" = " blocked team=web") (query_shown_of "--blocked --team web")
+
+inl usage_shows_flag (named : bool) (flag : any_flag) : bool =
+    inl usage = any_usage flag
+    named && sm'.contains usage (agile_subcommand_domain.subcommand.agile_subcommand_shape "list") && sm'.contains usage (agile_subcommand_domain.subcommand.agile_subcommand_shape "next")
+
+///> rust
+test list_and_next_usage_name_every_query_flag =
+    expect (each_flag usage_shows_flag true) "agile list and next usage shapes name every query flag"

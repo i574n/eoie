@@ -1,0 +1,114 @@
+nominal patch_plan_parsed = ()
+nominal patch_plan_witnessed = ()
+nominal patch_operation_ordered = ()
+nominal patch_guard_authorized = ()
+nominal patch_commit_authorized = ()
+
+union patch_control_step from to =
+    | WitnessPatchPlan :: patch_control_step patch_plan_parsed patch_plan_witnessed
+    | AuthorizePatchOperation :: patch_control_step patch_plan_witnessed patch_operation_ordered
+    | AuthorizePatchGuard :: patch_control_step patch_operation_ordered patch_guard_authorized
+    | AuthorizePatchCommit :: patch_control_step patch_guard_authorized patch_commit_authorized
+
+union rec patch_control_plan from to =
+    | PatchControlStep :: forall from to. patch_control_step from to -> patch_control_plan from to
+    | PatchControlThen :: forall from to. (exists middle. patch_control_plan from middle * patch_control_plan middle to) -> patch_control_plan from to
+
+inl native_patch_control_plan () : patch_control_plan patch_plan_parsed patch_commit_authorized =
+    PatchControlThen (exists (
+        PatchControlStep WitnessPatchPlan,
+        PatchControlThen (exists (
+            PatchControlStep AuthorizePatchOperation,
+            PatchControlThen (exists (
+                PatchControlStep AuthorizePatchGuard,
+                PatchControlStep AuthorizePatchCommit
+            ))
+        ))
+    ))
+
+let patch_witness_authorized (validated : i32) (parsed : i32) : i32 =
+    if validated < 1i32 then 0i32
+    elif parsed < 1i32 then 0i32
+    elif validated < parsed then 0i32
+    elif parsed < validated then 0i32
+    else 1i32
+
+let patch_operation_authorized (expected : i32) (observed : i32) : i32 =
+    if expected < 0i32 then 0i32
+    elif observed < 0i32 then 0i32
+    elif expected < observed then 0i32
+    elif observed < expected then 0i32
+    else 1i32
+
+let patch_operation_next (cursor : i32) (total : i32) : i32 =
+    if cursor < 0i32 then -1i32
+    elif total < 1i32 then -1i32
+    elif cursor < total then cursor + 1i32
+    else -1i32
+
+let patch_match_authorized (count : i32) (operation_authorized : i32) : i32 =
+    if operation_authorized < 1i32 then 0i32
+    elif 1i32 < operation_authorized then 0i32
+    elif count < 1i32 then 0i32
+    elif 1i32 < count then 0i32
+    else 1i32
+
+let patch_commit_authorized (expected : i32) (committed : i32) : i32 =
+    patch_witness_authorized expected committed
+
+nominal restoration_attempt_pending = ()
+nominal restoration_attempt_recorded = ()
+
+union restoration_attempt_outcome =
+    | RestorationSucceeded
+    | RestorationFailed
+
+union restoration_attempt_step from to =
+    | RecordRestorationSuccess :: restoration_attempt_step restoration_attempt_pending restoration_attempt_recorded
+    | RecordRestorationFailure :: restoration_attempt_step restoration_attempt_pending restoration_attempt_recorded
+
+inl restoration_attempt_witness outcome : restoration_attempt_step restoration_attempt_pending restoration_attempt_recorded =
+    match outcome with
+    | RestorationSucceeded => RecordRestorationSuccess
+    | RestorationFailed => RecordRestorationFailure
+
+let restoration_payload_identity (selected : i32) (observed_stage : i32) : i32 =
+    if selected < 0i32 then -1i32
+    elif observed_stage < 0i32 then -1i32
+    elif selected < observed_stage then -1i32
+    elif observed_stage < selected then -1i32
+    else selected
+
+let restoration_payload_slot_binding (identity : i32) (slot_authorized : i32) : i32 =
+    if identity < 0i32 then -1i32
+    elif slot_authorized < 1i32 then -1i32
+    elif 1i32 < slot_authorized then -1i32
+    else identity
+
+let restoration_payload_outcome_binding (identity : i32) (outcome : i32) : i32 =
+    if identity < 0i32 then -1i32
+    elif outcome < 1i32 then -1i32
+    elif 2i32 < outcome then -1i32
+    else identity
+
+union patch_plan_failure =
+    | PatchPlanEmpty
+    | PatchPlanMalformed
+    | PatchPlanOversized
+    | PatchPlanUnavailable
+    | PatchPlanInvalidWitness
+
+inl patch_plan_failure_message = function
+    | PatchPlanEmpty => "typed patch plan contains no PatchExact values"
+    | PatchPlanMalformed => "typed patch plan is malformed"
+    | PatchPlanOversized => "typed patch plan exceeds 256 KiB"
+    | PatchPlanUnavailable => "typed patch plan source is unavailable"
+    | PatchPlanInvalidWitness => "typed patch plan returned an invalid witness"
+
+let patch_plan_failure_binding (code : i32) : string =
+    inl malformed, oversized, unavailable = -1i32, -2i32, -3i32
+    if code = 0i32 then patch_plan_failure_message PatchPlanEmpty
+    elif code = malformed then patch_plan_failure_message PatchPlanMalformed
+    elif code = oversized then patch_plan_failure_message PatchPlanOversized
+    elif code = unavailable then patch_plan_failure_message PatchPlanUnavailable
+    else patch_plan_failure_message PatchPlanInvalidWitness

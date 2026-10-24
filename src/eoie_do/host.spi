@@ -1,0 +1,5 @@
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
+inl stdin_text () : string = $'{ let mut text = String::new(); let _ = std::io::Read::read_to_string(&mut std::io::stdin(), &mut text); std::rc::Rc::<str>::from(text) }' : string
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+let directory_exists (~path : string) : bool = file_system.path_buf_is_dir (file_system.new_path_buf (sm'.to_std_string path))

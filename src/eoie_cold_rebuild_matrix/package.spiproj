@@ -1,0 +1,5 @@
+packages:
+    |core-
+modules:
+    cold_owner_terminal
+    main

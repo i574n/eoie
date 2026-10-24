@@ -1,0 +1,196 @@
+///- --package .
+test rules static =
+    open sm'_operators
+    open workspace_primitives.bytes
+
+open sm'_operators
+open workspace_primitives.bytes
+
+union standard =
+    | NoCommentLines
+    | LineWidth : i32
+    | LfOnly
+    | IntegerOnly : string
+    | TestTargets
+    | HostFree
+    | LibReferenced
+
+union rec standards =
+    | NoStandards
+    | StandardThen : standard * standards
+
+union line_kind =
+    | BlankLine
+    | CodeLine
+    | DirectiveLine
+    | TodoLine
+    | CommentLine
+
+type file_scan =
+    {
+        findings : string
+        count : i32
+        in_todo : bool
+        last_code : string
+    }
+
+inl todo_marker () : string = "TO" ++# "DO"
+
+inl trimmed_start (~line : string) : string = $'std::rc::Rc::<str>::from((!line).trim_start())' : string
+inl char_count (~line : string) : i32 = $'(!line).trim_end_matches(char::from(13u8)).chars().count() as i32' : i32
+inl i32_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+
+inl line_kind_of (~line : string) : line_kind =
+    inl lead = trimmed_start line
+    if lead = "" || lead = "\r" then BlankLine
+    elif sm'.starts_with "///" lead then DirectiveLine
+    elif sm'.starts_with "//" lead then (if sm'.contains (todo_marker ()) lead then TodoLine else CommentLine)
+    else CodeLine
+
+inl standard_word = function
+    | NoCommentLines => "no-comment-lines"
+    | LineWidth _ => "line-width"
+    | LfOnly => "lf-only"
+    | IntegerOnly _ => "integer-only"
+    | TestTargets => "test-targets"
+    | HostFree => "host-free"
+    | LibReferenced => "lib-referenced"
+
+inl default_standards () : standards = StandardThen (NoCommentLines, StandardThen (LineWidth 120i32, StandardThen (LfOnly, StandardThen (TestTargets, NoStandards))))
+
+inl row_value (~row : string) (~case : string) : string =
+    $'std::rc::Rc::<str>::from((!row).split_once(&*!case).map(|(_, rest)| rest.trim().trim_end_matches("u32").trim_end_matches("i32").trim_matches(char::from(34u8))).unwrap_or(""))' : string
+
+inl line_head (~text : string) : string = $'std::rc::Rc::<str>::from((!text).split(char::from(10u8)).next().unwrap_or(""))' : string
+inl line_rest (~text : string) : string = $'std::rc::Rc::<str>::from((!text).split_once(char::from(10u8)).map(|(_, rest)| rest).unwrap_or(""))' : string
+
+union declared_row =
+    | DeclaredRule : standard
+    | UnknownRule : string
+    | NotARule
+
+let declared_row_of (~row : string) : declared_row =
+    if sm'.starts_with "inl " row = false then NotARule
+    elif sm'.contains "= NoCommentLines" row then DeclaredRule NoCommentLines
+    elif sm'.contains "= LfOnly" row then DeclaredRule LfOnly
+    elif sm'.contains "= TestTargets" row then DeclaredRule TestTargets
+    elif sm'.contains "= HostFree" row then DeclaredRule HostFree
+    elif sm'.contains "= LibReferenced" row then DeclaredRule LibReferenced
+    elif sm'.contains "= LineWidth " row then DeclaredRule (LineWidth ($'(!(row_value row "= LineWidth ")).parse::<i32>().unwrap_or(120)' : i32))
+    elif sm'.contains "= IntegerOnly " row then DeclaredRule (IntegerOnly (row_value row "= IntegerOnly "))
+    elif sm'.contains "() = " row && sm'.contains ") : " row = false then UnknownRule (row_value row "() = ")
+    else NotARule
+
+let rec declared_from (~text : string) (found : standards) : standards =
+    if text = "" then found
+    else
+        match declared_row_of (line_head text) with
+        | DeclaredRule rule => declared_from (line_rest text) (StandardThen (rule, found))
+        | _ => declared_from (line_rest text) found
+
+let rec unknown_rules (~text : string) (~path : string) (number : i32) (~found : string) : string =
+    if text = "" then found
+    else
+        inl next = line_rest text
+        match declared_row_of (line_head text) with
+        | UnknownRule name => unknown_rules next path (number + 1i32) (found ++# path ++# ":" ++# (i32_text number) ++# ("  unknown-rule  " ++# name ++# " is not a rule this eoie knows, so it never runs" ++# "\n"))
+        | _ => unknown_rules next path (number + 1i32) found
+
+inl finding (~path : string) (number : i32) (rule : standard) (~detail : string) : string =
+    path ++# ":" ++# (i32_text number) ++# "  " ++# ((standard_word rule) ++# "  " ++# detail ++# "\n")
+
+inl floating (~line : string) : bool = $'{ let line = &*!line; line.contains("f64") || line.contains("f32") }' : bool
+
+let line_findings (rule : standard) (~path : string) (~module : string) (number : i32) (~line : string) (kind : line_kind) (scan : file_scan) : string =
+    match rule with
+    | NoCommentLines =>
+        match kind with
+        | CommentLine => if scan.in_todo then "" else finding path number rule "a comment line; encode it in names or drop it"
+        | _ => ""
+    | LineWidth width =>
+        inl count = char_count line
+        if width < count then finding path number rule ((i32_text count) ++# " columns, limit " ++# (i32_text width)) else ""
+    | LfOnly => if sm'.ends_with "\r" line then finding path number rule "CRLF line ending" else ""
+    | IntegerOnly name =>
+        match kind with
+        | CodeLine => if name = module && floating line then finding path number rule "floating point in an integer-only module" else ""
+        | _ => ""
+    | TestTargets =>
+        if sm'.starts_with "test " line && sm'.contains " static =" line = false && sm'.starts_with "///> " scan.last_code = false then finding path number rule "test block without a ///> target line above it"
+        else ""
+    | HostFree =>
+        match kind with
+        | CodeLine => if sm'.contains "$'" line then finding path number rule "a host macro in a host-free package; reach for lib/spiral (sm', am', listm', file_system) or the OS boundary package" else ""
+        | _ => ""
+    | LibReferenced => ""
+
+let rec rules_applied (list : standards) (~path : string) (~module : string) (number : i32) (~line : string) (kind : line_kind) (scan : file_scan) (~found : string) : string =
+    match list with
+    | NoStandards => found
+    | StandardThen (rule, rest) => rules_applied rest path module number line kind scan (found ++# (line_findings rule path module number line kind scan))
+
+inl findings_count (~text : string) : i32 = $'(!text).lines().count() as i32' : i32
+
+let rec lines_scanned (list : standards) (~path : string) (~module : string) (~text : string) (number : i32) (scan : file_scan) : file_scan =
+    if text = "" then scan
+    else
+        inl line = line_head text
+        inl kind = line_kind_of line
+        inl found = rules_applied list path module number line kind scan ""
+        inl in_todo =
+            match kind with
+            | TodoLine => true
+            | CommentLine => scan.in_todo
+            | _ => false
+        inl last_code =
+            match kind with
+            | BlankLine => scan.last_code
+            | _ => trimmed_start line
+        inl next = { findings = scan.findings ++# found; count = scan.count + findings_count found; in_todo = in_todo; last_code = last_code }
+        lines_scanned list path module (line_rest text) (number + 1i32) next
+
+let file_scan_start () : file_scan = { findings = ""; count = 0i32; in_todo = false; last_code = "" }
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl scanned_text (list : standards) (~module : string) (~text : string) : string = (lines_scanned list "m.spi" module text 1i32 (file_scan_start ())).findings
+
+///> rust
+test comments_fail_but_todo_blocks_and_directives_pass =
+    inl text = "///> rust\ninl a = 1\n// stray note\n// TODO: EOIE-X wire it\n//     continuation\ninl b = 2\n"
+    expect (scanned_text (StandardThen (NoCommentLines, NoStandards)) "m" text = "m.spi:3  no-comment-lines  a comment line; encode it in names or drop it\n") (scanned_text (StandardThen (NoCommentLines, NoStandards)) "m" text)
+
+///> rust
+test widths_crlf_floats_and_test_targets_are_flagged =
+    inl list = StandardThen (LineWidth 10i32, StandardThen (LfOnly, StandardThen (IntegerOnly "m", StandardThen (TestTargets, NoStandards))))
+    inl text = "inl short = 1\r\ninl x = 1.0f64\n\n///> rust\ntest fine =\ntest bare =\ntest m static =\n"
+    inl found = scanned_text list "m" text
+    expect (sm'.contains "m.spi:1  line-width  13 columns, limit 10" found) found
+    expect (sm'.contains "m.spi:1  lf-only  CRLF line ending" found) found
+    expect (sm'.contains "m.spi:2  integer-only  floating point in an integer-only module" found) found
+    expect (sm'.contains "m.spi:6  test-targets" found) found
+    expect (sm'.contains "m.spi:5  test-targets" found = false) found
+    expect (sm'.contains "m.spi:7  test-targets" found = false) found
+    expect ((scanned_text list "other" "inl x = 1.0f64\n") = "m.spi:1  line-width  14 columns, limit 10\n") "integer-only is per module"
+
+///> rust
+test declared_rows_replace_the_defaults =
+    inl declared = declared_from "union standard =\n    | LineWidth :: u32 -> standard\ninl width () = LineWidth 100u32\ninl ints () = IntegerOnly \"model\"\n" NoStandards
+    inl found = scanned_text declared "model" "inl f = 2.5f64\n"
+    expect (sm'.contains "integer-only" found) found
+    expect (sm'.contains "line-width" found = false) found
+
+///> rust
+test host_free_flags_host_macros_and_rows_declare_it =
+    inl declared = declared_from "inl host () = HostFree\ninl lib () = LibReferenced\n" NoStandards
+    inl found = scanned_text declared "m" "inl up (~t : string) : string = $'x' : string\ninl ok = sm'.to_upper t\n// $'x' in prose\n"
+    expect (sm'.contains "m.spi:1  host-free  a host macro in a host-free package" found) found
+    expect (sm'.contains "m.spi:2" found = false) found
+    expect (sm'.contains "m.spi:3" found = false) "a comment that mentions a macro is not one"
+
+///> rust
+test a_declared_rule_this_eoie_does_not_know_is_a_finding =
+    inl text = "inl width () = LineWidth 100u32\ninl future () = ShinyRule\ninl helper = 1\n"
+    expect (unknown_rules text "p/standards.spi" 1i32 "" = "p/standards.spi:2  unknown-rule  ShinyRule is not a rule this eoie knows, so it never runs\n") (unknown_rules text "p/standards.spi" 1i32 "")
+    expect (unknown_rules "inl host () = HostFree\ninl lib () = LibReferenced\n" "s" 1i32 "" = "") "known rules are no finding"
+    expect (unknown_rules "inl stdout_line (~text : string) : () = $'println'\n" "s" 1i32 "" = "") "a typed unit function in a module named standards.spi is no declaration"

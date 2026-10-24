@@ -1,0 +1,163 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+inl emit_runtime () : () = rust_global """
+    use eoie_process::{typecheck_spiral_file as coverage_typecheck_spiral_file, resolve_spiral_compiler as coverage_resolve_spiral_compiler};
+    use eoie_process_observation::{run_bounded_receipted_observed as coverage_run_bounded_receipted_observed, run_bounded_streaming_checked as coverage_run_bounded_streaming_checked};
+    use eoie_coverage_smoke::{coverage_smoke_preflight, coverage_smoke_run, CoverageSmokeContext};
+    use eoie_proxy_search::inspection_file_sha256;
+    use eoie_rust_std_fs::{atomic_write as coverage_atomic_write, read_regular_text_limited as coverage_read_regular_text_limited, rooted_path as coverage_rooted};
+    use std::collections::BTreeMap;
+    use std::env;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    fn coverage_arg<'a>(args: &'a [String], index: usize, name: &str) -> Result<&'a str, String> {
+        args.get(index).map(String::as_str).ok_or_else(|| format!("missing argument: {name}"))
+    }
+
+    fn coverage_typecheck(path: &Path) -> Result<(), String> {
+        let compiler = coverage_resolve_spiral_compiler(None)?.ok_or_else(|| "Spiral compiler is required for prune-uncovered; configure EOIE_SPIRAL_COMPILE, EOIE_CONFIG_HOME/XDG/HOME, or PATH".to_owned())?;
+        coverage_typecheck_spiral_file(&compiler, path)
+    }
+
+    fn coverage_lcov_state(lcov: &Path, root: &Path, source: &Path) -> Result<Option<bool>, String> {
+        let canonical = fs::canonicalize(source).map_err(|error| format!("canonicalize {}: {error}", source.display()))?;
+        let mut found = false;
+        let mut covered = false;
+        for (record, lines) in coverage_union_records(lcov)? {
+            let evidence = Path::new(&record);
+            let evidence = if evidence.is_absolute() { evidence.to_path_buf() } else { root.join(evidence) };
+            if !lines.is_empty() && fs::canonicalize(&evidence).is_ok_and(|path| path == canonical) {
+                found = true;
+                covered |= lines.values().any(|hits| *hits > 0);
+            }
+        }
+        Ok(if found { Some(covered) } else { None })
+    }
+
+    fn coverage_escape_spi(value: &str) -> String {
+        value.replace('\\', "\\\\").replace('\"', "\\\"").replace('\n', "\\n").replace('\r', "\\r")
+    }
+
+    fn coverage_lcov_lines(path: &Path) -> Result<BTreeMap<String, u64>, String> {
+        let mut origins: BTreeMap<String, String> = BTreeMap::new();
+        let mut flat: BTreeMap<String, u64> = BTreeMap::new();
+        for (source, lines) in coverage_union_records(path)? {
+            let relative = source.rsplit_once("/src/").map_or_else(|| source.strip_prefix("src/").unwrap_or(&source).to_owned(), |(_, tail)| tail.to_owned());
+            if let Some(previous) = origins.insert(relative.clone(), source.clone()) {
+                if previous != source { return Err(format!("coverage has ambiguous source identity: {relative}")); }
+            }
+            for (number, hits) in lines { flat.insert(format!("{relative}:{number}"), hits); }
+        }
+        Ok(flat)
+    }
+
+    fn coverage_ratio(lines: &BTreeMap<String, u64>) -> u32 {
+        if lines.is_empty() { 0 } else { (lines.values().filter(|hits| **hits > 0).count() * 1000 / lines.len()) as u32 }
+    }
+
+    pub fn coverage_assess(args: &[String]) -> Result<(), String> {
+        if args.len() != 6 { return Err("coverage-assess expects test.lcov smoke.lcov test-floor smoke-floor combined-floor".to_owned()); }
+        let test = coverage_lcov_lines(Path::new(coverage_arg(args, 1, "test.lcov")?))?;
+        let smoke = coverage_lcov_lines(Path::new(coverage_arg(args, 2, "smoke.lcov")?))?;
+        let test_floor = coverage_arg(args, 3, "test-floor")?.parse::<u32>().map_err(|_| "coverage floors must be permille integers".to_owned())?;
+        let smoke_floor = coverage_arg(args, 4, "smoke-floor")?.parse::<u32>().map_err(|_| "coverage floors must be permille integers".to_owned())?;
+        let combined_floor = coverage_arg(args, 5, "combined-floor")?.parse::<u32>().map_err(|_| "coverage floors must be permille integers".to_owned())?;
+        if [test_floor, smoke_floor, combined_floor].iter().any(|floor| *floor > 1000) { return Err("coverage floors must be within 0..=1000".to_owned()); }
+        let mut combined = test.clone();
+        for (key, hits) in &smoke { combined.entry(key.clone()).and_modify(|seen| *seen = (*seen).max(*hits)).or_insert(*hits); }
+        let test_ratio = coverage_ratio(&test);
+        let smoke_ratio = coverage_ratio(&smoke);
+        let combined_ratio = coverage_ratio(&combined);
+        println!("eoie coverage assess test={test_ratio}/1000 smoke={smoke_ratio}/1000 combined={combined_ratio}/1000 lines={}", combined.len());
+        if test_ratio < test_floor || smoke_ratio < smoke_floor || combined_ratio < combined_floor {
+            return Err(format!("coverage floor failed test={test_ratio}/{test_floor} smoke={smoke_ratio}/{smoke_floor} combined={combined_ratio}/{combined_floor}"));
+        }
+        Ok(())
+    }
+
+    pub fn prune_uncovered(args: &[String]) -> Result<(), String> {
+        let root_path = std::path::absolute(coverage_arg(args, 1, "root")?).map_err(|error| error.to_string())?;
+        let root = root_path.as_path();
+        let relative = coverage_arg(args, 2, "relative")?;
+        let test_lcov = Path::new(coverage_arg(args, 3, "test.lcov")?);
+        let smoke_lcov = Path::new(coverage_arg(args, 4, "smoke.lcov")?);
+        let separator = args.iter().position(|value| value == "--").ok_or_else(|| "prune-uncovered requires -- command args".to_owned())?;
+        if separator < 5 || separator + 1 >= args.len() { return Err("prune-uncovered requires a validation command".to_owned()); }
+        let source = coverage_rooted(root, relative)?;
+        let test_state = coverage_lcov_state(test_lcov, root, &source)?;
+        let smoke_state = coverage_lcov_state(smoke_lcov, root, &source)?;
+        if test_state != Some(false) || smoke_state != Some(false) {
+            return Err(format!("prune refused: coverage evidence must exist and be zero in both profiles, test={test_state:?} smoke={smoke_state:?}"));
+        }
+        let receipt = coverage_rooted(root, "state/prune_receipts.spi")?;
+        let original_receipts = coverage_read_regular_text_limited(&receipt, 8 * 1024 * 1024).map_err(|error| format!("read {}: {error}", receipt.display()))?;
+        if fs::canonicalize(&source).map_err(|error| error.to_string())? == fs::canonicalize(&receipt).map_err(|error| error.to_string())? {
+            return Err("cannot prune the receipt ledger".to_owned());
+        }
+        let marker = "inl main () : i32 = 0i32";
+        if original_receipts.matches(marker).count() != 1 { return Err("prune receipt ledger must have exactly one main marker".to_owned()); }
+        let hash = inspection_file_sha256(&source)?;
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_err(|error| error.to_string())?.as_nanos();
+        let command_text = args[separator + 1..].join(" ");
+        let bundle_id = env::var("EOIE_BUNDLE_ID").unwrap_or_else(|_| "external".to_owned());
+        let entry = format!("inl receipt_{}_{stamp} () : prune_receipt = PruneReceipt (\"{}\", \"{}\", \"{}\", \"{}\")\n", std::process::id(), coverage_escape_spi(relative), coverage_escape_spi(&hash), coverage_escape_spi(&command_text), coverage_escape_spi(&bundle_id));
+        let updated = original_receipts.replacen(marker, &format!("{entry}{marker}"), 1);
+        let stage = source.parent().ok_or("prune source has no parent")?.join(format!(".eoie-prune-{}-{stamp}", std::process::id()));
+        fs::create_dir(&stage).map_err(|error| format!("claim prune stage: {error}"))?;
+        let capability = stage.join("rollback-capability");
+        if let Err(error) = eoie_rust_std_fs_mutation::rooted_create_hardlink_within(root, &source, &capability) {
+            let _ = fs::remove_dir(&stage);
+            return Err(format!("prune requires exclusive rollback support; source unchanged: {error}"));
+        }
+        if let Err(error) = fs::remove_file(&capability) {
+            return Err(format!("prune rollback preflight cleanup failed; source unchanged; link retained at {}: {error}", capability.display()));
+        }
+        let backup = stage.join("original");
+        if let Err(error) = fs::rename(&source, &backup) {
+            let _ = fs::remove_dir(&stage);
+            return Err(format!("stage prune: {error}"));
+        }
+        let mut ledger_written = false;
+        let result = (|| -> Result<(), String> {
+            if inspection_file_sha256(&backup)? != hash { return Err("prune source changed during staging".to_owned()); }
+            let mut validation = Command::new(&args[separator + 1]);
+            validation.current_dir(root).args(&args[separator + 2..]);
+            let observation = coverage_run_bounded_receipted_observed(&mut validation, 300_000, "coverage-prune-validation");
+            if !observation.as_ref().is_ok_and(|value| value.status.success()) { return Err(format!("prune validation failed: {observation:?}")); }
+            if eoie_rust_std_fs::rooted_entry_exists(&source)? { return Err("prune validation recreated the source".to_owned()); }
+            if coverage_read_regular_text_limited(&receipt, 8 * 1024 * 1024)? != original_receipts { return Err("prune receipt ledger changed during validation".to_owned()); }
+            coverage_atomic_write(&receipt, updated.as_bytes()).map_err(|error| format!("write prune receipt: {error}"))?;
+            ledger_written = true;
+            coverage_typecheck(&receipt).map_err(|error| format!("prune receipt failed: {error}"))?;
+            if eoie_rust_std_fs::rooted_entry_exists(&source)? { return Err("prune source reappeared before commit".to_owned()); }
+            if coverage_read_regular_text_limited(&receipt, 8 * 1024 * 1024)? != updated { return Err("prune receipt ledger changed before commit".to_owned()); }
+            fs::remove_file(&backup).map_err(|error| format!("commit prune: {error}"))?;
+            Ok(())
+        })();
+        if let Err(error) = result {
+            let mut failures = Vec::new();
+            if ledger_written {
+                match coverage_read_regular_text_limited(&receipt, 8 * 1024 * 1024) {
+                    Ok(current) if current == updated => {
+                        if let Err(error) = coverage_atomic_write(&receipt, original_receipts.as_bytes()) { failures.push(format!("receipt restore: {error}")); }
+                    }
+                    _ => failures.push("receipt changed externally; preserved for review".to_owned()),
+                }
+            }
+            match eoie_rust_std_fs_mutation::rooted_create_hardlink_within(root, &backup, &source) {
+                Ok(()) => { if let Err(error) = fs::remove_file(&backup) { failures.push(format!("backup cleanup: {error}")); } }
+                Err(error) => failures.push(format!("source restore: {error}; original retained at {}", backup.display())),
+            }
+            if failures.is_empty() {
+                let _ = fs::remove_dir(&stage);
+                return Err(format!("{error}; rolled back"));
+            }
+            return Err(format!("{error}; rollback incomplete: {}", failures.join("; ")));
+        }
+        if let Err(error) = fs::remove_dir(&stage) { eprintln!("prune stage cleanup failed: {error}"); }
+        println!("eoie proxy prune-uncovered ok relative={relative} sha256={hash}");
+        Ok(())
+    }
+
+    """

@@ -1,0 +1,210 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl sleeper_source () : string =
+    """
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    if args[1] == "parent" {
+        let _ = std::process::Command::new(&args[0]).arg("child").arg(&args[3]).spawn();
+    }
+    loop {
+        use std::io::Write;
+        if let Ok(mut beat) = std::fs::OpenOptions::new().create(true).append(true).open(&args[2]) {
+            let _ = beat.write_all(b".");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+}
+"""
+
+inl job_call (root : fixture_root) (args : cli_args) : cli_run =
+    eoie_run (fixture_text_of root) (Arg (cat "EOIE_JOBS_HOME=" (fixture_path root "jobs"), NoArgs)) (Arg ("EOIE_JOB_RELAUNCHED", Arg ("EOIE_JOB_WATCH", NoArgs))) (Arg ("job", args))
+
+inl beat_bytes (root : fixture_root) (~name : string) : string = decimal (byte_count (fixture_read root name))
+
+inl probe_printer_source () : string =
+    """
+fn main() {
+    print!("{}", std::env::var("EOIE_ENV_PROBE").unwrap_or_default());
+}
+"""
+
+inl probed_call (root : fixture_root) (~value : string) (args : cli_args) : cli_run =
+    eoie_run (fixture_text_of root) (Arg (cat "EOIE_JOBS_HOME=" (fixture_path root "jobs"), Arg (cat "EOIE_ENV_PROBE=" value, NoArgs))) (Arg ("EOIE_JOB_RELAUNCHED", Arg ("EOIE_JOB_WATCH", NoArgs))) (Arg ("job", args))
+
+///> rust
+test each_job_runs_with_the_environment_of_its_own_caller =
+    inl root = fixture_root_create "job env"
+    inl printer = rustc_program root "printer" (probe_printer_source ())
+    inl first = word_after (succeeded (probed_call root "first" (Arg ("start", Arg ("env-first", Arg ("60000", Arg (printer, NoArgs))))))) "id="
+    inl second = word_after (succeeded (probed_call root "second" (Arg ("start", Arg ("env-second", Arg ("60000", Arg (printer, NoArgs))))))) "id="
+    shows (succeeded (job_call root (Arg ("wait", Arg (first, Arg ("60000", NoArgs)))))) "state=finished exit=0"
+    shows (succeeded (job_call root (Arg ("wait", Arg (second, Arg ("60000", NoArgs)))))) "state=finished exit=0"
+    same (fixture_read root (cat "jobs/" (cat first "/stdout.log"))) "first"
+    same (fixture_read root (cat "jobs/" (cat second "/stdout.log"))) "second"
+    expect (path_exists (fixture_path root (cat "jobs/" (cat second "/env"))) = false) "the supervisor deletes the environment file once adopted"
+    fixture_root_remove root
+
+inl started_tree (root : fixture_root) : string =
+    inl sleeper = rustc_program root "sleeper" (sleeper_source ())
+    inl started = succeeded (job_call root (Arg ("start", Arg ("stop-me", Arg ("60000", Arg (sleeper, Arg ("parent", Arg (fixture_path root "parent.beat", Arg (fixture_path root "child.beat", NoArgs)))))))))
+    expect (path_appears (fixture_path root "child.beat") 20000u64) (cat "the child never beat: " started)
+    word_after started "id="
+
+///> rust
+test a_stop_ends_the_whole_job_tree_and_settles_as_stopped =
+    inl root = fixture_root_create "job stop"
+    inl id = started_tree root
+    inl stopped = succeeded (job_call root (Arg ("stop", Arg (id, NoArgs))))
+    shows stopped "state=stopped"
+    shows stopped "exit=143"
+    shows stopped "stopped on request; process tree stopped"
+    inl parent_before = beat_bytes root "parent.beat"
+    inl child_before = beat_bytes root "child.beat"
+    pause_ms 700u64
+    same (beat_bytes root "parent.beat") parent_before
+    same (beat_bytes root "child.beat") child_before
+    shows (succeeded (job_call root (Arg ("status", Arg (id, NoArgs))))) "state=stopped"
+    fixture_root_remove root
+
+///> rust
+test a_run_supervises_in_the_calling_process_and_passes_the_exit_through =
+    inl root = fixture_root_create "job run"
+    inl quick = rustc_program root "three" "fn main() { std::process::exit(3); }"
+    inl ran = job_call root (Arg ("run", Arg ("attached", Arg ("60000", Arg (quick, NoArgs)))))
+    expect (ran.code = 3i32) (run_text ran)
+    shows ran.stdout "eoie job run started id=job-"
+    shows ran.stdout "state=finished exit=3"
+    inl id = word_after ran.stdout "id="
+    shows (succeeded (job_call root (Arg ("status", Arg (id, NoArgs))))) "state=finished exit=3"
+    fixture_root_remove root
+
+///> rust
+test killing_only_the_supervisor_takes_the_whole_job_tree_down =
+    inl root = fixture_root_create "job kill on close"
+    inl sleeper = rustc_program root "sleeper" (sleeper_source ())
+    inl started = succeeded (job_call root (Arg ("start", Arg ("orphan-me", Arg ("60000", Arg (sleeper, Arg ("parent", Arg (fixture_path root "parent.beat", Arg (fixture_path root "child.beat", NoArgs)))))))))
+    expect (path_appears (fixture_path root "child.beat") 20000u64) (cat "the child never beat: " started)
+    inl _ = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("kill", Arg (word_after started "supervisor_pid=", NoArgs))))
+    pause_ms 1500u64
+    inl child_before = beat_bytes root "child.beat"
+    inl parent_before = beat_bytes root "parent.beat"
+    pause_ms 1000u64
+    same (beat_bytes root "child.beat") child_before
+    same (beat_bytes root "parent.beat") parent_before
+    fixture_root_remove root
+
+inl decimal_text (~value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+
+inl stamp (~offset : u64) : string = decimal_text (now_ms () - offset)
+
+///> rust
+test a_job_whose_supervisor_died_settles_as_lost_with_a_frozen_elapsed =
+    inl root = fixture_root_create "job lost"
+    fixture_write root "jobs/job-1-lost/label" "reaped"
+    fixture_write root "jobs/job-1-lost/timeout_ms" "600000"
+    fixture_write root "jobs/job-1-lost/started_ms" (stamp 120000u64)
+    fixture_write root "jobs/job-1-lost/heartbeat_ms" (stamp 60000u64)
+    inl first = succeeded (job_call root (Arg ("status", Arg ("job-1-lost", NoArgs))))
+    shows first "state=lost exit=125"
+    shows first "the supervisor stopped beating"
+    expect (path_exists (fixture_path root "jobs/job-1-lost/exit")) "the lost state is recorded"
+    pause_ms 1200u64
+    same (word_after (succeeded (job_call root (Arg ("status", Arg ("job-1-lost", NoArgs))))) "elapsed_ms=") (word_after first "elapsed_ms=")
+    fixture_write root "jobs/job-2-stalled/label" "stalled"
+    fixture_write root "jobs/job-2-stalled/timeout_ms" "600000"
+    fixture_write root "jobs/job-2-stalled/started_ms" (stamp 120000u64)
+    fixture_write root "jobs/job-2-stalled/heartbeat_ms" (stamp 60000u64)
+    fixture_write root "jobs/job-2-stalled/supervisor" ($'std::rc::Rc::<str>::from(std::process::id().to_string().as_str())' : string)
+    shows (succeeded (job_call root (Arg ("status", Arg ("job-2-stalled", NoArgs))))) "state=running"
+    expect (path_exists (fixture_path root "jobs/job-2-stalled/exit") = false) "a stale heartbeat with a live supervisor is a stall, not a loss"
+    fixture_root_remove root
+///> rust
+test a_wait_without_a_limit_waits_out_the_job =
+    inl root = fixture_root_create "job wait default"
+    inl nap = rustc_program root "nap" "fn main() { std::thread::sleep(std::time::Duration::from_secs(3)); }"
+    inl id = word_after (succeeded (job_call root (Arg ("start", Arg ("nap", Arg ("60000", Arg (nap, NoArgs))))))) "id="
+    shows (succeeded (job_call root (Arg ("wait", Arg (id, NoArgs))))) "state=finished exit=0"
+    fixture_root_remove root
+
+///> rust
+test a_stop_refuses_unknown_and_settled_jobs =
+    inl root = fixture_root_create "job stop refusals"
+    rejected_with (job_call root (Arg ("stop", Arg ("job-0-missing", NoArgs)))) 2i32 "stop: unknown job id job-0-missing"
+    rejected_with (job_call root (Arg ("stop", Arg ("..", NoArgs)))) 2i32 "stop: unknown job id .."
+    inl finished = succeeded (job_call root (Arg ("start", Arg ("quick", Arg ("60000", Arg (rustc_program root "quick" "fn main() {}", NoArgs))))))
+    inl id = word_after finished "id="
+    shows (succeeded (job_call root (Arg ("wait", Arg (id, Arg ("30000", NoArgs)))))) "state=finished"
+    rejected_with (job_call root (Arg ("stop", Arg (id, NoArgs)))) 2i32 "is already finished; nothing to stop"
+    expect (path_exists (fixture_path root (cat "jobs/" (cat id "/stop"))) = false) "a refused stop leaves no request behind"
+    fixture_root_remove root
+
+inl exiter_source () : string =
+    """
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    std::thread::sleep(std::time::Duration::from_millis(args[1].parse().unwrap()));
+    std::process::exit(args[2].parse().unwrap());
+}
+"""
+
+inl started_id (run : cli_run) : string = word_after (succeeded run) "id="
+
+///> rust
+test after_waits_for_the_named_job_and_after_ok_skips_when_it_failed =
+    inl root = fixture_root_create "job after"
+    inl exiter = rustc_program root "exiter" (exiter_source ())
+    inl first = started_id (job_call root (Arg ("start", Arg ("first", Arg ("60000", Arg (exiter, Arg ("8000", Arg ("3", NoArgs))))))))
+    inl second = started_id (job_call root (Arg ("start", Arg ("--after", Arg (first, Arg ("second", Arg ("60000", Arg (exiter, Arg ("0", Arg ("0", NoArgs))))))))))
+    inl third = started_id (job_call root (Arg ("start", Arg ("--after-ok", Arg (first, Arg ("third", Arg ("60000", Arg (exiter, Arg ("0", Arg ("0", NoArgs))))))))))
+    shows (succeeded (job_call root (Arg ("status", Arg (second, NoArgs))))) "state=queued"
+    shows (succeeded (job_call root (Arg ("wait", Arg (second, Arg ("30000", NoArgs)))))) "state=finished exit=0"
+    shows (succeeded (job_call root (Arg ("status", Arg (first, NoArgs))))) "state=finished exit=3"
+    inl skipped = job_call root (Arg ("wait", Arg (third, Arg ("30000", NoArgs))))
+    expect (skipped.code = 125i32) (run_text skipped)
+    shows skipped.stdout "state=skipped exit=125"
+    shows skipped.stdout (cat (cat "--after-ok: " first) " ended finished exit 3")
+    rejected_with (job_call root (Arg ("start", Arg ("--after", Arg ("job-0-missing", Arg ("x", Arg ("1000", Arg (exiter, Arg ("0", Arg ("0", NoArgs)))))))))) 2i32 "--after names no job: job-0-missing"
+    fixture_root_remove root
+
+inl allocator_source () : string = "fn main() { let mut held: Vec<Vec<u8>> = Vec::new(); loop { held.push(vec![7u8; 16 << 20]); std::thread::sleep(std::time::Duration::from_millis(20)); } }"
+
+///> rust
+test a_job_over_its_memory_cap_stops_as_memory_capped =
+    if on_windows () then
+        inl root = fixture_root_create "job memory cap"
+        inl allocator = rustc_program root "allocator" (allocator_source ())
+        inl started = succeeded (job_call root (Arg ("start", Arg ("--max-private-mb", Arg ("192", Arg ("cap-me", Arg ("60000", Arg (allocator, NoArgs))))))))
+        shows started "max_private_mb=192"
+        inl id = word_after started "id="
+        inl waited = job_call root (Arg ("wait", Arg (id, Arg ("60000", NoArgs))))
+        expect (waited.code = 137i32) (cat "expected exit 137, " (run_text waited))
+        shows waited.stdout "state=memory-capped"
+        shows waited.stdout "private memory cap reached"
+        shows waited.stdout "max_private_mb=192 peak_private_mb="
+        rejected_with (job_call root (Arg ("start", Arg ("--max-private-mb", Arg ("0", Arg ("zero", Arg ("1000", Arg (allocator, NoArgs)))))))) 2i32 "--max-private-mb needs a positive number of MB"
+        fixture_root_remove root
+    else ()
+
+///> rust
+test a_job_past_its_done_within_minutes_stops_as_timed_out =
+    inl root = fixture_root_create "job done within"
+    inl sleepy = rustc_program root "sleepy" "fn main() { std::thread::sleep(std::time::Duration::from_secs(300)); }"
+    inl started = succeeded (job_call root (Arg ("start", Arg ("--done-within", Arg ("1", Arg ("capped", Arg ("600000", Arg (sleepy, NoArgs))))))))
+    shows started "done_within_min=1"
+    inl waited = job_call root (Arg ("wait", Arg (word_after started "id=", Arg ("150000", NoArgs))))
+    expect (waited.code = 124i32) (cat "expected exit 124, " (run_text waited))
+    shows waited.stdout "state=timed-out"
+    rejected_with (job_call root (Arg ("start", Arg ("--done-within", Arg ("0", Arg ("zero", Arg ("1000", Arg (sleepy, NoArgs)))))))) 2i32 "--done-within needs a positive number of minutes"
+    fixture_root_remove root
+
+///> rust
+test a_fixture_home_whose_job_host_ran_can_be_removed =
+    inl root = fixture_root_create "job home removable"
+    inl quick = rustc_program root "quick" "fn main() {}"
+    inl id = word_after (succeeded (job_call root (Arg ("start", Arg ("quick", Arg ("30000", Arg (quick, NoArgs))))))) "id="
+    shows (succeeded (job_call root (Arg ("wait", Arg (id, Arg ("30000", NoArgs)))))) "state=finished exit=0"
+    inl home = fixture_path root "jobs"
+    fixture_root_remove root
+    expect (path_exists home = false) "the job host no longer holds its caller's working directory, so the fixture home goes"

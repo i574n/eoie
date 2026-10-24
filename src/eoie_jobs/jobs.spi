@@ -1,0 +1,117 @@
+open rust_std_string.model
+open model
+open host
+
+let job_directory (~id : string) : string = joined (jobs_root ()) id
+let job_file (~id : string) (~name : string) : string = joined (job_directory id) name
+
+let job_environment_adopted (~id : string) : () =
+    inl path = job_file id "env"
+    if file_exists path then
+        env.environment_restored (text_or_empty path) "EOIE_JOB_"
+        file_system.file_delete path
+    else ()
+
+let job_record_of (~id : string) : job_record =
+    record_at
+        (text_or_empty (job_file id "exit"))
+        (decimal_u64 (text_or_empty (job_file id "heartbeat_ms")))
+        (decimal_u64 (text_or_empty (job_file id "started_ms")))
+        (now_ms ())
+
+let job_state_now (~id : string) : job_state =
+    inl record = job_record_of id
+    inl state = job_state_of record
+    match state with
+    | Settled (JobLost) =>
+        inl supervisor = decimal_u64 (text_or_empty (job_file id "supervisor"))
+        if supervisor <> 0u64 && process_alive supervisor then Live JobRunning
+        else
+            inl child = decimal_u64 (text_or_empty (job_file id "pid"))
+            inl gone = child = 0u64 || process_alive child = false
+            inl _ = if record.exit_text = "" && gone then text_written (job_file id "exit") (exit_line 125i32 (if record.heartbeat_ms > 0u64 then record.heartbeat_ms else record.started_ms) JobLost "the supervisor stopped beating: it was killed (with its caller, by the memory reaper) or crashed, and its job tree ended with it") else ""
+            state
+    | _ => state
+
+let elapsed_of (~id : string) : u64 =
+    inl record = job_record_of id
+    inl exit_text = record.exit_text
+    inl ended = if exit_text = "" then record.now_ms else decimal_u64 ($'std::rc::Rc::<str>::from(!exit_text.split(char::from(9u8)).nth(1).unwrap_or("0"))' : string)
+    if ended > record.started_ms then ended - record.started_ms else 0u64
+
+let gate_queued (~id : string) : bool =
+    if file_exists (job_file id "after") && file_exists (job_file id "after-done") = false then true
+    elif file_exists (job_file id "window-class") then rust_std_string.model.starts_with (text_or_empty (job_file id "window")) "granted" = false
+    else file_exists (job_file id "heavy-wrapper.ps1") && rust_std_string.model.contains (text_or_empty (job_file id "stdout.log")) "Invoke-Heavy: acquired slot" = false
+
+let job_summary (~verb : string) (~id : string) : string =
+    inl state = job_state_now id
+    inl head = concat5 "eoie job " verb " ok id=" id " state="
+    inl gate_wait = gate_queued id
+    inl codes = concat5 (state_shown state gate_wait) " exit=" (exit_shown state) " elapsed_ms=" (decimal_text (elapsed_of id))
+    inl sizes = concat5 " stdout_bytes=" (decimal_text (file_bytes (job_file id "stdout.log"))) " stderr_bytes=" (decimal_text (file_bytes (job_file id "stderr.log"))) ""
+    inl detail = exit_detail (text_or_empty (job_file id "exit"))
+    inl detail_text = if detail = "" then "" else concat5 " detail=\"" detail "\"" "" ""
+    inl label = concat5 " label=" (text_or_empty (job_file id "label")) "" "" ""
+    inl cap = text_or_empty (job_file id "memory_cap_mb")
+    inl memory = if cap = "" then "" else concat5 " max_private_mb=" cap " peak_private_mb=" (if file_exists (job_file id "peak_private_mb") then text_or_empty (job_file id "peak_private_mb") else "0") ""
+    concat5 head codes sizes detail_text (concat5 memory label "" "" "")
+
+let rejected (~message : string) : i32 =
+    stderr_line (concat5 "eoie error: job " message "" "" "")
+    2i32
+
+inl known_job (~id : string) : bool = starts_with id "job-" && directory_exists (job_directory id)
+
+let job_status () : i32 =
+    inl id = argument 3i32
+    if known_job id then
+        stdout_line (job_summary "status" id)
+        0i32
+    else rejected (concat5 "status: unknown job id " id "" "" "")
+
+let rec waited (~id : string) (deadline : u64) (~watch : u64) : job_state =
+    inl state = job_state_now id
+    if state_settled state || now_ms () > deadline || process_alive watch = false then state
+    else
+        sleep_ms 250u64
+        waited id deadline watch
+
+let watched_caller () : u64 =
+    inl inherited = $'std::env::var("EOIE_JOB_WATCH").ok().and_then(|value| value.parse::<u64>().ok()).unwrap_or(0)' : u64
+    if inherited = 0u64 then parent_pid () else inherited
+
+let job_waited () : i32 =
+    inl id = argument 3i32
+    if known_job id then
+        inl deadline = now_ms () + (if argument_count () > 4i32 then decimal_u64 (argument 4i32) else 864000000u64)
+        inl state = waited id deadline (watched_caller ())
+        stdout_line (job_summary "wait" id)
+        state_exit state
+    else rejected (concat5 "wait: unknown job id " id "" "" "")
+
+let started_code (attached : bool) : i32 =
+    inl result = if attached then $'eoie_job_launch::eoie_job_start(true)' : string else $'eoie_job_launch::eoie_job_start(false)' : string
+    inl code = $'(!result).split(char::from(9u8)).next().and_then(|code| code.trim().parse::<i32>().ok()).unwrap_or(2)' : i32
+    inl id = $'std::rc::Rc::<str>::from((!result).split(char::from(9u8)).nth(1).unwrap_or("").trim())' : string
+    inl _ = if attached && id <> "" then stdout_line (job_summary "run" id) else ()
+    code
+
+let job_run () : i32 =
+    match job_command_of (argument 2i32) with
+    | JobStart => started_code false
+    | JobRun => started_code true
+    | JobSupervise =>
+        inl id = argument 3i32
+        $'eoie_job_supervise::eoie_job_supervise(&*!id)' : i32
+    | JobHost => $'eoie_job_host::eoie_job_host_run()' : i32
+    | JobStatus => job_status ()
+    | JobWait => job_waited ()
+    | JobList => $'eoie_job_control::eoie_job_list_run()' : i32
+    | JobTail => $'eoie_job_control::eoie_job_tail_run()' : i32
+    | JobStop => $'eoie_job_control::eoie_job_stop_run()' : i32
+    | JobUnknown => rejected (job_usage ())
+
+inl main () : i32 =
+    !!!!Export("eoie_job_run", ((fun () => job_run ()) : () -> i32))
+    0i32

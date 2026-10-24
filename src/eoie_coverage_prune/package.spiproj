@@ -1,0 +1,9 @@
+packages:
+    |core-
+    spiral-
+    coverage_prune_model-
+modules:
+    prune_terminal
+    coverage_export
+    coverage_union
+    coverage

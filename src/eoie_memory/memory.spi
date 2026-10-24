@@ -1,0 +1,62 @@
+open rust_std_string.model
+open eoie_memory_model.model
+
+
+let rec rendered_into (list : memory_list) (~out : string) (written : i32) : i32 =
+    match list with
+    | NoMemories => written
+    | MemoryThen (entry, rest) => rendered_into rest out (if text_written (path_joined out entry.file) (rendered entry) then written + 1i32 else written)
+
+let memory_render (~data : string) (~out : string) : i32 =
+    if file_present data = false then failed (concat5 "render needs a readable data file: " data "" "" "")
+    else
+        inl store = store_of (exact_text data)
+        inl written = rendered_into store.memories out 0i32
+        inl index_written = text_written (path_joined out "MEMORY.md") store.index
+        if written = store.count && index_written then
+            stdout_line (concat5 "eoie memory render ok memories=" (count_text written) " out=" out "")
+            0i32
+        else failed (concat5 "render wrote " (count_text written) " of " (count_text store.count) " memories")
+
+union memory_verb =
+    | VerbImport
+    | VerbRender
+    | VerbCheck
+    | VerbList
+    | VerbRecall
+
+union verb_parse =
+    | VerbKnown : memory_verb
+    | VerbUnknown
+
+inl verb_word (verb : memory_verb) : string = ascii_lowercase (union_reflection.cases.union_case_suffix "Verb" verb)
+
+let memory_usage () : string = "usage: eoie memory import <memory-dir> <data.spi> | render <data.spi> <out-dir> | check <data.spi> | list <data.spi> [--kind user|feedback|project|reference] | recall <data.spi> \"<words>\" [--limit n]"
+
+let memory_run () : i32 =
+    inl word = argument 2i32
+    match union_reflection.cases.union_case_where (fun (verb : memory_verb) => word = verb_word verb) (fun verb => VerbKnown verb) VerbUnknown with
+    | VerbUnknown => failed (memory_usage ())
+    | VerbKnown verb =>
+        match verb with
+        | VerbImport =>
+            inl dir = argument 3i32
+            inl data = argument 4i32
+            if data = "" then failed (memory_usage ()) else $'eoie_memory_import::eoie_memory_import(&*!dir, &*!data)' : i32
+        | VerbRender => if argument 4i32 = "" then failed (memory_usage ()) else memory_render (argument 3i32) (argument 4i32)
+        | VerbCheck =>
+            inl data = argument 3i32
+            if data = "" then failed (memory_usage ()) else $'eoie_memory_query::eoie_memory_check(&*!data)' : i32
+        | VerbList =>
+            inl data = argument 3i32
+            inl kind = option_value "--kind"
+            if data = "" then failed (memory_usage ()) else $'eoie_memory_query::eoie_memory_list(&*!data, &*!kind)' : i32
+        | VerbRecall =>
+            inl data = argument 3i32
+            inl query = argument 4i32
+            inl limit = decimal_of (option_value "--limit") 10i32
+            if query = "" then failed (memory_usage ()) else $'eoie_memory_query::eoie_memory_recall(&*!data, &*!query, !limit)' : i32
+
+inl main () : i32 =
+    !!!!Export("eoie_memory_run", ((fun () => memory_run ()) : () -> i32))
+    0i32

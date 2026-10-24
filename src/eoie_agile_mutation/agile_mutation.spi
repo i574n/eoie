@@ -1,0 +1,218 @@
+open agile_mutation_policy.model
+open agile_subcommand_domain.subcommand
+open workspace_primitives.outcome
+
+inl agile_mutation_error (~message : string) : i32 = workspace_primitives.console.stderr_failure message
+
+nominal agile_idle = ()
+nominal agile_arguments_ready = ()
+nominal agile_validated = ()
+nominal agile_locked = ()
+nominal agile_committed = ()
+
+union agile_op from to =
+    | CollectAgileArguments :: agile_op agile_idle agile_arguments_ready
+    | ValidateAgileProtocol :: agile_op agile_arguments_ready agile_validated
+    | LockAgileState :: agile_op agile_validated agile_locked
+    | CommitAgileMutation :: agile_op agile_locked agile_committed
+union rec agile_plan from to =
+    | AgileStep :: forall from to. agile_op from to -> agile_plan from to
+    | AgileThen :: forall from to. (exists middle. agile_plan from middle * agile_plan middle to) -> agile_plan from to
+
+inl typed_agile_plan () : agile_plan agile_idle agile_committed =
+    AgileThen (exists (
+        AgileStep CollectAgileArguments,
+        AgileThen (exists (AgileStep ValidateAgileProtocol, AgileThen (exists (AgileStep LockAgileState, AgileStep CommitAgileMutation))))
+    ))
+
+inl args_len_is expected : bool = rust_std_env.model.args_len_is expected
+inl argument_len index : i32 = rust_std_env.model.argument_len index
+inl argument_byte index offset : i32 = rust_std_env.model.argument_byte index offset
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+inl argument_equals index expected : bool = rust_std_env.model.argument_equals index expected
+inl i32_eq a b : bool = $"!a == !b"
+inl i32_le a b : bool = $"!a <= !b"
+inl i32_nonnegative value : bool = $"0 <= !value"
+inl i32_positive value : bool = $"0 < !value"
+inl i32_digit value : bool = if 48i32 <= value then value <= 57i32 else false
+inl i32_digit_value value : i32 = $"!value - 48"
+inl i32_pair_value a b : i32 = $"!a * 10 + !b"
+inl i32_triple_value a b c : i32 = $"!a * 100 + !b * 10 + !c"
+inl invalid_i32 () : i32 = $"-1"
+inl all2 a b = if a then b else false
+inl all3 a b c = if a then if b then c else false else false
+inl all4 a b c d = if a then if b then if c then d else false else false else false
+
+inl agile_full_usage_error () : i32 =
+    inl ~message = !!!!StaticStringConcat("agile supports ", agile_subcommand_domain.subcommand.agile_subcommand_usage ", ")
+    agile_mutation_error message
+inl received_operands () : string = $'std::rc::Rc::<str>::from(std::env::args().skip(3).count().to_string())' : string
+inl agile_shape_error (~subcommand : string) (~shape : string) : i32 =
+    inl head = rust_std_string.model.concat5 "agile " subcommand " expects " shape ", received "
+    inl message = rust_std_string.model.concat5 head (received_operands ()) " operands; see eoie agile --help" "" ""
+    agile_mutation_error message
+let agile_usage_error () : i32 =
+    inl subcommand = argument_owned 0i32
+    inl shape = agile_subcommand_domain.subcommand.agile_subcommand_shape subcommand
+    if rust_std_string.model.equals shape "" then agile_full_usage_error () else agile_shape_error subcommand shape
+inl agile_title_error () : i32 = agile_mutation_error "begin title must contain 3..7 visible words"
+inl agile_slot_error (~slot : string) (~expected : string) (index : i32) : i32 =
+    inl message = rust_std_string.model.concat5 "agile set: " slot (rust_std_string.model.concat5 " must be " expected ", received '" (argument_owned index) "'") "; usage: agile set <root> <id> <progress> <Planned|Active|Blocked|Paused|Done>" ""
+    agile_mutation_error message
+inl agile_progress_error () : i32 = agile_slot_error "progress" "a whole number 0..100" 3i32
+inl agile_status_error () : i32 = agile_slot_error "status" "Planned, Active, Blocked, Paused or Done" 4i32
+inl agile_check (~root : string) : i32 = $"eoie_agile_state::agile_check_owned(!root.as_ref())"
+inl agile_lease_status (~root : string) : i32 = $"eoie_agile_state::agile_lease_status_owned(!root.as_ref())"
+inl agile_handoff (~root : string) : i32 = $"eoie_handoff_render::handoff_render_owned(!root.as_ref())"
+inl agile_record (~root : string) : i32 = $"eoie_agile_state::agile_record_owned(!root.as_ref())"
+inl agile_begin (~root : string) (~title : string) words : i32 =
+    inl _ = words
+    $"eoie_agile_state::agile_begin_owned(!root.as_ref(), !title.as_ref())"
+inl agile_set (~root : string) (~id : string) (agile_progress progress) status : i32 =
+    inl code = agile_status_code status
+    $"eoie_agile_state::agile_set_validated_owned(!root.as_ref(), !id.as_ref(), !progress, !code)"
+
+inl digit_value index offset : i32 =
+    inl value = argument_byte index offset
+    if i32_digit value then i32_digit_value value else invalid_i32 ()
+inl validate_progress () : validation_result agile_progress =
+    inl length = argument_len 3i32
+    inl a = digit_value 3i32 0i32
+    inl b = digit_value 3i32 1i32
+    inl c = digit_value 3i32 2i32
+    if all2 (length = 1i32) (i32_nonnegative a) then Valid (agile_progress a)
+    elif all3 (length = 2i32) (i32_nonnegative a) (i32_nonnegative b) then Valid (agile_progress (i32_pair_value a b))
+    elif all4 (length = 3i32) (i32_nonnegative a) (i32_nonnegative b) (i32_nonnegative c) then
+        inl value = i32_triple_value a b c
+        if value <= 100i32 then Valid (agile_progress value) else Invalid
+    else Invalid
+inl validate_status () : validation_result agile_status =
+    inl text = argument_owned 4i32
+    union_reflection.cases.union_cases_fold
+        (fun parsed (status : agile_status) =>
+            if rust_std_string.model.equals text (union_reflection.cases.union_case_suffix "Agile" status) then Valid status else parsed)
+        Invalid
+
+let planning_field_named (~name : string) : bool =
+    union_reflection.cases.union_case_where
+        (fun (field : agile_planning_model.model.planning_field) => name = agile_planning_model.model.planning_field_name field)
+        (fun _ => true)
+        false
+inl agile_edit_route () : i32 =
+    if planning_field_named (argument_owned 3i32) then $"agile_planning_revision::eoie_agile_planning_edit_run()"
+    else $"agile_task_revision::eoie_agile_edit_run()"
+inl agile_argument_count () : i32 = $'std::env::args().skip(2).count() as i32' : i32
+
+inl agile_root_only (run : string -> i32) : i32 = if args_len_is 2i32 then run (argument_owned 1i32) else agile_usage_error ()
+inl agile_with_root (route : () -> i32) : i32 = if 2i32 <= agile_argument_count () then route () else agile_usage_error ()
+inl agile_arity_route (accepted : bool) (route : () -> i32) : i32 = if accepted then route () else agile_usage_error ()
+inl agile_either_arity a b : bool = if args_len_is a then true else args_len_is b
+inl agile_begin_route () : i32 =
+    inl root = argument_owned 1i32
+    inl title = argument_owned 2i32
+    inl words : i32 = $"eoie_agile_lease::eoie_lease_title_words()"
+    if i32_positive words then agile_begin root title words else agile_title_error ()
+inl agile_done_route (~root : string) (~id : string) progress : i32 =
+    inl sites = $'std::rc::Rc::<str>::from(agile_todo_scan::eoie_agile_todo_sites(&*!root, &*!id).trim_end())' : string
+    if rust_std_string.model.equals sites "" then agile_set root id progress AgileDone
+    else
+        inl message = rust_std_string.model.concat5 "agile set " id " rejected: TODO blocks still name it; cut them or keep the item open:\n" sites ""
+        agile_mutation_error message
+inl set_with_author () : bool = if args_len_is 7i32 then rust_std_string.model.equals (argument_owned 5i32) "--as" else false
+inl agile_set_author_error () : i32 =
+    inl message = rust_std_string.model.concat5 "agile set records no author (only agile note does); drop --as " (argument_owned 6i32) ", or add a note with --as to say who moved " (argument_owned 2i32) ""
+    agile_mutation_error message
+inl todos_recording () : bool = $'std::env::args().skip(4).any(|argument| argument == "--record")' : bool
+inl agile_set_route () : i32 =
+    inl root = argument_owned 1i32
+    inl id = argument_owned 2i32
+    match validate_progress (), validate_status () with
+    | Valid progress, Valid status =>
+        match status with
+        | AgileDone => agile_done_route root id progress
+        | _ => agile_set root id progress status
+    | Invalid, _ => agile_progress_error ()
+    | _, Invalid => agile_status_error ()
+
+let state_lock_taken (~root : string) : bool =
+    $'{ let state = std::path::Path::new(&*!root).join("state"); let lock = state.join("agile.spi.lock"); let started = std::time::Instant::now(); loop { if std::fs::create_dir(&lock).is_ok() { break true; } if \!state.is_dir() { break true; } let stale = std::fs::metadata(&lock).and_then(|meta| meta.modified()).ok().and_then(|time| time.elapsed().ok()).map(|age| age.as_secs() >= 10).unwrap_or(false); if stale { let _ = std::fs::remove_dir(&lock); continue; } if started.elapsed() >= std::time::Duration::from_secs(30) { break false; } std::thread::sleep(std::time::Duration::from_millis(25)); } }' : bool
+
+let state_lock_released (~root : string) : () = $'{ let _ = std::fs::remove_dir(std::path::Path::new(&*!root).join("state").join("agile.spi.lock")); }' : ()
+
+let state_lock_held (writes : bool) (~root : string) : bool = if writes then state_lock_taken root else true
+
+let state_lock_done (writes : bool) (~root : string) : () = if writes then state_lock_released root else ()
+
+let state_lock_refused () : i32 =
+    inl message = "agile state/agile.spi stayed locked by another writer for 30 s; nothing written, run the call again"
+    agile_mutation_error message
+
+inl agile_writes (subcommand : agile_subcommand) : bool =
+    match subcommand with
+    | AgileInit => false
+    | AgileLease => false
+    | AgileStatus => false
+    | AgileHandoff => false
+    | AgileList => false
+    | AgileCheck => false
+    | AgileShow => false
+    | AgilePlan => false
+    | AgileNext => false
+    | AgileLinks => false
+    | AgileBegin => true
+    | AgileRecord => true
+    | AgileSet => true
+    | AgileAdd => true
+    | AgileEdit => true
+    | AgileMigrateTags => true
+    | AgileNote => true
+    | AgileNoteEdit => true
+    | AgileNotes => true
+    | AgileRename => true
+    | AgileTodos => true
+    | AgileRoots => true
+    | AgileViews => false
+    | AgileView => false
+    | AgileViewAdd => true
+inl agile_route (subcommand : agile_subcommand) : i32 =
+    match subcommand with
+    | AgileInit => agile_root_only fun _ => $"agile_backlog_scaffold::eoie_agile_init_run()"
+    | AgileBegin => agile_arity_route (args_len_is 3i32) agile_begin_route
+    | AgileLease | AgileStatus => agile_root_only agile_lease_status
+    | AgileHandoff => agile_root_only agile_handoff
+    | AgileList => agile_with_root fun () => $"agile_task_listing::eoie_agile_list_run()"
+    | AgileCheck => agile_root_only agile_check
+    | AgileRecord => agile_root_only agile_record
+    | AgileSet => if set_with_author () then agile_set_author_error () else agile_arity_route (args_len_is 5i32) agile_set_route
+    | AgileAdd => agile_arity_route (8i32 <= ($'std::env::args().skip(2).count() as i32' : i32)) fun () => $"agile_task_creation::eoie_agile_add_run()"
+    | AgileEdit => agile_arity_route (args_len_is 5i32) agile_edit_route
+    | AgileShow => agile_arity_route (agile_either_arity 3i32 4i32) fun () => $"agile_task_inspection::eoie_agile_show_run()"
+    | AgilePlan => agile_with_root fun () => $"agile_planning_rollup::eoie_agile_planning_rollup_run()"
+    | AgileMigrateTags => agile_with_root fun () => $"agile_planning_migration::eoie_agile_migrate_tags_run()"
+    | AgileNote => agile_arity_route (agile_either_arity 4i32 6i32) fun () => $"agile_task_notes::eoie_agile_note_run()"
+    | AgileNoteEdit => agile_arity_route (agile_either_arity 5i32 7i32) fun () => $"agile_note_edit::eoie_agile_note_edit_run()"
+    | AgileNotes => agile_arity_route (args_len_is 4i32) fun () => $"agile_title_notes::eoie_agile_notes_from_title_run()"
+    | AgileRename => agile_arity_route (args_len_is 4i32) fun () => $"agile_task_rename::eoie_agile_rename_run()"
+    | AgileTodos => agile_with_root fun () => if todos_recording () then $"agile_todo_record::eoie_agile_todos_record_run()" else $"agile_todo_scan::eoie_agile_todos_run()"
+    | AgileNext => agile_with_root fun () => $"agile_task_next::eoie_agile_next_run()"
+    | AgileRoots => agile_with_root fun () => $"agile_todo_roots::eoie_agile_roots_run()"
+    | AgileLinks => agile_with_root fun () => $"agile_memory_links::eoie_agile_links_run()"
+    | AgileViews | AgileView | AgileViewAdd => agile_with_root fun () => $"agile_task_views::eoie_agile_views_run()"
+
+let agile_entry () : i32 =
+    match agile_subcommand_of (argument_owned 0i32) with
+    | AgileKnown subcommand =>
+        inl writes = agile_writes subcommand
+        inl root = argument_owned 1i32
+        if state_lock_held writes root then
+            inl code = agile_route subcommand
+            state_lock_done writes root
+            code
+        else state_lock_refused ()
+    | AgileUnknownName => agile_usage_error ()
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_run", ((fun () => agile_entry ()) : () -> i32))
+    inl _ = typed_agile_plan ()
+    inl _ = agile_entry ()
+    0i32

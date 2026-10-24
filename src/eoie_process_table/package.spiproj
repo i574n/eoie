@@ -1,0 +1,10 @@
+packages:
+    |core-
+    spiral-
+    eoie_receipt
+    eoie_machine_watch
+modules:
+    model
+    host
+    listing
+    run

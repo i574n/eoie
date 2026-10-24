@@ -1,0 +1,20 @@
+union release_closeout_gate_evidence =
+    | CloseoutState : string * string
+    | CloseoutWorkspace : string * string
+    | CloseoutContracts : string * string
+    | CloseoutBundle : string * string
+    | CloseoutColdReplay : string * string
+    | CloseoutMigration : string * string
+
+inl expected_migration () : u32 = 987u32
+inl bundle_gate () : release_closeout_gate_evidence = CloseoutBundle ("state/bundle.spi", "edb463e526c4b45d4b2e964c7e74ad52ee51909e99aa68bbaf84651140feb9db")
+inl cold_gate () : release_closeout_gate_evidence = CloseoutColdReplay ("state/fallback_retirement.spi", "6bb667b771072a61c75d71c5612ac1c906c4c584f40a988202c720591ff851ce")
+inl contracts_gate () : release_closeout_gate_evidence = CloseoutContracts ("state/cold_proof.spi", "05cbb749dde6f99e604f85d328f49491156fd4ec3e7e14cc906be35ddd19ac49")
+inl migration_gate () : release_closeout_gate_evidence = CloseoutMigration ("state/migration.spi", "7cab87a7453c7f64f60ce0df8137b8859697e6623d9a6d8f5ab8253fb1fbbcee")
+inl state_gate () : release_closeout_gate_evidence = CloseoutState ("state/core.spi", "7018c0e131c9434eaea0d14b24e82f6e2d615afe028fe5d818a899fcaa805a81")
+inl workspace_gate () : release_closeout_gate_evidence = CloseoutWorkspace ("src/Cargo.toml", "0573e909574b6e14440640cb34c871258e45eba5a98f9e6f00947134b0d577e1")
+inl closeout_registry_schema () : u32 = 2u32
+inl registry_v2_status () : string = "semantic-dereferenced"
+inl registry_sha256 () : string = "cf9ce6a28d90e5d40491f3448db2df925a6ea520f166b374aeb2c11c4cf4d3fd"
+inl closeout_sealed () : bool = true
+inl main () : i32 = 0i32

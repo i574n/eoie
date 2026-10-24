@@ -1,0 +1,95 @@
+///- --package .
+test links_model static =
+    open sm'_operators
+
+open sm'_operators
+
+union memory_kind =
+    | UserMemory
+    | FeedbackMemory
+    | ProjectMemory
+    | ReferenceMemory
+    | UntypedMemory
+
+union citation =
+    | CitesOpen
+    | CitesDone
+    | CitesMissing
+
+union link_finding =
+    | NoFinding
+    | DanglingId : string * string
+    | DoneCited : string * string
+    | UnwrittenLink : string * string
+    | UnknownMemory : string * string
+
+inl memory_kind_of (~word : string) : memory_kind =
+    if word = "user" then UserMemory
+    elif word = "feedback" then FeedbackMemory
+    elif word = "project" then ProjectMemory
+    elif word = "reference" then ReferenceMemory
+    else UntypedMemory
+
+inl citation_of (~status : string) : citation =
+    if status = "" then CitesMissing
+    elif status = "Done" then CitesDone
+    else CitesOpen
+
+inl rule_bearing = function
+    | FeedbackMemory => true
+    | ProjectMemory => true
+    | _ => false
+
+inl id_finding (kind : memory_kind) (~slug : string) (~id : string) (~status : string) : link_finding =
+    match citation_of status with
+    | CitesMissing => DanglingId (slug, id)
+    | CitesDone => if rule_bearing kind then DoneCited (slug, id) else NoFinding
+    | CitesOpen => NoFinding
+
+inl link_finding_of (~names : string) (~slug : string) (~target : string) : link_finding =
+    if sm'.listed "|" target names then NoFinding else UnwrittenLink (slug, target)
+
+inl hyphen_count (~slug : string) : i32 = $'(!slug).matches(char::from(45u8)).count() as i32' : i32
+
+inl memory_cite_finding (~names : string) (~id : string) (~slug : string) : link_finding =
+    if sm'.listed "|" slug names then NoFinding
+    elif hyphen_count slug >= 2i32 then UnknownMemory (id, slug)
+    else NoFinding
+
+inl finding_word = function
+    | NoFinding => ""
+    | DanglingId _ => "dangling"
+    | DoneCited _ => "done"
+    | UnwrittenLink _ => "unwritten-link"
+    | UnknownMemory _ => "unknown-memory"
+
+inl finding_text = function
+    | NoFinding => ""
+    | DanglingId (slug, id) => "dangling  " ++# slug ++# "  " ++# id ++# "  no backlog item with this id\n"
+    | DoneCited (slug, id) => "done  " ++# slug ++# "  " ++# id ++# "  the item is Done; check that the rule still holds\n"
+    | UnwrittenLink (slug, target) => "unwritten-link  " ++# slug ++# "  [[" ++# target ++# "]]  no memory with this name yet\n"
+    | UnknownMemory (id, slug) => "unknown-memory  " ++# id ++# "  " ++# slug ++# "  a backlog note cites this memory, which does not exist\n"
+
+inl gating = function
+    | DanglingId _ => true
+    | _ => false
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test citations_report_missing_ids_and_done_items_only_in_rule_memories =
+    expect (finding_text (id_finding FeedbackMemory "no-sleep" "EOIE-JOBS" "Active") = "") "open item"
+    expect (finding_text (id_finding ProjectMemory "lanes" "EOIE-GONE" "") = "dangling  lanes  EOIE-GONE  no backlog item with this id\n") "missing"
+    expect (finding_text (id_finding FeedbackMemory "rule" "OLD-ONE" "Done") = "done  rule  OLD-ONE  the item is Done; check that the rule still holds\n") "done in a rule"
+    expect (finding_text (id_finding ReferenceMemory "pointer" "OLD-ONE" "Done") = "") "references may cite history"
+    expect (gating (id_finding UserMemory "me" "NEW-ONE" "")) "a dangling id gates"
+
+///> rust
+test wiki_links_resolve_against_memory_names =
+    expect (finding_text (link_finding_of "eoie-first|no-sleep-polling" "rule" "eoie-first") = "") "known"
+    expect (finding_text (link_finding_of "eoie-first" "rule" "eoie-last") = "unwritten-link  rule  [[eoie-last]]  no memory with this name yet\n") "unwritten"
+    expect (finding_word (link_finding_of "eoie-first" "rule" "x") = "unwritten-link") "word"
+    expect (memory_kind_of "feedback" = FeedbackMemory) "kind"
+    expect (finding_text (memory_cite_finding "no-sleep-polling" "EOIE-X" "no-sleep-polling") = "") "a cited memory that exists"
+    expect (finding_word (memory_cite_finding "no-sleep-polling" "EOIE-X" "gone-old-rule") = "unknown-memory") "a cited memory that does not exist"
+    expect (finding_text (memory_cite_finding "no-sleep-polling" "EOIE-X" "re-measure") = "") "one hyphen reads as prose"

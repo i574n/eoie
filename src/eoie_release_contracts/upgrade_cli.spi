@@ -1,0 +1,62 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl verifier_source () : string =
+    """
+    use std::{env, fs::OpenOptions, io::Write};
+    fn main() {
+        assert_eq!(env::var("EOIE_CONTROL_READ_ONLY").unwrap(), "1");
+        let exe = env::current_exe().unwrap();
+        let role = exe.parent().unwrap().file_name().unwrap().to_str().unwrap();
+        let args: Vec<_> = env::args().skip(1).collect();
+        let mut log = OpenOptions::new().create(true).append(true).open(env::var_os("EOIE_UPGRADE_LOG").unwrap()).unwrap();
+        writeln!(log, "{}|{}", role, args.join("|")).unwrap();
+        if role == "candidate" && args[0] == "status" && env::var_os("EOIE_UPGRADE_FAIL").is_some() { std::process::exit(7); }
+    }
+    """
+
+inl upgrade_fixture () : fixture_root =
+    inl root = fixture_root_create "upgrade ü"
+    fixture_mkdir root "current"
+    fixture_mkdir root "candidate"
+    inl _ = rustc_program root "verifier" (verifier_source ())
+    fixture_copy root (cat "verifier" (exe_suffix ())) (cat "current/" (native_name ()))
+    fixture_copy root (cat "verifier" (exe_suffix ())) (cat "candidate/" (native_name ()))
+    root
+
+inl upgrade_check (root : fixture_root) (failing : bool) : cli_run =
+    inl log = Arg (cat "EOIE_UPGRADE_LOG=" (fixture_path root "gates.txt"), NoArgs)
+    inl sets = if failing then Arg ("EOIE_UPGRADE_FAIL=1", log) else log
+    eoie_run (temp_directory ()) sets (Arg ("EOIE_UPGRADE_FAIL", NoArgs)) (Arg ("proxy", Arg ("self-upgrade-check", Arg (fixture_path root "current", Arg (fixture_path root "candidate", NoArgs)))))
+
+inl gate_lines (root : fixture_root) (~role : string) (~directory : string) : string =
+    inl path = fixture_canonical root directory
+    cat (cat (cat (cat (cat role "|bundle|check|") path) "|eoie\n") (cat role "|status|")) (cat path "\n")
+
+///> rust
+test native_upgrade_preserves_all_six_strict_gates_and_propagates_failure =
+    inl root = upgrade_fixture ()
+    shows (succeeded (upgrade_check root false)) "gates=6 compatibility=strict"
+    same (fixture_read root "gates.txt") (cat (cat (gate_lines root "current" "current") (gate_lines root "current" "candidate")) (gate_lines root "candidate" "candidate"))
+    fixture_delete root "gates.txt"
+    failed_with (upgrade_check root true) "candidate-self-verifier gate failed"
+    same (decimal (fixture_line_count root "gates.txt")) "6"
+    fixture_root_remove root
+
+///> rust
+test native_upgrade_rejects_ambiguous_missing_directory_and_linked_binaries_before_launch =
+    inl root = upgrade_fixture ()
+    inl native = cat "candidate/" (native_name ())
+    inl alternate = cat "candidate/" (if native_name () = "eoie" then "eoie.exe" else "eoie")
+    fixture_copy root native alternate
+    failed_with (upgrade_check root false) "exactly one"
+    fixture_delete root alternate
+    fixture_delete root native
+    expect ((upgrade_check root false).code <> 0i32) "a missing candidate binary was accepted"
+    fixture_mkdir root native
+    expect ((upgrade_check root false).code <> 0i32) "a directory candidate binary was accepted"
+    fixture_rmdir root native
+    fixture_symlink_or_skip root (cat "current/" (native_name ())) native
+    expect ((upgrade_check root false).code <> 0i32) "a linked candidate binary was accepted"
+    expect (path_exists (fixture_path root "gates.txt") = false) "a rejected candidate was launched"
+    fixture_root_remove root

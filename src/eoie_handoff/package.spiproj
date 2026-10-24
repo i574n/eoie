@@ -1,0 +1,9 @@
+packages:
+    |core-
+    typed_predicate
+    binary_install_contract
+    release_closeout_contract
+modules:
+    binary_install_terminal
+    release_closeout_terminal
+    handoff

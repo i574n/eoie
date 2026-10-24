@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "authority_status.rs"
+
+[package]
+name = "bootstrap-authority-status"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "bootstrap_authority_status"
+path = "authority_status.rs"

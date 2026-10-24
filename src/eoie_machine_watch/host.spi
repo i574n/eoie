@@ -1,0 +1,62 @@
+open rust_std_string.model
+open model
+
+nominal process_rows = $'std::rc::Rc<Vec<(u64, u64, std::rc::Rc<str>, std::rc::Rc<str>, f64, u64, u64, u64)>>'
+
+let process_rows_sampled (milliseconds : u64) : process_rows =
+    $'{ let kind = sysinfo::ProcessRefreshKind::nothing().with_cpu().with_memory().with_cmd(sysinfo::UpdateKind::Alway\
+        s); let mut system = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::nothing().with_processes(kind))\
+        ; std::thread::sleep(std::time::Duration::from_millis(!milliseconds)); \
+        system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, kind); \
+        std::rc::Rc::new(system.processes().iter().map(|(pid, process)| { let command = \
+        process.cmd().iter().map(|part| part.to_string_lossy().into_owned()).collect::<Vec<_>>().join(" "); \
+        (pid.as_u32() as u64, process.parent().map(|parent| parent.as_u32() as u64).unwrap_or(0), \
+        std::rc::Rc::<str>::from(process.name().to_string_lossy().trim_end_matches(".exe")), \
+        std::rc::Rc::<str>::from(command.as_str()), process.cpu_usage() as f64 / 100.0, process.run_time() / 60, \
+        process.accumulated_cpu_time() / 60000, process.memory() / 1048576) }).collect::<Vec<_>>()) }' : process_rows
+
+inl row_count (~rows : process_rows) : i32 = $'!rows.len() as i32' : i32
+inl row_of_pid (~rows : process_rows) (pid : u64) : i32 = $'!rows.iter().position(|row| row.0 == !pid).map(|at| at as \
+    i32).unwrap_or(-1)' : i32
+inl row_pid (~rows : process_rows) (at : i32) : u64 = $'!rows[!at as usize].0' : u64
+inl row_parent (~rows : process_rows) (at : i32) : u64 = $'!rows[!at as usize].1' : u64
+inl row_name (~rows : process_rows) (at : i32) : string = $'!rows[!at as usize].2.clone()' : string
+inl row_command (~rows : process_rows) (at : i32) : string = $'!rows[!at as usize].3.clone()' : string
+inl row_cores (~rows : process_rows) (at : i32) : f64 = $'!rows[!at as usize].4' : f64
+inl row_age (~rows : process_rows) (at : i32) : u64 = $'!rows[!at as usize].5' : u64
+inl row_cpu (~rows : process_rows) (at : i32) : u64 = $'!rows[!at as usize].6' : u64
+inl row_megabytes (~rows : process_rows) (at : i32) : u64 = $'!rows[!at as usize].7' : u64
+
+inl tool_names () : string =
+    "dotnet|rustc|cargo|erl|beam.smp|pwsh|powershell|node|bun|gcc|cc1|cc1plus|ld|zig|lean|java|swiftc|swift-fronten"
+    ^^ "d|python|kotlinc|gleam|wasmtime|link|clang|mix|escript|make|git"
+inl supervised_job (~command : string) : string = $'std::rc::Rc::<str>::from((!command).split_whitespace().skip_while(\
+    |word| *word \!= "supervise").nth(1).filter(|word| word.starts_with("job-")).unwrap_or(""))' : string
+inl cells_vm_command (~command : string) : bool = $'{ let lower = (!command).to_lowercase(); \
+    lower.contains("spiral.notebook") || lower.contains("spiral-cells") || lower.contains("cells-build") }' : bool
+
+let rec owner_walk (~rows : process_rows) (at : i32) (hops : i32) : process_owner =
+    if at < 0i32 || hops >= 40i32 then Orphan
+    else
+        inl name = row_name rows at
+        inl job = supervised_job (row_command rows at)
+        if name = "claude" then ClaudeSession (row_pid rows at)
+        elif job <> "" then EoieJob job
+        else
+            inl parent = row_of_pid rows (row_parent rows at)
+            if parent < 0i32
+            then if name = "erl" && cells_vm_command (row_command rows at) then CellsVm (row_pid rows at) else Orphan
+            else owner_walk rows parent (hops + 1i32)
+
+let owner_of (~rows : process_rows) (at : i32) : process_owner =
+    if pipe_member (tool_names ()) (row_name rows at) then owner_walk rows at 0i32 else NotATool
+
+let busy_at (~rows : process_rows) (at : i32) : busy_process =
+    {
+        pid = row_pid rows at
+        name = row_name rows at
+        cores = row_cores rows at
+        age_minutes = row_age rows at
+        cpu_minutes = row_cpu rows at
+        owner = owner_of rows at
+    }

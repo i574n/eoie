@@ -1,0 +1,93 @@
+open rust_std_string.model
+open eoie_jobs.host
+open eoie_jobs.model
+open eoie_jobs.jobs
+open eoie_machine_windows.window_model
+open eoie_machine_windows.windows
+
+let window_blocker (ask : request) : string =
+    inl root = windows_root ()
+    if lock_taken root = false then "reason=registry-lock-busy"
+    else
+        inl now = now_ms ()
+        inl terms = verdict_text ask.wanted ask.id ask.since ask.minutes (live_rows root (stored_rows root) now "") (free_mb ()) now
+        if terms = "" then
+            inl _ = text_written (window_file root ask.id) (request_row { ask with since = now } Held (now + ask.minutes * 60000u64))
+            lock_released root
+            ""
+        else
+            inl _ = text_written (window_file root ask.id) (request_row ask Waiting (now + 30000u64))
+            lock_released root
+            terms
+
+let rec gate_loop (~id : string) (ask : request) (limit : u64) : i32 =
+    inl now = now_ms ()
+    inl _ = text_written (job_file id "heartbeat_ms") (decimal_text now)
+    if file_exists (job_file id "stop") then
+        inl _ = file_removed (window_file (windows_root ()) ask.id)
+        inl _ = text_written (job_file id "exit") (halt_line HaltOnRequest now (tree_stop_of 0u64))
+        143i32
+    elif now > limit then
+        inl _ = file_removed (window_file (windows_root ()) ask.id)
+        inl _ = text_written (job_file id "exit") (exit_line 75i32 now JobExpiredInQueue (concat5 "no " (class_word ask.wanted) " window before the deadline (24 hours, or --slot-within); the job never started" "" ""))
+        75i32
+    else
+        inl blocker = window_blocker ask
+        if blocker = "" then
+            inl _ = text_written (job_file id "window") (concat5 "granted id=" ask.id " waited_ms=" (decimal_text (now - ask.since)) "")
+            0i32
+        else
+            inl _ = text_written (job_file id "window") (concat5 "waiting id=" ask.id " " blocker "")
+            sleep_ms 5000u64
+            gate_loop id ask limit
+
+let windowed_gate (~id : string) (wanted : window_class) : i32 =
+    inl timeout = decimal_u64 (text_or_empty (job_file id "timeout_ms"))
+    inl since = now_ms ()
+    inl label = concat5 (text_or_empty (job_file id "label")) " (eoie job " id ")" ""
+    inl window = concat5 "win-" (number_text since) "-" (number_text (process_number ())) (concat5 "-" (class_word wanted) "" "" "")
+    inl by = decimal_u64 (text_or_empty (job_file id "slot_by_ms"))
+    inl limit = if by <> 0u64 && by < since + 86400000u64 then by else since + 86400000u64
+    gate_loop id { wanted = wanted; minutes = timeout / 60000u64 + 1u64; label = label; id = window; since = since; deadline = limit } limit
+
+let rec compile_hold_loop (~id : string) (ask : request) (limit : u64) : () =
+    inl now = now_ms ()
+    if file_exists (job_file id "stop") then ()
+    elif now > limit then
+        inl _ = file_removed (window_file (windows_root ()) ask.id)
+        inl _ = text_written (job_file id "quiet") (concat5 "started beside compile windows after " (decimal_text ((now - ask.since) / 60000u64)) " min of --quiet-wait" "" "")
+        ()
+    else
+        inl blocker = window_blocker ask
+        if blocker = "" then
+            inl _ = text_written (job_file id "quiet") (concat5 "holding compiles id=" ask.id " waited_ms=" (decimal_text (now - ask.since)) "")
+            ()
+        else
+            inl _ = text_written (job_file id "quiet") (concat5 "waiting for compiles to end id=" ask.id " " blocker "")
+            sleep_ms 5000u64
+            compile_hold_loop id ask limit
+
+let compile_hold_taken (~id : string) : i32 =
+    inl hold = decimal_u64 (text_or_empty (job_file id "quiet_hold_min"))
+    if hold = 0u64 then 0i32
+    else
+        inl since = now_ms ()
+        inl wait = decimal_u64 (text_or_empty (job_file id "quiet_wait_min"))
+        inl label = concat5 (text_or_empty (job_file id "label")) " (eoie job " id ")" ""
+        inl window = concat5 "win-" (number_text since) "-" (number_text (process_number ())) "-compile-hold"
+        compile_hold_loop id { wanted = CompileHold; minutes = hold; label = label; id = window; since = since; deadline = since + wait * 60000u64 } (since + wait * 60000u64)
+        0i32
+
+let job_window_gate (~id : string) : i32 =
+    inl slotted = $'eoie_job_slot::eoie_job_slot_gate(&*!id)' : i32
+    if slotted <> 0i32 then slotted
+    else
+        inl windowed = windowed_gate id HeavyBuild
+        if windowed <> 0i32 then windowed else compile_hold_taken id
+
+let job_compile_gate (~id : string) : i32 = windowed_gate id Compile
+
+inl main () : i32 =
+    !!!!Export("eoie_job_window_gate", ((fun id => job_window_gate id) : string -> i32))
+    !!!!Export("eoie_job_compile_gate", ((fun id => job_compile_gate id) : string -> i32))
+    0i32

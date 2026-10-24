@@ -1,0 +1,8 @@
+packages:
+    |core-
+    spiral-
+    state_receipt_codec_model-
+    agile_mutation_policy
+    union_reflection
+modules:
+    policy

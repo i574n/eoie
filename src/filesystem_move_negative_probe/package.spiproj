@@ -1,0 +1,5 @@
+packages:
+    |core-
+    filesystem_move_contract
+modules:
+    main

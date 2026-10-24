@@ -1,0 +1,11 @@
+packages:
+    |core-
+    spiral-
+    rust_std_string
+    union_reflection
+    agile_note_model
+modules:
+    experiment_model
+    experiment_plan
+    ledger_host
+    experiments

@@ -1,0 +1,7 @@
+let external_payload_public_mask_binding (scope : i32) (mask : i32) : i32 =
+    if scope < 0i32 then 0i32
+    elif 1i32 < scope then 0i32
+    elif scope < 1i32 then
+        if mask < 7i32 then 0i32 elif 7i32 < mask then 0i32 else 1i32
+    else
+        if mask < 15i32 then 0i32 elif 15i32 < mask then 0i32 else 1i32

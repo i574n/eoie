@@ -1,0 +1,43 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+
+inl emit_paths () : () =
+    rust_global """
+        pub fn safe_relative_path(value: &str) -> Result<PathBuf, String> {
+            let path = Path::new(value);
+            #[cfg(windows)] for c in path.components() {
+                if let std::path::Component::Normal(n) = c { windows_validate_component(n)?; }
+            }
+            if value.is_empty() || path.is_absolute() { return Err(format!("unsafe relative path: {value}")); }
+            for component in path.components() { if !matches!(component, std::path::Component::Normal(_)) { return Err(format!("unsafe relative path: {value}")); } }
+            Ok(path.components().collect())
+        }
+
+        fn reject_symlink_ancestors(root: &Path, relative: &Path) -> Result<(), String> {
+            let root_metadata = std::fs::symlink_metadata(root).map_err(|error| format!("metadata {}: {error}", root.display()))?;
+            if root_metadata.file_type().is_symlink() || !root_metadata.is_dir() { return Err(format!("root must be a real directory: {}", root.display())); }
+            let components = relative.components().collect::<Vec<_>>();
+            let mut cursor = root.to_path_buf();
+            for component in components.iter().take(components.len().saturating_sub(1)) {
+                cursor.push(component.as_os_str());
+                match std::fs::symlink_metadata(&cursor) {
+                    Ok(metadata) if metadata.file_type().is_symlink() => return Err(format!("symlink ancestor rejected: {}", cursor.display())),
+                    Ok(metadata) if !metadata.is_dir() => return Err(format!("non-directory ancestor rejected: {}", cursor.display())),
+                    Ok(_) => {},
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => break,
+                    Err(error) => return Err(format!("metadata {}: {error}", cursor.display())),
+                }
+            }
+            Ok(())
+        }
+
+        pub fn rooted_path(root: &Path, relative: &str) -> Result<PathBuf, String> {
+            let relative = safe_relative_path(relative)?;
+            reject_symlink_ancestors(root, &relative)?;
+            Ok(root.join(relative))
+        }
+
+        pub fn copy_regular_atomic_preserve(source: &Path, target: &Path) -> Result<u64, String> {
+            eoie_rust_std_fs_mutation::copy_regular_atomic_preserve(source, target)
+        }
+
+        """

@@ -1,0 +1,166 @@
+open sm'_operators
+
+nominal search_hits = $'std::rc::Rc<(u64, Vec<(String, Vec<usize>, Vec<String>)>)>'
+
+nominal file_list = $'std::rc::Rc<Vec<std::path::PathBuf>>'
+
+union search_root =
+    | FolderRoot
+    | FileRoot
+    | MissingRoot
+
+inl root_kind (~root : string) : search_root =
+    if $'std::path::Path::new(&*!root).is_dir()' : bool then FolderRoot
+    elif $'std::path::Path::new(&*!root).is_file()' : bool then FileRoot
+    else MissingRoot
+
+inl files_under (~root : string) : file_list = $'{ let skip = ["target", "node_modules", ".git", "_build", "deps", \
+    "dist", ".cache", "obj"]; let root = std::path::PathBuf::from(&*!root); let mut stack = vec\![root.clone()]; let \
+    mut files = Vec::new(); while let Some(folder) = stack.pop() { let Ok(entries) = std::fs::read_dir(&folder) else \
+    { continue }; for entry in entries.filter_map(|entry| entry.ok()) { let path = entry.path(); let Ok(kind) = \
+    entry.file_type() else { continue }; if kind.is_symlink() { continue; } if kind.is_dir() { if \
+    \!skip.iter().any(|name| path.file_name().map(|value| value == *name).unwrap_or(false)) { stack.push(path); } } \
+    else if kind.is_file() { files.push(path); } } } std::rc::Rc::new(files) }' : file_list
+inl file_alone (~root : string) : file_list = $'std::rc::Rc::new(vec\![std::path::PathBuf::from(&*!root)])' : file_list
+
+union needle_kind =
+    | LiteralNeedle
+    | CaselessNeedle
+    | PatternNeedle : bool
+
+nominal line_matcher = $'std::sync::Arc<dyn Fn(&str) -> bool + Send + Sync>'
+
+inl literal_matcher (~needle : string) : line_matcher = $'{ let needle = (&*!needle).to_owned(); \
+    std::sync::Arc::new(move |line: &str| line.contains(needle.as_str())) as std::sync::Arc<dyn Fn(&str) -> bool + \
+    Send + Sync> }' : line_matcher
+inl caseless_matcher (~needle : string) : line_matcher = $'{ let needle = (&*!needle).to_lowercase(); \
+    std::sync::Arc::new(move |line: &str| line.to_lowercase().contains(needle.as_str())) as std::sync::Arc<dyn \
+    Fn(&str) -> bool + Send + Sync> }' : line_matcher
+inl pattern_matcher (~pattern : string) (caseless : bool) : line_matcher = $'{ let found = regex::RegexBuilder::new(&*\
+    !pattern).case_insensitive(!caseless).build().unwrap(); std::sync::Arc::new(move |line: &str| \
+    found.is_match(line)) as std::sync::Arc<dyn Fn(&str) -> bool + Send + Sync> }' : line_matcher
+let pattern_problem (~pattern : string) : string = $'std::rc::Rc::<str>::from(regex::Regex::new(&*!pattern).err().map(\
+    |error| error.to_string()).unwrap_or_default().as_str())' : string
+
+inl matcher_of (kind : needle_kind) (~needle : string) : line_matcher =
+    match kind with
+    | LiteralNeedle => literal_matcher needle
+    | CaselessNeedle => caseless_matcher needle
+    | PatternNeedle caseless => pattern_matcher needle caseless
+inl hits_found (~root : string) (files : file_list) (matcher : line_matcher) (~glob : string) : search_hits =
+    $'(|| { use rayon::prelude::*; let root = std::path::PathBuf::from(&*!root); let mut files = (*!files).clone(); \
+        let glob = &*!glob; let (head, tail) = glob.split_once(char::from(42u8)).unwrap_or((glob, "")); let wanted = \
+        |path: &std::path::Path| glob.is_empty() || path.file_name().map(|name| { let name = name.to_string_lossy(); \
+        if glob.contains(char::from(42u8)) { name.starts_with(head) && name.ends_with(tail) } else { name == glob } \
+        }).unwrap_or(false); files.retain(|path| wanted(path)); let matcher = (!matcher).clone(); let mut hits = \
+        files.par_iter().filter_map(|path| { let bytes = std::fs::read(path).ok()?; let text = \
+        String::from_utf8_lossy(&bytes); let lines = text.lines().map(str::to_owned).collect::<Vec<_>>(); let found = \
+        lines.iter().enumerate().filter(|(_, line)| matcher(line.as_str())).map(|(index, _)| \
+        index).collect::<Vec<_>>(); if found.is_empty() { return None; } Some((path.clone(), found, lines)) \
+        }).collect::<Vec<_>>(); hits.sort_by(|left, right| left.0.cmp(&right.0)); let shown = |path: \
+        &std::path::Path| path.strip_prefix(&root).ok().filter(|relative| \
+        \!relative.as_os_str().is_empty()).unwrap_or(path).to_string_lossy().replace(char::from(92u8), "/"); \
+        std::rc::Rc::new((files.len() as u64, hits.into_iter().map(|(path, found, lines)| (shown(&path), found, \
+        lines)).collect::<Vec<_>>())) })()' : search_hits
+
+inl searched_files (hits : search_hits) : u64 = $'(!hits).0' : u64
+inl hit_files (hits : search_hits) : i32 = $'(!hits).1.len() as i32' : i32
+inl hit_path (hits : search_hits) (file : i32) : string = $'std::rc::Rc::<str>::from((!hits).1[!file as \
+    usize].0.as_str())' : string
+inl found_count (hits : search_hits) (file : i32) : i32 = $'(!hits).1[!file as usize].1.len() as i32' : i32
+inl found_at (hits : search_hits) (file : i32) (k : i32) : i32 =
+    $'(!hits).1[!file as usize].1[!k as usize] as i32' : i32
+inl line_count (hits : search_hits) (file : i32) : i32 = $'(!hits).1[!file as usize].2.len() as i32' : i32
+inl taken_line (hits : search_hits) (file : i32) (taken : i32) (line : i32) : bool = $'(!hits).1[!file as \
+    usize].1.iter().take(!taken as usize).any(|index| *index == !line as usize)' : bool
+inl clipped_line (hits : search_hits) (file : i32) (line : i32) : string =
+    $'std::rc::Rc::<str>::from({ let line = &(!hits).1[!file as usize].2[!line as usize]; if line.chars().count() > \
+        200 { format\!("{}...", line.chars().take(200).collect::<String>()) } else { line.to_owned() } }.as_str())'
+    : string
+inl numbered (number : i32) (width : i32) (taken : bool) (~text : string) : string =
+    $'std::rc::Rc::<str>::from(format\!("{:>width$}{} {}", !number, if !taken { char::from(62u8) } else { \
+        char::from(32u8) }, &*!text, width = !width as usize).as_str())' : string
+inl digits (value : i32) : i32 = $'(!value).to_string().len() as i32' : i32
+inl json_text (~text : string) : string =
+    $'std::rc::Rc::<str>::from({ let q = char::from(34u8); let b = char::from(92u8); let mut out = String::from(q); \
+        for c in (!text).chars() { match c { c if c == q || c == b => { out.push(b); out.push(c); } c if (c as u32) < \
+        32 => out.push_str(&format\!("{b}u{:04x}", c as u32)), c => out.push(c) } } out.push(q); out }.as_str())'
+    : string
+inl stdout_text (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl i32_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+inl at_least_zero (value : i32) : i32 = if value < 0i32 then 0i32 else value
+inl smaller (a : i32) (b : i32) : i32 = if a < b then a else b
+inl larger (a : i32) (b : i32) : i32 = if a < b then b else a
+
+type search_counts =
+    {
+        shown : i32
+        total : i32
+        json : string
+    }
+
+let rec window_lines (hits : search_hits) (file : i32) (taken : i32) (width : i32) (line : i32) (last : i32) : () =
+    if line <= last then
+        stdout_text (numbered (line + 1i32) width (taken_line hits file taken line) (clipped_line hits file line))
+        window_lines hits file taken width (line + 1i32) last
+    else ()
+
+let rec windows_printed
+    (hits : search_hits) (file : i32) (taken : i32) (context : i32) (width : i32) (k : i32) (printed_until : i32)
+    : ()
+    =
+    if k < taken then
+        inl index = found_at hits file k
+        inl reach = at_least_zero (index - context)
+        inl start = if 0i32 <= printed_until && reach < printed_until + 1i32 then printed_until + 1i32 else reach
+        inl last = smaller (index + context) (line_count hits file - 1i32)
+        window_lines hits file taken width start last
+        windows_printed hits file taken context width (k + 1i32) (larger printed_until last)
+    else ()
+
+let rec last_window_line (hits : search_hits) (file : i32) (taken : i32) (context : i32) (k : i32) (found : i32) : i32 =
+    if k < taken then
+        last_window_line hits file taken context (k + 1i32) (larger found (smaller (found_at hits file k + context) (
+            line_count hits file - 1i32)))
+    else found
+
+let rec json_matches (hits : search_hits) (file : i32) (taken : i32) (k : i32) (~items : string) : string =
+    if k < taken then
+        inl line = found_at hits file k
+        inl item =
+            "{\"path\":"
+            ++# json_text (hit_path hits file)
+            ++# ",\"line\":"
+            ++# i32_text (line + 1i32)
+            ++# (",\"text\":" ++# (json_text (clipped_line hits file line)) ++# "}")
+        json_matches hits file taken (k + 1i32) (if items = "" then item else items ++# "," ++# item)
+    else items
+
+let rec files_rendered
+    (hits : search_hits) (json : bool) (context : i32) (limit : i32) (file : i32) (counts : search_counts)
+    : search_counts
+    =
+    if hit_files hits <= file then counts
+    else
+        inl found = found_count hits file
+        inl total = counts.total + found
+        if limit <= counts.shown then files_rendered hits json context limit (file + 1i32) { counts with total = total }
+        else
+            inl taken = smaller found (limit - counts.shown)
+            inl next =
+                if json then
+                    { counts with
+                        shown = (counts.shown + taken)
+                        total = total
+                        json = json_matches hits file taken 0i32 counts.json
+                    }
+                else
+                    stdout_text (hit_path hits file)
+                    windows_printed hits file taken context
+                        (digits (last_window_line hits file taken context 0i32 0i32 + 1i32))
+                        0i32
+                        (-1i32)
+                    { counts with shown = (counts.shown + taken); total = total }
+            files_rendered hits json context limit (file + 1i32) next
+
+let counts_start () : search_counts = { shown = 0i32; total = 0i32; json = "" }

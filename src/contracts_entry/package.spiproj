@@ -1,0 +1,6 @@
+packages:
+    |core-
+    public_contract_types
+modules:
+    cli_driver-
+    entry

@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "run.rs"
+
+[package]
+name = "eoie-window-run"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_window_run"
+path = "run.rs"
+
+[dependencies]
+eoie-window-admission = { path = "../eoie_window_admission" }

@@ -1,0 +1,201 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+inl emit_runtime () : () = rust_global """
+    use eoie_process::shutdown_spiral_sessions as eoie_shutdown_spiral_sessions;
+    use eoie_process_observation::run_bounded_streaming_checked as eoie_run_bounded_streaming_checked;
+    use eoie_toolchain_proxy::toolchain_run as eoie_toolchain_run_family;
+    use eoie_source_map::{source_diff_run as eoie_source_diff_run_family, source_map_run as eoie_source_map_run_family};
+    use eoie_source_topology::{source_stats_run as eoie_source_stats_run_family, source_topology_run as eoie_source_topology_run_family};
+    use eoie_cold_rebuild_matrix::{cold_rebuild_matrix_run as eoie_cold_rebuild_matrix_run_family, cold_rebuild_owner_run as eoie_cold_rebuild_owner_run_family};
+    use eoie_ingest_frontier::{frontier_map_run as eoie_frontier_map_run_family, ingest_extracted_run as eoie_ingest_extracted_run_family, ingest_map_run as eoie_ingest_map_run_family, ingest_targets_derive_run as eoie_ingest_targets_derive_run_family, ingest_targets_run as eoie_ingest_targets_run_family, ingest_trim_run as eoie_ingest_trim_run_family};
+    use eoie_coverage_prune::{coverage_assess as eoie_coverage_assess_family, coverage_run as eoie_coverage_run_family, prune_uncovered as eoie_prune_uncovered_family};
+    use eoie_bundle_zip::bundle_run as eoie_bundle_family;
+    use std::env;
+    use std::fs;
+    use std::io::{self};
+    use eoie_patch_control_domain::{patch_rooted as eoie_rooted, patch_safe_relative as eoie_safe_relative};
+    use eoie_rust_std_fs::{atomic_write as eoie_atomic_write, rooted_unlink_nondirectory as eoie_remove_leaf_nofollow, rooted_remove_tree_within as eoie_remove_tree_within};
+    use std::path::Path;
+    use std::process::Command;
+
+    #[must_use]
+    pub fn eoie_bundle_run() -> i32 {
+        eoie_bundle_family()
+    }
+    #[must_use]
+    pub fn eoie_proxy_run() -> i32 { let args = env::args().skip(2).collect::<Vec<_>>(); if let Err(error) = eoie_proxy(&args) { let child_exit = proxy_failure_classification::eoie_proxy_child_exit_code(&error); if child_exit > 0 { eprintln!("eoie error: {error}"); return child_exit; } let operation = args.first().map(String::as_str).unwrap_or(""); let usage = eoie_legacy_operations_proxy_usage(operation); let repaired = proxy_failure_classification::eoie_proxy_corrected_command(&error); let corrected = if repaired.is_empty() { format!("eoie {usage}") } else { repaired.to_string() }; if usage.is_empty() { eprintln!("eoie error: {error}\nintent: proxy capability\nusage: eoie proxy <capability> ...\nvalid: see eoie help proxy\ncorrected: eoie help proxy"); } else { eprintln!("eoie error: {error}\nintent: proxy capability\nusage: eoie {usage}\nvalid: {usage}\ncorrected: {corrected}"); } 2 } else { 0 } }
+
+    fn eoie_arg<'a>(args: &'a [String], index: usize, name: &str) -> Result<&'a str, String> {
+        args.get(index)
+            .map(String::as_str)
+            .ok_or_else(|| format!("missing argument: {name}"))
+    }
+
+
+
+    fn eoie_proxy(args: &[String]) -> Result<(), String> {
+        let subcommand = eoie_arg(args, 0, "subcommand")?;
+        match subcommand {
+            "fs-list" => {
+                let (code, message) = proxy_directory_listing::eoie_directory_listing_outcome();
+                if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
+            }
+            "fs-read" => {
+                let (code, message) = proxy_file_reading::eoie_file_reading_outcome();
+                if code == 0 { Ok(()) } else { Err(message.to_string()) }
+            }
+            "fs-write" => {             let started = proxy_file_receipt::eoie_file_clock_ms();             let root = Path::new(eoie_arg(args, 1, "root")?);             let path = eoie_rooted(root, eoie_arg(args, 2, "relative")?)?;             let usage = "usage: eoie proxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>; creating a missing file needs no replace flag, --create-or-replace writes whether or not it exists";             if args.len() < 4 { return Err(format!("fs-write requires an explicit payload argument; {usage}")); }             let mut replace_existing = false;             let mut create_or_replace = false;             let mut expect_hash: Option<&str> = None;             let mut expect_nonempty = false;             let mut payload_start = 3usize;             if args.get(3).is_some_and(|value| eoie_legacy_operations_proxy_write_token_code(value) < 5) {                 let mut index = 3usize;                 let mut separator_seen = false;                 while index < args.len() {                     match eoie_legacy_operations_proxy_write_token_code(args[index].as_str()) {                         0 => { replace_existing = true; index += 1; }                         1 => { index += 1; expect_hash = Some(eoie_arg(args, index, "sha256")?); index += 1; }                         2 => { expect_nonempty = true; index += 1; }                         3 => { payload_start = index + 1; separator_seen = true; break; }                         4 => { create_or_replace = true; index += 1; }                         _ => return Err(format!("unexpected fs-write option: {}; {usage}", args[index])),                     }                 }                 if !separator_seen { return Err(format!("guarded fs-write requires -- before the payload; {usage}")); }             }             let text = args[payload_start..].join(" ");             let existed = path.exists();             let original = if existed { Some(fs::read(&path).map_err(|error| format!("read {} before replace: {error}", path.display()))?) } else { None };             let packed = i32::from(replace_existing) + 2 * i32::from(create_or_replace) + 4 * i32::from(expect_hash.is_some()) + 8 * i32::from(expect_nonempty) + 16 * i32::from(original.as_ref().is_some_and(Vec::is_empty)) + 32 * i32::from(text.is_empty());             match eoie_legacy_operations_proxy_write_action_binding(i32::from(existed), packed) {                 0 => {}                 2 => return Err(format!("fs-write refuses to overwrite existing file without --replace-existing or --create-or-replace: {}; {usage}", path.display())),                 3 => return Err(format!("fs-write --expect-nonempty rejected empty target: {}", path.display())),                 4 => return Err(format!("fs-write replacement preconditions require an existing file: {}; {usage}", path.display())),                 5 => return Err(format!("fs-write refuses an empty payload over a non-empty file without --expect-hash: {}; {usage}", path.display())),                 _ => if let Some(expected) = expect_hash {                     let observed = eoie_proxy_search::inspection_file_sha256(&path)?;                     if observed != expected { return Err(format!("fs-write expected hash mismatch path={} expected={} observed={}", path.display(), expected, observed)); }                 },             }             eoie_atomic_write(&path, text.as_bytes())?;             let observed = fs::read(&path).map_err(|error| format!("readback {}: {error}", path.display()))?;             if observed != text.as_bytes() {                 if let Some(original) = original.as_ref() { let _ = eoie_atomic_write(&path, original); } else { let _ = eoie_remove_leaf_nofollow(&path); }                 return Err("fs-write readback mismatch; prior state restored".to_owned());             }             println!("eoie proxy fs-write ok mode={} path={} bytes={} replace_existing={} create_or_replace={} expect_hash={} expect_nonempty={}{}", if existed {"replace"} else {"create"}, path.display(), text.len(), i32::from(replace_existing), i32::from(create_or_replace), i32::from(expect_hash.is_some()), i32::from(expect_nonempty), proxy_file_receipt::eoie_elapsed_field(started));             Ok(()) }
+            "text-replace" => {
+                let (code, message) = proxy_text_replacement::eoie_text_replace_outcome();
+                if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
+            }
+            "command-output" => {
+                if args.len() < 4 { return Err("command-output expects root timeout-ms program [args...]".to_owned()); }
+                let timeout_ms = eoie_arg(args, 2, "timeout-ms")?.parse::<u64>().map_err(|_| "timeout-ms must be a positive integer".to_owned())?;
+                let mut command = std::process::Command::new(eoie_arg(args, 3, "program")?);
+                command.current_dir(Path::new(eoie_arg(args, 1, "root")?)).args(&args[4..]);
+                let observation = eoie_process_observation::run_bounded_receipted_observed(&mut command, timeout_ms, "command-output")?;
+                std::io::Write::write_all(&mut std::io::stdout(), &observation.stdout).map_err(|error| error.to_string())?;
+                std::io::Write::write_all(&mut std::io::stderr(), &observation.stderr).map_err(|error| error.to_string())?;
+                let status = observation.status.code().unwrap_or(-1);
+                println!("{}", proxy_command_output::eoie_command_output_receipt(status, observation.elapsed_ms, observation.stdout.len() as u64, observation.stderr.len() as u64));
+                if status == 0 { Ok(()) } else { Err(format!("command-output failed: exit code: {status}")) }
+            }
+            "fs-remove" => {
+                let (code, message) = proxy_file_removal::eoie_file_removal_outcome();
+                if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
+            }
+            "fs-remove-tree" => {
+                let started = proxy_file_receipt::eoie_file_clock_ms();
+                let root = Path::new(eoie_arg(args, 1, "root")?);
+                let relative = eoie_arg(args, 2, "relative")?;
+                let missing_ok = args.get(3).map(String::as_str) == Some("--missing-ok");
+                if args.len() > 4 || (args.len() == 4 && !missing_ok) { return Err("fs-remove-tree expects root relative [--missing-ok]".to_owned()); }
+                if missing_ok { let safe = eoie_safe_relative(relative)?; let candidate = root.join(&safe); if !candidate.exists() { println!("eoie proxy fs-remove-tree ok removed=0 missing_ok=1{}", proxy_file_receipt::eoie_elapsed_field(started)); return Ok(()); } }
+                let path = eoie_rooted(root, relative)?;
+                let count = eoie_remove_tree_within(root, &path)?;
+                println!("eoie proxy fs-remove-tree ok removed={count} missing_ok={}{}", i32::from(missing_ok), proxy_file_receipt::eoie_elapsed_field(started));
+                Ok(())
+            }
+            "run" => {             let usage = "usage: eoie proxy run --cwd <directory> --program <program> [--timeout-ms <ms>] [--env KEY=VALUE]... [--unset KEY]... [-- <args...>]";             if args.len() < 2 { return Err(format!("proxy run requires a working directory and program; {usage}")); }                              let mut timeout_ms = 300000u64;                 let mut cwd: Option<&str> = None;                 let mut program: Option<&str> = None;                 let mut env_pairs: Vec<(String, String)> = Vec::new();                 let mut unset_keys: Vec<String> = Vec::new();                 let mut child_args: Vec<String> = Vec::new();                 let mut tail = false;                 let mut index = 1usize;                 while index < args.len() {                     if tail { child_args.push(args[index].clone()); index += 1; continue; }                     match eoie_legacy_operations_proxy_run_token_code(args[index].as_str()) {                         0 => {                             index += 1;                             timeout_ms = eoie_arg(args, index, "timeout-ms")?.parse::<u64>().map_err(|_| format!("proxy run --timeout-ms must be an integer; {usage}"))?;                             index += 1;                         }                         1 => { index += 1; cwd = Some(eoie_arg(args, index, "cwd")?); index += 1; }                         2 => { index += 1; program = Some(eoie_arg(args, index, "program")?); index += 1; }                         3 => {                             index += 1;                             let cell = eoie_arg(args, index, "KEY=VALUE")?;                             let (key, value) = cell.split_once('=').ok_or_else(|| format!("proxy run --env expects KEY=VALUE, got {cell}; {usage}"))?;                             if key.is_empty() { return Err(format!("proxy run --env key cannot be empty; {usage}")); }                             env_pairs.push((key.to_owned(), value.to_owned()));                             index += 1;                         }                         4 => {                             index += 1;                             let key = eoie_arg(args, index, "KEY")?;                             if key.is_empty() || key.contains('=') { return Err(format!("proxy run --unset expects an environment key, got {key}; {usage}")); }                             unset_keys.push(key.to_owned());                             index += 1;                         }                         5 => { tail = true; index += 1; }                         _ => return Err(format!("unexpected proxy run argument: {}; {usage}", args[index])),                     }                 }                 let cwd = cwd.ok_or_else(|| format!("proxy run named mode requires --cwd; {usage}"))?;                 let program = program.ok_or_else(|| format!("proxy run named mode requires --program; {usage}"))?;                 let root = Path::new(cwd);                 if !root.is_dir() { return Err(format!("proxy run --cwd is not a directory: {}; {usage}", root.display())); }                 let mut command = Command::new(program);                 command.current_dir(root).args(&child_args);                 for (key, value) in &env_pairs { command.env(key, value); }                 for key in &unset_keys { command.env_remove(key); }                 let observation = eoie_run_bounded_streaming_checked(&mut command, timeout_ms, "proxy-run", None)?;                 println!("eoie proxy run ok mode=named cwd={} program={} timeout_ms={timeout_ms} elapsed_ms={} env_set={} env_unset={}", root.display(), program, observation.elapsed_ms, env_pairs.len(), unset_keys.len());                 Ok(())
+            }
+            "spiral-session-shutdown" => {
+                let compiler = eoie_arg(args, 1, "compiler")?;
+                let timeout_ms = args
+                    .get(2)
+                    .map(|value| value.parse::<u64>())
+                    .transpose()
+                    .map_err(|_| "invalid timeout-ms".to_owned())?
+                    .unwrap_or(30000);
+                let status = eoie_shutdown_spiral_sessions(compiler, timeout_ms)?;
+                if !status.success() {
+                    return Err("Spiral session shutdown failed".to_owned());
+                }
+                println!("eoie proxy spiral-session-shutdown ok timeout_ms={timeout_ms}");
+                Ok(())
+            }
+            "prune-build-cache" => {
+                let root = Path::new(eoie_arg(args, 1, "root")?);
+                let relative = eoie_safe_relative(eoie_arg(args, 2, "relative-target")?)?;
+                if relative.file_name().and_then(|value| value.to_str()) != Some("target") {
+                    return Err("build cache path must end in target".to_owned());
+                }
+                let target = root.join(&relative);
+                if !target.exists() {
+                    println!("eoie proxy prune-build-cache ok removed=0");
+                    return Ok(());
+                }
+                let canonical_root = fs::canonicalize(root).map_err(|error| error.to_string())?;
+                let metadata = fs::symlink_metadata(&target).map_err(|error| error.to_string())?;
+                if metadata.file_type().is_symlink() {
+                    return Err("target cannot be a symlink".to_owned());
+                }
+                let canonical_target = fs::canonicalize(&target).map_err(|error| error.to_string())?;
+                if canonical_target == canonical_root || !canonical_target.starts_with(&canonical_root)
+                {
+                    return Err("target escapes root".to_owned());
+                }
+                let count = eoie_remove_tree_within(root, &target)?;
+                println!("eoie proxy prune-build-cache ok removed={count}");
+                Ok(())
+            }
+            "differential-compare" => eoie_differential_compare(args),
+            "coverage-register" => { if args.len() != 4 { return Err("coverage-register expects root current-lcov seed-lcov (each with an adjacent .receipt)".to_owned()); } println!("{}", evidence_currentness_domain::register_coverage_evidence(Path::new(&args[1]), Path::new(&args[2]), Path::new(&args[3]))?); Ok(()) }
+            "formal-receipts-renew" => { if args.len() != 2 { return Err("formal-receipts-renew expects root".to_owned()); } let root = Path::new(&args[1]); let differential = cold_proof_domain::renew_differential_catalog(root)?; if let Err(error) = cold_proof_domain::renew_family_contracts(root) { if let Some(text) = differential { let _ = eoie_rust_std_fs::atomic_write(&root.join("state/differential_catalog.spi"), text.as_bytes()); } return Err(error); } cold_proof_domain::verify_differential_catalog(root)?; cold_proof_domain::verify_family_contracts(root)?; println!("eoie proxy formal-receipts-renew ok differential_catalog=current family_contracts=current"); Ok(()) }
+            "coverage-assess" => eoie_coverage_assess_family(args),
+            "coverage-run" => eoie_coverage_run_family(args),
+            "toolchain" => eoie_toolchain_run_family(args),
+            "source-stats" => eoie_source_stats_run_family(args),
+            "source-topology" => eoie_source_topology_run_family(args),
+            "ingest-map" => eoie_ingest_map_run_family(args),
+            "ingest-trim-check" => eoie_ingest_trim_run_family(args),
+            "ingest-extracted-manifest" => eoie_ingest_extracted_run_family(args),
+            "ingest-targets" => eoie_ingest_targets_run_family(args),
+            "ingest-targets-derive" => eoie_ingest_targets_derive_run_family(args),
+            "frontier-map" => eoie_frontier_map_run_family(args),
+            "spi-map" | "source-map" => eoie_source_map_run_family(args),
+            "cold-rebuild-matrix" => eoie_cold_rebuild_matrix_run_family(args),
+            "cold-rebuild-owner" => eoie_cold_rebuild_owner_run_family(args),
+            "spi-diff" | "source-diff" => eoie_source_diff_run_family(args),
+            "prune-uncovered" => eoie_prune_uncovered_family(args),
+            _ => Err("unknown proxy operation".to_owned()),
+        }
+    }
+
+    fn eoie_normalized_text(path: &Path) -> Result<String, String> {
+        let source =
+            fs::read_to_string(path).map_err(|error| format!("read {}: {error}", path.display()))?;
+        Ok(source
+            .replace("\r\n", "\n")
+            .lines()
+            .map(str::trim_end)
+            .collect::<Vec<_>>()
+            .join("\n"))
+    }
+
+    fn eoie_fnv1a(text: &str) -> u64 {
+        text.as_bytes()
+            .iter()
+            .fold(0xcbf29ce484222325u64, |hash, byte| {
+                (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+            })
+    }
+
+    fn eoie_differential_compare(args: &[String]) -> Result<(), String> {
+        let root = Path::new(eoie_arg(args, 1, "root")?);
+        let oracle = eoie_rooted(root, eoie_arg(args, 2, "oracle-relative")?)?;
+        let direct = eoie_rooted(root, eoie_arg(args, 3, "direct-relative")?)?;
+        let receipt = eoie_rooted(root, eoie_arg(args, 4, "receipt-relative")?)?;
+        if args.len() != 5 {
+            return Err("differential-compare expects root, oracle, direct, receipt".to_owned());
+        }
+        let oracle_text = eoie_normalized_text(&oracle)?;
+        let direct_text = eoie_normalized_text(&direct)?;
+        if oracle_text != direct_text {
+            let mismatch = oracle_text
+                .bytes()
+                .zip(direct_text.bytes())
+                .position(|(a, b)| a != b)
+                .unwrap_or(oracle_text.len().min(direct_text.len()));
+            return Err(format!(
+                "differential mismatch at normalized byte {mismatch}"
+            ));
+        }
+        let hash = eoie_fnv1a(&oracle_text);
+        eoie_atomic_write(
+            &receipt,
+            format!(
+                "route=normalized-text\nfnv1a={hash:016x}\nbytes={}\n",
+                oracle_text.len()
+            )
+            .as_bytes(),
+        )?;
+        println!(
+            "eoie proxy differential-compare ok fnv1a={hash:016x} bytes={}",
+            oracle_text.len()
+        );
+        Ok(())
+    }
+
+
+
+    """

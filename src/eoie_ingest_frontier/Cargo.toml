@@ -1,0 +1,12 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "ingest_frontier.rs"
+
+[package]
+name = "eoie-ingest-frontier"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+path = "ingest_frontier.rs"

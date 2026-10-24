@@ -1,0 +1,140 @@
+open rust_std_string.model
+open eoie_receipt.receipt
+open host
+open grammar
+open eoie_do_records.records
+
+type fact_tally =
+    {
+        report : string
+        failed : bool
+        files : u64
+        bytes : u64
+        distinct : u64
+        hashes : u64
+        lookups : u64
+        nearests : u64
+        fields : u64
+        jsons : u64
+        lines : u64
+        groups : u64
+        groupings : u64
+        sized : u64
+        names : u64
+        names_set : u64
+        envs : u64
+        paths : u64
+        present : u64
+        existings : u64
+        rows : u64
+        matched : u64
+        table_groups : u64
+        tables : u64
+        dirs_matched : u64
+        dirs_total : u64
+        dir_steps : u64
+    }
+
+let empty_fact_tally () : fact_tally =
+    { report = ""; failed = false; files = 0u64; bytes = 0u64; distinct = 0u64; hashes = 0u64; lookups = 0u64; nearests = 0u64; fields = 0u64; jsons = 0u64; lines = 0u64; groups = 0u64; groupings = 0u64; sized = 0u64; names = 0u64; names_set = 0u64; envs = 0u64; paths = 0u64; present = 0u64; existings = 0u64; rows = 0u64; matched = 0u64; table_groups = 0u64; tables = 0u64; dirs_matched = 0u64; dirs_total = 0u64; dir_steps = 0u64 }
+
+let lines_joined (~left : string) (~right : string) : string =
+    if right = "" then left elif left = "" then right else concat5 left "\n" right "" ""
+
+let fact_step (~root : string) (~records : record_list) (f : fact) : fact_outcome =
+    match f with
+    | HashFiles items => hashed root (expanded root items)
+    | EnvValues names => environment names
+    | PathsExist paths => existence root paths
+    | NearestMarker (pattern, targets, path) => nearest_marker root path pattern targets
+    | JsonFields (path, fields) => json_fields root path fields
+    | LinesCounted (path, pattern) => lines_grouped root path pattern
+    | FilesCounted target => files_by_extension root (expanded root target)
+    | TableCounted (path, column, keep_equal, value, groups) => table_counted root path column keep_equal value groups
+    | DirsClassified record => dirs_classified root records record
+    | DirsDetail => nothing_found ()
+
+let outcome_merged (~state : fact_tally) (f : fact) (~outcome : fact_outcome) : fact_tally =
+    inl report = lines_joined state.report (outcome_report outcome)
+    inl failed = state.failed || outcome_failed outcome
+    inl first = outcome_counter outcome 0u64
+    inl second = outcome_counter outcome 1u64
+    inl third = outcome_counter outcome 2u64
+    match f with
+    | HashFiles _ => { state with report = report; failed = failed; files = (state.files + first); bytes = (state.bytes + second); distinct = (state.distinct + third); hashes = (state.hashes + 1u64) }
+    | EnvValues _ => { state with report = report; failed = failed; names = (state.names + first); names_set = (state.names_set + second); envs = (state.envs + 1u64) }
+    | PathsExist _ => { state with report = report; failed = failed; paths = (state.paths + first); present = (state.present + second); existings = (state.existings + 1u64) }
+    | NearestMarker _ => { state with report = report; failed = failed; files = (state.files + first); lookups = (state.lookups + second); nearests = (state.nearests + 1u64) }
+    | JsonFields _ => { state with report = report; failed = failed; files = (state.files + first); fields = (state.fields + second); jsons = (state.jsons + 1u64) }
+    | LinesCounted _ => { state with report = report; failed = failed; files = (state.files + first); lines = (state.lines + second); groups = (state.groups + third); groupings = (state.groupings + 1u64) }
+    | FilesCounted _ => { state with report = report; failed = failed; files = (state.files + first); bytes = (state.bytes + second); sized = (state.sized + 1u64) }
+    | TableCounted _ => { state with report = report; failed = failed; rows = (state.rows + first); matched = (state.matched + second); table_groups = (state.table_groups + third); tables = (state.tables + 1u64) }
+    | DirsClassified _ => { state with report = report; failed = failed; dirs_matched = (state.dirs_matched + first); dirs_total = (state.dirs_total + second); dir_steps = (state.dir_steps + 1u64) }
+    | DirsDetail => state
+
+let rec facts_run (~root : string) (~records : record_list) (~index : i32) (~state : fact_tally) : fact_tally =
+    if index < record_count records then
+        match fact_parsed records index with
+        | FactParsed f => facts_run root records (index + 1i32) (outcome_merged state f (fact_step root records f))
+        | FactRejected _ => facts_run root records (index + 1i32) state
+    else state
+
+let rec first_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        if field_at records index 0i32 <> "query" then "edit and query statements cannot share one program yet; run them as two calls"
+        else
+            match fact_parsed records index with
+            | FactRejected message => message
+            | FactParsed _ => first_rejection records (index + 1i32)
+    else ""
+
+let segments_joined (~left : string) (~right : string) : string =
+    if left = "" then right else concat5 left "  " right "" ""
+
+let counted_segment (~shown : bool) (~text : string) (~label : string) (~value : u64) : string =
+    if shown then segments_joined text (concat5 label " " (decimal_text value) "" "") else text
+
+let receipt_counts (~state : fact_tally) : string =
+    inl dirs = if state.dir_steps > 0u64 then concat5 "dirs " (decimal_text state.dirs_matched) " of " (decimal_text state.dirs_total) " matched" else ""
+    inl file_steps = state.hashes + state.nearests + state.jsons + state.groupings + state.sized
+    inl files = counted_segment (file_steps > 0u64) dirs "files" state.files
+    inl bytes = counted_segment (state.hashes + state.sized > 0u64) files "bytes" state.bytes
+    inl distinct = counted_segment (state.hashes > 0u64) bytes "distinct" state.distinct
+    inl lookups = counted_segment (state.nearests > 0u64) distinct "lookups" state.lookups
+    inl fields = counted_segment (state.jsons > 0u64) lookups "fields" state.fields
+    inl lines = counted_segment (state.groupings > 0u64) fields "lines" state.lines
+    inl groups = counted_segment (state.groupings > 0u64) lines "groups" state.groups
+    inl env = if state.envs > 0u64 then segments_joined groups (concat5 "env " (decimal_text state.names) " (" (decimal_text state.names_set) " set)") else groups
+    inl paths = if state.existings > 0u64 then segments_joined env (concat5 "paths " (decimal_text state.paths) " (" (decimal_text state.present) " present)") else env
+    inl rows = counted_segment (state.tables > 0u64) paths "rows" state.rows
+    inl matched = counted_segment (state.tables > 0u64) rows "matched" state.matched
+    counted_segment (state.tables > 0u64) matched "groups" state.table_groups
+
+inl tables_delegated (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.get(1).map(|verb| &**verb == "diff").unwrap_or(false))' : bool
+
+let tables_run (~root : string) (~encoded : string) : i32 = $'eoie_do_tables::eoie_do_tables_run(&*!root, &*!encoded)' : i32
+
+let facts_program_run (~root : string) (~encoded : string) : i32 =
+    inl started = now_ms ()
+    inl records = records_of encoded
+    inl rejection = first_rejection records 1i32
+    if tables_delegated records then tables_run root encoded
+    elif rejection = "" then
+        inl state = facts_run root records 1i32 (empty_fact_tally ())
+        inl report = state.report
+        if report = "" then () else stdout_line report
+        inl counts = receipt_counts state
+        if state.failed then
+            receipt_line Failed counts started
+            1i32
+        else
+            receipt_line Succeeded counts started
+            0i32
+    else
+        stdout_line (concat5 "program rejected: " rejection "" "" "")
+        receipt_line Failed "files 0" started
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_do_facts_run", ((fun (root, encoded) => facts_program_run root encoded) : string * string -> i32))
+    0i32

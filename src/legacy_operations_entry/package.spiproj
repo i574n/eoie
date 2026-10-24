@@ -1,0 +1,13 @@
+packages:
+    |core-
+    dogfood_shim_contract
+    exact_replace_contract
+    command_spec_domain
+    spiral-
+    union_reflection
+modules:
+    dogfood_shim_bindings
+    dogfood_shim_terminal
+    legacy_terminal
+    restart_baton_terminal
+    entry

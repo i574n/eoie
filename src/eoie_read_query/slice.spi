@@ -1,0 +1,67 @@
+open sm'_operators
+open model
+
+inl json_text (~text : string) : string =
+    $'std::rc::Rc::<str>::from({ let q = char::from(34u8); let b = char::from(92u8); let mut out = String::from(q); for c in (!text).chars() { match c { c if c == q || c == b => { out.push(b); out.push(c); } c if (c as u32) < 32 => out.push_str(&format\!("{b}u{:04x}", c as u32)), c => out.push(c) } } out.push(q); out }.as_str())' : string
+inl stdout_text (~text : string) : () = $'println\!("{}", &*!text)' : ()
+
+nominal file_load = $'std::rc::Rc<Result<Vec<String>, String>>'
+
+inl file_loaded (~path : string) : file_load =
+    $'std::rc::Rc::new(std::fs::read(&*!path).map(|bytes| String::from_utf8_lossy(&bytes).lines().map(str::to_owned).collect::<Vec<_>>()).map_err(|error| error.to_string()))' : file_load
+
+inl load_failed (file : file_load) : bool = $'(!file).is_err()' : bool
+inl load_error (file : file_load) : string = $'std::rc::Rc::<str>::from((*!file).as_ref().err().map(|error| error.as_str()).unwrap_or(""))' : string
+inl load_total (file : file_load) : u64 = $'(*!file).as_ref().map(|lines| lines.len() as u64).unwrap_or(0)' : u64
+inl load_line (file : file_load) (number : u64) : string = $'std::rc::Rc::<str>::from((*!file).as_ref().ok().and_then(|lines| lines.get((!number - 1) as usize)).map(|line| line.as_str()).unwrap_or(""))' : string
+inl u64_sum (a : u64) (b : u64) : u64 = $'(!a).saturating_add(!b)' : u64
+inl u64_less (a : u64) (b : u64) : u64 = $'(!a).saturating_sub(!b)' : u64
+inl u64_lower (a : u64) (b : u64) : u64 = $'(!a).min(!b)' : u64
+inl u64_upper (a : u64) (b : u64) : u64 = $'(!a).max(!b)' : u64
+inl u64_digits (value : u64) : u64 = $'(!value).to_string().len() as u64' : u64
+inl u64_string (value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+inl padded_number (number : u64) (width : u64) (~text : string) : string =
+    $'std::rc::Rc::<str>::from(format\!("{:>width$}  {}", !number, &*!text, width = !width as usize).as_str())' : string
+
+type slice_view =
+    {
+        shown : i64
+        json : string
+    }
+
+let rec slice_printed (file : file_load) (number : u64) (last : u64) (width : u64) : () =
+    if number <= last then
+        stdout_text (padded_number number width (load_line file number))
+        slice_printed file (number + 1u64) last width
+    else ()
+
+let rec slice_json (file : file_load) (number : u64) (last : u64) (~items : string) : string =
+    if number <= last then
+        inl item = json_text (load_line file number)
+        slice_json file (number + 1u64) last (if items = "" then item else items ++# "," ++# item)
+    else items
+
+let file_slice (~path : string) (range : line_range) (limit : u64) (json : bool) : slice_view =
+    inl file = file_loaded path
+    if load_failed file then
+        inl error = load_error file
+        if json then { shown = (-1i64); json = "{\"path\":" ++# (json_text path) ++# ",\"error\":" ++# (json_text error) ++# "}" }
+        else
+            stdout_text (path ++# " (unreadable: " ++# error ++# ")")
+            { shown = (-1i64); json = "" }
+    else
+        inl total = load_total file
+        inl wanted_first, wanted_last = range_bounds range total
+        inl first = u64_upper wanted_first 1u64
+        inl last = u64_lower wanted_last total
+        inl shown_last = u64_lower last (u64_less (u64_sum first limit) 1u64)
+        inl count = if first <= shown_last then shown_last - first + 1u64 else 0u64
+        inl shown = $'!count as i64' : i64
+        if json then
+            inl head = "{\"path\":" ++# (json_text path) ++# ",\"from\":" ++# (u64_string first) ++# (",\"to\":" ++# (u64_string (u64_upper shown_last (u64_less first 1u64))) ++# ",\"total\":" ++# (u64_string total))
+            { shown = shown; json = head ++# ",\"more\":" ++# (u64_string (u64_less last shown_last)) ++# ",\"lines\":[" ++# ((slice_json file first shown_last "") ++# "]}") }
+        else
+            stdout_text (path ++# " (lines " ++# (u64_string first) ++# "-" ++# ((u64_string (u64_upper shown_last (u64_less first 1u64))) ++# " of " ++# (u64_string total) ++# ")"))
+            slice_printed file first shown_last (u64_digits shown_last)
+            inl _ = if shown_last < last then stdout_text ("... " ++# (u64_string (last - shown_last)) ++# " more lines (raise --max-lines or pass a range)") else ()
+            { shown = shown; json = "" }

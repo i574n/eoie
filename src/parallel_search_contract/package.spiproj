@@ -1,0 +1,7 @@
+packages:
+    |core-
+    hash_integrity_contract
+modules:
+    model
+    parallel_search_bindings
+    search_terminal

@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "file_copy.spi"
+output = "file_copy.rs"
+
+[package]
+name = "proxy-file-copy"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "proxy_file_copy"
+path = "file_copy.rs"
+
+[dependencies]
+eoie-rust-std-fs = { path = "../rust_std_fs" }

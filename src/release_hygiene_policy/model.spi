@@ -1,0 +1,74 @@
+union hygiene_candidate =
+    | KeepReleaseFile
+    | RemoveCompilerSidecar
+
+let hygiene_primary_binding (spiral_entry : i32) (typecheck_rs : i32) : i32 =
+    if 0i32 < spiral_entry then 1i32
+    elif 0i32 < typecheck_rs then 1i32
+    else 0i32
+
+let hygiene_secondary_binding (typecheck_tmp : i32) (c_with_spi : i32) : i32 =
+    if 0i32 < typecheck_tmp then 1i32
+    elif 0i32 < c_with_spi then 1i32
+    else 0i32
+
+union hygiene_root_transient =
+    | RootReceiptFile
+    | RootReleaseCandidateFile
+    | RootProbeSourceFile
+    | RootColdRebuildDirectory
+    | RootCargoDirectory
+
+inl hygiene_root_transient_label = function
+    | RootReceiptFile => ".receipt"
+    | RootReleaseCandidateFile => ".release-eoie-candidate"
+    | RootProbeSourceFile => "probe"
+    | RootColdRebuildDirectory => ".cold-rebuild"
+    | RootCargoDirectory => ".cargo"
+
+let hygiene_root_file_binding (receipt : i32) (release_candidate : i32) : i32 =
+    if 0i32 < receipt then 1i32
+    elif 0i32 < release_candidate then 1i32
+    else 0i32
+
+let hygiene_root_aux_binding (probe_source : i32) (cold_rebuild : i32) : i32 =
+    if 0i32 < probe_source then 1i32
+    elif 0i32 < cold_rebuild then 1i32
+    else 0i32
+
+let hygiene_root_directory_binding (cold_rebuild : i32) (toolchain_config : i32) : i32 =
+    if 0i32 < cold_rebuild then 1i32
+    elif 0i32 < toolchain_config then 1i32
+    else 0i32
+
+
+union hygiene_name_class =
+    | HygieneKeep
+    | HygieneCompilerSidecar
+    | HygieneRootTransientFile
+    | HygieneRootTransientDirectory
+
+inl hygiene_name_classify (name : string) : hygiene_name_class =
+    if sm'.ends_with ".spiral-entry" name then HygieneCompilerSidecar
+    elif sm'.contains ".eoie-typecheck-" name && sm'.ends_with ".rs" name then HygieneCompilerSidecar
+    elif sm'.contains ".eoie-typecheck-" name && sm'.contains ".rs.eoie-" name && sm'.ends_with ".tmp" name then HygieneCompilerSidecar
+    elif sm'.ends_with ".receipt" name then HygieneRootTransientFile
+    elif sm'.starts_with ".release-eoie-candidate" name then HygieneRootTransientFile
+    elif sm'.starts_with "probe" name && sm'.ends_with ".rs" name then HygieneRootTransientFile
+    elif sm'.starts_with ".cold-rebuild" name then HygieneRootTransientDirectory
+    elif (name = ".cargo") then HygieneRootTransientDirectory
+    else HygieneKeep
+
+let hygiene_name_classification (~name : string) : u64 =
+    match hygiene_name_classify name with
+    | HygieneKeep => 0u64
+    | HygieneCompilerSidecar => 1u64
+    | HygieneRootTransientFile => 2u64
+    | HygieneRootTransientDirectory => 3u64
+
+let hygiene_directory_ignored (~name : string) : u64 =
+    if (name = "target") then 1u64
+    elif (name = "vendor") then 1u64
+    elif (name = ".git") then 1u64
+    elif (name = ".cache") then 1u64
+    else 0u64

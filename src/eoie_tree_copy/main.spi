@@ -1,0 +1,6 @@
+inl main () : i32 =
+    terminal.emit_runtime ()
+    !!!!Export("eoie_tree_copy_entry_allowed_binding", ((fun (depth, entries) => model.entry_allowed depth entries) : i32 * i32 -> i32))
+    !!!!Export("eoie_tree_copy_remaining_binding", ((fun (entries, unused) => model.remaining_entries entries) : i32 * i32 -> i32))
+    0i32
+

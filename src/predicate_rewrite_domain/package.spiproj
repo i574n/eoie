@@ -1,0 +1,5 @@
+packages:
+    |core-
+    predicate_rewrite_model-
+modules:
+    main

@@ -1,0 +1,11 @@
+packages:
+    |core-
+    typed_predicate
+    spiral-
+    cold_proof_bindings
+    cold_rebuild_contract
+modules:
+    native_binary_tests
+    terminal-
+    cold_rebuild_terminal-
+    main

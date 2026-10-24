@@ -1,0 +1,5 @@
+packages:
+    |core-
+    compiler_session_contract
+modules:
+    main

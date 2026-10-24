@@ -1,0 +1,20 @@
+[package.metadata.spiral]
+entry = "supervise.spi"
+output = "supervise.rs"
+
+[package]
+name = "eoie-job-supervise"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_job_supervise"
+path = "supervise.rs"
+
+[dependencies]
+eoie-job-env = { path = "../eoie_job_env" }
+eoie-machine-windows = { path = "../eoie_machine_windows" }
+eoie-job-gate = { path = "../eoie_job_gate" }
+eoie-job-after = { path = "../eoie_job_after" }

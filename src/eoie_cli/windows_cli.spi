@@ -1,0 +1,66 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl cli_fixture () : fixture_root = fixture_root_create "cli ü"
+inl lease_drops () : cli_args = Arg ("EOIE_LEASE_ROOT", Arg ("EOIE_CONTROL_READ_ONLY", NoArgs))
+inl run_in (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs (lease_drops ()) args
+inl ran (root : fixture_root) (args : cli_args) : string = succeeded (run_in root args)
+inl proxy (root : fixture_root) (~verb : string) (rest : cli_args) : cli_run = run_in root (Arg ("proxy", Arg (verb, Arg (fixture_text_of root, rest))))
+
+inl cmd_run (root : fixture_root) (~timeout : string) (~line : string) : cli_run =
+    run_in root (Arg ("proxy", Arg ("run", Arg ("--cwd", Arg (fixture_text_of root, Arg ("--program", Arg ("cmd.exe", Arg ("--timeout-ms", Arg (timeout, Arg ("--", Arg ("/d", Arg ("/c", Arg (line, NoArgs)))))))))))))
+
+inl write_refused (root : fixture_root) (~relative : string) : () =
+    expect ((proxy root "fs-write" (Arg (relative, Arg ("bad", NoArgs)))).code <> 0i32) (cat "fs-write accepted " relative)
+
+///> rust
+test public_filesystem_roundtrip_and_guards =
+    if on_windows () then
+        inl root = cli_fixture ()
+        inl _ = succeeded (proxy root "fs-write" (Arg ("value.txt", Arg ("first", NoArgs))))
+        inl _ = succeeded (proxy root "fs-write" (Arg ("value.txt", Arg ("--replace-existing", Arg ("--", Arg ("second", NoArgs))))))
+        shows (succeeded (proxy root "fs-read" (Arg ("value.txt", NoArgs)))) "second"
+        same (decimal (byte_count (trimmed (succeeded (proxy root "hash" (Arg ("value.txt", NoArgs))))))) "64"
+        inl _ = succeeded (proxy root "fs-copy" (Arg ("value.txt", Arg ("copy.txt", NoArgs))))
+        same (fixture_read root "copy.txt") "second"
+        inl _ = succeeded (proxy root "fs-remove" (Arg ("copy.txt", NoArgs)))
+        write_refused root "../escape.txt"
+        write_refused root "file:stream"
+        write_refused root "NUL"
+        fixture_root_remove root
+    else ()
+
+///> rust
+test public_process_capture_timeout_and_failure =
+    if on_windows () then
+        inl root = cli_fixture ()
+        shows (succeeded (cmd_run root "10000" "echo windows")) "windows"
+        expect ((cmd_run root "10000" "exit /b 7").code <> 0i32) "a failing child was accepted"
+        inl started = now_ms ()
+        expect ((cmd_run root "100" "ping -n 30 127.0.0.1 >nul").code <> 0i32) "a timed out child was accepted"
+        expect (now_ms () - started < 10000u64) "the timeout did not stop the child within 10 s"
+        inl _ = ran root (Arg ("proxy", Arg ("command-capture", Arg (fixture_text_of root, Arg ("receipt.spi", Arg ("10000", Arg ("cmd.exe", Arg ("/d", Arg ("/c", Arg ("echo captured", NoArgs))))))))))
+        expect (path_exists (fixture_path root "receipt.spi")) "command-capture wrote no receipt"
+        fixture_root_remove root
+    else ()
+
+///> rust
+test generic_bundle_roundtrip =
+    if on_windows () then
+        inl root = cli_fixture ()
+        fixture_write root "source/value.txt" "roundtrip"
+        inl archive = fixture_path root "bundle.zip"
+        inl _ = ran root (Arg ("bundle", Arg ("create", Arg (fixture_path root "source", Arg (archive, Arg ("generic", NoArgs))))))
+        inl _ = ran root (Arg ("bundle", Arg ("verify", Arg (archive, Arg ("generic", NoArgs)))))
+        inl _ = ran root (Arg ("bundle", Arg ("rehydrate", Arg (archive, Arg (fixture_path root "restored", Arg ("generic", NoArgs))))))
+        same (fixture_read root "restored/value.txt") "roundtrip"
+        fixture_root_remove root
+    else ()
+
+///> rust
+test handoff_tolerates_a_reader_that_closes_stdout_early =
+    if on_windows () then
+        inl run = eoie_run_closing_stdout (eoie_checkout ()) (Arg ("agile", Arg ("handoff", Arg (eoie_checkout (), NoArgs))))
+        expect (run.code = 0i32) (cat "handoff failed: " run.stderr)
+        hides run.stderr "panicked"
+    else ()

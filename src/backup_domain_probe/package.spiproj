@@ -1,0 +1,5 @@
+packages:
+    |core-
+    backup_domain
+modules:
+    main

@@ -1,0 +1,9 @@
+packages:
+    |core-
+    incident_recovery_contract
+    release_hygiene_policy
+modules:
+    hygiene_terminal
+    incident_recovery_terminal
+    runtime_guard
+    main

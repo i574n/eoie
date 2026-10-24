@@ -1,0 +1,154 @@
+open sm'_operators
+open eoie_jobs.host
+open eoie_jobs.jobs
+open host_model
+
+nominal supervisor_children = $'std::rc::Rc<std::cell::RefCell<Vec<std::process::Child>>>'
+
+let no_children () : supervisor_children =
+    $'std::rc::Rc::new(std::cell::RefCell::new(Vec::new()))' : supervisor_children
+
+let own_pid () : u64 = $'std::process::id() as u64' : u64
+
+let host_home_directory () : string = joined (jobs_root ()) "shell-host"
+
+let requests_directory () : string = joined (host_home_directory ()) "requests"
+
+let host_pid_file () : string = joined (host_home_directory ()) "pid"
+
+let request_removed (~path : string) : bool = $'std::fs::remove_file(&*!path).is_ok()' : bool
+
+let next_request (~dir : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::read_dir(&*!dir).into_iter().flatten().flatten().map(|entry| \
+        entry.file_name().to_string_lossy().into_owned()).filter(|name| \
+        name.ends_with(".start")).min().unwrap_or_default())' : string
+
+let supervisor_child_started (~children : supervisor_children) (~executable : string) (~id : string) : bool =
+    $'{ let mut command = std::process::Command::new(&*!executable); \
+        command.arg("job").arg("supervise").arg(&*!id).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::\
+        null()).stderr(std::process::Stdio::null()); \#[cfg(windows)] { use std::os::windows::process::CommandExt; \
+        command.creation_flags(0x0800_0000); } match command.spawn() { Ok(child) => { \
+        (!children).borrow_mut().push(child); true } Err(_) => false } }' : bool
+
+let live_children (~children : supervisor_children) : u64 =
+    $'{ let mut kids = (!children).borrow_mut(); kids.retain_mut(|child| matches\!(child.try_wait(), Ok(None))); \
+        kids.len() as u64 }' : u64
+
+let detached_started (~executable : string) (~args : string) : u64 =
+    $'{ \#[cfg(windows)] let pid = { use std::os::windows::ffi::OsStrExt; \#[repr(C)] struct StartupInfo { cb: u32, \
+        reserved: *mut u16, desktop: *mut u16, title: *mut u16, x: u32, y: u32, x_size: u32, y_size: u32, x_chars: \
+        u32, y_chars: u32, fill: u32, flags: u32, show: u16, reserved2_len: u16, reserved2: *mut u8, input: *mut \
+        std::ffi::c_void, output: *mut std::ffi::c_void, error: *mut std::ffi::c_void } \#[repr(C)] struct \
+        StartupInfoEx { startup: StartupInfo, attributes: *mut std::ffi::c_void } \#[repr(C)] struct ProcessInfo { \
+        process: *mut std::ffi::c_void, thread: *mut std::ffi::c_void, pid: u32, tid: u32 } unsafe extern "system" { \
+        fn CreateProcessW(app: *const u16, line: *mut u16, process_attributes: *mut std::ffi::c_void, \
+        thread_attributes: *mut std::ffi::c_void, inherit: i32, flags: u32, environment: *mut std::ffi::c_void, cwd: \
+        *const u16, startup: *mut StartupInfo, info: *mut ProcessInfo) -> i32; fn CloseHandle(handle: *mut \
+        std::ffi::c_void) -> i32; fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut std::ffi::c_void; fn \
+        InitializeProcThreadAttributeList(list: *mut std::ffi::c_void, count: u32, flags: u32, size: *mut usize) -> \
+        i32; fn UpdateProcThreadAttribute(list: *mut std::ffi::c_void, flags: u32, attribute: usize, value: *mut \
+        std::ffi::c_void, size: usize, previous: *mut std::ffi::c_void, returned: *mut usize) -> i32; fn \
+        DeleteProcThreadAttributeList(list: *mut std::ffi::c_void); } \#[link(name = "user32")] unsafe extern \
+        "system" { fn GetShellWindow() -> *mut std::ffi::c_void; fn GetWindowThreadProcessId(window: *mut \
+        std::ffi::c_void, pid: *mut u32) -> u32; } let quote_char = char::from(34u8); let quoted = |arg: &str| if \
+        arg.is_empty() || arg.contains(char::from(32u8)) || arg.contains(quote_char) { \
+        format\!("{quote_char}{}{quote_char}", arg.replace(quote_char, &format\!("{}{quote_char}", \
+        char::from(92u8)))) } else { arg.to_owned() }; let line = \
+        std::iter::once(quoted(&*!executable)).chain((!args).split(char::from(31u8)).map(quoted)).collect::<Vec<_>>().\
+        join(" ").encode_utf16().chain(std::iter::once(0u16)).collect::<Vec<u16>>(); let cwd = \
+        std::env::temp_dir().as_os_str().encode_wide().chain(std::iter::once(0u16)).collect::<Vec<u16>>(); let \
+        shell_window = unsafe { GetShellWindow() }; let mut shell_pid = 0u32; if \!shell_window.is_null() { unsafe { \
+        GetWindowThreadProcessId(shell_window, &mut shell_pid) }; } let parent = if shell_pid == 0 { \
+        std::ptr::null_mut() } else { unsafe { OpenProcess(0x0080, 0, shell_pid) } }; let mut list_size = 0usize; \
+        unsafe { InitializeProcThreadAttributeList(std::ptr::null_mut(), 1, 0, &mut list_size) }; let mut list = \
+        vec\![0u8; list_size.max(64)]; let list_ptr = list.as_mut_ptr() as *mut std::ffi::c_void; let mut \
+        parent_value = parent; let attributed = \!parent.is_null() && unsafe { \
+        InitializeProcThreadAttributeList(list_ptr, 1, 0, &mut list_size) } \!= 0 && unsafe { \
+        UpdateProcThreadAttribute(list_ptr, 0, 0x0002_0000, &mut parent_value as *mut *mut std::ffi::c_void as *mut \
+        std::ffi::c_void, std::mem::size_of::<*mut std::ffi::c_void>(), std::ptr::null_mut(), std::ptr::null_mut()) } \
+        \!= 0; let start = |flags: u32, with_parent: bool| -> u64 { let mut line = line.clone(); let mut startup: \
+        StartupInfoEx = unsafe { std::mem::zeroed() }; startup.startup.cb = (if with_parent { \
+        std::mem::size_of::<StartupInfoEx>() } else { std::mem::size_of::<StartupInfo>() }) as u32; if with_parent { \
+        startup.attributes = list_ptr; } let mut info: ProcessInfo = unsafe { std::mem::zeroed() }; let flags = if \
+        with_parent { flags | 0x0008_0000 } else { flags }; if unsafe { CreateProcessW(std::ptr::null(), \
+        line.as_mut_ptr(), std::ptr::null_mut(), std::ptr::null_mut(), 0, flags, std::ptr::null_mut(), cwd.as_ptr(), \
+        &mut startup as *mut StartupInfoEx as *mut StartupInfo, &mut info) } == 0 { 0 } else { unsafe { \
+        CloseHandle(info.thread); CloseHandle(info.process); } info.pid as u64 } }; let tries = [(0x0100_0228u32, \
+        true), (0x0000_0228u32, true), (0x0100_0228u32, false), (0x0000_0228u32, false)]; let pid = \
+        tries.iter().filter(|(_, with_parent)| attributed || \!*with_parent).map(|(flags, with_parent)| start(*flags, \
+        *with_parent)).find(|pid| *pid \!= 0).unwrap_or(0); if attributed { unsafe { \
+        DeleteProcThreadAttributeList(list_ptr) }; } if \!parent.is_null() { unsafe { CloseHandle(parent) }; } pid }; \
+        \#[cfg(unix)] let pid = { use std::os::unix::process::CommandExt; let mut command = \
+        std::process::Command::new(&*!executable); command.args((!args).split(char::from(31u8))).current_dir(std::env:\
+        :temp_dir()).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio\
+        ::null()).process_group(0); command.spawn().map(|child| child.id() as u64).unwrap_or(0) }; pid }' : u64
+
+let home_of () : host_home = if directory_exists (requests_directory ()) then HomePresent else HomeGone
+
+let args_mark () : string = $'std::rc::Rc::<str>::from(char::from(31u8).to_string())' : string
+
+let rec host_served (~children : supervisor_children) (~idle_since : u64) : i32 =
+    inl dir = requests_directory ()
+    inl name = next_request dir
+    if name <> "" then
+        inl path = joined dir name
+        inl executable = text_or_empty path
+        inl _ = request_removed path
+        inl _ = supervisor_child_started children executable (request_id name)
+        host_served children (now_ms ())
+    else
+        inl live = live_children children
+        inl now = now_ms ()
+        match host_step_of live idle_since now (home_of ()) with
+        | HostIdleExit =>
+            inl _ =
+                if decimal_u64 (text_or_empty (host_pid_file ())) = own_pid () then request_removed (host_pid_file ())
+                else false
+            0i32
+        | KeepServing =>
+            sleep_ms 500u64
+            host_served children (if live > 0u64 then now else idle_since)
+
+let host_run () : i32 =
+    inl recorded = decimal_u64 (text_or_empty (host_pid_file ()))
+    match host_claim_of recorded (own_pid ()) (process_alive recorded) with
+    | OtherHostServes _ => 0i32
+    | HostOwns =>
+        inl _ = directory_created (requests_directory ())
+        inl _ = text_written (host_pid_file ()) (decimal_text (own_pid ()))
+        host_served (no_children ()) (now_ms ())
+
+let rec supervisor_awaited (~id : string) (~deadline : u64) : supervisor_wait =
+    match supervisor_wait_of (decimal_u64 (text_or_empty (job_file id "supervisor"))) (now_ms ()) deadline with
+    | Some wait => wait
+    | None =>
+        sleep_ms 50u64
+        supervisor_awaited id deadline
+
+let supervisor_requested (~id : string) : string =
+    inl executable = supervisor_executable (jobs_root ())
+    inl dir = requests_directory ()
+    inl _ = directory_created dir
+    inl request = joined dir (request_name id)
+    inl _ = text_written request executable
+    inl host = decimal_u64 (text_or_empty (host_pid_file ()))
+    inl _ =
+        match host_state_of host (process_alive host) with
+        | HostRunning _ => 0u64
+        | HostMissing => detached_started executable ("job" ++# args_mark () ++# "host")
+    match supervisor_awaited id (now_ms () + 5000u64) with
+    | SupervisorUp pid => decimal_text pid
+    | SupervisorLate =>
+        if request_removed request then
+            inl pid = detached_started executable ("job" ++# args_mark () ++# "supervise" ++# args_mark () ++# id)
+            if pid = 0u64 then "error: neither the job host nor a detached start launched the supervisor"
+            else decimal_text pid
+        else
+            match supervisor_awaited id (now_ms () + 60000u64) with
+            | SupervisorUp pid => decimal_text pid
+            | SupervisorLate => "error: the job host took the request but the supervisor never recorded its pid"
+
+inl main () : i32 =
+    !!!!Export("eoie_job_host_run", ((fun () => host_run ()) : () -> i32))
+    !!!!Export("eoie_job_host_request", ((fun id => supervisor_requested id) : string -> string))
+    0i32

@@ -1,0 +1,7 @@
+packages:
+    |core-
+    source_authoring_contract
+modules:
+    driver_contract-
+    source_authoring_terminal
+    main

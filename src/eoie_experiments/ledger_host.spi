@@ -1,0 +1,39 @@
+open rust_std_string.model
+open experiment_model
+
+let stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+let stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let option_value (~flag : string) : string =
+    $'std::rc::Rc::<str>::from(std::env::args().skip_while(|arg| arg \!= &*!flag).nth(1).unwrap_or_default())' : string
+let where_clauses () : string =
+    $'std::rc::Rc::<str>::from({ let args = std::env::args().collect::<Vec<_>>(); args.windows(2).filter(|pair| pair[0] == "--where").map(|pair| pair[1].clone()).collect::<Vec<_>>().join("\n") }.as_str())' : string
+let now_ms () : u64 = $'std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_millis() as u64).unwrap_or(0)' : u64
+let joined (~base : string) (~name : string) : string = $'std::rc::Rc::<str>::from(std::path::Path::new(&*!base).join(&*!name).to_string_lossy().as_ref())' : string
+let file_text (~path : string) : string = $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap_or_default())' : string
+let path_exists (~path : string) : bool = $'std::path::Path::new(&*!path).exists()' : bool
+let text_created (~path : string) (~text : string) : string =
+    $'std::rc::Rc::<str>::from({ let path = std::path::Path::new(&*!path); let created = path.parent().map(std::fs::create_dir_all).unwrap_or(Ok(())).and_then(|_| std::fs::OpenOptions::new().write(true).create_new(true).open(path)).and_then(|mut file| { use std::io::Write; file.write_all((!text).as_bytes()) }); created.err().map(|error| format\!("write {}: {error}", path.display())).unwrap_or_default() }.as_str())' : string
+let text_appended (~path : string) (~text : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::OpenOptions::new().create(true).append(true).open(&*!path).and_then(|mut file| { use std::io::Write; file.write_all((!text).as_bytes()) }).err().map(|error| format\!("append {}: {error}", &*!path)).unwrap_or_default().as_str())' : string
+let i32_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+let local_stamp () : string =
+    $'{ \#[cfg(windows)] fn local() -> String { \#[repr(C)] struct Clock { year: u16, month: u16, weekday: u16, day: u16, hour: u16, minute: u16, second: u16, millis: u16 } unsafe extern "system" { fn GetLocalTime(clock: *mut Clock); } let mut clock = Clock { year: 0, month: 0, weekday: 0, day: 0, hour: 0, minute: 0, second: 0, millis: 0 }; unsafe { GetLocalTime(&mut clock); } let _ = clock.weekday; let _ = clock.millis; format\!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", clock.year, clock.month, clock.day, clock.hour, clock.minute, clock.second) } \#[cfg(not(windows))] fn local() -> String { std::process::Command::new("date").arg("+%Y-%m-%dT%H:%M:%S").output().ok().map(|output| String::from_utf8_lossy(&output.stdout).trim().to_owned()).unwrap_or_default() } std::rc::Rc::<str>::from(local().as_str()) }' : string
+let decimal_i32 (~text : string) : i32 = $'(!text).trim().parse::<i32>().unwrap_or(-1)' : i32
+let number_parsed (~text : string) : f64 = $'(!text).trim().parse::<f64>().unwrap_or(f64::NAN)' : f64
+let number_shown (value : f64) : string = $'std::rc::Rc::<str>::from(format\!("{:.6}", !value).trim_end_matches(char::from(48u8)).trim_end_matches(char::from(46u8)))' : string
+let identifier_ok (~id : string) : bool = $'\!(!id).is_empty() && (!id).chars().all(|c| c.is_ascii_alphanumeric() || c == char::from(45u8) || c == char::from(95u8))' : bool
+let success_cell (~cell : string) : bool = $'{ let cell = (!cell).trim(); \!cell.is_empty() && \!matches\!(cell, "0" | "false" | "no" | "-") }' : bool
+
+let failed (~message : string) : i32 =
+    stderr_line (concat5 "eoie error: experiment " message "" "" "")
+    2i32
+
+inl experiment_usage () : string =
+    concat5 "usage: experiment register <ledger> <ID> --test " (test_words ()) " --metric <col> --runs <n per arm> --decision <rule> [--group <col> --arms a[,b]] [--prediction <x>] [--confidence 0.95] [--question <text>] [--time <col>] | experiment analyze <ledger> <ID> <table.tsv> [--where col=value|col!=value|col>value|col>=value|col<value|col<=value]... [--interim <reason>] | experiment amend <ledger> <ID> --field <name> --value <v> --reason <text> | experiment addendum <ledger> <ID> <text> | experiment show <ledger> <ID> | experiment import <ledger> <ID> --registered-at <iso> --evidence <commit|file@line> <register flags> | experiment record-verdict <ledger> <ID> --verdict <text> --at <iso> [--evidence <ref>]" "" ""
+
+inl record_path (~ledger : string) (~id : string) (~kind : string) : string = joined ledger (concat5 id "." kind "" "")
+
+let plan_text (~ledger : string) (~id : string) : string = concat5 (file_text (record_path ledger id "registration")) (file_text (record_path ledger id "amendments")) "" "" ""
+
+let looked_at (~ledger : string) (~id : string) : bool = path_exists (record_path ledger id "disclosures") || path_exists (record_path ledger id "verdict")

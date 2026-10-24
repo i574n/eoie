@@ -1,0 +1,155 @@
+nominal fixture_root = string
+
+union rec cli_args =
+    | NoArgs
+    | Arg : string * cli_args
+
+type cli_run = { code : i32; stdout : string; stderr : string }
+
+inl cat (~left : string) (~right : string) : string = $'std::rc::Rc::<str>::from(format\!("{}{}", &*!left, &*!right))' : string
+inl contains (~text : string) (~part : string) : bool = $'!text.contains(&*!part)' : bool
+inl starts (~text : string) (~part : string) : bool = $'!text.starts_with(&*!part)' : bool
+inl ends (~text : string) (~part : string) : bool = $'!text.ends_with(&*!part)' : bool
+inl unit_mark () : string = $'std::rc::Rc::<str>::from(char::from(31u8).to_string())' : string
+
+inl rec joined (args : cli_args) : string =
+    match args with
+    | NoArgs => ""
+    | Arg (head, rest) => cat (cat head (unit_mark ())) (joined rest)
+
+inl fixture_root_create (~label : string) : fixture_root =
+    fixture_root ($'{ let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(); let root = std::env::temp_dir().join(format\!("eoie spiral test {} {} {}", &*!label, std::process::id(), stamp)); std::fs::create_dir_all(&root).unwrap(); std::rc::Rc::<str>::from(root.to_string_lossy().as_ref()) }' : string)
+
+inl temp_directory () : string = $'std::rc::Rc::<str>::from(std::env::temp_dir().to_string_lossy().as_ref())' : string
+inl fixture_text_of (fixture_root root) : string = root
+inl fixture_path (fixture_root root) (~relative : string) : string = $'std::rc::Rc::<str>::from(std::path::Path::new(&*!root).join(&*!relative).to_string_lossy().as_ref())' : string
+inl fixture_read (root : fixture_root) (~relative : string) : string =
+    inl path = fixture_path root relative
+    $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!path).unwrap_or_default().as_str())' : string
+inl fixture_write (root : fixture_root) (~relative : string) (~text : string) : () =
+    inl path = fixture_path root relative
+    $'{ let path = std::path::Path::new(&*!path); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path, !text.as_bytes()).unwrap(); }' : ()
+inl fixture_delete (root : fixture_root) (~relative : string) : () =
+    inl path = fixture_path root relative
+    $'{ let _ = std::fs::remove_file(&*!path); }' : ()
+inl fixture_append (root : fixture_root) (~relative : string) (~text : string) : () = fixture_write root relative (cat (fixture_read root relative) text)
+inl fixture_line_count (root : fixture_root) (~relative : string) : i32 =
+    inl text = fixture_read root relative
+    $'(!text).lines().count() as i32' : i32
+inl rustc_program (root : fixture_root) (~name : string) (~source : string) : string =
+    inl _ = fixture_write root (cat name ".rs") source
+    inl input = fixture_path root (cat name ".rs")
+    inl suffix = $'std::rc::Rc::<str>::from(std::env::consts::EXE_SUFFIX)' : string
+    inl output = fixture_path root (cat name suffix)
+    $'{ let built = std::process::Command::new(std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into())).arg(&*!input).arg("-o").arg(&*!output).output().unwrap(); if \!built.status.success() { std::panic::panic_any(String::from_utf8_lossy(&built.stderr).into_owned()); } }' : ()
+    output
+inl fixture_digest (root : fixture_root) (~relative : string) : string =
+    inl path = fixture_path root relative
+    $'std::rc::Rc::<str>::from(match std::fs::read(&*!path) { Ok(bytes) => { use std::hash::{Hash, Hasher}; let mut hasher = std::collections::hash_map::DefaultHasher::new(); bytes.hash(&mut hasher); format\!("{}:{:016x}", bytes.len(), hasher.finish()) } Err(_) => String::from("absent") }.as_str())' : string
+inl fixture_entries (root : fixture_root) (~relative : string) : string =
+    inl path = fixture_path root relative
+    $'std::rc::Rc::<str>::from({ let mut names: Vec<String> = std::fs::read_dir(&*!path).map(|entries| entries.flatten().map(|entry| entry.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default(); names.sort(); names.join("|") }.as_str())' : string
+inl fixture_mkdir (root : fixture_root) (~relative : string) : () =
+    inl path = fixture_path root relative
+    $'std::fs::create_dir_all(&*!path).unwrap()' : ()
+inl fixture_rmdir (root : fixture_root) (~relative : string) : () =
+    inl path = fixture_path root relative
+    $'std::fs::remove_dir(&*!path).unwrap()' : ()
+inl fixture_copy (root : fixture_root) (~source : string) (~target : string) : () =
+    inl from = fixture_path root source
+    inl into = fixture_path root target
+    $'{ std::fs::copy(&*!from, &*!into).unwrap(); }' : ()
+inl fixture_canonical (root : fixture_root) (~relative : string) : string =
+    inl path = fixture_path root relative
+    $'std::rc::Rc::<str>::from(std::fs::canonicalize(&*!path).unwrap().display().to_string().as_str())' : string
+inl fixture_executable (root : fixture_root) (~relative : string) (~text : string) : () =
+    fixture_write root relative text
+    inl path = fixture_path root relative
+    $'{ \#[cfg(unix)] { use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(&*!path, std::fs::Permissions::from_mode(0o755)).unwrap(); } }' : ()
+inl fixture_symlink_or_skip (root : fixture_root) (~source : string) (~target : string) : () =
+    inl from = fixture_path root source
+    inl into = fixture_path root target
+    $'{ \#[cfg(windows)] match std::os::windows::fs::symlink_file(&*!from, &*!into) { Ok(()) => (), Err(error) if error.raw_os_error() == Some(1314) => eprintln\!("symlink privilege unavailable"), Err(error) => std::panic::panic_any(error.to_string()) } \#[cfg(unix)] std::os::unix::fs::symlink(&*!from, &*!into).unwrap(); }' : ()
+inl exe_suffix () : string = $'std::rc::Rc::<str>::from(std::env::consts::EXE_SUFFIX)' : string
+inl native_name () : string = $'std::rc::Rc::<str>::from(format\!("eoie{}", std::env::consts::EXE_SUFFIX).as_str())' : string
+inl u64_text (~value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+inl fixture_root_remove (fixture_root root) : () = $'{ let _ = std::fs::remove_dir_all(&*!root); }' : ()
+
+inl eoie_run (~cwd : string) (sets : cli_args) (drops : cli_args) (args : cli_args) : cli_run =
+    inl set_text = joined sets
+    inl drop_text = joined drops
+    inl arg_text = joined args
+    inl code, stdout, stderr =
+        $'{ let mut command = std::process::Command::new(std::env::var("EOIE_BIN_UNDER_TEST").unwrap_or_else(|_| "eoie".to_owned())); command.current_dir(&*!cwd).args((!arg_text).split_terminator(char::from(31u8))); for name in (!drop_text).split_terminator(char::from(31u8)) { command.env_remove(name); } for pair in (!set_text).split_terminator(char::from(31u8)) { if let Some((key, value)) = pair.split_once(char::from(61u8)) { command.env(key, value); } } let output = command.output().unwrap_or_else(|error| std::panic::panic_any(format\!("cannot start {:?} (set EOIE_BIN_UNDER_TEST): {}", command.get_program(), error))); (output.status.code().unwrap_or(-1), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stdout).as_ref()), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stderr).as_ref())) }' : i32 * string * string
+    { code = code; stdout = stdout; stderr = stderr }
+
+inl eoie_run_racing (~cwd : string) (sets : cli_args) (drops : cli_args) (args : cli_args) (~marker : string) (~file : string) (~suffix : string) : cli_run =
+    inl set_text = joined sets
+    inl drop_text = joined drops
+    inl arg_text = joined args
+    inl code, stdout, stderr =
+        $'{ let mut command = std::process::Command::new(std::env::var("EOIE_BIN_UNDER_TEST").unwrap_or_else(|_| "eoie".to_owned())); command.current_dir(&*!cwd).args((!arg_text).split_terminator(char::from(31u8))).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()); for name in (!drop_text).split_terminator(char::from(31u8)) { command.env_remove(name); } for pair in (!set_text).split_terminator(char::from(31u8)) { if let Some((key, value)) = pair.split_once(char::from(61u8)) { command.env(key, value); } } let child = command.spawn().unwrap_or_else(|error| std::panic::panic_any(format\!("cannot start {:?} (set EOIE_BIN_UNDER_TEST): {}", command.get_program(), error))); let started = std::time::Instant::now(); while \!std::path::Path::new(&*!marker).exists() { if started.elapsed() > std::time::Duration::from_secs(30) { std::panic::panic_any("the command never reached its pause marker"); } std::thread::sleep(std::time::Duration::from_millis(20)); } let before = std::fs::read_to_string(&*!file).unwrap_or_default(); std::fs::write(&*!file, format\!("{}{}", before, &*!suffix)).unwrap(); let output = child.wait_with_output().unwrap(); (output.status.code().unwrap_or(-1), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stdout).as_ref()), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stderr).as_ref())) }' : i32 * string * string
+    { code = code; stdout = stdout; stderr = stderr }
+
+inl eoie_run_closing_stdout (~cwd : string) (args : cli_args) : cli_run =
+    inl arg_text = joined args
+    inl code, stderr =
+        $'{ let mut child = std::process::Command::new(std::env::var("EOIE_BIN_UNDER_TEST").unwrap_or_else(|_| "eoie".to_owned())).current_dir(&*!cwd).args((!arg_text).split_terminator(char::from(31u8))).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped()).spawn().unwrap(); drop(child.stdout.take()); let output = child.wait_with_output().unwrap(); (output.status.code().unwrap_or(-1), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stderr).as_ref())) }' : i32 * string
+    { code = code; stdout = ""; stderr = stderr }
+
+inl on_windows () : bool = $'cfg\!(windows)' : bool
+inl on_linux () : bool = $'cfg\!(target_os = "linux")' : bool
+inl fixture_link_directory (root : fixture_root) (~source : string) (~link : string) : () =
+    inl path = fixture_path root link
+    $'{ \#[cfg(windows)] { use std::os::windows::process::CommandExt; let created = std::process::Command::new("pwsh").creation_flags(0x0800_0000).args(["-NoProfile", "-NonInteractive", "-Command", "New-Item -ItemType Junction -Path $env:EOIE_TEST_LINK -Target $env:EOIE_TEST_SOURCE -ErrorAction Stop | Out-Null"]).env("EOIE_TEST_LINK", &*!path).env("EOIE_TEST_SOURCE", &*!source).output().unwrap(); if \!created.status.success() { std::panic::panic_any(String::from_utf8_lossy(&created.stderr).into_owned()); } } \#[cfg(unix)] std::os::unix::fs::symlink(&*!source, &*!path).unwrap(); }' : ()
+inl eoie_checkout () : string = $'std::rc::Rc::<str>::from(std::path::PathBuf::from(std::env::var("EOIE_BIN_UNDER_TEST").unwrap()).ancestors().nth(4).unwrap().to_string_lossy().as_ref())' : string
+inl now_ms () : u64 = $'std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64' : u64
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else failwith detail
+inl run_text (run : cli_run) : string = cat (cat (cat "stdout: " run.stdout) " stderr: ") run.stderr
+
+inl succeeded (run : cli_run) : string =
+    expect (run.code = 0i32) (cat "expected success, " (run_text run))
+    run.stdout
+
+inl shows (~text : string) (~part : string) : () = expect (contains text part) (cat (cat (cat "missing " part) " in: ") text)
+inl hides (~text : string) (~part : string) : () = expect (contains text part = false) (cat (cat (cat "unexpected " part) " in: ") text)
+inl same (~actual : string) (~expected : string) : () = expect (actual = expected) (cat (cat (cat "expected: " expected) " actual: ") actual)
+
+inl rejected_with (run : cli_run) (~code : i32) (~part : string) : () =
+    expect (run.code = code) (cat "unexpected exit, " (run_text run))
+    shows run.stderr part
+
+inl failed_with (run : cli_run) (~part : string) : () =
+    expect (run.code <> 0i32) (cat "expected failure, " (run_text run))
+    shows run.stderr part
+
+inl receipt_shape (~stdout : string) (~prefix : string) (~volatile : string) : string =
+    $'std::rc::Rc::<str>::from((!stdout).lines().find(|line| line.starts_with(&*!prefix)).map(|line| line.split(char::from(32u8)).map(|token| match token.split_once(char::from(61u8)) { Some((key, _)) if (!volatile).split(char::from(124u8)).any(|name| name == key) => format\!("{}=N", key), _ => token.to_owned() }).collect::<Vec<_>>().join(" ")).unwrap_or_default().as_str())' : string
+
+inl rooted_receipt (~text : string) (~prefix : string) (~volatile : string) (~root : string) : string =
+    $'std::rc::Rc::<str>::from((!text).lines().find(|line| line.starts_with(&*!prefix)).map(|line| line.replace(&*!root, "<root>").split(char::from(32u8)).map(|token| match token.split_once(char::from(61u8)) { Some((key, _)) if (!volatile).split(char::from(124u8)).any(|name| name == key) => format\!("{}=N", key), _ => token.replace(char::from(92u8), "/") }).collect::<Vec<_>>().join(" ")).unwrap_or_default().as_str())' : string
+
+inl eoie_binary () : string = $'std::rc::Rc::<str>::from(std::env::var("EOIE_BIN_UNDER_TEST").unwrap_or_else(|_| "eoie".to_owned()).as_str())' : string
+inl path_exists (~path : string) : bool = $'std::path::Path::new(&*!path).exists()' : bool
+inl trimmed (~text : string) : string = $'std::rc::Rc::<str>::from((!text).trim())' : string
+inl line_starting (~text : string) (~prefix : string) : string = $'std::rc::Rc::<str>::from((!text).lines().find(|line| line.starts_with(&*!prefix)).unwrap_or("<no such line>"))' : string
+inl lines_starting_count (~text : string) (~prefix : string) : i32 = $'(!text).lines().filter(|line| line.starts_with(&*!prefix)).count() as i32' : i32
+inl padded (~text : string) (~width : i32) : string = $'std::rc::Rc::<str>::from(format\!("{:<1$}", &*!text, !width as usize).as_str())' : string
+inl first_line_of (~text : string) : string = $'std::rc::Rc::<str>::from((!text).lines().next().unwrap_or(""))' : string
+
+inl line_after (~text : string) (~anchor : string) (~offset : i32) : string =
+    $'std::rc::Rc::<str>::from({ let lines: Vec<&str> = (!text).lines().collect(); lines.iter().position(|line| *line == &*!anchor).and_then(|at| lines.get(at + (!offset as usize))).copied().unwrap_or("<no such line>") })' : string
+
+inl has_line (~text : string) (~line : string) : bool = $'(!text).lines().any(|candidate| candidate == &*!line)' : bool
+
+inl word_after (~text : string) (~marker : string) : string =
+    $'std::rc::Rc::<str>::from((!text).split(&*!marker).nth(1).and_then(|rest| rest.split(char::from(32u8)).next()).unwrap_or(""))' : string
+
+inl utc_minute (~text : string) : bool =
+    $'{ let bytes = (!text).as_bytes(); bytes.len() == 17 && bytes[4] == 45u8 && bytes[7] == 45u8 && bytes[10] == 84u8 && bytes[13] == 58u8 && bytes[16] == 90u8 }' : bool
+
+inl byte_count (~text : string) : i32 = sm'.length text
+inl pause_ms (~millis : u64) : () = $'std::thread::sleep(std::time::Duration::from_millis(!millis))' : ()
+inl path_appears (~path : string) (~max_ms : u64) : bool = $'{ let started = std::time::Instant::now(); while \!std::path::Path::new(&*!path).exists() && started.elapsed() < std::time::Duration::from_millis(!max_ms) { std::thread::sleep(std::time::Duration::from_millis(50)); } std::path::Path::new(&*!path).exists() }' : bool
+inl decimal (~value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string

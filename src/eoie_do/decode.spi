@@ -1,0 +1,26 @@
+open eoie_do_model.model
+
+open eoie_do_records.records
+
+let compiled_text (~text : string) : string = $'eoie_do_program::eoie_do_program_compiled(&*!text)' : string
+
+inl has_edit (~records : record_list) : bool = $'!records.iter().skip(1).any(|fields| fields.first().map(|kind| \
+    &**kind == "edit").unwrap_or(false))' : bool
+
+let program_family_of (~encoded : string) : program_family =
+    match program_family_named ($'eoie_do_verbs::eoie_do_program_family(&*!encoded)' : string) with
+    | Some family => family
+    | None => Edits
+
+union compiled_program =
+    | CompileRejected : string
+    | Delegated : program_family * string
+
+let program_decoded (~text : string) : compiled_program =
+    inl encoded = compiled_text text
+    inl records = records_of encoded
+    if field_at records 0i32 0i32 = "ok" then
+        match program_family_of encoded with
+        | Runs => Delegated ((if has_edit records then Edits else Runs), encoded)
+        | family => Delegated (family, encoded)
+    else CompileRejected (field_at records 1i32 0i32)

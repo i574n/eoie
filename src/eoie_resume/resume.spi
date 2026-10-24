@@ -1,0 +1,91 @@
+open sm'_operators
+open agile_note_model.model
+
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+inl option_value (~name : string) : string = $'std::rc::Rc::<str>::from({ let args = std::env::args().collect::<Vec<_>>(); args.iter().position(|argument| argument == &*!name).and_then(|at| args.get(at + 1)).cloned().unwrap_or_default() }.as_str())' : string
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+inl clock_text () : string = $'std::rc::Rc::<str>::from(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_secs()).unwrap_or(0).to_string().as_str())' : string
+inl own_output (~arguments : string) : string = $'std::rc::Rc::<str>::from(std::env::current_exe().ok().and_then(|exe| std::process::Command::new(exe).args((!arguments).split(char::from(10u8)).filter(|item| \!item.is_empty())).output().ok()).map(|out| String::from_utf8_lossy(&out.stdout).trim_end().to_owned()).unwrap_or_default().as_str())' : string
+inl count_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string().as_str())' : string
+inl state_text (~root : string) : string = $'std::rc::Rc::<str>::from(std::fs::read_to_string(format\!("{}/state/agile.spi", &*!root)).unwrap_or_default().as_str())' : string
+inl one_line_clipped (~text : string) (limit : i32) : string = $'std::rc::Rc::<str>::from((!text).replace(char::from(10u8), " ").chars().take(!limit as usize).collect::<String>().as_str())' : string
+inl newest_first (~rows : string) (limit : i32) : string = $'std::rc::Rc::<str>::from({ let mut rows = (!rows).split(char::from(10u8)).filter(|row| \!row.is_empty()).collect::<Vec<_>>(); rows.sort_by(|a, b| b.cmp(a)); rows.truncate(!limit as usize); rows.join(&char::from(10u8).to_string()) }.as_str())' : string
+
+union resume_section =
+    | NextWork
+    | RecentJobs
+    | MachineWindows
+    | AuthorNotes
+
+type resume_scope =
+    {
+        root : string
+        team : string
+        author : string
+    }
+
+inl section_title (section : resume_section) : string =
+    match section with
+    | NextWork => "== next work (agile next, WSJF)"
+    | RecentJobs => "== recent jobs (job list)"
+    | MachineWindows => "== machine windows (window list)"
+    | AuthorNotes => "== recent notes by author (agile notes --as)"
+
+inl spawned_arguments (scope : resume_scope) (section : resume_section) : string =
+    match section with
+    | NextWork => "agile\nnext\n" ++# scope.root ++# "\n8" ++# (if scope.team = "" then "" else "\n--team\n" ++# scope.team)
+    | RecentJobs => "job\nlist\n12"
+    | MachineWindows => "window\nlist"
+    | AuthorNotes => ""
+
+inl note_needle () : string = (item_constructor NoteItem) ++# "\""
+
+let authored_row (text : string) (found : i32) (~note_text : string) (~at : string) : string =
+    at ++# "  " ++# (unquoted (item_field text NoteItem found 0i32)) ++# "  " ++# (one_line_clipped note_text 160i32)
+
+let rec authored_rows_from (text : string) (~needle : string) (~author : string) (offset : i32) (~rows : string) : string =
+    inl found = declared_from text needle offset
+    if found < 0i32 then rows
+    else
+        inl note = note_at text found
+        inl kept = if note.author = author then rows ++# "\n" ++# (authored_row text found note.text note.at) else rows
+        authored_rows_from text needle author (found + 1i32) kept
+
+let author_notes (scope : resume_scope) : string =
+    inl rows = newest_first (authored_rows_from (state_text scope.root) (note_needle ()) scope.author 0i32 "") 8i32
+    if rows = "" then "no notes by " ++# scope.author else rows
+
+inl section_wanted (scope : resume_scope) (section : resume_section) : bool =
+    match section with
+    | AuthorNotes => if scope.author = "" then false else true
+    | _ => true
+
+inl section_body (scope : resume_scope) (section : resume_section) : string =
+    match section with
+    | AuthorNotes => author_notes scope
+    | spawned => own_output (spawned_arguments scope spawned)
+
+let section_shown (scope : resume_scope) (section : resume_section) (shown : i32) : i32 =
+    if section_wanted scope section then
+        stdout_line (section_title section)
+        stdout_line (section_body scope section)
+        shown + 1i32
+    else shown
+
+inl scope_suffix (scope : resume_scope) : string =
+    (if scope.team = "" then "" else " team=" ++# scope.team) ++# (if scope.author = "" then "" else " author=" ++# scope.author)
+
+let resume_run () : i32 =
+    inl scope = { root = argument 2i32; team = option_value "--team"; author = option_value "--as" }
+    if scope.root = "" || sm'.starts_with "--" scope.root then
+        stderr_line "eoie error: usage: eoie resume <backlog-root> [--team <team>] [--as <author>]"
+        2i32
+    else
+        inl shown = union_reflection.cases.union_cases_fold (fun shown (section : resume_section) => section_shown scope section shown) 0i32
+        stdout_line ("eoie resume ok sections=" ++# (count_text shown) ++# (scope_suffix scope) ++# " unix=" ++# (clock_text ()))
+        0i32
+
+inl main () : i32 =
+    !!!!Export("eoie_resume_run", ((fun () => resume_run ()) : () -> i32))
+    0i32

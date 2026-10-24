@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "crowding.spi"
+output = "crowding.rs"
+
+[package]
+name = "eoie-machine-crowding"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_machine_crowding"
+path = "crowding.rs"

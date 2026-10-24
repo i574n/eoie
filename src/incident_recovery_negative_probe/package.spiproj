@@ -1,0 +1,5 @@
+packages:
+    |core-
+    incident_recovery_contract
+modules:
+    main

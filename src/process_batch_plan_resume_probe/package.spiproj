@@ -1,0 +1,5 @@
+packages:
+    |core-
+    rust_std_env
+modules:
+    main

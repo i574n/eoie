@@ -1,0 +1,26 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl bounded_hash (root : fixture_root) (~relative : string) : cli_run =
+    eoie_run (fixture_text_of root) (Arg ("EOIE_HASH_LIMIT_BYTES=3", NoArgs)) (Arg ("EOIE_LEASE_ROOT", Arg ("EOIE_CONTROL_READ_ONLY", NoArgs))) (Arg ("proxy", Arg ("hash", Arg (fixture_text_of root, Arg (relative, NoArgs)))))
+
+inl hash_refused (root : fixture_root) (~relative : string) : () =
+    inl run = bounded_hash root relative
+    expect (run.code <> 0i32) (cat (cat "hashed " relative) (run_text run))
+    hides run.stderr "unknown proxy operation"
+
+///> rust
+test hashes_regular_bytes_with_a_bound_and_rejects_linked_ancestors =
+    if on_windows () || on_linux () then
+        inl root = fixture_root_create "hash ü"
+        fixture_write root "real/input" "abc"
+        same (trimmed (succeeded (bounded_hash root "real/input"))) "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        fixture_write root "real/input" "abcd"
+        hash_refused root "real/input"
+        fixture_write root "real/input" "abc"
+        fixture_link_directory root (fixture_path root "real") "linked"
+        hash_refused root "linked/input"
+        hash_refused root "."
+        same (fixture_read root "real/input") "abc"
+        fixture_root_remove root
+    else ()

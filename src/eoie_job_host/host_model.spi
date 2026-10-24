@@ -1,0 +1,83 @@
+///- --package .
+test host_model static =
+    open sm'_operators
+
+open sm'_operators
+
+union host_step =
+    | KeepServing
+    | HostIdleExit
+
+union host_home =
+    | HomePresent
+    | HomeGone
+
+union host_claim =
+    | HostOwns
+    | OtherHostServes : u64
+
+union host_state =
+    | HostMissing
+    | HostRunning : u64
+
+union supervisor_wait =
+    | SupervisorUp : u64
+    | SupervisorLate
+
+inl idle_limit_ms () : u64 = 600000u64
+
+inl request_suffix () : string = ".start"
+
+let host_step_of (live : u64) (idle_since : u64) (now : u64) (home : host_home) : host_step =
+    if live > 0u64 then KeepServing
+    elif home = HomeGone then HostIdleExit
+    elif now - idle_since >= idle_limit_ms () then HostIdleExit
+    else KeepServing
+
+let host_claim_of (recorded : u64) (own : u64) (recorded_alive : bool) : host_claim =
+    if recorded <> 0u64 && recorded <> own && recorded_alive then OtherHostServes recorded else HostOwns
+
+let host_state_of (recorded : u64) (recorded_alive : bool) : host_state =
+    if recorded <> 0u64 && recorded_alive then HostRunning recorded else HostMissing
+
+let request_name (~id : string) : string = id ++# request_suffix ()
+
+let request_id (~name : string) : string = sm'.trim_end_suffix (request_suffix ()) name
+
+let supervisor_wait_of (pid : u64) (now : u64) (deadline : u64) : option supervisor_wait =
+    if pid <> 0u64 then Some (SupervisorUp pid)
+    elif now >= deadline then Some SupervisorLate
+    else None
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test an_idle_host_exits_only_after_ten_quiet_minutes_without_children =
+    expect (host_step_of 1u64 0u64 900000u64 HomePresent = KeepServing) "a live supervisor keeps the host"
+    expect (host_step_of 0u64 1000u64 300000u64 HomePresent = KeepServing) "five quiet minutes are not enough"
+    expect (host_step_of 0u64 1000u64 601000u64 HomePresent = HostIdleExit) "ten quiet minutes end the host"
+
+///> rust
+test a_host_whose_jobs_home_was_removed_exits_once_its_children_end =
+    expect (host_step_of 0u64 1000u64 2000u64 HomeGone = HostIdleExit) "a removed home ends an idle host at once"
+    expect (host_step_of 1u64 1000u64 2000u64 HomeGone = KeepServing) "a running supervisor still keeps it"
+
+///> rust
+test one_host_serves_a_machine =
+    expect (host_claim_of 0u64 7u64 false = HostOwns) "no recorded host"
+    expect (host_claim_of 7u64 7u64 true = HostOwns) "the recorded host is this one"
+    expect (host_claim_of 9u64 7u64 false = HostOwns) "a dead recorded host is replaced"
+    expect (host_claim_of 9u64 7u64 true = OtherHostServes 9u64) "a live other host keeps the machine"
+
+///> rust
+test a_missing_host_pid_file_starts_a_host =
+    expect
+        (host_state_of 0u64 true = HostMissing)
+        "no host.pid reads as pid 0, which process_alive reports alive; it must still start a host"
+    expect (host_state_of 41u64 false = HostMissing) "a dead recorded host is restarted"
+    expect (host_state_of 41u64 true = HostRunning 41u64) "a live recorded host takes the request"
+
+///> rust
+test requests_name_their_job =
+    expect (request_name "job-1-build" = "job-1-build.start") "request file name"
+    expect (request_id "job-1-build.start" = "job-1-build") "job id from the request"

@@ -1,0 +1,11 @@
+inl main () : i32 =
+    inl root = $'std::env::temp_dir().join("eoie inspection ü ".to_owned() + &std::process::id().to_string() + "-" + &std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos().to_string()).display().to_string().into()' : string
+    inl created = $'std::fs::create_dir(&*!root).is_ok()' : bool
+    if created then
+        inl path = $'std::path::Path::new(&*!root).join("input.txt").display().to_string().into()' : string
+        inl written = $'std::fs::write(&*!path, b"abc").is_ok()' : bool
+        inl correct = $'eoie_proxy_search::inspection_file_sha256(std::path::Path::new(&*!path)).as_deref() == Ok("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")' : bool
+        inl file_cleaned = $'std::fs::remove_file(&*!path).is_ok()' : bool
+        inl root_cleaned = $'std::fs::remove_dir(&*!root).is_ok()' : bool
+        if written && correct && file_cleaned && root_cleaned then 0i32 else 1i32
+    else 10i32

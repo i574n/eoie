@@ -1,0 +1,163 @@
+///- --package .
+test render static =
+    open sm'_operators
+
+open sm'_operators
+
+union state_read =
+    | StateMissing
+    | StateText : string
+    | StateUnreadable : string
+
+union rendered =
+    | Rendered : string
+    | Refused : string
+
+union evidence =
+    | ToolchainEvidence
+    | ColdProofEvidence
+
+nominal state_host = $'(i32, std::rc::Rc<str>)'
+
+let state_host_of (~root : string) (~relative : string) : state_host =
+    $'{ let path = std::path::Path::new(&*!root).join(&*!relative); match std::fs::read_to_string(&path) { Ok(source) => (1, std::rc::Rc::<str>::from(source)), Err(error) if error.kind() == std::io::ErrorKind::NotFound => (0, std::rc::Rc::<str>::from("")), Err(error) => (2, std::rc::Rc::<str>::from(format\!("read {}: {error}", path.display()))) } }' : state_host
+
+inl host_kind (~read : state_host) : i32 = $'!read.0' : i32
+inl host_text (~read : state_host) : string = $'!read.1.clone()' : string
+inl i32_text (value : i32) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+inl without_prefix (~text : string) (bytes : i32) : string = $'std::rc::Rc::<str>::from(&(&*!text)[!bytes as usize..])' : string
+inl sorted_lines (~text : string) : string = $'{ let mut items = (&*!text).lines().filter(|line| \!line.is_empty()).collect::<Vec<_>>(); items.sort(); std::rc::Rc::<str>::from(items.join("\n")) }' : string
+inl line_count (~text : string) : i32 = $'(&*!text).lines().count() as i32' : i32
+inl line_at (~text : string) (index : i32) : string = $'std::rc::Rc::<str>::from((&*!text).lines().nth(!index as usize).unwrap_or(""))' : string
+
+let state_read_of (~root : string) (~relative : string) : state_read =
+    inl read = state_host_of root relative
+    inl kind = host_kind read
+    if kind = 1i32 then StateText (host_text read)
+    elif kind = 0i32 then StateMissing
+    else StateUnreadable (host_text read)
+
+inl projected (~label : string) (~value : string) : rendered =
+    if value = "" then Refused (label ++# " projection rejected typed state") else Rendered value
+
+inl evidence_path = function
+    | ToolchainEvidence => "state/toolchain_identity.spi"
+    | ColdProofEvidence => "state/cold_proof.spi"
+
+inl evidence_label = function
+    | ToolchainEvidence => "toolchain"
+    | ColdProofEvidence => "cold proof"
+
+inl evidence_projection (kind : evidence) (~text : string) : string =
+    match kind with
+    | ToolchainEvidence => $'handoff_evidence_projection_domain::eoie_handoff_toolchain_projection(&*!text)' : string
+    | ColdProofEvidence => $'handoff_evidence_projection_domain::eoie_handoff_cold_projection(&*!text)' : string
+
+inl with_evidence (~root : string) (kind : evidence) (~block : rendered) : rendered =
+    match block with
+    | Refused problem => Refused problem
+    | Rendered text =>
+        match state_read_of root (evidence_path kind) with
+        | StateMissing => Rendered text
+        | StateUnreadable problem => Refused problem
+        | StateText source =>
+            match projected (evidence_label kind) (evidence_projection kind source) with
+            | Refused problem => Refused problem
+            | Rendered line => Rendered (text ++# "\n" ++# line ++# "\n")
+
+inl authority_mask () : i32 = $'authority_state_domain::eoie_authority_declared_mask(0, 0)' : i32
+inl authority_code (mask : i32) : i32 = $'authority_state_domain::eoie_authority_state(!mask, 0)' : i32
+
+let recorded_lines (~root : string) (~ratings_line : string) (~census_line : string) : rendered =
+    inl mask = authority_mask ()
+    inl code = authority_code mask
+    if mask < 0i32 || code < 0i32 then Refused "compiled authority projection rejected"
+    else
+        inl authority = if code = 1i32 then "exclusive" else "blocked"
+        inl heading = "\n## Recorded state\n\nSaved ratings, census and receipts are shown below with compiled authority declarations. This command does not revalidate their freshness or certify a release.\n"
+        inl authority_line = "\nauthority=" ++# authority ++# " blocker_mask=" ++# (i32_text mask) ++# (" " ++# census_line ++# "\n")
+        inl opening = heading ++# "\n" ++# ratings_line ++# "\n" ++# authority_line
+        with_evidence root ColdProofEvidence (with_evidence root ToolchainEvidence (Rendered opening))
+
+let recorded_block (~root : string) : rendered =
+    match state_read_of root "state/ratings.spi" with
+    | StateMissing => Rendered ""
+    | StateUnreadable problem => Refused problem
+    | StateText ratings =>
+        match state_read_of root "state/authority_census.spi" with
+        | StateMissing => Rendered ""
+        | StateUnreadable problem => Refused problem
+        | StateText census =>
+            match projected "ratings" ($'handoff_state_projection_domain::eoie_handoff_ratings_projection(&*!ratings)' : string) with
+            | Refused problem => Refused problem
+            | Rendered ratings_line =>
+                match projected "authority census" ($'handoff_state_projection_domain::eoie_handoff_census_projection(&*!census)' : string) with
+                | Refused problem => Refused problem
+                | Rendered census_line => recorded_lines root ratings_line census_line
+
+let rec bulleted (~items : string) (index : i32) (~acc : string) : string =
+    if index < line_count items then bulleted items (index + 1i32) (acc ++# "\n- " ++# (line_at items index) ++# "\n")
+    else acc
+
+inl active_items (~items : string) : string = if items = "" then "" else bulleted items 0i32 "\n## Active work\n"
+
+let active_block (~root : string) : rendered =
+    match state_read_of root "state/agile.spi" with
+    | StateMissing => Rendered ""
+    | StateUnreadable problem => Refused problem
+    | StateText agile =>
+        match projected "active work" ($'handoff_active_work_projection_domain::eoie_handoff_active_work_projection(&*!agile)' : string) with
+        | Refused problem => Refused problem
+        | Rendered raw =>
+            if raw = "ok" then Rendered ""
+            elif sm'.starts_with "ok\n" raw then Rendered (active_items (sorted_lines (without_prefix raw 3i32)))
+            else Refused "active work projection returned invalid envelope"
+
+let sections_block (~handoff : string) : rendered =
+    match projected "handoff sections" ($'handoff_sections_projection_domain::eoie_handoff_sections_projection(&*!handoff)' : string) with
+    | Refused problem => Refused problem
+    | Rendered sections =>
+        if sm'.starts_with "ok" sections then Rendered ((without_prefix sections 2i32) ++# "\n")
+        else Refused "handoff sections projection returned invalid envelope"
+
+let handoff_text (~root : string) : rendered =
+    match state_read_of root "state/handoff.spi" with
+    | StateMissing => Refused "state/handoff.spi is missing"
+    | StateUnreadable problem => Refused problem
+    | StateText handoff =>
+        match sections_block handoff with
+        | Refused problem => Refused problem
+        | Rendered sections =>
+            match recorded_block root with
+            | Refused problem => Refused problem
+            | Rendered recorded =>
+                match active_block root with
+                | Refused problem => Refused problem
+                | Rendered work => Rendered ("# EOIE handoff\n" ++# recorded ++# sections ++# work)
+
+inl written (~text : string) : string =
+    $'{ let mut stdout = std::io::stdout().lock(); match std::io::Write::write_all(&mut stdout, (&*!text).as_bytes()).and_then(|()| std::io::Write::flush(&mut stdout)) { Err(error) if error.kind() \!= std::io::ErrorKind::BrokenPipe => std::rc::Rc::<str>::from(format\!("write handoff: {error}")), _ => std::rc::Rc::<str>::from("") } }' : string
+
+inl handoff_failed (~problem : string) : i32 =
+    inl _ = $'eprintln\!("eoie error: {}", &*!problem)' : ()
+    2i32
+
+let handoff_render_owned (~root : string) : i32 =
+    match handoff_text root with
+    | Refused problem => handoff_failed problem
+    | Rendered text =>
+        inl problem = written text
+        if problem = "" then 0i32 else handoff_failed problem
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test active_work_lists_sorted_items_under_one_heading =
+    expect (active_items (sorted_lines "b item\n\na item\n") = "\n## Active work\n\n- a item\n\n- b item\n") (active_items (sorted_lines "b item\n\na item\n"))
+    expect (active_items (sorted_lines "") = "") "no items, no heading"
+
+///> rust
+test a_missing_state_file_is_absent_not_an_error =
+    match state_read_of "." "state/no-such-handoff-file.spi" with
+    | StateMissing => ()
+    | _ => expect false "missing file"

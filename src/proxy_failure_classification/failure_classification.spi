@@ -1,0 +1,63 @@
+union proxy_failure =
+    | ArgumentFailure
+    | ChildProcessFailure : i32
+
+union proxy_repair =
+    | AddCreateOrReplace
+    | ExpectObservedMatches : u64
+    | NoRepair
+
+inl child_exit_digits (~message : string) : i32 =
+    $'!message.find("failed: exit code: ").and_then(|at| !message[at + 19..].split(|c: char| c.is_ascii_digit() == false).next().and_then(|digits| digits.parse::<i32>().ok())).unwrap_or(0)' : i32
+
+inl observed_match_digits (~message : string) : u64 =
+    $'!message.find("observed matches=").and_then(|at| !message[at + 17..].split(|c: char| c.is_ascii_digit() == false).next().and_then(|digits| digits.parse::<u64>().ok())).unwrap_or(0)' : u64
+
+inl message_starts (~message : string) (~prefix : string) : bool = $'!message.starts_with(&*!prefix)' : bool
+
+inl proxy_failure_of (~message : string) : proxy_failure =
+    inl code = child_exit_digits message
+    if $"!code > 0" then ChildProcessFailure code else ArgumentFailure
+
+inl proxy_repair_of (~message : string) : proxy_repair =
+    inl matches = observed_match_digits message
+    if message_starts message "fs-write refuses to overwrite existing file" then AddCreateOrReplace
+    elif message_starts message "text-replace expected " && $"!matches > 0" then ExpectObservedMatches matches
+    else NoRepair
+
+inl process_exit_code (code : i32) : i32 = if $"!code > 255" then 255i32 else code
+
+inl proxy_flags_follow (index : i32) : bool = $'std::env::args().nth(2 + !index as usize).is_some_and(|word| word.starts_with("--"))' : bool
+
+let proxy_argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
+
+inl proxy_words (first : i32) (last : i32) : string =
+    $'std::rc::Rc::<str>::from(std::env::args().skip(2 + !first as usize).take((!last - !first).max(0) as usize).map(|word| Some(word.clone()).filter(|plain| plain.is_empty() == false && plain.chars().enumerate().all(|(at, c)| c.is_ascii_alphanumeric() || "_-./:=+,".contains(c) || c == char::from(92u8) || (c == char::from(126u8) && at > 0))).unwrap_or_else(|| [String::from(char::from(39u8)), word.replace(char::from(39u8), &String::from_iter([char::from(39u8); 2])), String::from(char::from(39u8))].concat())).collect::<Vec<_>>().join(" ").as_str())' : string
+
+inl joined (~a : string) (~b : string) (~c : string) : string = $'std::rc::Rc::<str>::from([&*!a, &*!b, &*!c].concat().as_str())' : string
+
+inl u64_text (value : u64) : string = $'std::rc::Rc::<str>::from(!value.to_string().as_str())' : string
+
+let proxy_child_exit_code (~message : string) : i32 =
+    match proxy_failure_of message with
+    | ChildProcessFailure code => process_exit_code code
+    | ArgumentFailure => 0i32
+
+let proxy_corrected_command (~message : string) : string =
+    match proxy_repair_of message with
+    | AddCreateOrReplace =>
+        inl flag = if proxy_flags_follow 3i32 then " --create-or-replace " else " --create-or-replace -- "
+        joined (joined "eoie proxy " (proxy_words 0i32 3i32) flag) (proxy_words 3i32 (proxy_argument_count ())) ""
+    | ExpectObservedMatches matches =>
+        if $"!matches == 1" then joined "eoie proxy " (proxy_words 0i32 6i32) ""
+        else joined (joined "eoie proxy " (proxy_words 0i32 6i32) " --expect ") (u64_text matches) ""
+    | NoRepair => ""
+
+inl main () : i32 =
+    !!!!Export("eoie_proxy_child_exit_code", ((fun message => proxy_child_exit_code message) : string -> i32))
+    !!!!Export("eoie_proxy_corrected_command", ((fun message => proxy_corrected_command message) : string -> string))
+    inl _ = proxy_child_exit_code "proxy-run failed: exit code: 3"
+    inl _ = proxy_corrected_command "text-replace expected 1 match(es), observed matches=3"
+    0i32

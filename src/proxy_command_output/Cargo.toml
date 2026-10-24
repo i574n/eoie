@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "command_output.spi"
+output = "command_output.rs"
+
+[package]
+name = "proxy-command-output"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "proxy_command_output"
+path = "command_output.rs"

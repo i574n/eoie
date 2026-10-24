@@ -1,0 +1,42 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl window_call (root : fixture_root) (args : cli_args) : cli_run =
+    eoie_run (fixture_text_of root) (Arg (cat "EOIE_WINDOWS_HOME=" (fixture_path root "windows"), Arg ("EOIE_WINDOWS_FREE_MB=8000", NoArgs))) NoArgs (Arg ("window", args))
+
+inl touching_source () : string = "fn main() { let args: Vec<String> = std::env::args().collect(); std::fs::write(&args[1], [114u8, 97u8, 110u8]).unwrap(); std::process::exit(3); }"
+
+///> rust
+test a_run_holds_the_window_for_the_command_and_passes_its_exit_through =
+    inl root = fixture_root_create "window run"
+    inl program = rustc_program root "touch" (touching_source ())
+    inl ran = window_call root (Arg ("run", Arg ("compile", Arg ("5", Arg ("--label", Arg ("quick compile", Arg ("--", Arg (program, Arg (fixture_path root "ran.txt", NoArgs)))))))))
+    expect (ran.code = 3i32) (run_text ran)
+    shows ran.stdout "eoie window request ok id=win-"
+    shows ran.stdout "class=compile minutes=5"
+    shows ran.stdout "exit=3 released=yes"
+    same (fixture_read root "ran.txt") "ran"
+    shows (succeeded (window_call root (Arg ("list", NoArgs)))) "eoie window list ok windows=0"
+    fixture_root_remove root
+
+///> rust
+test a_blocked_run_never_starts_the_command =
+    inl root = fixture_root_create "window run blocked"
+    inl program = rustc_program root "touch" (touching_source ())
+    inl _ = succeeded (window_call root (Arg ("request", Arg ("live-gui", Arg ("30", Arg ("--label", Arg ("gui block", NoArgs)))))))
+    inl blocked = window_call root (Arg ("run", Arg ("compile", Arg ("5", Arg ("--", Arg (program, Arg (fixture_path root "ran.txt", NoArgs)))))))
+    expect (blocked.code = 1i32) (run_text blocked)
+    shows blocked.stdout "eoie window request blocked"
+    expect (path_exists (fixture_path root "ran.txt") = false) "the command must not run without its window"
+    rejected_with (window_call root (Arg ("run", Arg ("compile", Arg ("5", NoArgs))))) 2i32 "run: give the command after --"
+    fixture_root_remove root
+
+inl marker_source () : string = "fn main() { let args: Vec<String> = std::env::args().collect(); std::fs::write(&args[1], std::env::var(&args[2]).unwrap_or_default()).unwrap(); }"
+
+///> rust
+test a_run_tells_its_command_which_window_it_holds =
+    inl root = fixture_root_create "window run marker"
+    inl program = rustc_program root "marker" (marker_source ())
+    shows (succeeded (window_call root (Arg ("run", Arg ("compile", Arg ("5", Arg ("--", Arg (program, Arg (fixture_path root "held.txt", Arg ("EOIE_WINDOW_HELD", NoArgs)))))))))) "released=yes"
+    shows (fixture_read root "held.txt") "compile:win-"
+    fixture_root_remove root

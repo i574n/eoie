@@ -1,0 +1,8 @@
+packages:
+    |core-
+    state_receipt_codec_model-
+    union_reflection
+
+modules:
+    model
+    policy_probe

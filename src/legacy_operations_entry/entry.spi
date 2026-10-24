@@ -1,0 +1,143 @@
+open dogfood_shim_bindings
+open exact_replace_contract.model
+
+nominal operations_idle = ()
+nominal operations_completed = ()
+union operations_family = | BundleFamily | ProxyFamily
+union operations_op from to = | DispatchOperations :: operations_family -> operations_op operations_idle operations_completed
+union rec operations_plan from to = | OperationsStep :: forall from to. operations_op from to -> operations_plan from to | OperationsChoice :: forall from to. operations_plan from to * operations_plan from to -> operations_plan from to
+inl migration_frontier () : operations_plan operations_idle operations_completed = OperationsChoice (OperationsStep (DispatchOperations BundleFamily), OperationsStep (DispatchOperations ProxyFamily))
+
+let proxy_exact_replace_preflight_binding (regular_and_nonempty : i32) (distinct_payloads : i32) : i32 =
+    bool_pair_binding regular_and_nonempty distinct_payloads
+
+let proxy_exact_replace_authorize_binding (match_count : i32) (mode_valid : i32) : i32 =
+    bool_pair_binding (unique_match_binding match_count) mode_valid
+
+let proxy_exact_replace_verify_binding (candidate_exact : i32) (rollback_available : i32) : i32 =
+    verification_binding candidate_exact 0i32 rollback_available
+
+union proxy_run_token =
+    | RunTimeout
+    | RunWorkingDirectory
+    | RunProgram
+    | RunEnvironment
+    | RunUnset
+    | RunSeparator
+
+inl run_token_word = function
+    | RunTimeout => "--timeout-ms"
+    | RunWorkingDirectory => "--cwd"
+    | RunProgram => "--program"
+    | RunEnvironment => "--env"
+    | RunUnset => "--unset"
+    | RunSeparator => "--"
+
+union proxy_write_token =
+    | WriteReplaceExisting
+    | WriteExpectHash
+    | WriteExpectNonempty
+    | WriteSeparator
+    | WriteCreateOrReplace
+
+inl write_token_word = function
+    | WriteReplaceExisting => "--replace-existing"
+    | WriteExpectHash => "--expect-hash"
+    | WriteExpectNonempty => "--expect-nonempty"
+    | WriteSeparator => "--"
+    | WriteCreateOrReplace => "--create-or-replace"
+
+inl token_code forall token. (value : token) : u64 = $'(!(union_reflection.cases.union_case_index value) - 1) as u64' : u64
+inl unmatched_code () : u64 = $'u64::MAX' : u64
+inl run_token_named (~input : string) (token : proxy_run_token) : bool = run_token_word token = input
+inl write_token_named (~input : string) (token : proxy_write_token) : bool = write_token_word token = input
+
+let proxy_run_token_code (~input : string) : u64 =
+    union_reflection.cases.union_case_where (run_token_named input) token_code (unmatched_code ())
+
+let proxy_write_token_code (~input : string) : u64 =
+    union_reflection.cases.union_case_where (write_token_named input) token_code (unmatched_code ())
+
+union proxy_write_action =
+    | CreateMissingFile
+    | ReplaceExistingFile
+    | RejectOverwriteWithoutFlag
+    | RejectEmptyTarget
+    | RejectPreconditionsOnMissingFile
+    | RejectEmptyPayload
+
+type proxy_write_flags =
+    {
+        replace_existing : bool
+        create_or_replace : bool
+        expect_hash : bool
+        expect_nonempty : bool
+        original_empty : bool
+        payload_empty : bool
+    }
+
+inl packed_flag (packed : i32) (bit : i32) : bool = (packed / bit) % 2i32 = 1i32
+
+inl proxy_write_flags_of (packed : i32) : proxy_write_flags =
+    {
+        replace_existing = packed_flag packed 1i32
+        create_or_replace = packed_flag packed 2i32
+        expect_hash = packed_flag packed 4i32
+        expect_nonempty = packed_flag packed 8i32
+        original_empty = packed_flag packed 16i32
+        payload_empty = packed_flag packed 32i32
+    }
+
+let proxy_write_action (existed : bool) (flags : proxy_write_flags) : proxy_write_action =
+    if existed then
+        if flags.replace_existing || flags.create_or_replace then
+            if flags.expect_nonempty && flags.original_empty then RejectEmptyTarget
+            elif flags.payload_empty && flags.original_empty = false && flags.expect_hash = false then RejectEmptyPayload
+            else ReplaceExistingFile
+        else RejectOverwriteWithoutFlag
+    elif flags.replace_existing || flags.expect_hash || flags.expect_nonempty then RejectPreconditionsOnMissingFile
+    else CreateMissingFile
+
+inl proxy_write_action_code (action : proxy_write_action) : i32 =
+    match action with
+    | CreateMissingFile => 0i32
+    | ReplaceExistingFile => 1i32
+    | RejectOverwriteWithoutFlag => 2i32
+    | RejectEmptyTarget => 3i32
+    | RejectPreconditionsOnMissingFile => 4i32
+    | RejectEmptyPayload => 5i32
+
+let proxy_write_action_binding (existed : i32) (packed : i32) : i32 =
+    if packed < 0i32 then -1i32
+    elif 63i32 < packed then -1i32
+    elif existed < 0i32 then -1i32
+    elif 1i32 < existed then -1i32
+    else proxy_write_action_code (proxy_write_action (existed = 1i32) (proxy_write_flags_of packed))
+let proxy_usage_bridge (~input : string) : string =
+    command_spec_domain.model.proxy_usage input
+
+inl emit_main () : i32 =
+    dogfood_shim_terminal.emit_runtime ()
+    legacy_terminal.emit_runtime ()
+    restart_baton_terminal.emit_runtime ()
+    inl _ = proxy_dogfood_shim_decision_packed_binding 0i32 0i32
+    inl _ = proxy_dogfood_shim_install_packed_binding 9i32 0i32
+    inl _ = proxy_dogfood_shim_uninstall_binding 1i32 4i32
+    inl _ = proxy_exact_replace_preflight_binding 1i32 1i32
+    inl _ = proxy_exact_replace_authorize_binding 1i32 1i32
+    inl _ = proxy_exact_replace_verify_binding 1i32 1i32
+    inl _ = proxy_run_token_code "--cwd"
+    inl _ = proxy_write_token_code "--expect-hash"
+    inl _ = proxy_write_action_binding 0i32 2i32
+    inl _ = proxy_usage_bridge "fs-read"
+    !!!!Export("eoie_legacy_operations_proxy_dogfood_shim_decision_packed_binding", ((fun (first, second) => proxy_dogfood_shim_decision_packed_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_legacy_operations_proxy_dogfood_shim_install_packed_binding", ((fun (first, second) => proxy_dogfood_shim_install_packed_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_legacy_operations_proxy_dogfood_shim_uninstall_binding", ((fun (first, second) => proxy_dogfood_shim_uninstall_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_legacy_operations_proxy_exact_replace_preflight_binding", ((fun (first, second) => proxy_exact_replace_preflight_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_legacy_operations_proxy_exact_replace_authorize_binding", ((fun (first, second) => proxy_exact_replace_authorize_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_legacy_operations_proxy_exact_replace_verify_binding", ((fun (first, second) => proxy_exact_replace_verify_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_legacy_operations_proxy_run_token_code", ((fun value => proxy_run_token_code value) : string -> u64))
+    !!!!Export("eoie_legacy_operations_proxy_write_token_code", ((fun value => proxy_write_token_code value) : string -> u64))
+    !!!!Export("eoie_legacy_operations_proxy_write_action_binding", ((fun (existed, packed) => proxy_write_action_binding existed packed) : i32 * i32 -> i32))
+    !!!!Export("eoie_legacy_operations_proxy_usage", ((fun value => proxy_usage_bridge value) : string -> string))
+    0i32

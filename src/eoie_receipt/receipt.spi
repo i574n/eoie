@@ -1,0 +1,42 @@
+///- --package .
+test receipt static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union receipt_outcome =
+    | Succeeded
+    | Failed
+
+let now_ms () : u64 =
+    $'std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_millis() as u64).unwrap_or(0)' : u64
+
+let decimal_text (~value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+
+let elapsed_text (~started : u64) : string =
+    $'{ let millis = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_millis() as u64).unwrap_or(0).saturating_sub(!started); std::rc::Rc::<str>::from(if millis < 10000 { format\!("{millis}ms") } else { format\!("{:.1}s", millis as f64 / 1000.0) }) }' : string
+
+let local_offset_minutes () : i64 =
+    $'{ \#[cfg(windows)] fn offset() -> i64 { \#[repr(C)] \#[derive(Default)] \#[allow(dead_code)] struct WindowsTime { year: u16, month: u16, weekday: u16, day: u16, hour: u16, minute: u16, second: u16, millis: u16 } unsafe extern "system" { fn GetLocalTime(time: *mut WindowsTime); fn GetSystemTime(time: *mut WindowsTime); } let mut local = WindowsTime::default(); let mut universal = WindowsTime::default(); unsafe { GetLocalTime(&mut local); GetSystemTime(&mut universal); } let minutes = |time: &WindowsTime| time.day as i64 * 1440 + time.hour as i64 * 60 + time.minute as i64; let raw = (minutes(&local) - minutes(&universal)).rem_euclid(1440); ((if raw > 840 { raw - 1440 } else { raw }) as f64 / 15.0).round() as i64 * 15 } \#[cfg(not(windows))] fn offset() -> i64 { 0 } offset() }' : i64
+
+let clock_text () : string =
+    inl offset = local_offset_minutes ()
+    $'{ let offset = !offset; let seconds = (std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| elapsed.as_secs()).unwrap_or(0) as i64 + offset * 60).rem_euclid(86400); let sign = if offset < 0 { char::from(45u8) } else { char::from(43u8) }; std::rc::Rc::<str>::from(if cfg\!(windows) { format\!("{:02}:{:02}:{:02}{}{:02}:{:02}", seconds / 3600, seconds / 60 % 60, seconds % 60, sign, offset.abs() / 60, offset.abs() % 60) } else { format\!("{:02}:{:02}:{:02}Z", seconds / 3600, seconds / 60 % 60, seconds % 60) }) }' : string
+
+inl outcome_word = function
+    | Succeeded => "ok"
+    | Failed => "failed"
+
+let receipt_line (outcome : receipt_outcome) (~counts : string) (~started : u64) : () =
+    inl line = concat5 (outcome_word outcome) "  " counts "  " (concat5 (elapsed_text started) "  " (clock_text ()) "" "")
+    $'println\!("{}", &*!line)' : ()
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test receipt_parts_carry_elapsed_and_clock =
+    expect (contains (elapsed_text (now_ms ())) "ms") "elapsed under ten seconds is in milliseconds"
+    expect (contains (clock_text ()) ":") "clock has hour and minute"
+    expect (outcome_word Failed = "failed") "failed word"
+    inl offset = local_offset_minutes ()
+    expect (offset > (-841i64) && offset < 841i64) "offset within fourteen hours"

@@ -1,0 +1,6 @@
+packages:
+    |core-
+    agile_state_path_policy
+    spiral-
+modules:
+    schema

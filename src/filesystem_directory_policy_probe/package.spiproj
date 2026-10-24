@@ -1,0 +1,5 @@
+packages:
+    |core-
+    filesystem_directory_contract
+modules:
+    main

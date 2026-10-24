@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "title_notes.spi"
+output = "title_notes.rs"
+
+[package]
+name = "agile-title-notes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_title_notes"
+path = "title_notes.rs"
+
+[dependencies]
+agile-title-tails = { path = "../agile_title_tails" }

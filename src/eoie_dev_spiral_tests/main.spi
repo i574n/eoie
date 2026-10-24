@@ -1,0 +1,40 @@
+open registry
+open sm'_operators
+open failures
+
+let rec selected_notebooks (root : string) (names : string) (separator : string) (notebooks : spiral_test_notebooks) (~acc : string) : string =
+    match notebooks with
+    | NoMoreNotebooks => acc
+    | SpiralTestNotebook (package, relative, rest) =>
+        inl chosen = selects names separator package && notebook.present root relative
+        selected_notebooks root names separator rest (if chosen then (if acc = "" then relative else acc ++# "\n" ++# relative) else acc)
+
+let rec announced (~listed : string) (index : i32) : i32 =
+    if index < notebook.line_count listed then
+        inl _ = notebook.announce (notebook.line_at listed index)
+        announced listed (index + 1i32)
+    else 0i32
+
+let reported (failures : failed_notebooks) (code : i32) : i32 =
+    match failures with
+    | NoFailures =>
+        inl _ = if code = 0i32 then () else $'eprintln\!("spiral notebooks: every notebook reported passing, but the batch exited {}", !code)' : ()
+        code
+    | _ =>
+        inl listed = failure_list failures ""
+        inl count = failure_count failures 0i32
+        inl _ = $'eprintln\!("spiral notebooks failed ({}): {}", !count, &*!listed)' : ()
+        first_code failures 1i32
+
+let run_registered (root : string) (target : string) (names : string) (separator : string) (dry : bool) (timeout : u64) : i32 =
+    inl listed = selected_notebooks root names separator (registered ()) ""
+    if dry then announced listed 0i32
+    elif listed = "" then 0i32
+    else
+        inl outcome = notebook.run_batch root target listed timeout
+        inl code = notebook.batch_code outcome
+        reported (failures_of (notebook.batch_failed outcome) 0i32 (if code = 0i32 then 1i32 else code) NoFailures) code
+
+inl main () : i32 =
+    !!!!Export("eoie_dev_spiral_tests_run", ((fun (root, target, names, separator, dry, timeout) => run_registered root target names separator dry timeout) : string * string * string * string * bool * u64 -> i32))
+    0i32

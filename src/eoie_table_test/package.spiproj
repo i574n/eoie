@@ -1,0 +1,10 @@
+packages:
+    |core-
+    spiral-
+    union_reflection
+    eoie_table_query
+    agile_note_model
+    eoie_experiments
+    eoie_experiment_analysis
+modules:
+    table_test

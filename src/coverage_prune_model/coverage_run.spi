@@ -1,0 +1,153 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+
+inl emit_coverage_run () : () =
+    rust_global """
+        pub fn coverage_finish(code: i32) -> i32 {
+            #[cfg(all(windows, eoie_coverage))]
+            {
+                unsafe extern "C" { fn __llvm_profile_write_file() -> i32; }
+                if unsafe { __llvm_profile_write_file() } != 0 {
+                    eprintln!("eoie error: coverage profile flush failed");
+                    return if code == 0 { 1 } else { code };
+                }
+            }
+            code
+        }
+
+        fn coverage_absolute(args: &[String], index: usize, name: &str) -> Result<PathBuf, String> {
+            std::path::absolute(coverage_arg(args, index, name)?).map_err(|error| format!("resolve coverage {name}: {error}"))
+        }
+
+        fn coverage_jobs() -> Result<String, String> {
+            let requested = env::var("EOIE_COVERAGE_JOBS").or_else(|_| env::var("CARGO_BUILD_JOBS")).ok();
+            let requested = match requested {
+                Some(value) => value.parse::<i32>().ok().filter(|value| *value > 0).unwrap_or(-1),
+                None => 0,
+            };
+            let available = std::thread::available_parallelism().map(|value| i32::try_from(value.get()).unwrap_or(i32::MAX)).unwrap_or(1);
+            let jobs = eoie_coverage_jobs(requested, available);
+            if jobs < 1 { return Err("EOIE_COVERAGE_JOBS/CARGO_BUILD_JOBS must be within 1..=256".to_owned()); }
+            Ok(jobs.to_string())
+        }
+
+        fn coverage_run_test_args(scope: &str, jobs: &str) -> Result<Vec<String>, String> {
+            let mut args = vec!["test".to_owned(), "--offline".to_owned(), "--locked".to_owned(), "--release".to_owned()];
+            match scope {
+                "public" => args.extend(["-p", "eoie-contracts", "--lib"].into_iter().map(str::to_owned)),
+                "workspace" => args.extend(["--workspace", "--lib", "--bins", "--tests"].into_iter().map(str::to_owned)),
+                value if value.starts_with("owner:") => { let package = &value[6..]; if package.is_empty() || !package.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-' || ch == '_') { return Err("coverage owner scope is invalid".to_owned()); } args.extend(["-p".to_owned(), package.to_owned(), "--all-targets".to_owned()]); },
+                _ => return Err("coverage scope must be public workspace smoke or owner:<package>".to_owned()),
+            }
+            args.extend(["--jobs".to_owned(), jobs.to_owned()]);
+            Ok(args)
+        }
+
+        fn coverage_clear_profraw(path: &Path) -> Result<usize, String> {
+            fs::create_dir_all(path).map_err(|error| format!("create {}: {error}", path.display()))?;
+            let mut removed = 0usize;
+            for entry in fs::read_dir(path).map_err(|error| format!("read {}: {error}", path.display()))? {
+                let child = entry.map_err(|error| error.to_string())?.path();
+                if child.is_file() && child.extension().and_then(|value| value.to_str()) == Some("profraw") {
+                    fs::remove_file(&child).map_err(|error| format!("remove {}: {error}", child.display()))?;
+                    removed += 1;
+                }
+            }
+            Ok(removed)
+        }
+
+        fn coverage_profile_count(path: &Path) -> Result<usize, String> {
+            let mut count = 0;
+            for entry in fs::read_dir(path).map_err(|error| format!("read {}: {error}", path.display()))? {
+                let entry = entry.map_err(|error| error.to_string())?;
+                if entry.path().extension().and_then(|value| value.to_str()) != Some("profraw") { continue; }
+                if entry.file_type().map_err(|error| error.to_string())?.is_file() && entry.metadata().map_err(|error| error.to_string())?.len() > 0 { count += 1; }
+            }
+            Ok(count)
+        }
+
+        struct CoverageRunContext<'a> { cargo: &'a Path, source: &'a Path, target: &'a Path, profile_pattern: &'a str, compiler: &'a Path, binary: &'a Path, jobs: &'a str, timeout_ms: u64 }
+
+        fn coverage_run_phase(context: &CoverageRunContext<'_>, command_args: &[String], phase: &str) -> Result<(), String> {
+            let started = std::time::Instant::now();
+            let mut command = Command::new(context.cargo);
+            command.current_dir(context.source).args(command_args).env("CARGO_TARGET_DIR", context.target).env("CARGO_BUILD_JOBS", context.jobs).env("RUST_TEST_THREADS", env::var("RUST_TEST_THREADS").unwrap_or_else(|_| context.jobs.to_owned())).env("CARGO_INCREMENTAL", "1").env_remove("CARGO_ENCODED_RUSTFLAGS").env("RUSTFLAGS", "-C instrument-coverage --cfg eoie_coverage").env("LLVM_PROFILE_FILE", context.profile_pattern).env("EOIE_SPIRAL_COMPILE", context.compiler).env("EOIE_BIN_UNDER_TEST", context.binary).env("RAYON_NUM_THREADS", context.jobs);
+            let _observation = coverage_run_bounded_streaming_checked(&mut command, context.timeout_ms, phase, None)?;
+        """
+
+    rust_global """
+            println!("eoie coverage phase={phase} status=passed elapsed_ms={}", started.elapsed().as_millis());
+            Ok(())
+        }
+
+        pub fn coverage_run(args: &[String]) -> Result<(), String> {
+            if args.len() != 8 { return Err("coverage-run expects root cargo compiler target-dir profraw-dir public|workspace|smoke|owner:<package> timeout-ms".to_owned()); }
+            let root_path = coverage_absolute(args, 1, "root")?;
+            let root = root_path.as_path();
+            let source = root.join("src");
+            let cargo_path = coverage_absolute(args, 2, "cargo")?;
+            let cargo = cargo_path.as_path();
+            let compiler_path = coverage_absolute(args, 3, "compiler")?;
+            let compiler = compiler_path.as_path();
+            let target_path = coverage_absolute(args, 4, "target-dir")?;
+            let target = target_path.as_path();
+            let profraw_path = coverage_absolute(args, 5, "profraw-dir")?;
+            let profraw = profraw_path.as_path();
+            let scope = coverage_arg(args, 6, "scope")?;
+            let timeout_ms = coverage_arg(args, 7, "timeout-ms")?.parse::<u64>().map_err(|_| "coverage timeout must be a positive integer".to_owned())?;
+            if timeout_ms == 0 { return Err("coverage timeout must be positive".to_owned()); }
+            if !source.join("Cargo.toml").is_file() { return Err(format!("coverage root has no src/Cargo.toml: {}", root.display())); }
+            if !cargo.is_file() || !compiler.is_file() { return Err("coverage cargo and compiler must be files".to_owned()); }
+            let jobs = coverage_jobs()?;
+            if scope != "smoke" { coverage_run_test_args(scope, &jobs)?; }
+            else { coverage_smoke_preflight(&env::current_exe().map_err(|error| error.to_string())?, root, timeout_ms)?; }
+            fs::create_dir_all(target).map_err(|error| format!("create {}: {error}", target.display()))?;
+            let profile_pattern = profraw.join("%p-%m.profraw").to_string_lossy().into_owned();
+            let binary = target.join("release").join(if cfg!(windows) { "eoie.exe" } else { "eoie" });
+            let smoke_child = env::var("EOIE_COVERAGE_SMOKE_CHILD").ok().as_deref() == Some("1");
+            if smoke_child {
+                if scope != "smoke" { return Err("coverage smoke child requires smoke scope".to_owned()); }
+                if !binary.is_file() { return Err(format!("instrumented EOIE binary missing: {}", binary.display())); }
+                let smoke_context = CoverageSmokeContext { root, cargo, compiler, binary: &binary, target, profile_pattern: &profile_pattern, timeout_ms, jobs: &jobs };
+                coverage_smoke_run(&smoke_context)?;
+                println!("eoie coverage smoke child ok target={}", target.display());
+                return Ok(());
+            }
+            let removed = coverage_clear_profraw(profraw)?;
+            let build = ["build", "--offline", "--locked", "--release", "-p", "eoie-cli", "--bin", "eoie", "--jobs", jobs.as_str()].into_iter().map(str::to_owned).collect::<Vec<_>>();
+            let context = CoverageRunContext { cargo, source: &source, target, profile_pattern: &profile_pattern, compiler, binary: &binary, jobs: &jobs, timeout_ms };
+            coverage_run_phase(&context, &build, "build-binary")?;
+            if !binary.is_file() { return Err(format!("instrumented EOIE binary missing: {}", binary.display())); }
+            let preflight = profraw.join("preflight");
+            coverage_clear_profraw(&preflight)?;
+            let mut probe = Command::new(&binary);
+            probe.current_dir(root).args(["help", "--schema"]).env("LLVM_PROFILE_FILE", preflight.join("%p-%m.profraw"));
+            coverage_run_bounded_streaming_checked(&mut probe, timeout_ms, "coverage-binary-probe", None)?;
+            if coverage_profile_count(&preflight)? == 0 { return Err("instrumented EOIE produced no nonempty profile; check coverage flags and Windows profile flushing".to_owned()); }
+
+            if scope == "smoke" {
+                let mut command = Command::new(&binary);
+                command.current_dir(root).arg("proxy").args(args).env("EOIE_COVERAGE_SMOKE_CHILD", "1").env("LLVM_PROFILE_FILE", &profile_pattern).env("EOIE_SPIRAL_COMPILE", compiler).env("EOIE_BIN_UNDER_TEST", &binary).env("CARGO_TARGET_DIR", target).env("RAYON_NUM_THREADS", &jobs);
+                let _observation = coverage_run_bounded_streaming_checked(&mut command, timeout_ms, "smoke-reentry", None)?;
+            } else {
+                let tests = coverage_run_test_args(scope, &jobs)?;
+                coverage_run_phase(&context, &tests, "contracts")?;
+            }
+            let profiles = coverage_profile_count(profraw)?;
+            if profiles == 0 { return Err("coverage run produced no profraw files".to_owned()); }
+            println!("eoie proxy coverage-run ok scope={scope} profiles={profiles} cleared={removed} target={}", target.display());
+            Ok(())
+        }
+
+        mod coverage_run_tests {
+            #[test] fn coverage_scope_builds_bounded_test_surfaces() {
+                let public = super::coverage_run_test_args("public", "56").expect("public");
+                assert!(public.iter().any(|arg| arg == "eoie-contracts"));
+                let workspace = super::coverage_run_test_args("workspace", "56").expect("workspace");
+                assert!(workspace.iter().any(|arg| arg == "--workspace"));
+                let owner = super::coverage_run_test_args("owner:eoie-patch-transaction-contracts", "56").expect("owner");
+                assert!(owner.windows(2).any(|pair| pair == ["-p", "eoie-patch-transaction-contracts"]));
+                assert!(super::coverage_run_test_args("owner:../bad", "56").is_err());
+                assert!(super::coverage_run_test_args("unknown", "56").is_err());
+            }
+        }
+        """

@@ -1,0 +1,5 @@
+packages:
+    |core-
+    state_series_contract
+modules:
+    main

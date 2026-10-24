@@ -1,0 +1,96 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl do_call (root : fixture_root) (~program : string) : cli_run =
+    eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("do", Arg (".", Arg (program, NoArgs))))
+
+inl kit () : string = "inl show_i32 (x : i32) : string =\n    show_i64 (convert.i64 x)\ninl show_u8 (x : u8) : string =\n    x |> convert.i64 |> show_i64\n"
+
+inl kit_edit () : string = "edit lib/kit.spi\n  replace once \"x |> convert.i64 |> show_i64\" with \"show_i64 (convert.i64 x)\""
+
+///> rust
+test a_row_is_done_only_when_its_own_anchor_is_gone =
+    inl root = fixture_root_create "edit row local"
+    fixture_write root "lib/kit.spi" (kit ())
+    inl out = succeeded (do_call root (kit_edit ()))
+    shows out "edit lib/kit.spi  1 replacement  line 4  sha256 "
+    shows out "ok  files 1  replacements 1  "
+    same (fixture_read root "lib/kit.spi") "inl show_i32 (x : i32) : string =\n    show_i64 (convert.i64 x)\ninl show_u8 (x : u8) : string =\n    show_i64 (convert.i64 x)\n"
+    inl again = do_call root (kit_edit ())
+    expect (again.code = 1i32) (cat "a rerun passed, " (run_text again))
+    shows again.stdout "edit lib/kit.spi  anchor not found: \"x |> convert.i64 |> show_i64\" (0 matches, expected 1)"
+    shows again.stdout "nothing written: 1 of 1 edits failed validation"
+    fixture_root_remove root
+
+///> rust
+test edits_that_would_empty_a_file_write_nothing =
+    inl root = fixture_root_create "edit emptied"
+    fixture_write root "a.txt" "alpha\n"
+    fixture_write root "b.txt" "beta\n"
+    inl refused = do_call root "edit b.txt\n  replace once \"beta\" with \"BETA\"\nedit a.txt\n  replace once \"alpha\\n\" with \"\""
+    expect (refused.code = 1i32) (cat "an emptying edit passed, " (run_text refused))
+    shows refused.stdout "edit a.txt  the edits would leave the file empty (was 6 bytes); empty it with eoie proxy fs-write --expect-hash"
+    shows refused.stdout "nothing written: 1 of 2 edits failed validation"
+    same (fixture_read root "a.txt") "alpha\n"
+    same (fixture_read root "b.txt") "beta\n"
+    shows (succeeded (do_call root "edit a.txt\n  replace once \"alpha\" with \"\"")) "ok  files 1  replacements 1  "
+    same (fixture_read root "a.txt") "\n"
+    fixture_root_remove root
+
+///> rust
+test patch_hunks_edit_a_file_in_one_call =
+    inl root = fixture_root_create "edit patch"
+    fixture_write root "lib/kit.spi" (kit ())
+    inl out = succeeded (do_call root "edit lib/kit.spi\n  patch <<<\n@@\n inl show_u8 (x : u8) : string =\n-    x |> convert.i64 |> show_i64\n+    show_i64 (convert.i64 x)\n@@\n-inl show_i32 (x : i32) : string =\n+inl show_int (x : i32) : string =\n>>>")
+    shows out "ok  files 1  replacements 2  "
+    same (fixture_read root "lib/kit.spi") "inl show_int (x : i32) : string =\n    show_i64 (convert.i64 x)\ninl show_u8 (x : u8) : string =\n    show_i64 (convert.i64 x)\n"
+    inl stale = do_call root "edit lib/kit.spi\n  patch <<<\n-    x |> convert.i64 |> show_i64\n+    gone\n>>>"
+    expect (stale.code = 1i32) (cat "a stale hunk applied, " (run_text stale))
+    shows stale.stdout "anchor not found"
+    fixture_root_remove root
+
+inl forward (~text : string) : string = $'std::rc::Rc::<str>::from((&*!text).replace(char::from(92u8), "/"))' : string
+
+///> rust
+test pattern_rules_and_absolute_globs_in_one_call =
+    inl root = fixture_root_create "edit pattern"
+    inl other = fixture_root_create "edit pattern other"
+    fixture_write root "a.spi" "v1 v22\n"
+    fixture_write other "sub/b.spi" "v3\nkeep\n"
+    inl program = cat (cat "edit a.spi\n  replace pattern 2 times \"v(\\d+)\" with \"w$1\"\nedit \"" (forward (fixture_text_of other))) "/**/*.spi\"\n  replace pattern once \"(?m)^v(\\d+)$\" with \"w$1\""
+    inl out = succeeded (do_call root program)
+    shows out "replacements 3"
+    same (fixture_read root "a.spi") "w1 w22\n"
+    same (fixture_read other "sub/b.spi") "w3\nkeep\n"
+    inl invalid = do_call root "edit a.spi\n  replace pattern once \"(\" with \"x\""
+    expect (invalid.code = 1i32) (cat "an invalid pattern passed, " (run_text invalid))
+    shows invalid.stdout "invalid pattern \"(\""
+    same (fixture_read root "a.spi") "w1 w22\n"
+    fixture_root_remove root
+    fixture_root_remove other
+
+///> rust
+test except_keeps_matching_files_out_of_a_globbed_edit =
+    inl root = fixture_root_create "edit except"
+    fixture_write root "src/a.spi" "old\n"
+    fixture_write root "src/vendor/b.spi" "old\n"
+    fixture_write root "src/c_test.spi" "old\n"
+    shows (succeeded (do_call root "edit src/**/*.spi except src/vendor/*,*_test.spi\n  replace all \"old\" with \"new\"")) "files 1 of 1 matched  replacements 1"
+    same (fixture_read root "src/a.spi") "new\n"
+    same (fixture_read root "src/vendor/b.spi") "old\n"
+    same (fixture_read root "src/c_test.spi") "old\n"
+    fixture_root_remove root
+
+///> rust
+test move_renames_without_overwriting =
+    inl root = fixture_root_create "do move"
+    fixture_write root "src/old.spi" "kept\n"
+    fixture_write root "src/taken.spi" "other\n"
+    shows (succeeded (do_call root "move src/old.spi to lib/new.spi")) "files 1 moved"
+    same (fixture_read root "lib/new.spi") "kept\n"
+    expect (path_exists (fixture_path root "src/old.spi") = false) "the source is gone"
+    inl refused = do_call root "move lib/new.spi to src/taken.spi"
+    expect (refused.code = 1i32) (run_text refused)
+    shows refused.stdout "already exists"
+    same (fixture_read root "src/taken.spi") "other\n"
+    fixture_root_remove root

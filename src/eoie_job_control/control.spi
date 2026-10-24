@@ -1,0 +1,84 @@
+open sm'_operators
+open eoie_jobs.model
+open eoie_jobs.host
+open eoie_jobs.jobs
+
+union list_pass =
+    | UnsettledPass
+    | SettledPass
+
+inl pass_takes (pass : list_pass) (state : job_state) : bool =
+    match pass with
+    | UnsettledPass => state_settled state = false
+    | SettledPass => state_settled state
+
+let rec listed (~names : string) (pass : list_pass) (left : u64) : u64 =
+    if names = "" || left = 0u64 then left
+    else
+        inl first = $'std::rc::Rc::<str>::from(!names.lines().next().unwrap_or(""))' : string
+        inl rest = $'std::rc::Rc::<str>::from(!names.lines().skip(1).collect::<Vec<_>>().join("\n"))' : string
+        if pass_takes pass (job_state_now first) then
+            stdout_line (job_summary "list" first)
+            listed rest pass (left - 1u64)
+        else listed rest pass left
+
+inl unsettled_window () : u64 = 120u64
+
+let job_listed () : i32 =
+    inl count = if argument_count () > 3i32 then decimal_u64 (argument 3i32) else 20u64
+    inl names = newest_directories (jobs_root ()) (if count > unsettled_window () then count else unsettled_window ())
+    inl shown_unsettled = unsettled_window () - listed names UnsettledPass (unsettled_window ())
+    inl _ = if shown_unsettled < count then listed names SettledPass (count - shown_unsettled) else 0u64
+    0i32
+
+let job_tailed () : i32 =
+    inl id = argument 3i32
+    if known_job id then
+        inl lines = if argument_count () > 4i32 then decimal_u64 (argument 4i32) else 20u64
+        stdout_line (job_summary "tail" id)
+        stdout_line ("--- stdout (last " ++# (decimal_text lines) ++# " lines)\n" ++# (last_lines (job_file id "stdout.log") lines))
+        stdout_line ("--- stderr (last " ++# (decimal_text lines) ++# " lines)\n" ++# (last_lines (job_file id "stderr.log") lines))
+        0i32
+    else rejected ("tail: unknown job id " ++# id)
+
+let stop_text (~id : string) : string =
+    if known_job id = false then "error: stop: unknown job id " ++# id
+    else
+        match stop_verdict_of (job_state_now id) with
+        | StopRefused reason => "error: stop: job " ++# id ++# " " ++# reason
+        | StopRequested =>
+            inl _ = text_written (job_file id "stop") (decimal_text (now_ms ()))
+            inl state = waited id (now_ms () + 15000u64) 0u64
+            if state_settled state then job_summary "stop" id
+            else "error: stop: job " ++# id ++# " did not settle within 15 s; its supervisor may predate job stop"
+
+let job_stopped () : i32 =
+    inl text = stop_text (argument 3i32)
+    if sm'.starts_with "error: " text then rejected ($'std::rc::Rc::<str>::from(&(!text)[7..])' : string)
+    else
+        stdout_line text
+        0i32
+inl record_mark () : string = $'std::rc::Rc::<str>::from(char::from(30u8).to_string())' : string
+
+let launched_text (~label : string) (~timeout : u64) (~inner : string) (~cwd : string) : string =
+    $'eoie_job_launch::eoie_job_launched_text(&*!label, !timeout, &*!inner, &*!cwd)' : string
+
+let settled_text (~id : string) (~wait_ms : u64) : string =
+    inl _ = waited id (now_ms () + wait_ms) (watched_caller ())
+    (job_summary "wait" id) ++# " pid=" ++# (text_or_empty (job_file id "pid")) ++# " timeout_ms=" ++# (text_or_empty (job_file id "timeout_ms"))
+
+let newest_labeled (~label : string) : string =
+    inl root = jobs_root ()
+    $'std::rc::Rc::<str>::from(std::fs::read_dir(&*!root).into_iter().flatten().flatten().filter(|entry| std::fs::read_to_string(entry.path().join("label")).map(|text| text.trim() == &*!label).unwrap_or(false)).map(|entry| entry.file_name().to_string_lossy().into_owned()).max_by_key(|name| name.split(char::from(45u8)).nth(1).and_then(|stamp| stamp.parse::<u64>().ok()).unwrap_or(0)).unwrap_or_default())' : string
+
+inl main () : i32 =
+    !!!!Export("eoie_job_tail_run", ((fun () => job_tailed ()) : () -> i32))
+    !!!!Export("eoie_job_stop_run", ((fun () => job_stopped ()) : () -> i32))
+    !!!!Export("eoie_job_list_run", ((fun () => job_listed ()) : () -> i32))
+    !!!!Export("eoie_job_stop_text", ((fun id => stop_text id) : string -> string))
+    !!!!Export("eoie_job_launched", ((fun (label, timeout, inner, cwd) => launched_text label timeout inner cwd) : string * u64 * string * string -> string))
+    !!!!Export("eoie_job_settled", ((fun (id, wait_ms) => settled_text id wait_ms) : string * u64 -> string))
+    !!!!Export("eoie_job_output", ((fun (id, count) => last_lines (job_file id "stdout.log") count) : string * u64 -> string))
+    !!!!Export("eoie_job_labeled", ((fun label => newest_labeled label) : string -> string))
+    !!!!Export("eoie_job_state_word", ((fun id => state_word (job_state_now id)) : string -> string))
+    0i32

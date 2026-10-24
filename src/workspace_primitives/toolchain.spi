@@ -1,0 +1,97 @@
+union tool_source =
+    | OnPath : string
+    | FileAt : string
+
+union rec tool_sources =
+    | NoMoreSources
+    | ThenSource : tool_source * tool_sources
+
+type tool_resolver = { option : string; environment : string; fallbacks : tool_sources }
+
+union tool_found =
+    | ByOption : string
+    | ByEnvironment : string * string
+    | ByFallback : tool_source * string
+    | NotFound
+
+type tool_probe =
+    {
+        option : string -> string
+        environment : string -> string
+        locate : tool_source -> string
+    }
+
+inl rec first_fallback (probe : tool_probe) (sources : tool_sources) : tool_found =
+    match sources with
+    | NoMoreSources => NotFound
+    | ThenSource (source, rest) =>
+        inl path = probe.locate source
+        if path = "" then first_fallback probe rest else ByFallback (source, path)
+
+inl tool_resolved (probe : tool_probe) (resolver : tool_resolver) : tool_found =
+    inl chosen = probe.option resolver.option
+    if chosen <> "" then ByOption chosen
+    else
+        inl inherited = probe.environment resolver.environment
+        if inherited <> "" then ByEnvironment (resolver.environment, inherited)
+        else first_fallback probe resolver.fallbacks
+
+inl tool_path = function
+    | ByOption path => path
+    | ByEnvironment (_, path) => path
+    | ByFallback (_, path) => path
+    | NotFound => ""
+
+inl on_path (~option : string) (~environment : string) (executables : tool_sources) : tool_resolver =
+    { option = option; environment = environment; fallbacks = executables }
+
+inl named (~executable : string) (rest : tool_sources) : tool_sources = ThenSource (OnPath executable, rest)
+
+inl python_tool () : tool_resolver = on_path "python" "SPIRAL_PYTHON" (named "python" (named "python3" NoMoreSources))
+inl cc_tool () : tool_resolver = on_path "cc" "SPIRAL_CC" (named "gcc" (named "clang" (named "cl" NoMoreSources)))
+inl rustc_tool () : tool_resolver = on_path "rustc_bin" "SPIRAL_RUSTC" (named "rustc" NoMoreSources)
+
+inl unset (_ : string) : string = ""
+
+inl environment_value (~name : string) : string = $'std::rc::Rc::<str>::from(std::env::var(&*!name).unwrap_or_default())' : string
+inl file_present (~path : string) : string = $'std::rc::Rc::<str>::from(if std::path::Path::new(&*!path).is_file() { &*!path } else { "" })' : string
+inl path_executable (~executable : string) : string = $'std::rc::Rc::<str>::from(std::env::var_os("PATH").map(|paths| std::env::split_paths(&paths).map(|dir| dir.join(format\!("{}{}", &*!executable, std::env::consts::EXE_SUFFIX))).find(|candidate| candidate.is_file()).map(|candidate| candidate.to_string_lossy().into_owned()).unwrap_or_default()).unwrap_or_default().as_str())' : string
+
+inl located = function
+    | OnPath executable => path_executable executable
+    | FileAt path => file_present path
+
+inl real_probe () : tool_probe = { option = unset; environment = fun name => environment_value name; locate = located }
+
+inl listed (~name : string) (~present : string) : bool = $'(!present).split(char::from(124u8)).any(|entry| entry == &*!name)' : bool
+
+inl listed_at (~present : string) (source : tool_source) : string =
+    match source with
+    | OnPath executable => if listed executable present then $'std::rc::Rc::<str>::from(format\!("/bin/{}", &*!executable).as_str())' : string else ""
+    | FileAt path => if listed path present then path else ""
+
+inl probe_with (options : string -> string) (environment : string -> string) (~present : string) : tool_probe =
+    { option = options; environment = environment; locate = fun source => listed_at present source }
+
+inl require (value : bool) : () = $'if !value { () } else { std::panic::panic_any("Spiral test assertion failed") }' : ()
+
+///> rust
+test an_explicit_option_wins_over_everything =
+    inl probe = probe_with (fun key => if key = "python" then "/opt/py" else "") (fun _ => "/env/py") "python"
+    require (tool_path (tool_resolved probe (python_tool ())) = "/opt/py")
+
+///> rust
+test the_environment_wins_over_path =
+    inl probe = probe_with unset (fun key => if key = "SPIRAL_PYTHON" then "/env/py" else "") "python"
+    require (tool_path (tool_resolved probe (python_tool ())) = "/env/py")
+
+///> rust
+test path_candidates_are_tried_in_order =
+    require (tool_path (tool_resolved (probe_with unset unset "python3") (python_tool ())) = "/bin/python3")
+    require (tool_path (tool_resolved (probe_with unset unset "cl|clang") (cc_tool ())) = "/bin/clang")
+    require (tool_path (tool_resolved (probe_with unset unset "") (rustc_tool ())) = "")
+
+///> rust
+test the_real_probe_finds_rustc_and_misses_unknown_tools =
+    require ($'(!(tool_path (tool_resolved (real_probe ()) (rustc_tool ())))).to_lowercase().contains("rustc")' : bool)
+    require (tool_path (tool_resolved (real_probe ()) (on_path "none" "SPIRAL_NO_SUCH_TOOL" (named "spiral-no-such-tool" NoMoreSources))) = "")

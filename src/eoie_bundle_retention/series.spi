@@ -1,0 +1,100 @@
+///- --package .
+test series static =
+    open sm'_operators
+
+open sm'_operators
+
+union series_rejection =
+    | MissingZipSuffix
+    | MissingAlphaSuffix
+    | InvalidAlphaSuffix
+    | AlphaOutOfRange : string
+
+union series_reading =
+    | SeriesMember : string * u64
+    | SeriesRejected : series_rejection
+
+inl alpha_marker () : string = "alpha"
+
+inl zip_suffix () : string = ".zip"
+
+inl without_suffix (~text : string) (~suffix : string) : string =
+    $'std::rc::Rc::<str>::from(!text.strip_suffix(&*!suffix).unwrap_or(&*!text))' : string
+
+inl last_index_of (~text : string) (~needle : string) : i64 =
+    $'!text.rfind(&*!needle).map(|index| index as i64).unwrap_or(-1)' : i64
+
+inl from_index (~text : string) (~start : i64) : string =
+    $'std::rc::Rc::<str>::from(&(&*!text)[!start as usize..])' : string
+
+inl through_index (~text : string) (~end : i64) : string =
+    $'std::rc::Rc::<str>::from(&(&*!text)[..!end as usize])' : string
+
+inl ascii_digits (~text : string) : bool =
+    $'\!!text.is_empty() && !text.bytes().all(|byte| byte.is_ascii_digit())' : bool
+
+inl decimal_overflow (~digits : string) : string =
+    $'std::rc::Rc::<str>::from(!digits.parse::<u64>().err().map(|error| error.to_string()).unwrap_or_default())' : string
+
+inl decimal_value (~digits : string) : u64 =
+    $'!digits.parse::<u64>().unwrap_or(0)' : u64
+
+let read_series (~current : string) : series_reading =
+    if sm'.ends_with (zip_suffix ()) current then
+        inl stem = without_suffix current (zip_suffix ())
+        inl marker = last_index_of stem (alpha_marker ())
+        if marker < 0i64 then SeriesRejected MissingAlphaSuffix
+        else
+            inl prefix_end = marker + 5i64
+            inl digits = from_index stem prefix_end
+            if ascii_digits digits then
+                inl overflow = decimal_overflow digits
+                if (overflow = "") then SeriesMember (through_index stem prefix_end, decimal_value digits)
+                else SeriesRejected (AlphaOutOfRange overflow)
+            else SeriesRejected InvalidAlphaSuffix
+    else SeriesRejected MissingZipSuffix
+
+inl rejection_text (current : string) = function
+    | MissingZipSuffix => "retention current must end in .zip: " ++# current
+    | MissingAlphaSuffix => "retention current has no alpha suffix: " ++# current
+    | InvalidAlphaSuffix => "retention current has invalid alpha suffix: " ++# current
+    | AlphaOutOfRange detail => detail
+
+let series_error (~current : string) : string =
+    match read_series current with
+    | SeriesMember _ => ""
+    | SeriesRejected rejection => rejection_text current rejection
+
+let series_prefix (~current : string) : string =
+    match read_series current with
+    | SeriesMember (prefix, _) => prefix
+    | SeriesRejected _ => ""
+
+let series_alpha (~current : string) : u64 =
+    match read_series current with
+    | SeriesMember (_, alpha) => alpha
+    | SeriesRejected _ => 0u64
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl member (current : string) (prefix : string) (alpha : u64) : () =
+    expect (((series_error current) = "")) current
+    expect (((series_prefix current) = prefix)) current
+    expect (series_alpha current = alpha) current
+
+inl rejected (current : string) (message : string) : () =
+    expect (((series_error current) = message)) current
+
+///> rust
+test series_members_split_at_the_last_alpha_marker =
+    member "eoie-alpha716.zip" "eoie-alpha" 716u64
+    member "alpha-tools-alpha0.zip" "alpha-tools-alpha" 0u64
+    member "eoie-alpha007.zip" "eoie-alpha" 7u64
+
+///> rust
+test malformed_series_names_are_rejected_with_their_reason =
+    rejected "eoie-alpha716.tar" "retention current must end in .zip: eoie-alpha716.tar"
+    rejected "eoie-716.zip" "retention current has no alpha suffix: eoie-716.zip"
+    rejected "eoie-alpha.zip" "retention current has invalid alpha suffix: eoie-alpha.zip"
+    rejected "eoie-alpha7b.zip" "retention current has invalid alpha suffix: eoie-alpha7b.zip"
+    rejected "eoie-alpha99999999999999999999.zip" "number too large to fit in target type"

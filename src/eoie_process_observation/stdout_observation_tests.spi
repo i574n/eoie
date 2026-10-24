@@ -1,0 +1,41 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+
+inl emit_runtime () : () =
+    rust_global """
+        #[cfg(test)]
+        mod stdout_observation_tests {
+            use super::*;
+            use std::io::Read as _;
+
+            #[test]
+            fn receipted_stdout_consumer_preserves_payload_summary() {
+                let mut command = std::process::Command::new("sh");
+                command.arg("-c").arg("printf abc");
+                let (text, observation) = run_bounded_stdout_receipted(&mut command, 5000, "stdout-consumer-test", |reader| {
+                    let mut text = String::new();
+                    reader.read_to_string(&mut text).map_err(|error| error.to_string())?;
+                    Ok(text)
+                }).expect("stdout consumer");
+                assert_eq!(text, "abc");
+                assert!(observation.status.success());
+                assert!(!observation.timed_out);
+                assert_eq!(observation.stdout_bytes, 3);
+                assert_eq!(observation.stdout_digest, "fnv1a64:e71fa2190541574b");
+            }
+
+            #[test]
+            fn receipted_stdout_consumer_times_out_producer() {
+                let mut command = std::process::Command::new("sh");
+                command.arg("-c").arg("sleep 1; printf late");
+                let (_, observation) = run_bounded_stdout_receipted(&mut command, 30, "stdout-timeout-test", |reader| {
+                    let mut bytes = Vec::new();
+                    reader.read_to_end(&mut bytes).map_err(|error| error.to_string())?;
+                    Ok(bytes)
+                }).expect("timeout observation");
+                assert!(observation.timed_out);
+            }
+        }
+
+        """
+
+inl main () : i32 = 0i32

@@ -1,0 +1,52 @@
+open workspace_primitives.outcome
+open sm'_operators
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open agile_planning_model.model
+
+inl padded (~text : string) (width : i32) : string =
+    $'{ let text = !text; let filler = (!width as usize).saturating_sub(text.chars().count()); std::rc::Rc::<str>::from(text.to_string() + &" ".repeat(filler)) }' : string
+
+inl estimate_width () : i32 = 7i32
+inl load_width () : i32 = 7i32
+inl assignee_width () : i32 = 6i32
+
+let planning_header () : string =
+    (padded "EST" (estimate_width ())) ++# (padded "LOAD" (load_width ())) ++# (padded "WHO" (assignee_width ()))
+
+let planning_columns_of (plan : task_planning) : string =
+    (padded (estimate_text plan.estimate) (estimate_width ())) ++# (padded (load_text plan.load) (load_width ())) ++# (padded (assignee_text plan.assignee) (assignee_width ()))
+
+let planning_columns (~text : string) (~id : string) : string = planning_columns_of (planning_of text id)
+
+let planning_columns_near (~text : string) (~id : string) (start : i32) : string = planning_columns_of (planning_near text id start)
+
+let planning_json (~text : string) (~id : string) : string = planning_json_fields (planning_of text id)
+
+let planning_json_near (~text : string) (~id : string) (start : i32) : string = planning_json_fields (planning_near text id start)
+
+let planning_minutes_near (~text : string) (~id : string) (start : i32) : i32 = planned_minutes (planning_near text id start).estimate
+let planning_summary_of (~text : string) (~id : string) : string = planning_summary (planning_of text id)
+
+let planning_minutes_of (~text : string) (~id : string) : i32 =
+    inl plan = planning_of text id
+    planned_minutes plan.estimate
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_planning_header", ((fun () => planning_header ()) : () -> string))
+    !!!!Export("eoie_agile_planning_columns", ((fun (text, id) => planning_columns text id) : string * string -> string))
+    !!!!Export("eoie_agile_planning_json", ((fun (text, id) => planning_json text id) : string * string -> string))
+    !!!!Export("eoie_agile_planning_summary", ((fun (text, id) => planning_summary_of text id) : string * string -> string))
+    !!!!Export("eoie_agile_planning_minutes", ((fun (text, id) => planning_minutes_of text id) : string * string -> i32))
+    !!!!Export("eoie_agile_planning_columns_near", ((fun (text, id, start) => planning_columns_near text id start) : string * string * i32 -> string))
+    !!!!Export("eoie_agile_planning_json_near", ((fun (text, id, start) => planning_json_near text id start) : string * string * i32 -> string))
+    !!!!Export("eoie_agile_planning_minutes_near", ((fun (text, id, start) => planning_minutes_near text id start) : string * string * i32 -> i32))
+    inl _ = planning_header ()
+    inl _ = planning_columns "" "ID"
+    inl _ = planning_json "" "ID"
+    inl _ = planning_summary_of "" "ID"
+    inl _ = planning_minutes_of "" "ID"
+    inl _ = planning_columns_near "" "ID" 0i32
+    inl _ = planning_json_near "" "ID" 0i32
+    inl _ = planning_minutes_near "" "ID" 0i32
+    0i32

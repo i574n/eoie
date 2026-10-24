@@ -1,0 +1,165 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl lease_drops () : cli_args = Arg ("EOIE_LEASE_ROOT", Arg ("EOIE_CONTROL_READ_ONLY", NoArgs))
+inl renewing (root : fixture_root) : cli_args = Arg ("EOIE_LEASE_POLICY=renewing", Arg (cat "EOIE_CONFIG_HOME=" (fixture_text_of root), NoArgs))
+inl measured () : string = "elapsed_ms|serial_ms|parallel_ms|workers"
+
+inl proxy_fixture (~name : string) : fixture_root =
+    inl root = fixture_root_create (cat "receipts ü " name)
+    fixture_write root "value.txt" "alpha\nbeta\ngamma\n"
+    fixture_write root "dir/inner.txt" "beta inner\n"
+    root
+
+inl proxy (root : fixture_root) (~verb : string) (rest : cli_args) : cli_run =
+    eoie_run (fixture_text_of root) (renewing root) (lease_drops ()) (Arg ("proxy", Arg (verb, Arg (fixture_text_of root, rest))))
+
+inl text_replace (root : fixture_root) (~mode : string) (rest : cli_args) : cli_run =
+    eoie_run (fixture_text_of root) (renewing root) (lease_drops ()) (Arg ("proxy", Arg ("text-replace", Arg (mode, Arg (fixture_text_of root, rest)))))
+
+inl receipt_of (root : fixture_root) (run : cli_run) (~prefix : string) : string = rooted_receipt (cat run.stdout run.stderr) prefix (measured ()) (fixture_text_of root)
+
+inl proxy_receipt (root : fixture_root) (~verb : string) (rest : cli_args) : string =
+    inl run = proxy root verb rest
+    inl _ = succeeded run
+    receipt_of root run (cat (cat "eoie proxy " verb) " ")
+
+inl replaced (root : fixture_root) (~mode : string) (rest : cli_args) : string =
+    inl run = text_replace root mode rest
+    inl _ = succeeded run
+    receipt_of root run "eoie proxy text-replace "
+
+///> rust
+test file_receipts_name_their_effect =
+    inl root = proxy_fixture "files"
+    same (proxy_receipt root "fs-read" (Arg ("value.txt", NoArgs))) "eoie proxy fs-read ok bytes=17 shown=17 elapsed_ms=N"
+    same (proxy_receipt root "fs-list" (Arg (".", NoArgs))) "eoie proxy fs-list ok path=<root> entries=2 elapsed_ms=N"
+    same (proxy_receipt root "fs-write" (Arg ("new.txt", Arg ("hello", NoArgs)))) "eoie proxy fs-write ok mode=create path=<root>/new.txt bytes=5 replace_existing=0 create_or_replace=0 expect_hash=0 expect_nonempty=0 elapsed_ms=N"
+    same (proxy_receipt root "fs-write" (Arg ("new.txt", Arg ("--create-or-replace", Arg ("--", Arg ("hello2", NoArgs)))))) "eoie proxy fs-write ok mode=replace path=<root>/new.txt bytes=6 replace_existing=0 create_or_replace=1 expect_hash=0 expect_nonempty=0 elapsed_ms=N"
+    same (fixture_read root "new.txt") "hello2"
+    same (proxy_receipt root "fs-copy" (Arg ("value.txt", Arg ("copy.txt", NoArgs)))) "eoie proxy fs-copy ok source=<root>/value.txt target=<root>/copy.txt bytes=17 elapsed_ms=N"
+    same (proxy_receipt root "fs-remove" (Arg ("copy.txt", NoArgs))) "eoie proxy fs-remove ok path=<root>/copy.txt kind=file bytes=17 elapsed_ms=N"
+    expect (path_exists (fixture_path root "copy.txt") = false) "copy.txt survived fs-remove"
+    same (proxy_receipt root "fs-remove-tree" (Arg ("dir", NoArgs))) "eoie proxy fs-remove-tree ok removed=2 missing_ok=0 elapsed_ms=N"
+    expect (path_exists (fixture_path root "dir") = false) "dir survived fs-remove-tree"
+    fixture_root_remove root
+
+///> rust
+test an_empty_payload_never_wipes_a_nonempty_file =
+    inl root = proxy_fixture "empty payload"
+    inl refused = proxy root "fs-write" (Arg ("value.txt", Arg ("--create-or-replace", Arg ("--", Arg ("", NoArgs)))))
+    expect (refused.code <> 0i32) (cat "empty payload accepted, " refused.stdout)
+    shows refused.stderr "fs-write refuses an empty payload over a non-empty file without --expect-hash"
+    same (fixture_read root "value.txt") "alpha\nbeta\ngamma\n"
+    same (proxy_receipt root "fs-write" (Arg ("empty.txt", Arg ("", NoArgs)))) "eoie proxy fs-write ok mode=create path=<root>/empty.txt bytes=0 replace_existing=0 create_or_replace=0 expect_hash=0 expect_nonempty=0 elapsed_ms=N"
+    same (proxy_receipt root "fs-write" (Arg ("empty.txt", Arg ("--create-or-replace", Arg ("--", Arg ("", NoArgs)))))) "eoie proxy fs-write ok mode=replace path=<root>/empty.txt bytes=0 replace_existing=0 create_or_replace=1 expect_hash=0 expect_nonempty=0 elapsed_ms=N"
+    fixture_root_remove root
+
+///> rust
+test text_replace_receipts_count_matches_and_bytes =
+    inl root = proxy_fixture "replace"
+    fixture_write root "copy.txt" "alpha\nbeta\nbeta\n"
+    same (replaced root "check" (Arg ("copy.txt", Arg ("alpha", Arg ("ALPHA", NoArgs))))) "eoie proxy text-replace ok mode=check path=<root>/copy.txt matches=1 expected=1 bytes_before=16 bytes_after=16 elapsed_ms=N"
+    same (fixture_read root "copy.txt") "alpha\nbeta\nbeta\n"
+    same (replaced root "apply" (Arg ("copy.txt", Arg ("beta", Arg ("B", Arg ("--all", NoArgs)))))) "eoie proxy text-replace ok mode=apply path=<root>/copy.txt matches=2 expected=all bytes_before=16 bytes_after=10 elapsed_ms=N"
+    same (fixture_read root "copy.txt") "alpha\nB\nB\n"
+    inl mismatch = text_replace root "apply" (Arg ("copy.txt", Arg ("B", Arg ("C", Arg ("--expect", Arg ("3", NoArgs))))))
+    expect (mismatch.code = 2i32) (cat "expected exit 2, " (run_text mismatch))
+    same (receipt_of root mismatch "eoie error: ") "eoie error: text-replace expected 3 match(es), observed matches=2 (use --expect N or --all for repeated text)"
+    same (receipt_of root mismatch "corrected: ") "corrected: eoie proxy text-replace apply '<root>' copy.txt B C --expect 2"
+    same (fixture_read root "copy.txt") "alpha\nB\nB\n"
+    fixture_root_remove root
+
+///> rust
+test search_receipts_report_hits_exclusions_and_truncation =
+    inl root = proxy_fixture "search"
+    same (proxy_receipt root "fs-search" (Arg (".", Arg ("beta", NoArgs)))) "eoie proxy fs-search ok hits=2 excludes=.git,node_modules,build-output,symlinks elapsed_ms=N"
+    same (proxy_receipt root "parallel-search" (Arg (".", Arg ("beta", Arg ("10", NoArgs))))) "eoie proxy parallel-search ok workers=N hits=2 parity=exact ordering=deterministic excludes=.git,node_modules,build-output,symlinks serial_ms=N parallel_ms=N elapsed_ms=N"
+    same (proxy_receipt root "parallel-search" (Arg (".", Arg ("beta", Arg ("1", NoArgs))))) "eoie proxy parallel-search ok workers=N hits=1 truncated=true found_at_least=2 parity=exact ordering=deterministic excludes=.git,node_modules,build-output,symlinks serial_ms=N parallel_ms=N elapsed_ms=N"
+    fixture_root_remove root
+
+///> rust
+test inspection_receipts_keep_digests_on_stdout =
+    inl root = proxy_fixture "inspect"
+    same (proxy_receipt root "fs-slice" (Arg ("value.txt", Arg ("2", Arg ("3", NoArgs))))) "eoie proxy fs-slice ok start=2 lines=2 requested=3 end_of_file=true elapsed_ms=N"
+    same (proxy_receipt root "fs-context" (Arg ("value.txt", Arg ("beta", Arg ("1", NoArgs))))) "eoie proxy fs-context ok offset=6 window_bytes=6 file_bytes=17 elapsed_ms=N"
+    inl hash = proxy root "hash" (Arg ("value.txt", NoArgs))
+    same (trimmed (succeeded hash)) "4fdbc441ea7b546100e086ac1e4fc5ae6749b7314311c99db05be450eca12996"
+    same (receipt_of root hash "eoie proxy hash ") "eoie proxy hash ok bytes=17 elapsed_ms=N"
+    inl tree = proxy root "hash-tree" (Arg ("dir", NoArgs))
+    expect (byte_count (trimmed (succeeded tree)) = 64i32) (cat "tree digest: " (run_text tree))
+    same (receipt_of root tree "eoie proxy hash-tree ") "eoie proxy hash-tree ok relative=dir elapsed_ms=N"
+    inl manifest = proxy_receipt root "parallel-manifest" (Arg ("dir", Arg ("100", NoArgs)))
+    shows manifest "eoie proxy parallel-manifest ok workers=N entries=2 sha256="
+    expect (ends manifest " parity=exact ordering=deterministic serial_ms=N parallel_ms=N elapsed_ms=N") (cat "manifest tail: " manifest)
+    fixture_root_remove root
+
+///> rust
+test command_output_receipt_propagates_the_child_exit =
+    inl root = proxy_fixture "command"
+    inl passed = proxy root "command-output" (Arg ("30000", Arg (eoie_binary (), Arg ("help", NoArgs))))
+    inl _ = succeeded passed
+    inl passed_receipt = receipt_of root passed "eoie proxy command-output "
+    expect (starts passed_receipt "eoie proxy command-output ok status=0 elapsed_ms=N stdout_bytes=") passed_receipt
+    expect (ends passed_receipt " stderr_bytes=0") passed_receipt
+    inl failed = proxy root "command-output" (Arg ("30000", Arg (eoie_binary (), Arg ("not-a-command", NoArgs))))
+    expect (failed.code = 2i32) (cat "expected exit 2, " (run_text failed))
+    inl failed_receipt = receipt_of root failed "eoie proxy command-output "
+    expect (starts failed_receipt "eoie proxy command-output child-failed status=2 elapsed_ms=N stdout_bytes=") failed_receipt
+    fixture_root_remove root
+
+inl agile_set (root : fixture_root) (rest : cli_args) : cli_run =
+    eoie_run (temp_directory ()) (renewing root) (lease_drops ()) (Arg ("agile", Arg ("set", Arg (fixture_text_of root, rest))))
+
+inl agile_state (root : fixture_root) : string = fixture_read root "state/agile.spi"
+
+inl set_refused (root : fixture_root) (rest : cli_args) (~message : string) (~before : string) : () =
+    failed_with (agile_set root rest) message
+    same (agile_state root) before
+
+///> rust
+test agile_set_receipt_names_the_update_and_rejections_leave_state_untouched =
+    inl root = fixture_root_create "agile receipts ü"
+    inl agile (~verb : string) (rest : cli_args) : string = succeeded (eoie_run (temp_directory ()) (renewing root) (lease_drops ()) (Arg ("agile", Arg (verb, Arg (fixture_text_of root, rest)))))
+    inl _ = agile "init" NoArgs
+    inl _ = agile "add" (Arg ("ID-A", Arg ("TaskKind", Arg ("P1", Arg ("D3", Arg ("Title A", Arg ("eoie", NoArgs)))))))
+    inl set = succeeded (agile_set root (Arg ("ID-A", Arg ("40", Arg ("Active", NoArgs)))))
+    same (receipt_shape set "eoie agile set " "bytes_before|bytes_after|elapsed_ms") "eoie agile set ok id=ID-A progress=40 status=Active validation=runtime-attested compiler=not-required bytes_before=N bytes_after=N elapsed_ms=N"
+    shows (first_line_of (agile "show" (Arg ("ID-A", NoArgs)))) "40%  Active"
+    inl before = agile_state root
+    set_refused root (Arg ("ID-A", Arg ("140", Arg ("Active", NoArgs)))) "agile set: progress must be a whole number 0..100, received '140'" before
+    set_refused root (Arg ("ID-A", Arg ("40", Arg ("Sleeping", NoArgs)))) "agile set: status must be Planned, Active, Blocked, Paused or Done, received 'Sleeping'" before
+    set_refused root (Arg ("NO-SUCH", Arg ("10", Arg ("Active", NoArgs)))) "agile task not found: NO-SUCH" before
+    set_refused root (Arg ("ID-A", Arg ("90", Arg ("Active", Arg ("--as", Arg ("main", NoArgs)))))) "agile set records no author (only agile note does); drop --as main, or add a note with --as to say who moved ID-A" before
+    fixture_root_remove root
+
+inl matrix_row (~id : string) (~arg : string) : string =
+    cat (cat (cat (cat id "\t") (eoie_binary ())) (cat (cat "\tjson:[\"" arg) "\"]\t.\t\tpass\tstop\t\t")) (cat id ".txt")
+
+inl batch_run (root : fixture_root) (~second : string) (slice : cli_args) : cli_run =
+    fixture_write root "matrix.tsv" (cat (cat (cat "id\tprogram\targs\tcwd\tenv\trequired_status\ton_error\tdepends_on\treceipt\n" (matrix_row "first" "help")) (cat "\n" (matrix_row "second" second))) "\n")
+    eoie_run (fixture_text_of root) NoArgs (lease_drops ()) (Arg ("proxy", Arg ("batch-plan", Arg (fixture_text_of root, Arg ("matrix.tsv", Arg ("5000", Arg ("report.tsv", Arg ("1", slice))))))))
+
+inl batch_summary (run : cli_run) : string = line_starting run.stdout "eoie proxy batch-plan "
+
+///> rust
+test batch_completion_distinguishes_full_manual_run_from_slices =
+    inl root = fixture_root_create "batch completion ü"
+    inl full = batch_run root "help" NoArgs
+    inl _ = succeeded full
+    shows (batch_summary full) " auto=0 complete=1 "
+    inl head = batch_run root "help" (Arg ("0", Arg ("1", NoArgs)))
+    inl _ = succeeded head
+    shows (batch_summary head) " auto=0 complete=0 "
+    inl tail = batch_run root "help" (Arg ("1", Arg ("1", NoArgs)))
+    inl _ = succeeded tail
+    shows (batch_summary tail) " auto=0 complete=0 "
+    fixture_root_remove root
+
+///> rust
+test batch_completion_rejects_a_failed_full_manual_run =
+    inl root = fixture_root_create "batch failure ü"
+    inl run = batch_run root "not-a-command" NoArgs
+    expect (run.code <> 0i32) (cat "the failed run was accepted, " (run_text run))
+    shows (batch_summary run) " auto=0 complete=0 "
+    fixture_root_remove root

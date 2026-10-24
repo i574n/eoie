@@ -1,0 +1,88 @@
+name: gh-pages
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    timeout-minutes: 90
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    env:
+      CARGO_BUILD_JOBS: '2'
+      RUST_TEST_THREADS: '1'
+    steps:
+      - uses: actions/checkout@v6.1.0
+
+      - uses: moonrepo/setup-rust@v1.3.0
+        with:
+          channel: "nightly-2026-10-18"
+          components: "rustfmt"
+
+      - uses: erlef/setup-beam@v1.24.1
+        with:
+          otp-version: "29"
+          elixir-version: "1.20"
+          gleam-version: "1.19.2"
+          rebar3-version: '3.27.3'
+
+      - uses: mlugg/setup-zig@v2.2.1
+        with:
+          version: 0.17.0
+
+      - run: pwsh scripts/workflow.ps1
+
+      - run: pwsh scripts/publish.ps1
+        if: ${{ !cancelled() && contains(matrix.os, 'ubuntu') }}
+
+      - uses: actions/upload-artifact@v5.0.0
+        if: ${{ !cancelled() && contains(matrix.os, 'ubuntu') }}
+        with:
+          name: gh-pages
+          path: dist
+          retention-days: 30
+
+  push:
+    needs: build
+    if: ${{ !cancelled() && github.event_name == 'push' }}
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6.1.0
+
+      - uses: actions/download-artifact@v6.0.0
+        with:
+          name: gh-pages
+          path: gh-pages
+
+      - run: echo "$GITHUB_SHA" > gh-pages/_deploy.txt
+
+      - uses: peaceiris/actions-gh-pages@v4.1.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: gh-pages
+          force_orphan: true
+
+      - name: verify the deploy is live
+        shell: pwsh
+        run: |
+          $url = 'https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/'
+          $deadline = (Get-Date).AddMinutes(6)
+          do {
+              $live = try { (Invoke-WebRequest "${url}_deploy.txt?t=$([DateTime]::UtcNow.Ticks)" -SkipHttpErrorCheck).Content.Trim() } catch { '' }
+              if ($live -ne $env:GITHUB_SHA) { Start-Sleep 15 }
+          } while ($live -ne $env:GITHUB_SHA -and (Get-Date) -lt $deadline)
+          if ($live -ne $env:GITHUB_SHA) { throw "pages serve '$live', expected $env:GITHUB_SHA" }
+          $html = (Invoke-WebRequest "${url}?t=$([DateTime]::UtcNow.Ticks)").Content
+          foreach ($mark in 'id="readme"|class="readme', 'name="viewport"') { if ($html -notmatch $mark) { throw "index lacks $mark" } }

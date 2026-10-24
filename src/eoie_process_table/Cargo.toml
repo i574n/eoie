@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "process_table.rs"
+
+[package]
+name = "eoie-process-table"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_process_table"
+path = "process_table.rs"
+
+[dependencies]
+regex = "1.13.1"
+sysinfo = "0.38.4"

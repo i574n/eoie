@@ -1,0 +1,82 @@
+union agile_subcommand =
+    | AgileInit
+    | AgileBegin
+    | AgileLease
+    | AgileStatus
+    | AgileHandoff
+    | AgileList
+    | AgileCheck
+    | AgileRecord
+    | AgileSet
+    | AgileAdd
+    | AgileEdit
+    | AgileShow
+    | AgilePlan
+    | AgileMigrateTags
+    | AgileNote
+    | AgileNoteEdit
+    | AgileNotes
+    | AgileRename
+    | AgileTodos
+    | AgileNext
+    | AgileRoots
+    | AgileLinks
+    | AgileViews
+    | AgileView
+    | AgileViewAdd
+
+inl agile_subcommand_spec = function
+    | AgileInit => { name = "init"; shape = "<root>" }
+    | AgileBegin => { name = "begin"; shape = "<root> <title>" }
+    | AgileLease => { name = "lease"; shape = "<root>" }
+    | AgileStatus => { name = "status"; shape = "<root>" }
+    | AgileHandoff => { name = "handoff"; shape = "<root>" }
+    | AgileList =>
+        { name = "list"; shape = "<root> [all|Planned|Active|Blocked|Paused|Done] [--team <team>] [--tag <tag>] [--prefix <ID prefix>] [--open] [--ready] [--blocked] [--sort priority|difficulty|progress] [--load light|medium|heavy|none] [--assignee agent|pair|user|none] [--json]" }
+    | AgileCheck => { name = "check"; shape = "<root> [--compiler <absolute>]" }
+    | AgileRecord => { name = "record"; shape = "<root>" }
+    | AgileSet => { name = "set"; shape = "<root> <id> <progress> <Planned|Active|Blocked|Paused|Done>" }
+    | AgileAdd => { name = "add"; shape = "<root> <ID> <Epic|Feature|Story|TaskKind> <P0..P5> <D0..D8> <title> <tags> [--estimate <m>] [--load <l>] [--assignee <a>] [--deps <A,B>] [--note <text> --as <author>]" }
+    | AgileEdit =>
+        { name = "edit"; shape = "<root> <id> <title|title-append|kind|priority|difficulty|deps|tags|estimate|load|assignee> <value>" }
+    | AgileShow => { name = "show"; shape = "<root> <id> [--json]" }
+    | AgilePlan => { name = "plan"; shape = "<root> [--json]" }
+    | AgileMigrateTags => { name = "migrate-tags"; shape = "preview|apply <root>" }
+    | AgileNote => { name = "note"; shape = "<root> <id> <text> [--as <author>]" }
+    | AgileNoteEdit => { name = "note-edit"; shape = "<root> <id> <note-number> <text> [--as <author>]" }
+    | AgileNotes => { name = "notes"; shape = "from-title <root> <id>" }
+    | AgileRename => { name = "rename"; shape = "<root> <old-id> <new-id>" }
+    | AgileTodos => { name = "todos"; shape = "<root> [<path>...] [--json] [--tagged | --id <ID>] | <root> --record" }
+    | AgileNext => { name = "next"; shape = "<root> [--as main|subagent] [--team <team>] [--tag <tag>] [--prefix <ID prefix>] [--open] [--ready] [--blocked] [count]" }
+    | AgileRoots => { name = "roots"; shape = "<root> [add|drop <path>...]" }
+    | AgileLinks => { name = "links"; shape = "<root> --memory <dir> [--json]" }
+    | AgileViews => { name = "views"; shape = "<root>" }
+    | AgileView => { name = "view"; shape = "<root> <name> [extra flags...]" }
+    | AgileViewAdd => { name = "view-add"; shape = "<root> <name> <list|next> [flags...]" }
+
+union agile_parsed =
+    | AgileKnown : agile_subcommand
+    | AgileUnknownName
+
+let agile_subcommand_of (~input : string) : agile_parsed =
+    union_reflection.cases.union_cases_fold
+        (fun parsed (subcommand : agile_subcommand) =>
+            if rust_std_string.model.equals input (agile_subcommand_spec subcommand).name then AgileKnown subcommand else parsed)
+        AgileUnknownName
+
+let agile_subcommand_shape (~input : string) : string =
+    inl names = union_reflection.cases.union_cases_joined (fun (subcommand : agile_subcommand) => (agile_subcommand_spec subcommand).name) "|"
+    inl shapes = union_reflection.cases.union_cases_joined (fun (subcommand : agile_subcommand) => (agile_subcommand_spec subcommand).shape) "\n"
+    rust_std_string.model.pipe_lookup names shapes input
+
+inl agile_subcommand_usage (separator : string) : string =
+    union_reflection.cases.union_cases_joined
+        (fun (subcommand : agile_subcommand) =>
+            inl spec = agile_subcommand_spec subcommand
+            !!!!StaticStringConcat(spec.name, !!!!StaticStringConcat(" ", spec.shape)))
+        separator
+
+let agile_subcommand_known (~input : string) : i32 =
+    match agile_subcommand_of input with
+    | AgileKnown _ => 1i32
+    | AgileUnknownName => 0i32

@@ -1,0 +1,7 @@
+packages:
+    |core-
+    workspace_primitives
+    spiral-
+    rust_std_fs
+modules:
+    directory_listing

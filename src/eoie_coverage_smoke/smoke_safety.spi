@@ -1,0 +1,89 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+inl emit_runtime () : () = rust_global """
+    struct CoverageSmokeScratch(PathBuf);
+    impl CoverageSmokeScratch {
+        fn create(label: &str) -> Result<Self, String> {
+            let path = coverage_smoke_temp(label);
+            fs::create_dir(&path).map_err(|error| format!("create smoke scratch {}: {error}", path.display()))?;
+            Ok(Self(path))
+        }
+    }
+    impl Drop for CoverageSmokeScratch {
+        fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); }
+    }
+
+    fn coverage_smoke_check_release(binary: &Path, root: &Path, timeout_ms: u64) -> Result<(), String> {
+        let mut command = Command::new(binary);
+        command.current_dir(root).arg("bundle").arg("check").arg(root).arg("eoie");
+        let observed = run_bounded_observed_with_input(&mut command, timeout_ms, None)?;
+        if !observed.status.success() {
+            return Err(format!("coverage smoke requires a valid strict EOIE release; bundle check failed: {}", String::from_utf8_lossy(&observed.stderr)));
+        }
+        Ok(())
+    }
+
+    pub fn coverage_smoke_preflight(binary: &Path, root: &Path, timeout_ms: u64) -> Result<(), String> {
+        coverage_smoke_check_release(binary, root, timeout_ms)?;
+        let grcov = env::var_os("EOIE_GRCOV").map(PathBuf::from).ok_or_else(|| "EOIE_GRCOV is required for coverage smoke".to_owned())?;
+        let llvm = env::var_os("EOIE_LLVM_BIN").map(PathBuf::from).ok_or_else(|| "EOIE_LLVM_BIN is required for coverage smoke".to_owned())?;
+        if !grcov.is_absolute() || !grcov.is_file() { return Err("EOIE_GRCOV must be an absolute executable file path".to_owned()); }
+        if !llvm.is_absolute() || !llvm.is_dir() { return Err("EOIE_LLVM_BIN must be an absolute directory path".to_owned()); }
+        for tool in ["llvm-profdata", "llvm-cov"] {
+            if !llvm.join(format!("{tool}{}", env::consts::EXE_SUFFIX)).is_file() { return Err(format!("EOIE_LLVM_BIN is missing {tool}")); }
+        }
+        Ok(())
+    }
+
+    fn coverage_smoke_regular_metadata(path: &Path) -> Result<fs::Metadata, String> {
+        let metadata = fs::symlink_metadata(path).map_err(|error| format!("smoke metadata {}: {error}", path.display()))?;
+        let mut linked = metadata.file_type().is_symlink();
+        #[cfg(windows)] {
+            use std::os::windows::fs::MetadataExt;
+            linked |= metadata.file_attributes() & 0x400 != 0;
+        }
+        if linked || !(metadata.is_file() || metadata.is_dir()) { return Err(format!("smoke snapshot refuses links or special entries: {}", path.display())); }
+        Ok(metadata)
+    }
+
+    fn coverage_smoke_copy_tree(source: &Path, destination: &Path, budget: &mut u64, entries: &mut usize, depth: usize) -> Result<(), String> {
+        if depth > 64 { return Err("smoke snapshot exceeds directory depth limit".to_owned()); }
+        if !coverage_smoke_regular_metadata(source)?.is_dir() { return Err("smoke snapshot source must be a directory".to_owned()); }
+        fs::create_dir(destination).map_err(|error| format!("create snapshot {}: {error}", destination.display()))?;
+        for entry in fs::read_dir(source).map_err(|error| error.to_string())? {
+            let entry = entry.map_err(|error| error.to_string())?;
+            let name = entry.file_name();
+            if [".git", ".cache", "vendor", "target"].iter().any(|skip| name == std::ffi::OsStr::new(skip)) { continue; }
+            *entries = entries.checked_sub(1).ok_or_else(|| "smoke snapshot exceeds entry limit".to_owned())?;
+            let path = entry.path();
+            let metadata = coverage_smoke_regular_metadata(&path)?;
+            let output = destination.join(name);
+            if metadata.is_dir() { coverage_smoke_copy_tree(&path, &output, budget, entries, depth + 1)?; }
+            else {
+                let size = metadata.len();
+                if size > *budget { return Err("smoke snapshot exceeds byte limit".to_owned()); }
+                use std::io::{Read, Write};
+                let mut input = fs::File::open(&path).map_err(|error| error.to_string())?.take(size + 1);
+                let mut copied = fs::OpenOptions::new().write(true).create_new(true).open(&output).map_err(|error| error.to_string())?;
+                let count = std::io::copy(&mut input, &mut copied).map_err(|error| error.to_string())?;
+                if count != size { return Err(format!("smoke snapshot source changed during copy: {}", path.display())); }
+                copied.flush().map_err(|error| error.to_string())?;
+                fs::set_permissions(&output, metadata.permissions()).map_err(|error| error.to_string())?;
+                *budget -= count;
+            }
+        }
+        Ok(())
+    }
+
+    fn coverage_smoke_in_snapshot(context: &CoverageSmokeContext<'_>, run: impl FnOnce(&CoverageSmokeContext<'_>) -> Result<(), String>) -> Result<(), String> {
+        let scratch = CoverageSmokeScratch::create("snapshot")?;
+        let root = scratch.0.join("release");
+        coverage_smoke_copy_tree(context.root, &root, &mut (512 * 1024 * 1024), &mut 20000, 0)?;
+        let isolated = CoverageSmokeContext { root: &root, ..*context };
+        run(&isolated)
+    }
+
+    #[cfg(test)]
+    #[path = "smoke_safety_tests.rs"]
+    mod smoke_safety_tests;
+
+    """

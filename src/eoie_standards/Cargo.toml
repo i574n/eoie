@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "standards.spi"
+output = "standards.rs"
+
+[package]
+name = "eoie-standards"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_standards"
+path = "standards.rs"
+
+[dependencies]
+eoie-style-census = { path = "../eoie_style_census" }

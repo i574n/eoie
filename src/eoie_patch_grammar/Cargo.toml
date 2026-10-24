@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "grammar.spi"
+output = "grammar.rs"
+
+[package]
+name = "eoie-patch-grammar"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_patch_grammar"
+path = "grammar.rs"

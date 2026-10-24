@@ -1,0 +1,25 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "matrix.rs"
+
+[package]
+name = "eoie-cold-rebuild-matrix"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "matrix.rs"
+
+[dependencies]
+eoie-source-map = { path = "../eoie_source_map" }
+eoie-rust-std-fs = { path = "../rust_std_fs" }
+process-batch-plan-domain = { path = "../process_batch_plan_domain" }
+eoie-process-observation = { path = "../eoie_process_observation" }
+eoie-proxy-search = { path = "../eoie_proxy_search" }
+serde_json = "1.0"
+
+[[test]]
+name = "native_matrix"
+path = "native_matrix.rs"

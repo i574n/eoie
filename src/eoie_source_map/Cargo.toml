@@ -1,0 +1,20 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "map.rs"
+
+[package]
+name = "eoie-source-map"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+path = "map.rs"
+
+[[test]]
+name = "source_ownership"
+path = "source_ownership.rs"
+
+[dependencies]
+eoie-proxy-search = { path = "../eoie_proxy_search" }
+eoie-source-topology = { path = "../eoie_source_topology" }

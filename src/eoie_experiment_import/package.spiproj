@@ -1,0 +1,8 @@
+packages:
+    |core-
+    spiral-
+    union_reflection
+    agile_note_model
+    eoie_experiments
+modules:
+    import

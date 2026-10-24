@@ -1,0 +1,5 @@
+packages:
+    |core-
+    legacy_cpp_bundle_writer_contract
+modules:
+    main

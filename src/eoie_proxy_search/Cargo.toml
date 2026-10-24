@@ -1,0 +1,20 @@
+[package.metadata.spiral]
+entry = "search.spi"
+output = "search.rs"
+
+[package]
+name = "eoie-proxy-search"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_proxy_search"
+path = "search.rs"
+
+[dependencies]
+eoie-rust-std-fs = { path = "../rust_std_fs" }
+proxy-file-copy = { path = "../proxy_file_copy" }
+proxy-search-receipt = { path = "../proxy_search_receipt" }
+rayon = "1.12.0"

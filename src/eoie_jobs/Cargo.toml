@@ -1,0 +1,22 @@
+[package.metadata.spiral]
+entry = "jobs.spi"
+output = "jobs.rs"
+
+[package]
+name = "eoie-jobs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_jobs"
+path = "jobs.rs"
+
+[dependencies]
+eoie-job-control = { path = "../eoie_job_control" }
+eoie-machine-windows = { path = "../eoie_machine_windows" }
+eoie-job-gate = { path = "../eoie_job_gate" }
+eoie-job-launch = { path = "../eoie_job_launch" }
+eoie-job-supervise = { path = "../eoie_job_supervise" }
+eoie-job-host = { path = "../eoie_job_host" }

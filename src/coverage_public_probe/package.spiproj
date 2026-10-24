@@ -1,0 +1,8 @@
+packages:
+    |core-
+    rust_std_env
+    rust_std_process
+    rust_std_fs
+    spiral-
+modules:
+    main

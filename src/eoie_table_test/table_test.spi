@@ -1,0 +1,62 @@
+open sm'_operators
+open eoie_table_query.cells
+open eoie_table_query.table
+open eoie_experiments.experiment_model
+open eoie_experiments.ledger_host
+open eoie_experiment_analysis.analysis
+
+let refused (~message : string) : i32 =
+    stderr_line ("eoie error: table test " ++# message)
+    2i32
+
+inl test_usage () : string = "usage: table test <file.tsv> --test welch|one-sample|binomial|wilson|median|binomial-band --metric <column> [--arms a[,b] [--group <column>]] (a one-population test without both measures the whole table) [--prediction x] [--confidence 0.95] [--where col=value|col!=value|col>value|col>=value|col<value|col<=value]..."
+
+let confidence_given () : f64 =
+    inl given = number_parsed (option_value "--confidence")
+    if given = given then given else 0.95f64
+
+let tested_run (kind : test_kind) (cells : table_cells) : i32 =
+    inl wheres = where_clauses ()
+    inl table_path = argument 3i32
+    inl mask, missing_wheres =
+        inl kept, detail = $'eoie_table_query::eoie_table_rows_kept(&*!table_path, &*!wheres)' : bool * string
+        match rows_kept_of kept detail with
+        | RowsKept mask => mask, ""
+        | RowsRefused reason => "", reason
+    inl group = optional_column cells (option_value "--group")
+    inl metric = column_of cells (option_value "--metric")
+    if metric < 0i32 || missing_wheres <> "" || (option_value "--group" <> "" && group < 0i32) then
+        refused ("unknown columns in " ++# (argument 3i32) ++# " (header: " ++# (header_joined cells ",") ++# ")")
+    else
+        inl arms = option_value "--arms"
+        inl first_arm = if arms = "" then "all" else head_of arms ","
+        inl second_arm = tail_of arms ","
+        inl two = arms_needed kind = 2i32
+        inl chosen = { kept = mask; group = group; time = (-1i32); since = "" }
+        inl empty = { rows = 0i32; count = 0.0f64; sum = 0.0f64; squares = 0.0f64; successes = 0i32 }
+        inl left = tallied cells chosen first_arm metric 1i32 (row_total cells) empty
+        inl right = if two then tallied cells chosen second_arm metric 1i32 (row_total cells) empty else left
+        inl word = test_word kind
+        inl left_rows, left_count, left_sum, left_squares, left_successes = left.rows, left.count, left.sum, left.squares, left.successes
+        inl right_rows, right_count, right_sum, right_squares, right_successes = right.rows, right.count, right.sum, right.squares, right.successes
+        inl prediction = number_parsed (option_value "--prediction")
+        inl confidence = confidence_given ()
+        inl terms = if kind = MedianBand then median_terms (values_of cells chosen first_arm metric 1i32 (row_total cells) "") (option_value "--prediction") else $'eoie_experiment_stats::eoie_experiment_terms(&*!word, !left_rows, !left_count, !left_sum, !left_squares, !left_successes, !right_rows, !right_count, !right_sum, !right_squares, !right_successes, !prediction, !confidence)' : string
+        inl counts = if two then first_arm ++# " " ++# (i32_text left.rows) ++# (numeric_note kind left) ++# (", " ++# second_arm ++# " " ++# (i32_text right.rows) ++# (numeric_note kind right)) else first_arm ++# " " ++# (i32_text left.rows) ++# (numeric_note kind left)
+        stdout_line ("eoie table test ok test=" ++# word ++# (" n=" ++# counts ++# " " ++# terms) ++# " post_hoc=yes")
+        0i32
+
+let table_tested () : i32 =
+    match test_of (option_value "--test") with
+    | TestUnknown => refused ("needs --test with a known test; " ++# (test_usage ()))
+    | TestKnown kind =>
+        match plan_checked kind (option_value "--arms") (option_value "--group") 2i32 (option_value "--prediction") (option_value "--metric") "post hoc" with
+        | PlanRejected reason => refused (reason ++# "; " ++# (test_usage ()))
+        | PlanAccepted =>
+            match table_read (argument 3i32) with
+            | TableUnreadable problem => refused problem
+            | TableLoaded cells => tested_run kind cells
+
+inl main () : i32 =
+    !!!!Export("eoie_table_test_run", ((fun () => table_tested ()) : () -> i32))
+    0i32

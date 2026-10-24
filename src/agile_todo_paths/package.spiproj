@@ -1,0 +1,7 @@
+packages:
+    |core-
+    workspace_primitives
+    spiral-
+    agile_todo_model
+modules:
+    todo_paths

@@ -1,0 +1,5 @@
+packages:
+    |core-
+    workspace_state_contract
+modules:
+    main

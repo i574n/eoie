@@ -1,0 +1,11 @@
+packages:
+    |core-
+    workspace_primitives
+    rust_std_env
+    rust_std_string
+    agile_mutation_policy
+    agile_planning_model
+    agile_subcommand_domain
+    union_reflection
+modules:
+    agile_mutation

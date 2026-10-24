@@ -1,0 +1,155 @@
+open rust_std_string.model
+open model
+open host
+
+inl now_ms () : u64 = $'std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| \
+    elapsed.as_millis() as u64).unwrap_or(0)' : u64
+inl count_text (value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+inl quiet_state_path () : string = $'std::rc::Rc::<str>::from(std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf:\
+    :from).unwrap_or_else(std::env::temp_dir).join("eoie").join("machine-watch").join("quiet.tsv").to_string_lossy().a\
+    s_ref())' : string
+inl state_saved (~text : string) : () = $'{ let path = std::path::PathBuf::from(&*!(quiet_state_path ())); if let \
+    Some(parent) = path.parent() { let _ = std::fs::create_dir_all(parent); } let _ = std::fs::write(&path, \
+    (&*!text).as_bytes()); }' : ()
+inl quiet_since (~state : string) (~id : string) (out : u64) (now : u64) : u64 = $'(&*!state).lines().find_map(|line| \
+    { let mut fields = line.split(char::from(9u8)); if fields.next() == Some(&*!id) && fields.next().and_then(|value| \
+    value.parse::<u64>().ok()) == Some(!out) { fields.next().and_then(|value| value.parse::<u64>().ok()) } else { \
+    None } }).unwrap_or(!now)' : u64
+inl line_count (~text : string) : i32 = $'(&*!text).lines().filter(|line| \!line.is_empty()).count() as i32' : i32
+inl line_at (~text : string) (index : i32) : string = $'std::rc::Rc::<str>::from((&*!text).lines().filter(|line| \
+    \!line.is_empty()).nth(!index as usize).unwrap_or(""))' : string
+inl appended (~text : string) (~line : string) : string = if text = "" then line else concat5 text "\n" line "" ""
+
+let rec owner_cores (~rows : process_rows) (~owner : string) (at : i32) (total : f64) : f64 =
+    if at >= row_count rows then total
+    elif row_cores rows at >= 0.1f64 && owner_text (owner_of rows at) = owner
+    then owner_cores rows owner (at + 1i32) (total + row_cores rows at)
+    else owner_cores rows owner (at + 1i32) total
+
+let rec cells_cores (~rows : process_rows) (at : i32) (total : f64) : f64 =
+    if at >= row_count rows then total
+    else
+        inl busy = row_cores rows at >= 0.1f64 && starts_with (owner_text (owner_of rows at)) "cells-vm:"
+        cells_cores rows (at + 1i32) (if busy then total + row_cores rows at else total)
+
+inl job_state_word (~id : string) : string = $'eoie_job_control::eoie_job_state_word(&*!id)' : string
+inl job_running (~id : string) : bool = job_state_word id = "running"
+
+type job_pass =
+    {
+        report : string
+        state : string
+    }
+
+let rec jobs_watched
+    (limits : watch_limits) (~rows : process_rows) (~ids : string) (index : i32) (~previous : string) (live : bool)
+    (cells : f64) (now : u64) (pass : job_pass)
+    : job_pass
+    =
+    if index >= line_count ids then pass
+    else
+        inl id = line_at ids index
+        if job_running id then
+            inl out =
+                eoie_jobs.host.file_bytes (eoie_jobs.jobs.job_file id "stdout.log")
+                + eoie_jobs.host.file_bytes (eoie_jobs.jobs.job_file id "stderr.log")
+            inl since = quiet_since previous id out now
+            inl quiet_minutes = (now - since) / 60000u64
+            inl tree = owner_cores rows (concat5 "eoie:" id "" "" "") 0i32 0.0f64
+            inl last = eoie_jobs.host.last_lines (eoie_jobs.jobs.job_file id "stdout.log") 1u64
+            inl verdict =
+                quiet_verdict_of limits {
+                    quiet_minutes = quiet_minutes
+                    tree_cores = tree
+                    live_block = live
+                    last_line = last
+                    cells_cores = cells
+                }
+            inl label = eoie_jobs.host.text_or_empty (eoie_jobs.jobs.job_file id "label")
+            inl line =
+                concat5
+                    "  "
+                    label
+                    " output "
+                    (count_text out)
+                    (
+                        concat5
+                            " bytes, unchanged "
+                            (count_text quiet_minutes)
+                            " min, tree "
+                            (cores_text tree)
+                            (concat5 " cores" (verdict_text verdict) "" "" "")
+                    )
+            inl kept = concat5 id "\t" (count_text out) "\t" (count_text since)
+            jobs_watched limits rows ids (index + 1i32) previous live cells now {
+                report = appended pass.report line
+                state = appended pass.state kept
+            }
+        else jobs_watched limits rows ids (index + 1i32) previous live cells now pass
+
+inl window_files () : string =
+    $'std::rc::Rc::<str>::from(std::fs::read_dir(&*!(eoie_machine_windows.windows.windows_root ())).map(|entries| \
+        entries.filter_map(|entry| entry.ok()).filter(|entry| entry.path().extension().map(|extension| extension == \
+        "window").unwrap_or(false)).filter_map(|entry| std::fs::read_to_string(entry.path()).ok()).map(|text| \
+        text.lines().next().unwrap_or("").to_owned()).collect::<Vec<_>>().join("\n")).unwrap_or_default().as_str())'
+    : string
+inl tab_field (~row : string) (index : i32) : string = $'std::rc::Rc::<str>::from((&*!row).split(char::from(9u8)).nth(\
+    !index as usize).unwrap_or(""))' : string
+inl label_job (~label : string) : string = $'std::rc::Rc::<str>::from((&*!label).split("(eoie job \
+    ").nth(1).and_then(|rest| rest.split(char::from(41u8)).next()).unwrap_or(""))' : string
+
+let live_block_held (~windows : string) : bool = $'(&*!windows).lines().any(|row| { let mut fields = \
+    row.split(char::from(9u8)); fields.nth(1) == Some("live-gui") && fields.next() == Some("held") })' : bool
+
+let rec windows_watched (~windows : string) (index : i32) (~report : string) : string =
+    if index >= line_count windows then report
+    else
+        inl row = line_at windows index
+        inl job = label_job (tab_field row 3i32)
+        inl state = if job = "" then "" else job_state_word job
+        inl line =
+            concat5 "  " (tab_field row 0i32) "  " (tab_field row 1i32) (
+                concat5 "  " (tab_field row 2i32) "  " (tab_field row 3i32) (window_text (
+                window_health_of (tab_field row 2i32 = "held") state)))
+        windows_watched windows (index + 1i32) (appended report line)
+
+let gate_summary () : string =
+    $'{ let path = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME")).map(std::path::PathBuf::from).\
+        unwrap_or_default().join(".claude").join("autonomous").join("gate.log"); let text = \
+        std::fs::read_to_string(&path).unwrap_or_default(); let mut sessions: std::collections::BTreeMap<String, \
+        (u64, u64)> = std::collections::BTreeMap::new(); let lines = text.lines().collect::<Vec<_>>(); for line in \
+        lines.iter().rev().take(4000) { let fields = line.split_whitespace().collect::<Vec<_>>(); if fields.len() < 4 \
+        { continue; } let entry = sessions.entry(fields[2].to_owned()).or_insert((0, 0)); if fields[3] == "block" { \
+        entry.0 += 1; } else if line.contains("idle") && fields[3] == "pass" { entry.1 += 1; } } \
+        std::rc::Rc::<str>::from(sessions.into_iter().map(|(session, (blocks, idle))| format\!("  {session}: blocks \
+        {blocks}, idle passes {idle}{}", if idle > 0 { "  <- idled" } else { "" \
+        })).collect::<Vec<_>>().join("\n").as_str()) }' : string
+
+let jobs_and_windows (limits : watch_limits) (~rows : process_rows) : string =
+    inl windows = window_files ()
+    inl live = live_block_held windows
+    inl ids = eoie_jobs.host.newest_directories (eoie_jobs.host.jobs_root ()) 60u64
+    inl previous = $'std::rc::Rc::<str>::from(std::fs::read_to_string(&*!(quiet_state_path ())).unwrap_or_default().as\
+        _str())' : string
+    inl pass =
+        jobs_watched limits rows ids 0i32 previous live (cells_cores rows 0i32 0.0f64) (now_ms ()) {
+            report = ""
+            state = ""
+        }
+    state_saved pass.state
+    inl jobs =
+        concat5
+            "== eoie jobs running: "
+            (count_text ($'!(line_count pass.state) as u64' : u64))
+            (if live then " (a live block holds the machine)" else "")
+            ""
+            ""
+    inl job_lines = if pass.report = "" then jobs else concat5 jobs "\n" pass.report "" ""
+    inl gate = gate_summary ()
+    inl gate_lines =
+        if gate = "" then "== stop gate: no gate.log"
+        else concat5 "== stop gate (gate.log, newest 4000 lines)\n" gate "" "" ""
+    inl now = now_ms ()
+    inl crowding = $'eoie_machine_crowding::eoie_machine_crowding(&*!windows, !now)' : string
+    inl listed = concat5 job_lines "\n" gate_lines "\n== windows\n" (windows_watched windows 0i32 "")
+    if crowding = "" then listed else concat5 listed "\n" crowding "" ""

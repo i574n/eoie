@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "read.spi"
+output = "read_query.rs"
+
+[package]
+name = "eoie-read-query"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_read_query"
+path = "read_query.rs"
+
+[dependencies]
+rayon = "1.12.0"

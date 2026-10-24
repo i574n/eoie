@@ -1,0 +1,6 @@
+packages:
+    |core-
+    state_receipt_codec_model-
+modules:
+    model-
+    main

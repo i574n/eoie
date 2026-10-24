@@ -1,0 +1,20 @@
+[package.metadata.eoie]
+test-requires-cli = true
+
+[package.metadata.spiral]
+entry = "main.spi"
+output = "spiral_tests.rs"
+
+[package]
+name = "eoie-dev-spiral-tests"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "spiral_tests.rs"
+
+[dependencies]
+eoie-process = { path = "../eoie_process" }
+eoie-process-streaming = { path = "../eoie_process_streaming" }

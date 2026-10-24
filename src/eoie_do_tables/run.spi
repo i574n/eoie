@@ -1,0 +1,66 @@
+open sm'_operators
+open eoie_receipt.receipt
+open host
+open grammar
+open eoie_do_records.records
+
+type diff_tally =
+    {
+        report : string
+        failed : bool
+        left : u64
+        right : u64
+        changed : u64
+        both : u64
+    }
+
+let empty_diff_tally () : diff_tally = { report = ""; failed = false; left = 0u64; right = 0u64; changed = 0u64; both = 0u64 }
+
+let lines_joined (~left : string) (~right : string) : string =
+    if right = "" then left elif left = "" then right else left ++# "\n" ++# right
+
+let rec tables_run (~root : string) (~records : record_list) (~index : i32) (~state : diff_tally) : diff_tally =
+    if index < record_count records then
+        match table_parsed records index with
+        | TableParsed (TablesDiffed (left, right, keys, columns)) =>
+            inl outcome = tables_diffed root left right keys columns
+            inl merged = { state with report = lines_joined state.report (outcome_report outcome); failed = state.failed || outcome_failed outcome; left = state.left + outcome_counter outcome 0u64; right = state.right + outcome_counter outcome 1u64; changed = state.changed + outcome_counter outcome 2u64; both = state.both + outcome_counter outcome 3u64 }
+            tables_run root records (index + 1i32) merged
+        | TableRejected _ => tables_run root records (index + 1i32) state
+    else state
+
+let rec first_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        if field_at records index 0i32 <> "query" then "edit and diff statements cannot share one program yet; run them as two calls"
+        else
+            match table_parsed records index with
+            | TableRejected message => message
+            | TableParsed _ => first_rejection records (index + 1i32)
+    else ""
+
+let receipt_counts (~state : diff_tally) : string =
+    inl rows = "rows a " ++# (decimal_text state.left) ++# "  b " ++# (decimal_text state.right)
+    rows ++# "  changed " ++# (decimal_text state.changed) ++# ("  added " ++# (decimal_text (state.right - state.both)) ++# "  removed " ++# (decimal_text (state.left - state.both)))
+
+let tables_program_run (~root : string) (~encoded : string) : i32 =
+    inl started = now_ms ()
+    inl records = records_of encoded
+    inl rejection = first_rejection records 1i32
+    if rejection = "" then
+        inl state = tables_run root records 1i32 (empty_diff_tally ())
+        inl report = state.report
+        if report = "" then () else stdout_line report
+        if state.failed then
+            receipt_line Failed (receipt_counts state) started
+            1i32
+        else
+            receipt_line Succeeded (receipt_counts state) started
+            0i32
+    else
+        stdout_line ("program rejected: " ++# rejection)
+        receipt_line Failed "rows a 0  b 0" started
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_do_tables_run", ((fun (root, encoded) => tables_program_run root encoded) : string * string -> i32))
+    0i32

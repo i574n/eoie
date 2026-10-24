@@ -1,0 +1,181 @@
+///- --package .
+test model static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union process_owner =
+    | ClaudeSession : u64
+    | EoieJob : string
+    | CellsVm : u64
+    | Orphan
+    | NotATool
+
+inl owner_text = function
+    | ClaudeSession pid => concat5 "claude:" ($'std::rc::Rc::<str>::from((!pid).to_string())' : string) "" "" ""
+    | EoieJob id => concat5 "eoie:" id "" "" ""
+    | CellsVm pid => concat5 "cells-vm:" ($'std::rc::Rc::<str>::from((!pid).to_string())' : string) "" "" ""
+    | Orphan => "orphan"
+    | NotATool => "-"
+
+type watch_limits =
+    {
+        silent_minutes : u64
+        rogue_minutes : u64
+        rogue_cores : f64
+        hog_megabytes : u64
+    }
+
+inl default_limits () : watch_limits =
+    { silent_minutes = 60u64; rogue_minutes = 30u64; rogue_cores = 0.8f64; hog_megabytes = 8192u64 }
+
+type busy_process =
+    {
+        pid : u64
+        name : string
+        cores : f64
+        age_minutes : u64
+        cpu_minutes : u64
+        owner : process_owner
+    }
+
+inl orphaned (owner : process_owner) : bool =
+    match owner with
+    | Orphan => true
+    | _ => false
+
+inl tool_owned (owner : process_owner) : bool =
+    match owner with
+    | NotATool => false
+    | _ => true
+
+let rogue (limits : watch_limits) (busy : busy_process) : bool =
+    inl cpu_minutes = busy.cpu_minutes
+    inl age_minutes = busy.age_minutes
+    inl long_busy = age_minutes >= 180u64 && $'(!cpu_minutes as f64) >= 0.8 * (!age_minutes as f64)' : bool
+    tool_owned busy.owner
+    && busy.cores >= limits.rogue_cores
+    && ((orphaned busy.owner && busy.age_minutes >= limits.rogue_minutes) || long_busy)
+
+union quiet_verdict =
+    | Talking
+    | Buffered : f64
+    | QuietInLiveBlock
+    | WaitingByDesign : string
+    | CellsBusy : f64
+    | Silent : u64
+
+type quiet_job =
+    {
+        quiet_minutes : u64
+        tree_cores : f64
+        live_block : bool
+        last_line : string
+        cells_cores : f64
+    }
+
+inl lowercase (~text : string) : string = $'std::rc::Rc::<str>::from((&*!text).to_lowercase())' : string
+
+let quiet_verdict_of (limits : watch_limits) (job : quiet_job) : quiet_verdict =
+    if job.quiet_minutes < limits.silent_minutes then Talking
+    elif job.tree_cores >= 0.1f64 then Buffered job.tree_cores
+    elif job.live_block then QuietInLiveBlock
+    elif contains (lowercase job.last_line) "waiting for" then WaitingByDesign job.last_line
+    elif job.cells_cores >= 0.5f64 then CellsBusy job.cells_cores
+    else Silent job.quiet_minutes
+
+inl cores_text (cores : f64) : string = $'std::rc::Rc::<str>::from(format\!("{:.2}", !cores))' : string
+inl minutes_text (minutes : u64) : string = $'std::rc::Rc::<str>::from((!minutes).to_string())' : string
+
+let verdict_text (verdict : quiet_verdict) : string =
+    match verdict with
+    | Talking => ""
+    | Buffered cores => concat5 "  (quiet output, tree busy " (cores_text cores) " cores: buffered)" "" ""
+    | QuietInLiveBlock => "  (quiet during a live block: waiting for a window is expected)"
+    | WaitingByDesign line => concat5 "  (waiting by design, last line: " line ")" "" ""
+    | CellsBusy cores =>
+        concat5
+            "  (quiet, tree idle, detached Cells VMs use "
+            (cores_text cores)
+            " cores: likely this job's compiler work)"
+            ""
+            ""
+    | Silent minutes =>
+        concat5 "  <- SILENT " (minutes_text minutes) " min, tree idle: check the job's own progress files" "" ""
+
+union window_health =
+    | WindowFine
+    | WindowStale : string
+
+let window_health_of (~held : bool) (~job_state : string) : window_health =
+    if held && job_state <> "" && job_state <> "running" && job_state <> "queued" then WindowStale job_state
+    else WindowFine
+
+inl window_text = function
+    | WindowFine => ""
+    | WindowStale state => concat5 "  <- STALE: job is " state "" "" ""
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl quiet (minutes : u64) (tree : f64) (live : bool) (~line : string) (cells : f64) : quiet_job =
+    { quiet_minutes = minutes; tree_cores = tree; live_block = live; last_line = line; cells_cores = cells }
+
+///> rust
+test quiet_jobs_get_the_first_explanation_that_fits =
+    inl limits = default_limits ()
+    expect (verdict_text (quiet_verdict_of limits (quiet 10u64 0.0f64 false "" 0.0f64)) = "") "under the silence limit"
+    expect
+        (
+            rust_std_string.model.contains
+                (verdict_text (quiet_verdict_of limits (quiet 90u64 1.5f64 true "" 0.0f64)))
+                "buffered"
+        )
+        "a busy tree is buffered even in a live block"
+    expect
+        (
+            rust_std_string.model.contains
+                (verdict_text (quiet_verdict_of limits (quiet 90u64 0.0f64 true "" 0.0f64)))
+                "live block"
+        )
+        "live block"
+    expect
+        (
+            rust_std_string.model.contains
+                (verdict_text (quiet_verdict_of limits (quiet 90u64 0.0f64 false "Waiting for r29 to install" 0.0f64)))
+                "waiting by design"
+        )
+        "waiting by design"
+    expect
+        (
+            rust_std_string.model.contains
+                (verdict_text (quiet_verdict_of limits (quiet 90u64 0.0f64 false "" 2.0f64)))
+                "Cells VMs"
+        )
+        "cells work"
+    expect
+        (
+            rust_std_string.model.contains
+                (verdict_text (quiet_verdict_of limits (quiet 90u64 0.0f64 false "" 0.0f64)))
+                "SILENT 90 min"
+        )
+        "silent"
+
+///> rust
+test rogues_are_orphaned_or_long_busy_tools =
+    inl limits = default_limits ()
+    inl orphan =
+        { pid = 1u64; name = "dotnet"; cores = 1.0f64; age_minutes = 45u64; cpu_minutes = 20u64; owner = Orphan }
+    expect (rogue limits orphan) "an orphan tool over its age"
+    expect (rogue limits { orphan with owner = ClaudeSession 9u64 } = false) "an owned young tool"
+    expect
+        (rogue limits { orphan with owner = ClaudeSession 9u64; age_minutes = 200u64; cpu_minutes = 190u64 })
+        "busy 95% of 3 h"
+    expect (rogue limits { orphan with owner = NotATool } = false) "not a tool"
+    expect (rogue limits { orphan with cores = 0.5f64 } = false) "below the core threshold"
+
+///> rust
+test held_windows_of_ended_jobs_are_stale =
+    expect (window_text (window_health_of true "stopped") = "  <- STALE: job is stopped") "stopped job"
+    expect (window_text (window_health_of true "running") = "") "running job"
+    expect (window_text (window_health_of false "finished") = "") "waiting window"
+    expect (window_text (window_health_of true "") = "") "window without a job"

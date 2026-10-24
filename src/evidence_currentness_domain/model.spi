@@ -1,0 +1,75 @@
+nominal evidence_declared = ()
+nominal evidence_observed = ()
+nominal evidence_verified = ()
+
+union evidence_transition from to =
+    | ObserveEvidence :: () -> evidence_transition evidence_declared evidence_observed
+    | VerifyEvidence :: () -> evidence_transition evidence_observed evidence_verified
+
+union rec evidence_plan from to =
+    | EvidenceStep :: forall from to. evidence_transition from to -> evidence_plan from to
+    | EvidenceThen :: forall from to.
+        (exists middle. evidence_plan from middle * evidence_plan middle to) -> evidence_plan from to
+
+inl currentness_plan () : evidence_plan evidence_declared evidence_verified =
+    EvidenceThen (exists (EvidenceStep (ObserveEvidence ()), EvidenceStep (VerifyEvidence ())))
+
+inl transition_admits forall from to. (transition : evidence_transition from to) (regular : bool) (identical : bool) : bool =
+    match transition with
+    | ObserveEvidence _ => regular
+    | VerifyEvidence _ => identical
+
+inl transition_stage forall from to. (transition : evidence_transition from to) : i32 =
+    match transition with
+    | ObserveEvidence _ => 1i32
+    | VerifyEvidence _ => 2i32
+
+inl rec plan_stage forall from to. (plan : evidence_plan from to) (regular : bool) (identical : bool) (reached : i32) : bool * i32 =
+    match plan with
+    | EvidenceStep transition =>
+        if transition_admits transition regular identical then (true, transition_stage transition) else (false, reached)
+    | EvidenceThen payload =>
+        inl exists middle. left, right = payload
+        inl advanced, reached = plan_stage left regular identical reached
+        if advanced then plan_stage right regular identical reached else (false, reached)
+
+let evidence_row_stage (regular : i32) (identical : i32) : i32 =
+    inl _, stage = plan_stage (currentness_plan ()) (regular = 1i32) (identical = 1i32) 0i32
+    stage
+
+union rust_tool =
+    | Rustc
+    | Cargo
+    | Rustdoc
+    | Rustfmt
+
+inl rust_tool_identity = function
+    | Rustc => "rustc"
+    | Cargo => "cargo"
+    | Rustdoc => "rustdoc"
+    | Rustfmt => "rustfmt"
+
+inl rust_tool_environment = function
+    | Rustc => "RUSTC"
+    | Cargo => "CARGO"
+    | Rustdoc => "RUSTDOC"
+    | Rustfmt => "RUSTFMT"
+
+let rust_tool_environment_binding (relative : string) : string =
+    inl check tool next =
+        inl identity = rust_tool_identity tool
+        if relative = identity then rust_tool_environment tool else next
+    check Rustc (check Cargo (check Rustdoc (check Rustfmt "")))
+
+union public_binary =
+    | UnixPublicBinary
+    | WindowsPublicBinary
+
+inl public_binary_name = function
+    | UnixPublicBinary => "eoie"
+    | WindowsPublicBinary => "eoie.exe"
+
+let evidence_public_binary_binding (unix : i32) (windows : i32) : string =
+    if unix = 1i32 && windows = 0i32 then public_binary_name UnixPublicBinary
+    elif unix = 0i32 && windows = 1i32 then public_binary_name WindowsPublicBinary
+    else ""

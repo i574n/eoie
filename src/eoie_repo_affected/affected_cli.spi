@@ -1,0 +1,28 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl repo (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("repo", args))
+
+inl project (~uses : string) : string = cat (cat "packages:\n    |core-\n" uses) "modules:\n    main\n"
+
+inl crate_manifest () : string = "[package]\n"
+
+///> rust
+test affected_lists_only_the_crates_that_reach_a_changed_package =
+    inl root = fixture_root_create "repo affected"
+    fixture_write root "src/base/package.spiproj" (project "")
+    fixture_write root "src/middle/package.spiproj" (project "    base\n")
+    fixture_write root "src/middle/Cargo.toml" (crate_manifest ())
+    fixture_write root "src/top/package.spiproj" (project "    middle-\n")
+    fixture_write root "src/top/Cargo.toml" (crate_manifest ())
+    fixture_write root "src/other/package.spiproj" (project "")
+    fixture_write root "src/other/Cargo.toml" (crate_manifest ())
+    inl listed = succeeded (repo root (Arg ("affected", Arg (fixture_path root "src", Arg ("base", NoArgs)))))
+    shows listed "middle\ntop\n"
+    hides listed "other"
+    shows listed "eoie repo affected ok crates=2 packages=4"
+    shows (succeeded (repo root (Arg ("affected", Arg (fixture_path root "src", Arg ("top", NoArgs)))))) "eoie repo affected ok crates=1 packages=4"
+    inl usage = repo root (Arg ("affected", Arg (fixture_path root "src", NoArgs)))
+    expect (usage.code = 2i32) (run_text usage)
+    shows usage.stdout "repo usage: repo affected <src> <package>..."
+    fixture_root_remove root

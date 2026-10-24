@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "watch.rs"
+
+[package]
+name = "eoie-machine-watch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_machine_watch"
+path = "watch.rs"
+
+[dependencies]
+sysinfo = "0.38.4"

@@ -1,0 +1,115 @@
+nominal parallel_search_raw = ()
+nominal parallel_search_rooted = ()
+nominal parallel_search_scanned = ()
+nominal parallel_search_sorted = ()
+nominal parallel_search_reported = ()
+
+union parallel_search_policy =
+    | RejectUnsafeRoot
+    | RejectEmptyNeedle
+    | EnforcePositiveLimit
+    | UseRayonWorkers
+    | CompareSerialAndParallel
+    | SortDeterministically
+    | TagRelativePaths
+    | MaterializeConsumerOutput
+
+union parallel_search_op from to =
+    | ValidateParallelSearch :: parallel_search_op parallel_search_raw parallel_search_rooted
+    | ScanParallelSearch :: parallel_search_op parallel_search_rooted parallel_search_scanned
+    | SortParallelSearch :: parallel_search_op parallel_search_scanned parallel_search_sorted
+    | ReportParallelSearch :: parallel_search_op parallel_search_sorted parallel_search_reported
+
+union rec parallel_search_plan from to =
+    | ParallelSearchStep :: forall from to. parallel_search_op from to -> parallel_search_plan from to
+    | ParallelSearchThen :: forall from to. (exists middle. parallel_search_plan from middle * parallel_search_plan middle to) -> parallel_search_plan from to
+
+inl parallel_search_public_plan () : parallel_search_plan parallel_search_raw parallel_search_reported =
+    ParallelSearchThen (exists (
+        ParallelSearchStep ValidateParallelSearch,
+        ParallelSearchThen (exists (
+            ParallelSearchStep ScanParallelSearch,
+            ParallelSearchThen (exists (
+                ParallelSearchStep SortParallelSearch,
+                ParallelSearchStep ReportParallelSearch
+            ))
+        ))
+    ))
+
+let parallel_search_request_binding (flags : i32) (limit : i32) : i32 =
+    if flags < 0i32 then 0i32
+    elif 0i32 < flags then 0i32
+    elif limit < 1i32 then 0i32
+    else 1i32
+
+let parallel_search_worker_binding (workers : i32) (available : i32) : i32 =
+    if workers < 1i32 then 0i32
+    elif available < workers then 0i32
+    else 1i32
+
+let parallel_search_parity_binding (serial_count : i32) (parallel_count : i32) : i32 =
+    if serial_count < 0i32 then 0i32
+    elif parallel_count < 0i32 then 0i32
+    elif serial_count = parallel_count then 1i32
+    else 0i32
+
+let parallel_manifest_order_binding (is_sorted : i32) (is_unique : i32) : i32 =
+    if is_sorted < 1i32 then 0i32
+    elif is_unique < 1i32 then 0i32
+    else 1i32
+
+let parallel_manifest_parity_binding (serial_fingerprint : i32) (parallel_fingerprint : i32) : i32 =
+    if serial_fingerprint = parallel_fingerprint then 1i32
+    else 0i32
+
+let parallel_consumer_mode_binding (mode : i32) (output_segments : i32) : i32 =
+    if mode < 0i32 then 0i32
+    elif 1i32 < mode then 0i32
+    elif output_segments < 1i32 then 0i32
+    else 1i32
+
+let parallel_consumer_output_binding (expected_fingerprint : i32) (output_fingerprint : i32) : i32 =
+    if expected_fingerprint = output_fingerprint then 1i32 else 0i32
+
+union search_scope =
+    | SearchWholeRoot
+    | SearchRootedEntry
+
+inl names_the_root (~relative : string) : bool = $'&*!relative == "."' : bool
+
+inl search_scope_of (~relative : string) : search_scope =
+    if names_the_root relative then SearchWholeRoot else SearchRootedEntry
+
+inl search_scope_code = function
+    | SearchWholeRoot => 0i32
+    | SearchRootedEntry => 1i32
+
+union search_directory =
+    | SourceDirectory
+    | BuildOutputDirectory
+    | VersionControlDirectory
+    | PackageInstallDirectory
+    | SymlinkEntry
+
+inl entry_name (~path : string) : string =
+    $'std::rc::Rc::<str>::from(std::path::Path::new(&*!path).file_name().and_then(|name| name.to_str()).unwrap_or(""))' : string
+inl names_equal (~name : string) (~expected : string) : bool = $'(&*!name) == (&*!expected)' : bool
+inl is_symlink (~path : string) : bool = $'std::fs::symlink_metadata(&*!path).map(|meta| meta.file_type().is_symlink()).unwrap_or(false)' : bool
+inl holds_file (~path : string) (~marker : string) : bool = $'std::path::Path::new(&*!path).join(&*!marker).is_file()' : bool
+
+inl search_directory_of (~path : string) : search_directory =
+    inl name = entry_name path
+    if is_symlink path then SymlinkEntry
+    elif names_equal name ".git" then VersionControlDirectory
+    elif names_equal name "node_modules" then PackageInstallDirectory
+    elif holds_file path "CACHEDIR.TAG" then BuildOutputDirectory
+    elif holds_file path ".rustc_info.json" then BuildOutputDirectory
+    else SourceDirectory
+
+inl search_descends_into = function
+    | SourceDirectory => true
+    | BuildOutputDirectory => false
+    | VersionControlDirectory => false
+    | PackageInstallDirectory => false
+    | SymlinkEntry => false
+

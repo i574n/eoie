@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "text_replacement.spi"
+output = "text_replacement.rs"
+
+[package]
+name = "proxy-text-replacement"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "proxy_text_replacement"
+path = "text_replacement.rs"
+
+[dependencies]
+eoie-rust-std-fs = { path = "../rust_std_fs" }

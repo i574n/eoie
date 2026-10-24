@@ -1,0 +1,18 @@
+[package.metadata.eoie]
+test-requires-cli = true
+
+[package.metadata.spiral]
+entry = "main.spi"
+output = "proxy_edit_contracts.rs"
+
+[package]
+name = "eoie-proxy-edit-contracts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[[test]]
+name = "proxy_edit_contracts"
+path = "proxy_edit_contracts.rs"

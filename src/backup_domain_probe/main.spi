@@ -1,0 +1,22 @@
+inl main () : i32 =
+    inl minus_one = (-(1i32))
+    inl selected0 = backup_domain.main.restoration_select 3i32 0i32
+    inl selected1 = backup_domain.main.restoration_select 3i32 1i32
+    inl selected2 = backup_domain.main.restoration_select 3i32 2i32
+    inl selected_done = backup_domain.main.restoration_select 3i32 3i32
+    inl bound = backup_domain.main.restoration_bind 2i32 2i32
+    inl rejected_bound = backup_domain.main.restoration_bind 2i32 1i32
+    inl complete = backup_domain.main.restoration_complete 3i32 3i32
+    inl incomplete = backup_domain.main.restoration_complete 3i32 2i32
+    inl attempts = backup_domain.main.restoration_attempt_count 2i32 1i32
+    inl overflow = backup_domain.main.restoration_attempt_count 2147483647i32 1i32
+    inl authorized = backup_domain.main.restoration_attempt_authorized 3i32 2i32
+    inl exhausted = backup_domain.main.restoration_attempt_authorized 3i32 3i32
+    inl next = backup_domain.main.restoration_counter_next 2i32 1i32
+    inl rejected_next = backup_domain.main.restoration_counter_next 2i32 0i32
+    inl pending = backup_domain.main.restoration_accumulator_outcome 0i32 0i32
+    inl success = backup_domain.main.restoration_accumulator_outcome 1i32 0i32
+    inl partial = backup_domain.main.restoration_accumulator_outcome 1i32 2i32
+    if selected0 = 2i32 && selected1 = 1i32 && selected2 = 0i32 && selected_done = minus_one && bound = 2i32 && rejected_bound = minus_one && complete = 1i32 && incomplete = 0i32 && attempts = 3i32 && overflow = minus_one && authorized = 1i32 && exhausted = 0i32 && next = 3i32 && rejected_next = minus_one && pending = 0i32 && success = 1i32 && partial = 2i32
+    then 0i32
+    else 1i32

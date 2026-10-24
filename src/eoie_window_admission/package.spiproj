@@ -1,0 +1,8 @@
+packages:
+    |core-
+    spiral-
+    union_reflection
+    eoie_jobs
+    eoie_machine_windows
+modules:
+    admission

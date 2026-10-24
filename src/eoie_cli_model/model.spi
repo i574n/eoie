@@ -1,0 +1,172 @@
+///- --package .
+test model static =
+    open command_spec_domain.model
+
+open command_spec_domain.model
+
+inl shim_argv0_code () : i32 = $"eoie_legacy_operations::dogfood_shim_argv0_code()"
+inl shim_run () : i32 = $"eoie_legacy_operations::dogfood_shim_dispatch()"
+inl process_verb_code () : i32 = $"EoieProcessVerbCode()"
+inl process_tail_count () : i32 = $"std::env::args().skip(2).count() as i32"
+inl status_ok (migration : i32) : i32 = $"EoieStatusOk(!migration)"
+inl status_live (migration : i32) : i32 = $"EoieStatusLive(!migration)"
+inl status_arity_error () : i32 = $"EoieStatusArityError()"
+inl status_authority_error () : i32 = $"EoieStatusAuthorityError()"
+inl patch_run () : i32 = $"EoiePatchAdapter()"
+inl agile_run () : i32 = $"EoieAgileAdapter()"
+inl bundle_run () : i32 = $"EoieBundleAdapter()"
+inl proxy_run () : i32 = $"EoieProxyAdapter()"
+inl help_rejected () : i32 = $"EoieHelpRejected()"
+inl unknown_rejected () : i32 = $"EoieUnknownRejected()"
+
+inl migration_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_settled_migration_status()"
+inl workspace_state_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_workspace_state_status()"
+inl compiler_session_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_compiler_session_status()"
+inl legacy_bundle_writer_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_legacy_bundle_writer_status()"
+inl ingest_frontier_status () : i32 = $"bootstrap_authority_status::eoie_bootstrap_ingest_frontier_status()"
+inl process_batch_status () : i32 = $"process_batch_plan_domain::eoie_batch_matrix_auto_chain_budget(60000, 16000)"
+
+inl run_status () : i32 =
+    match process_tail_count () with
+    | 0 =>
+        match workspace_state_status () with
+        | 1 =>
+            match compiler_session_status () with
+            | 1 =>
+                match legacy_bundle_writer_status () with
+                | 1 =>
+                    match ingest_frontier_status () with
+                    | 1 =>
+                        match process_batch_status () with
+                        | 1 => status_ok (migration_status ())
+                        | _ => status_authority_error ()
+                    | _ => status_authority_error ()
+                | _ => status_authority_error ()
+            | _ => status_authority_error ()
+        | _ => status_authority_error ()
+    | 1 => status_live (migration_status ())
+    | _ => status_arity_error ()
+
+inl run_public_verb () : i32 =
+    match command_catalog_witness () with
+    | 1 =>
+        match handler_from_code (process_verb_code ()) with
+        | StatusHandler => run_status ()
+        | PatchHandler => patch_run ()
+        | AgileHandler => agile_run ()
+        | BundleHandler => bundle_run ()
+        | ProxyHandler => proxy_run ()
+        | HelpHandler => help_rejected ()
+        | UnknownHandler => unknown_rejected ()
+        | LeaseDeniedHandler => 2i32
+    | _ => 2i32
+
+inl job_run () : i32 = $"eoie_jobs::eoie_job_run()" : i32
+
+inl repo_run () : i32 = $"eoie_repo_state::eoie_repo_run()" : i32
+inl repo_affected_run () : i32 = $"eoie_repo_affected::eoie_repo_affected_run()" : i32
+
+inl table_run () : i32 = $"eoie_table_query::eoie_table_run()" : i32
+
+inl read_run () : i32 = $"eoie_read_query::eoie_read_run()" : i32
+inl grep_run () : i32 = $"eoie_grep_query::eoie_grep_run()" : i32
+inl do_run () : i32 = $"eoie_do::eoie_do_run()" : i32
+inl process_run () : i32 = $"eoie_process_table::eoie_process_run()" : i32
+inl standards_run () : i32 = $"eoie_standards::eoie_standards_run()" : i32
+inl window_run () : i32 = $"eoie_machine_windows::eoie_window_run()" : i32
+inl experiment_run () : i32 = $"eoie_experiments::eoie_experiment_run()" : i32
+inl logs_run () : i32 = $"eoie_table_logs::eoie_table_logs_run()" : i32
+inl guide_run () : i32 = $"eoie_guide::eoie_guide_run()" : i32
+inl machine_run () : i32 = $"eoie_machine_watch::eoie_machine_watch_run()" : i32
+inl adoption_run () : i32 = $"eoie_adoption::eoie_adoption_run()" : i32
+inl memory_run () : i32 = $"eoie_memory::eoie_memory_run()" : i32
+inl resume_run () : i32 = $"eoie_resume::eoie_resume_run()" : i32
+inl table_test_run () : i32 = $"eoie_table_test::eoie_table_test_run()" : i32
+
+let direct_help (~usage : string) : i32 =
+    $'println\!("usage: eoie {}", &*!usage)' : ()
+    0i32
+
+union direct_verb =
+    | VerbJob
+    | VerbRepo
+    | VerbTable
+    | VerbRead
+    | VerbLines
+    | VerbGrep
+    | VerbDo
+    | VerbPs
+    | VerbKill
+    | VerbStandards
+    | VerbWindow
+    | VerbExperiment
+    | VerbGuide
+    | VerbMachine
+    | VerbAdoption
+    | VerbMemory
+    | VerbResume
+
+union direct_parse =
+    | DirectKnown : direct_verb
+    | DirectUnknown
+
+let lowercase_named (~word : string) (~name : string) : bool = $'(!name).to_ascii_lowercase() == &*!word' : bool
+
+let direct_of (~word : string) : direct_parse =
+    union_reflection.cases.union_case_where (fun (verb : direct_verb) => lowercase_named word (union_reflection.cases.union_case_suffix "Verb" verb)) (fun verb => DirectKnown verb) DirectUnknown
+
+inl direct_routed (verb : direct_verb) : i32 =
+    match verb with
+    | VerbJob => job_run ()
+    | VerbRepo => if argument_file.process_argument 2i32 = "affected" then repo_affected_run () else repo_run ()
+    | VerbTable => if argument_file.process_argument 2i32 = "logs" then logs_run () elif argument_file.process_argument 2i32 = "test" then table_test_run () else table_run ()
+    | VerbRead => read_run ()
+    | VerbLines => read_run ()
+    | VerbGrep => grep_run ()
+    | VerbDo => do_run ()
+    | VerbPs => process_run ()
+    | VerbKill => process_run ()
+    | VerbStandards => standards_run ()
+    | VerbWindow => window_run ()
+    | VerbExperiment => experiment_run ()
+    | VerbGuide => guide_run ()
+    | VerbMachine => machine_run ()
+    | VerbAdoption => adoption_run ()
+    | VerbMemory => memory_run ()
+    | VerbResume => resume_run ()
+
+inl run_direct () : i32 =
+    inl verb = argument_file.process_argument 1i32
+    inl usage = if verb = "help" then command_spec_domain.model.direct_verb_usage (argument_file.process_argument 2i32) else ""
+    if usage <> "" then direct_help usage
+    else
+        match direct_of verb with
+        | DirectKnown known => direct_routed known
+        | DirectUnknown =>
+            match shim_argv0_code () with
+            | 0 => run_public_verb ()
+            | _ => shim_run ()
+
+inl run () : i32 = argument_file.run_from (argument_file.argument_source ()) run_direct
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl known_word (~word : string) : bool =
+    match direct_of word with
+    | DirectKnown _ => true
+    | DirectUnknown => false
+
+///> rust
+test direct_verbs_parse_from_their_case_names =
+    expect (known_word "job" && known_word "experiment" && known_word "ps" && known_word "grep") "every direct verb word comes from its case name"
+    expect (known_word "JOB" = false) "verbs stay lowercase"
+    expect (known_word "agile" = false) "agile stays on the public verb route"
+    expect (known_word "" = false) "an empty verb is not direct"
+
+inl verb_word (verb : direct_verb) : string =
+    inl name = union_reflection.cases.union_case_suffix "Verb" verb
+    $'std::rc::Rc::<str>::from((!name).to_ascii_lowercase())' : string
+
+///> rust
+test every_direct_verb_has_a_help_line =
+    inl missing = union_reflection.cases.union_cases_fold (fun found (verb : direct_verb) => if command_spec_domain.model.direct_verb_usage (verb_word verb) = "" then found + 1i32 else found) 0i32
+    expect (missing = 0i32) "every direct verb word has a line in the command spec usages, so eoie help <verb> answers"

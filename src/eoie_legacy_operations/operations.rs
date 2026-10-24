@@ -1,0 +1,868 @@
+#![allow(unused_mut, unused_variables, unused_imports, unused_parens, unused_braces, unused_assignments, dead_code, non_snake_case, non_camel_case_types, unreachable_code, while_true)]
+use std::cell::RefCell;
+use std::rc::Rc;
+const EOIE_SHIM_NAMES: [&str; 4] = if cfg!(windows) { ["python.exe", "python3.exe", "sh.exe", "bash.exe"] } else { ["python", "python3", "sh", "bash"] };
+
+fn dogfood_shim_basename(value: &str) -> &str { value.rsplit(['/', '\\']).next().unwrap_or(value) }
+
+fn dogfood_shim_route_code(name: &str) -> i32 {
+    let name = name.strip_suffix(".exe").unwrap_or(name);
+    if name == "python" || (name.starts_with("python") && name[6..].chars().all(|c| c.is_ascii_digit() || c == '.')) { 1 }
+    else if matches!(name, "sh" | "bash") { 2 }
+    else { 0 }
+}
+
+pub fn dogfood_shim_argv0_code() -> i32 {
+    std::env::args().next().as_deref().map(dogfood_shim_basename).map_or(0, dogfood_shim_route_code)
+}
+
+fn dogfood_shim_mode_code(value: &str) -> Result<i32, String> {
+    match value { "block" => Ok(0), "warn" => Ok(1), "pass" => Ok(2), _ => Err("shim mode must be block, warn, or pass".to_owned()) }
+}
+
+fn dogfood_shim_mode_name(code: i32) -> &'static str { match code { 0 => "block", 1 => "warn", 2 => "pass", _ => "invalid" } }
+
+fn dogfood_shim_receipt(mode: i32, target: &std::path::Path) -> String {
+    let mode_ctor = match mode { 0 => "ShimBlock", 1 => "ShimWarn", _ => "ShimPass" };
+    format!("union installed_shim_mode = | ShimBlock | ShimWarn | ShimPass\ninl installed_mode () = {mode_ctor}\ninl installed_wrapper_count () : i32 = 4i32\ninl installed_target () : string = \"{}\"\ninl main () : i32 = 0i32\n", target.display().to_string().replace('\\', "/"))
+}
+
+fn dogfood_shim_is_same(left: &std::path::Path, right: &std::path::Path) -> bool {
+    match (std::fs::canonicalize(left), std::fs::canonicalize(right)) { (Ok(a), Ok(b)) => a == b, _ => false }
+}
+
+fn dogfood_shim_install(args: &[String]) -> Result<(), String> {
+    if args.len() != 5 { return Err("shim install expects root relative-dir block|warn|pass".to_owned()); }
+    let root = std::path::Path::new(eoie_arg(args, 2, "root")?);
+    let dir = eoie_rooted(root, eoie_arg(args, 3, "relative-dir")?)?;
+    let mode = dogfood_shim_mode_code(eoie_arg(args, 4, "mode")?)?;
+    let target = std::env::current_exe().map_err(|error| format!("locate eoie executable: {error}"))?;
+    if eoie_legacy_operations_proxy_dogfood_shim_install_packed_binding(i32::from(target.is_absolute()) + (EOIE_SHIM_NAMES.len() as i32 * 2), mode) != 1 { return Err("typed shim install preflight rejected".to_owned()); }
+    std::fs::create_dir_all(&dir).map_err(|error| format!("create shim dir {}: {error}", dir.display()))?;
+    let mut committed = Vec::<(std::path::PathBuf, Option<std::path::PathBuf>)>::new();
+    for name in EOIE_SHIM_NAMES {
+        let wrapper = dir.join(name);
+        let backup = dir.join(format!(".eoie-real-{name}"));
+        let existing = std::fs::symlink_metadata(&wrapper).ok();
+        let mut saved = None;
+        if existing.is_some() {
+            if dogfood_shim_is_same(&wrapper, &target) { std::fs::remove_file(&wrapper).map_err(|error| format!("refresh {}: {error}", wrapper.display()))?; }
+            else {
+                if backup.exists() { return Err(format!("shim backup already exists: {}", backup.display())); }
+                std::fs::rename(&wrapper, &backup).map_err(|error| format!("backup {}: {error}", wrapper.display()))?;
+                saved = Some(backup.clone());
+            }
+        }
+        if let Err(error) = eoie_rust_std_fs::portable_symlink(&target, &wrapper) {
+            for (path, prior) in committed.into_iter().rev() { let _ = std::fs::remove_file(&path); if let Some(backup) = prior { let _ = std::fs::rename(backup, path); } }
+            if let Some(backup) = saved { let _ = std::fs::rename(backup, &wrapper); }
+            return Err(format!("install shim {}: {error}", wrapper.display()));
+        }
+        committed.push((wrapper, saved));
+    }
+    let receipt = dir.join(".eoie-shim-receipt.spi");
+    if let Err(error) = eoie_atomic_write(&receipt, dogfood_shim_receipt(mode, &target).as_bytes()) {
+        for (path, prior) in committed.into_iter().rev() { let _ = std::fs::remove_file(&path); if let Some(backup) = prior { let _ = std::fs::rename(backup, path); } }
+        return Err(format!("write shim receipt: {error}"));
+    }
+    println!("eoie proxy shim install ok dir={} mode={} wrappers=4", dir.display(), dogfood_shim_mode_name(mode));
+    Ok(())
+}
+
+fn dogfood_shim_uninstall(args: &[String]) -> Result<(), String> {
+    if args.len() != 4 { return Err("shim uninstall expects root relative-dir".to_owned()); }
+    let root = std::path::Path::new(eoie_arg(args, 2, "root")?);
+    let dir = eoie_rooted(root, eoie_arg(args, 3, "relative-dir")?)?;
+    let receipt = dir.join(".eoie-shim-receipt.spi");
+    if eoie_legacy_operations_proxy_dogfood_shim_uninstall_binding(i32::from(receipt.is_file()), EOIE_SHIM_NAMES.len() as i32) != 1 { return Err("typed shim uninstall preflight rejected".to_owned()); }
+    for name in EOIE_SHIM_NAMES {
+        let wrapper = dir.join(name);
+        let backup = dir.join(format!(".eoie-real-{name}"));
+        if let Ok(metadata) = std::fs::symlink_metadata(&wrapper) {
+            if !metadata.file_type().is_symlink() { return Err(format!("refuse to remove non-link wrapper: {}", wrapper.display())); }
+            std::fs::remove_file(&wrapper).map_err(|error| format!("remove {}: {error}", wrapper.display()))?;
+        }
+        if backup.exists() { std::fs::rename(&backup, &wrapper).map_err(|error| format!("restore {}: {error}", wrapper.display()))?; }
+    }
+    std::fs::remove_file(&receipt).map_err(|error| format!("remove shim receipt: {error}"))?;
+    println!("eoie proxy shim uninstall ok dir={} wrappers=4", dir.display());
+    Ok(())
+}
+
+fn dogfood_shim_status(args: &[String]) -> Result<(), String> {
+    if args.len() != 4 { return Err("shim status expects root relative-dir".to_owned()); }
+    let root = std::path::Path::new(eoie_arg(args, 2, "root")?);
+    let dir = eoie_rooted(root, eoie_arg(args, 3, "relative-dir")?)?;
+    let installed = EOIE_SHIM_NAMES.iter().filter(|name| std::fs::symlink_metadata(dir.join(name)).is_ok_and(|metadata| metadata.file_type().is_symlink())).count();
+    println!("eoie proxy shim status dir={} installed={}/4 receipt={}", dir.display(), installed, dir.join(".eoie-shim-receipt.spi").is_file());
+    Ok(())
+}
+
+pub fn dogfood_shim_proxy(args: &[String]) -> Result<(), String> {
+    match args.get(1).map(String::as_str) {
+        Some("install") => dogfood_shim_install(args),
+        Some("uninstall") => dogfood_shim_uninstall(args),
+        Some("status") => dogfood_shim_status(args),
+        _ => Err("shim expects install|uninstall|status".to_owned()),
+    }
+}
+
+fn dogfood_shim_real_program(route: i32, invoked: &str, self_exe: &std::path::Path) -> Option<std::path::PathBuf> {
+    let override_name = if route == 1 { "EOIE_REAL_PYTHON" } else { "EOIE_REAL_SHELL" };
+    if let Some(candidate) = std::env::var_os(override_name).map(std::path::PathBuf::from) && candidate.is_file() && !dogfood_shim_is_same(&candidate, self_exe) { return Some(candidate); }
+    let names: &[&str] = if route == 1 { &[invoked, "python3", "python"] } else { &[invoked, "bash", "sh"] };
+    let path = std::env::var_os("PATH")?;
+    for directory in std::env::split_paths(&path) { for name in names { let candidate = directory.join(if cfg!(windows) && !name.ends_with(".exe") { format!("{name}.exe") } else { name.to_string() }); if candidate.is_file() && !dogfood_shim_is_same(&candidate, self_exe) { return Some(candidate); } } }
+    None
+}
+
+pub fn dogfood_shim_dispatch() -> i32 {
+    let all = std::env::args().collect::<Vec<_>>();
+    let invoked = all.first().map(String::as_str).map(dogfood_shim_basename).unwrap_or("");
+    let route = dogfood_shim_route_code(invoked);
+    if route == 0 { return 2; }
+    let mode = std::env::var("EOIE_SHIM_MODE").ok().and_then(|value| dogfood_shim_mode_code(&value).ok()).unwrap_or(0);
+    let env_gap = std::env::var("EOIE_FALLBACK_GAP").ok().filter(|value| !value.trim().is_empty());
+    let arg_gap = all.get(1).filter(|value| value.as_str() == "--eoie-fallback").and_then(|_| all.get(2)).filter(|value| !value.trim().is_empty());
+    let native_equivalent = if arg_gap.is_some() || std::env::var("EOIE_SHIM_NATIVE_EQUIVALENT").as_deref() == Ok("0") { 0 } else { 1 };
+    let gap_present = i32::from(env_gap.is_some() || arg_gap.is_some());
+    let allow_real = i32::from(std::env::var("EOIE_ALLOW_REAL_ROUTE").as_deref() == Ok("1") || arg_gap.is_some());
+    let flags = native_equivalent + allow_real * 2 + gap_present * 4;
+    let decision = eoie_legacy_operations_proxy_dogfood_shim_decision_packed_binding(mode, flags);
+    if decision <= 0 {
+        eprintln!("EOIE blocked direct {invoked} invocation: a native proxy route is expected.");
+        eprintln!("Use `eoie proxy ...`; for a real capability gap use --eoie-fallback <reason> or EOIE_ALLOW_REAL_ROUTE=1 with EOIE_FALLBACK_GAP.");
+        return 111;
+    }
+    if decision == 1 { eprintln!("EOIE explicit fallback accepted for {invoked}; gap={}", arg_gap.or(env_gap.as_ref()).map(String::as_str).unwrap_or("unspecified")); }
+    else if mode == 1 { eprintln!("EOIE shim warning: forwarding direct {invoked} invocation"); }
+    let self_exe = match std::env::current_exe() { Ok(value) => value, Err(error) => { eprintln!("EOIE shim cannot locate itself: {error}"); return 127; } };
+    let real = match dogfood_shim_real_program(route, invoked, &self_exe) { Some(value) => value, None => { eprintln!("EOIE shim cannot find a real interpreter; set EOIE_REAL_PYTHON or EOIE_REAL_SHELL"); return 127; } };
+    let skip = if arg_gap.is_some() { 3 } else { 1 };
+    let mut command = std::process::Command::new(real);
+    command.args(all.iter().skip(skip));
+    #[cfg(unix)]
+    { let error = std::os::unix::process::CommandExt::exec(&mut command); eprintln!("EOIE shim exec failed: {error}"); 127 }
+    #[cfg(not(unix))]
+    {
+        let timeout_ms = std::env::var("EOIE_SHIM_TIMEOUT_MS").ok().and_then(|value| value.parse::<u64>().ok()).filter(|value| *value > 0).unwrap_or(3_600_000);
+        match eoie_process_observation::run_bounded_streaming_receipted_observed(&mut command, timeout_ms, "shim-forward", None) {
+            Ok(observation) => observation.status.code().unwrap_or(127),
+            Err(error) => { eprintln!("EOIE shim spawn failed: {error}"); 127 }
+        }
+    }
+}
+
+use eoie_process::shutdown_spiral_sessions as eoie_shutdown_spiral_sessions;
+use eoie_process_observation::run_bounded_streaming_checked as eoie_run_bounded_streaming_checked;
+use eoie_toolchain_proxy::toolchain_run as eoie_toolchain_run_family;
+use eoie_source_map::{source_diff_run as eoie_source_diff_run_family, source_map_run as eoie_source_map_run_family};
+use eoie_source_topology::{source_stats_run as eoie_source_stats_run_family, source_topology_run as eoie_source_topology_run_family};
+use eoie_cold_rebuild_matrix::{cold_rebuild_matrix_run as eoie_cold_rebuild_matrix_run_family, cold_rebuild_owner_run as eoie_cold_rebuild_owner_run_family};
+use eoie_ingest_frontier::{frontier_map_run as eoie_frontier_map_run_family, ingest_extracted_run as eoie_ingest_extracted_run_family, ingest_map_run as eoie_ingest_map_run_family, ingest_targets_derive_run as eoie_ingest_targets_derive_run_family, ingest_targets_run as eoie_ingest_targets_run_family, ingest_trim_run as eoie_ingest_trim_run_family};
+use eoie_coverage_prune::{coverage_assess as eoie_coverage_assess_family, coverage_run as eoie_coverage_run_family, prune_uncovered as eoie_prune_uncovered_family};
+use eoie_bundle_zip::bundle_run as eoie_bundle_family;
+use std::env;
+use std::fs;
+use std::io::{self};
+use eoie_patch_control_domain::{patch_rooted as eoie_rooted, patch_safe_relative as eoie_safe_relative};
+use eoie_rust_std_fs::{atomic_write as eoie_atomic_write, rooted_unlink_nondirectory as eoie_remove_leaf_nofollow, rooted_remove_tree_within as eoie_remove_tree_within};
+use std::path::Path;
+use std::process::Command;
+
+#[must_use]
+pub fn eoie_bundle_run() -> i32 {
+    eoie_bundle_family()
+}
+#[must_use]
+pub fn eoie_proxy_run() -> i32 { let args = env::args().skip(2).collect::<Vec<_>>(); if let Err(error) = eoie_proxy(&args) { let child_exit = proxy_failure_classification::eoie_proxy_child_exit_code(&error); if child_exit > 0 { eprintln!("eoie error: {error}"); return child_exit; } let operation = args.first().map(String::as_str).unwrap_or(""); let usage = eoie_legacy_operations_proxy_usage(operation); let repaired = proxy_failure_classification::eoie_proxy_corrected_command(&error); let corrected = if repaired.is_empty() { format!("eoie {usage}") } else { repaired.to_string() }; if usage.is_empty() { eprintln!("eoie error: {error}\nintent: proxy capability\nusage: eoie proxy <capability> ...\nvalid: see eoie help proxy\ncorrected: eoie help proxy"); } else { eprintln!("eoie error: {error}\nintent: proxy capability\nusage: eoie {usage}\nvalid: {usage}\ncorrected: {corrected}"); } 2 } else { 0 } }
+
+fn eoie_arg<'a>(args: &'a [String], index: usize, name: &str) -> Result<&'a str, String> {
+    args.get(index)
+        .map(String::as_str)
+        .ok_or_else(|| format!("missing argument: {name}"))
+}
+
+
+
+fn eoie_proxy(args: &[String]) -> Result<(), String> {
+    let subcommand = eoie_arg(args, 0, "subcommand")?;
+    match subcommand {
+        "fs-list" => {
+            let (code, message) = proxy_directory_listing::eoie_directory_listing_outcome();
+            if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
+        }
+        "fs-read" => {
+            let (code, message) = proxy_file_reading::eoie_file_reading_outcome();
+            if code == 0 { Ok(()) } else { Err(message.to_string()) }
+        }
+        "fs-write" => {             let started = proxy_file_receipt::eoie_file_clock_ms();             let root = Path::new(eoie_arg(args, 1, "root")?);             let path = eoie_rooted(root, eoie_arg(args, 2, "relative")?)?;             let usage = "usage: eoie proxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>; creating a missing file needs no replace flag, --create-or-replace writes whether or not it exists";             if args.len() < 4 { return Err(format!("fs-write requires an explicit payload argument; {usage}")); }             let mut replace_existing = false;             let mut create_or_replace = false;             let mut expect_hash: Option<&str> = None;             let mut expect_nonempty = false;             let mut payload_start = 3usize;             if args.get(3).is_some_and(|value| eoie_legacy_operations_proxy_write_token_code(value) < 5) {                 let mut index = 3usize;                 let mut separator_seen = false;                 while index < args.len() {                     match eoie_legacy_operations_proxy_write_token_code(args[index].as_str()) {                         0 => { replace_existing = true; index += 1; }                         1 => { index += 1; expect_hash = Some(eoie_arg(args, index, "sha256")?); index += 1; }                         2 => { expect_nonempty = true; index += 1; }                         3 => { payload_start = index + 1; separator_seen = true; break; }                         4 => { create_or_replace = true; index += 1; }                         _ => return Err(format!("unexpected fs-write option: {}; {usage}", args[index])),                     }                 }                 if !separator_seen { return Err(format!("guarded fs-write requires -- before the payload; {usage}")); }             }             let text = args[payload_start..].join(" ");             let existed = path.exists();             let original = if existed { Some(fs::read(&path).map_err(|error| format!("read {} before replace: {error}", path.display()))?) } else { None };             let packed = i32::from(replace_existing) + 2 * i32::from(create_or_replace) + 4 * i32::from(expect_hash.is_some()) + 8 * i32::from(expect_nonempty) + 16 * i32::from(original.as_ref().is_some_and(Vec::is_empty)) + 32 * i32::from(text.is_empty());             match eoie_legacy_operations_proxy_write_action_binding(i32::from(existed), packed) {                 0 => {}                 2 => return Err(format!("fs-write refuses to overwrite existing file without --replace-existing or --create-or-replace: {}; {usage}", path.display())),                 3 => return Err(format!("fs-write --expect-nonempty rejected empty target: {}", path.display())),                 4 => return Err(format!("fs-write replacement preconditions require an existing file: {}; {usage}", path.display())),                 5 => return Err(format!("fs-write refuses an empty payload over a non-empty file without --expect-hash: {}; {usage}", path.display())),                 _ => if let Some(expected) = expect_hash {                     let observed = eoie_proxy_search::inspection_file_sha256(&path)?;                     if observed != expected { return Err(format!("fs-write expected hash mismatch path={} expected={} observed={}", path.display(), expected, observed)); }                 },             }             eoie_atomic_write(&path, text.as_bytes())?;             let observed = fs::read(&path).map_err(|error| format!("readback {}: {error}", path.display()))?;             if observed != text.as_bytes() {                 if let Some(original) = original.as_ref() { let _ = eoie_atomic_write(&path, original); } else { let _ = eoie_remove_leaf_nofollow(&path); }                 return Err("fs-write readback mismatch; prior state restored".to_owned());             }             println!("eoie proxy fs-write ok mode={} path={} bytes={} replace_existing={} create_or_replace={} expect_hash={} expect_nonempty={}{}", if existed {"replace"} else {"create"}, path.display(), text.len(), i32::from(replace_existing), i32::from(create_or_replace), i32::from(expect_hash.is_some()), i32::from(expect_nonempty), proxy_file_receipt::eoie_elapsed_field(started));             Ok(()) }
+        "text-replace" => {
+            let (code, message) = proxy_text_replacement::eoie_text_replace_outcome();
+            if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
+        }
+        "command-output" => {
+            if args.len() < 4 { return Err("command-output expects root timeout-ms program [args...]".to_owned()); }
+            let timeout_ms = eoie_arg(args, 2, "timeout-ms")?.parse::<u64>().map_err(|_| "timeout-ms must be a positive integer".to_owned())?;
+            let mut command = std::process::Command::new(eoie_arg(args, 3, "program")?);
+            command.current_dir(Path::new(eoie_arg(args, 1, "root")?)).args(&args[4..]);
+            let observation = eoie_process_observation::run_bounded_receipted_observed(&mut command, timeout_ms, "command-output")?;
+            std::io::Write::write_all(&mut std::io::stdout(), &observation.stdout).map_err(|error| error.to_string())?;
+            std::io::Write::write_all(&mut std::io::stderr(), &observation.stderr).map_err(|error| error.to_string())?;
+            let status = observation.status.code().unwrap_or(-1);
+            println!("{}", proxy_command_output::eoie_command_output_receipt(status, observation.elapsed_ms, observation.stdout.len() as u64, observation.stderr.len() as u64));
+            if status == 0 { Ok(()) } else { Err(format!("command-output failed: exit code: {status}")) }
+        }
+        "fs-remove" => {
+            let (code, message) = proxy_file_removal::eoie_file_removal_outcome();
+            if code == 0 { println!("{message}"); Ok(()) } else { Err(message.to_string()) }
+        }
+        "fs-remove-tree" => {
+            let started = proxy_file_receipt::eoie_file_clock_ms();
+            let root = Path::new(eoie_arg(args, 1, "root")?);
+            let relative = eoie_arg(args, 2, "relative")?;
+            let missing_ok = args.get(3).map(String::as_str) == Some("--missing-ok");
+            if args.len() > 4 || (args.len() == 4 && !missing_ok) { return Err("fs-remove-tree expects root relative [--missing-ok]".to_owned()); }
+            if missing_ok { let safe = eoie_safe_relative(relative)?; let candidate = root.join(&safe); if !candidate.exists() { println!("eoie proxy fs-remove-tree ok removed=0 missing_ok=1{}", proxy_file_receipt::eoie_elapsed_field(started)); return Ok(()); } }
+            let path = eoie_rooted(root, relative)?;
+            let count = eoie_remove_tree_within(root, &path)?;
+            println!("eoie proxy fs-remove-tree ok removed={count} missing_ok={}{}", i32::from(missing_ok), proxy_file_receipt::eoie_elapsed_field(started));
+            Ok(())
+        }
+        "run" => {             let usage = "usage: eoie proxy run --cwd <directory> --program <program> [--timeout-ms <ms>] [--env KEY=VALUE]... [--unset KEY]... [-- <args...>]";             if args.len() < 2 { return Err(format!("proxy run requires a working directory and program; {usage}")); }                              let mut timeout_ms = 300000u64;                 let mut cwd: Option<&str> = None;                 let mut program: Option<&str> = None;                 let mut env_pairs: Vec<(String, String)> = Vec::new();                 let mut unset_keys: Vec<String> = Vec::new();                 let mut child_args: Vec<String> = Vec::new();                 let mut tail = false;                 let mut index = 1usize;                 while index < args.len() {                     if tail { child_args.push(args[index].clone()); index += 1; continue; }                     match eoie_legacy_operations_proxy_run_token_code(args[index].as_str()) {                         0 => {                             index += 1;                             timeout_ms = eoie_arg(args, index, "timeout-ms")?.parse::<u64>().map_err(|_| format!("proxy run --timeout-ms must be an integer; {usage}"))?;                             index += 1;                         }                         1 => { index += 1; cwd = Some(eoie_arg(args, index, "cwd")?); index += 1; }                         2 => { index += 1; program = Some(eoie_arg(args, index, "program")?); index += 1; }                         3 => {                             index += 1;                             let cell = eoie_arg(args, index, "KEY=VALUE")?;                             let (key, value) = cell.split_once('=').ok_or_else(|| format!("proxy run --env expects KEY=VALUE, got {cell}; {usage}"))?;                             if key.is_empty() { return Err(format!("proxy run --env key cannot be empty; {usage}")); }                             env_pairs.push((key.to_owned(), value.to_owned()));                             index += 1;                         }                         4 => {                             index += 1;                             let key = eoie_arg(args, index, "KEY")?;                             if key.is_empty() || key.contains('=') { return Err(format!("proxy run --unset expects an environment key, got {key}; {usage}")); }                             unset_keys.push(key.to_owned());                             index += 1;                         }                         5 => { tail = true; index += 1; }                         _ => return Err(format!("unexpected proxy run argument: {}; {usage}", args[index])),                     }                 }                 let cwd = cwd.ok_or_else(|| format!("proxy run named mode requires --cwd; {usage}"))?;                 let program = program.ok_or_else(|| format!("proxy run named mode requires --program; {usage}"))?;                 let root = Path::new(cwd);                 if !root.is_dir() { return Err(format!("proxy run --cwd is not a directory: {}; {usage}", root.display())); }                 let mut command = Command::new(program);                 command.current_dir(root).args(&child_args);                 for (key, value) in &env_pairs { command.env(key, value); }                 for key in &unset_keys { command.env_remove(key); }                 let observation = eoie_run_bounded_streaming_checked(&mut command, timeout_ms, "proxy-run", None)?;                 println!("eoie proxy run ok mode=named cwd={} program={} timeout_ms={timeout_ms} elapsed_ms={} env_set={} env_unset={}", root.display(), program, observation.elapsed_ms, env_pairs.len(), unset_keys.len());                 Ok(())
+        }
+        "spiral-session-shutdown" => {
+            let compiler = eoie_arg(args, 1, "compiler")?;
+            let timeout_ms = args
+                .get(2)
+                .map(|value| value.parse::<u64>())
+                .transpose()
+                .map_err(|_| "invalid timeout-ms".to_owned())?
+                .unwrap_or(30000);
+            let status = eoie_shutdown_spiral_sessions(compiler, timeout_ms)?;
+            if !status.success() {
+                return Err("Spiral session shutdown failed".to_owned());
+            }
+            println!("eoie proxy spiral-session-shutdown ok timeout_ms={timeout_ms}");
+            Ok(())
+        }
+        "prune-build-cache" => {
+            let root = Path::new(eoie_arg(args, 1, "root")?);
+            let relative = eoie_safe_relative(eoie_arg(args, 2, "relative-target")?)?;
+            if relative.file_name().and_then(|value| value.to_str()) != Some("target") {
+                return Err("build cache path must end in target".to_owned());
+            }
+            let target = root.join(&relative);
+            if !target.exists() {
+                println!("eoie proxy prune-build-cache ok removed=0");
+                return Ok(());
+            }
+            let canonical_root = fs::canonicalize(root).map_err(|error| error.to_string())?;
+            let metadata = fs::symlink_metadata(&target).map_err(|error| error.to_string())?;
+            if metadata.file_type().is_symlink() {
+                return Err("target cannot be a symlink".to_owned());
+            }
+            let canonical_target = fs::canonicalize(&target).map_err(|error| error.to_string())?;
+            if canonical_target == canonical_root || !canonical_target.starts_with(&canonical_root)
+            {
+                return Err("target escapes root".to_owned());
+            }
+            let count = eoie_remove_tree_within(root, &target)?;
+            println!("eoie proxy prune-build-cache ok removed={count}");
+            Ok(())
+        }
+        "differential-compare" => eoie_differential_compare(args),
+        "coverage-register" => { if args.len() != 4 { return Err("coverage-register expects root current-lcov seed-lcov (each with an adjacent .receipt)".to_owned()); } println!("{}", evidence_currentness_domain::register_coverage_evidence(Path::new(&args[1]), Path::new(&args[2]), Path::new(&args[3]))?); Ok(()) }
+        "formal-receipts-renew" => { if args.len() != 2 { return Err("formal-receipts-renew expects root".to_owned()); } let root = Path::new(&args[1]); let differential = cold_proof_domain::renew_differential_catalog(root)?; if let Err(error) = cold_proof_domain::renew_family_contracts(root) { if let Some(text) = differential { let _ = eoie_rust_std_fs::atomic_write(&root.join("state/differential_catalog.spi"), text.as_bytes()); } return Err(error); } cold_proof_domain::verify_differential_catalog(root)?; cold_proof_domain::verify_family_contracts(root)?; println!("eoie proxy formal-receipts-renew ok differential_catalog=current family_contracts=current"); Ok(()) }
+        "coverage-assess" => eoie_coverage_assess_family(args),
+        "coverage-run" => eoie_coverage_run_family(args),
+        "toolchain" => eoie_toolchain_run_family(args),
+        "source-stats" => eoie_source_stats_run_family(args),
+        "source-topology" => eoie_source_topology_run_family(args),
+        "ingest-map" => eoie_ingest_map_run_family(args),
+        "ingest-trim-check" => eoie_ingest_trim_run_family(args),
+        "ingest-extracted-manifest" => eoie_ingest_extracted_run_family(args),
+        "ingest-targets" => eoie_ingest_targets_run_family(args),
+        "ingest-targets-derive" => eoie_ingest_targets_derive_run_family(args),
+        "frontier-map" => eoie_frontier_map_run_family(args),
+        "spi-map" | "source-map" => eoie_source_map_run_family(args),
+        "cold-rebuild-matrix" => eoie_cold_rebuild_matrix_run_family(args),
+        "cold-rebuild-owner" => eoie_cold_rebuild_owner_run_family(args),
+        "spi-diff" | "source-diff" => eoie_source_diff_run_family(args),
+        "prune-uncovered" => eoie_prune_uncovered_family(args),
+        _ => Err("unknown proxy operation".to_owned()),
+    }
+}
+
+fn eoie_normalized_text(path: &Path) -> Result<String, String> {
+    let source =
+        fs::read_to_string(path).map_err(|error| format!("read {}: {error}", path.display()))?;
+    Ok(source
+        .replace("\r\n", "\n")
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n"))
+}
+
+fn eoie_fnv1a(text: &str) -> u64 {
+    text.as_bytes()
+        .iter()
+        .fold(0xcbf29ce484222325u64, |hash, byte| {
+            (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3)
+        })
+}
+
+fn eoie_differential_compare(args: &[String]) -> Result<(), String> {
+    let root = Path::new(eoie_arg(args, 1, "root")?);
+    let oracle = eoie_rooted(root, eoie_arg(args, 2, "oracle-relative")?)?;
+    let direct = eoie_rooted(root, eoie_arg(args, 3, "direct-relative")?)?;
+    let receipt = eoie_rooted(root, eoie_arg(args, 4, "receipt-relative")?)?;
+    if args.len() != 5 {
+        return Err("differential-compare expects root, oracle, direct, receipt".to_owned());
+    }
+    let oracle_text = eoie_normalized_text(&oracle)?;
+    let direct_text = eoie_normalized_text(&direct)?;
+    if oracle_text != direct_text {
+        let mismatch = oracle_text
+            .bytes()
+            .zip(direct_text.bytes())
+            .position(|(a, b)| a != b)
+            .unwrap_or(oracle_text.len().min(direct_text.len()));
+        return Err(format!(
+            "differential mismatch at normalized byte {mismatch}"
+        ));
+    }
+    let hash = eoie_fnv1a(&oracle_text);
+    eoie_atomic_write(
+        &receipt,
+        format!(
+            "route=normalized-text\nfnv1a={hash:016x}\nbytes={}\n",
+            oracle_text.len()
+        )
+        .as_bytes(),
+    )?;
+    println!(
+        "eoie proxy differential-compare ok fnv1a={hash:016x} bytes={}",
+        oracle_text.len()
+    );
+    Ok(())
+}
+
+
+
+fn restart_baton_observed_migration() -> Result<i32, String> {
+    let executable = env::current_exe().map_err(|error| format!("current executable: {error}"))?;
+    let mut command = Command::new(executable);
+    command.arg("status");
+    let observation = eoie_process_observation::run_bounded_receipted_observed(&mut command, 15000, "restart-baton-status").map_err(|error| format!("status probe: {error}"))?;
+    if !observation.status.success() { return Err("status probe failed".to_owned()); }
+    let stdout = String::from_utf8_lossy(&observation.stdout);
+    stdout.split("migration=").nth(1).and_then(|tail| tail.split('/').next()).and_then(|value| value.parse::<i32>().ok()).ok_or_else(|| format!("status migration missing: {stdout}"))
+}
+
+fn restart_baton_restore(receipt: &Path, original: Option<&[u8]>) -> Result<(), String> {
+    match original {
+        Some(bytes) => eoie_atomic_write(receipt, bytes),
+        None => match fs::remove_file(receipt) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(format!("remove {}: {error}", receipt.display())),
+        },
+    }
+}
+
+pub fn legacy_restart_baton_run(args: &[String]) -> Result<(), String> {
+    if args.len() != 8 { return Err("restart-baton expects root receipt-relative bundle-absolute expected-migration active-workstream touched-sources next-gate".to_owned()); }
+    let root = Path::new(eoie_arg(args, 1, "root")?);
+    let receipt = root.join(eoie_safe_relative(eoie_arg(args, 2, "receipt-relative")?)?);
+    let bundle = Path::new(eoie_arg(args, 3, "bundle-absolute")?);
+    let expected = eoie_arg(args, 4, "expected-migration")?.parse::<i32>().map_err(|_| "expected-migration must be an integer".to_owned())?;
+    let workstream = eoie_arg(args, 5, "active-workstream")?;
+    let touched_sources = eoie_arg(args, 6, "touched-sources")?;
+    let next_gate = eoie_arg(args, 7, "next-gate")?;
+    let prompt = root.join("state/prompt.spi");
+    let receipt_safe = receipt.extension().and_then(|value| value.to_str()) == Some("spi");
+    let root_safe = root.is_dir() && receipt_safe;
+    let bundle_metadata = fs::symlink_metadata(bundle).map_err(|error| format!("metadata {}: {error}", bundle.display()))?;
+    let bundle_text = bundle.display().to_string();
+    let bundle_safe = bundle.is_absolute() && bundle_metadata.is_file() && !bundle_metadata.file_type().is_symlink();
+    if legacy_capability_domain::eoie_restart_baton_preflight_binding(i32::from(root_safe), i32::from(bundle_safe)) != 1 { return Err("restart-baton requires a directory root and absolute regular bundle".to_owned()); }
+    let observed = restart_baton_observed_migration()?;
+    if legacy_capability_domain::eoie_restart_baton_migration_binding(expected, observed) != 1 { return Err(format!("restart-baton migration mismatch expected={expected} observed={observed}")); }
+    let existing = match fs::symlink_metadata(&receipt) {
+        Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => Some(fs::read(&receipt).map_err(|error| format!("read {}: {error}", receipt.display()))?),
+        Ok(_) => return Err(format!("restart-baton receipt must be a regular file or absent: {}", receipt.display())),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => return Err(format!("metadata {}: {error}", receipt.display())),
+    };
+    let bundle_bytes = bundle_metadata.len();
+    let bundle_hash = eoie_proxy_search::inspection_file_sha256(bundle)?;
+    let lease_hash = eoie_proxy_search::inspection_file_sha256(&prompt)?;
+    let body = format!("union restart_baton_receipt_schema =\n    | RestartBatonReceiptV2\nunion restart_baton_receipt_status =\n    | RestartBatonReady\nunion restart_baton_receipt =\n    | RestartBatonReceipt : restart_baton_receipt_schema * restart_baton_receipt_status * u32 * string * u64 * string * string * string * string * string\ninl current_restart_baton () : restart_baton_receipt =\n    RestartBatonReceipt (RestartBatonReceiptV2, RestartBatonReady, {observed}u32, {bundle_text:?}, {bundle_bytes}u64, \"{bundle_hash}\", \"{lease_hash}\", {workstream:?}, {touched_sources:?}, {next_gate:?})\ninl main () : i32 = 0i32\n");
+    eoie_atomic_write(&receipt, body.as_bytes())?;
+    let metadata = fs::symlink_metadata(&receipt).map_err(|error| format!("metadata {}: {error}", receipt.display()))?;
+    let regular = metadata.is_file() && !metadata.file_type().is_symlink();
+    let bytes_match = fs::read(&receipt).map_err(|error| format!("read {}: {error}", receipt.display()))? == body.as_bytes();
+    if legacy_capability_domain::eoie_restart_baton_complete_binding(i32::from(regular), i32::from(bytes_match)) != 1 { restart_baton_restore(&receipt, existing.as_deref())?; return Err("typed restart-baton completion rejected rollback=restored".to_owned()); }
+    println!("eoie proxy restart-baton ok receipt={} migration={observed} bundle_bytes={bundle_bytes} bundle_sha256={bundle_hash} lease_sha256={lease_hash} workstream={workstream} next_gate={next_gate} receipt=spiral-typed-atomic", receipt.display());
+    Ok(())
+}
+#[derive(Clone)]
+enum US0 {
+    US0_CreateMissingFile,
+    US0_ReplaceExistingFile,
+    US0_RejectOverwriteWithoutFlag,
+    US0_RejectEmptyTarget,
+    US0_RejectPreconditionsOnMissingFile,
+    US0_RejectEmptyPayload,
+}
+fn shim_decision_binding_2(mut v0: i32, mut v1: i32, mut v2: i32, mut v3: i32) -> i32 {
+    let mut v4: bool = v0 < 0i32;
+    if v4 {
+        -1i32
+    } else {
+        let mut v5: bool = 2i32 < v0;
+        if v5 {
+            -1i32
+        } else {
+            let mut v6: bool = v1 < 0i32;
+            if v6 {
+                -1i32
+            } else {
+                let mut v7: bool = 1i32 < v1;
+                if v7 {
+                    -1i32
+                } else {
+                    let mut v8: bool = v2 < 0i32;
+                    if v8 {
+                        -1i32
+                    } else {
+                        let mut v9: bool = 1i32 < v2;
+                        if v9 {
+                            -1i32
+                        } else {
+                            let mut v10: bool = v3 < 0i32;
+                            if v10 {
+                                -1i32
+                            } else {
+                                let mut v11: bool = 1i32 < v3;
+                                if v11 {
+                                    -1i32
+                                } else {
+                                    let mut v12: bool = v0 == 2i32;
+                                    if v12 {
+                                        2i32
+                                    } else {
+                                        let mut v13: bool = v1 == 1i32;
+                                        if v13 {
+                                            0i32
+                                        } else {
+                                            let mut v14: bool = v2 == 1i32;
+                                            if v14 {
+                                                let mut v15: bool = v3 == 1i32;
+                                                if v15 {
+                                                    1i32
+                                                } else {
+                                                    0i32
+                                                }
+                                            } else {
+                                                0i32
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+fn shim_decision_packed_binding_1(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: bool = v1 < 0i32;
+    if v2 {
+        -1i32
+    } else {
+        let mut v3: bool = 7i32 < v1;
+        if v3 {
+            -1i32
+        } else {
+            let mut v4: i32 = v1.wrapping_rem(2i32);
+            let mut v5: i32 = v1.wrapping_div(2i32);
+            let mut v6: i32 = v5.wrapping_rem(2i32);
+            let mut v7: i32 = v1.wrapping_div(4i32);
+            let mut v8: i32 = v7.wrapping_rem(2i32);
+            shim_decision_binding_2(v0, v4, v6, v8)
+        }
+    }
+}
+fn proxy_dogfood_shim_decision_packed_binding_0(mut v0: i32, mut v1: i32) -> i32 {
+    shim_decision_packed_binding_1(v0, v1)
+}
+fn shim_install_packed_binding_4(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: bool = v0 != 9i32;
+    if v2 {
+        0i32
+    } else {
+        let mut v3: bool = v1 < 0i32;
+        if v3 {
+            0i32
+        } else {
+            let mut v4: bool = 2i32 < v1;
+            if v4 {
+                0i32
+            } else {
+                1i32
+            }
+        }
+    }
+}
+fn proxy_dogfood_shim_install_packed_binding_3(mut v0: i32, mut v1: i32) -> i32 {
+    shim_install_packed_binding_4(v0, v1)
+}
+fn shim_uninstall_binding_6(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: bool = v0 != 1i32;
+    if v2 {
+        0i32
+    } else {
+        let mut v3: bool = v1 != 4i32;
+        if v3 {
+            0i32
+        } else {
+            1i32
+        }
+    }
+}
+fn proxy_dogfood_shim_uninstall_binding_5(mut v0: i32, mut v1: i32) -> i32 {
+    shim_uninstall_binding_6(v0, v1)
+}
+fn bool_pair_binding_8(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: bool = v0 < 1i32;
+    if v2 {
+        0i32
+    } else {
+        let mut v3: bool = 1i32 < v0;
+        if v3 {
+            0i32
+        } else {
+            let mut v4: bool = v1 < 1i32;
+            if v4 {
+                0i32
+            } else {
+                let mut v5: bool = 1i32 < v1;
+                if v5 {
+                    0i32
+                } else {
+                    1i32
+                }
+            }
+        }
+    }
+}
+fn proxy_exact_replace_preflight_binding_7(mut v0: i32, mut v1: i32) -> i32 {
+    bool_pair_binding_8(v0, v1)
+}
+fn unique_match_binding_10(mut v0: i32) -> i32 {
+    let mut v1: bool = v0 < 1i32;
+    if v1 {
+        0i32
+    } else {
+        let mut v2: bool = 1i32 < v0;
+        if v2 {
+            0i32
+        } else {
+            1i32
+        }
+    }
+}
+fn proxy_exact_replace_authorize_binding_9(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: i32 = unique_match_binding_10(v0);
+    bool_pair_binding_8(v2, v1)
+}
+fn zero_binding_13(mut v0: i32) -> i32 {
+    let mut v1: bool = v0 < 0i32;
+    if v1 {
+        0i32
+    } else {
+        let mut v2: bool = 0i32 < v0;
+        if v2 {
+            0i32
+        } else {
+            1i32
+        }
+    }
+}
+fn verification_binding_12(mut v0: i32, mut v1: i32, mut v2: i32) -> i32 {
+    let mut v3: i32 = bool_pair_binding_8(v0, v2);
+    let mut v4: i32 = zero_binding_13(v1);
+    bool_pair_binding_8(v3, v4)
+}
+fn proxy_exact_replace_verify_binding_11(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: i32 = 0i32;
+    verification_binding_12(v0, v2, v1)
+}
+fn proxy_run_token_code_14(mut v0: Rc<str>) -> u64 {
+    let mut v1: u64 = u64::MAX;
+    let mut v2: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--timeout-ms"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+    if v2 {
+        let mut v3: u64 = (1i32 - 1) as u64;
+        v3
+    } else {
+        let mut v4: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--cwd"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+        if v4 {
+            let mut v5: u64 = (2i32 - 1) as u64;
+            v5
+        } else {
+            let mut v6: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--program"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+            if v6 {
+                let mut v7: u64 = (3i32 - 1) as u64;
+                v7
+            } else {
+                let mut v8: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--env"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                if v8 {
+                    let mut v9: u64 = (4i32 - 1) as u64;
+                    v9
+                } else {
+                    let mut v10: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--unset"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                    if v10 {
+                        let mut v11: u64 = (5i32 - 1) as u64;
+                        v11
+                    } else {
+                        let mut v12: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                        if v12 {
+                            let mut v13: u64 = (6i32 - 1) as u64;
+                            v13
+                        } else {
+                            v1
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+fn proxy_write_token_code_15(mut v0: Rc<str>) -> u64 {
+    let mut v1: u64 = u64::MAX;
+    let mut v2: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--replace-existing"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+    if v2 {
+        let mut v3: u64 = (1i32 - 1) as u64;
+        v3
+    } else {
+        let mut v4: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--expect-hash"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+        if v4 {
+            let mut v5: u64 = (2i32 - 1) as u64;
+            v5
+        } else {
+            let mut v6: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--expect-nonempty"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+            if v6 {
+                let mut v7: u64 = (3i32 - 1) as u64;
+                v7
+            } else {
+                let mut v8: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                if v8 {
+                    let mut v9: u64 = (4i32 - 1) as u64;
+                    v9
+                } else {
+                    let mut v10: bool = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("--create-or-replace"); } LIT.with(|lit| lit.clone()) } == v0.clone();
+                    if v10 {
+                        let mut v11: u64 = (5i32 - 1) as u64;
+                        v11
+                    } else {
+                        v1
+                    }
+                }
+            }
+        }
+    }
+}
+fn proxy_write_action_17(mut v0: bool, mut v1: bool, mut v2: bool, mut v3: bool, mut v4: bool, mut v5: bool, mut v6: bool) -> US0 {
+    if v0 {
+        let mut v7: bool = v1 || v2;
+        if v7 {
+            let mut v8: bool = v4 && v5;
+            if v8 {
+                US0::US0_RejectEmptyTarget
+            } else {
+                let mut v11: bool = if v6 {
+                    let mut v10: bool = v5 == false;
+                    v10
+                } else {
+                    false
+                };
+                let mut v13: bool = if v11 {
+                    let mut v12: bool = v3 == false;
+                    v12
+                } else {
+                    false
+                };
+                if v13 {
+                    US0::US0_RejectEmptyPayload
+                } else {
+                    US0::US0_ReplaceExistingFile
+                }
+            }
+        } else {
+            US0::US0_RejectOverwriteWithoutFlag
+        }
+    } else {
+        let mut v20: bool = v1 || v3;
+        let mut v21: bool = v20 || v4;
+        if v21 {
+            US0::US0_RejectPreconditionsOnMissingFile
+        } else {
+            US0::US0_CreateMissingFile
+        }
+    }
+}
+fn proxy_write_action_binding_16(mut v0: i32, mut v1: i32) -> i32 {
+    let mut v2: bool = v1 < 0i32;
+    if v2 {
+        -1i32
+    } else {
+        let mut v3: bool = 63i32 < v1;
+        if v3 {
+            -1i32
+        } else {
+            let mut v4: bool = v0 < 0i32;
+            if v4 {
+                -1i32
+            } else {
+                let mut v5: bool = 1i32 < v0;
+                if v5 {
+                    -1i32
+                } else {
+                    let mut v6: bool = v0 == 1i32;
+                    let mut v7: i32 = v1.wrapping_rem(2i32);
+                    let mut v8: bool = v7 == 1i32;
+                    let mut v9: i32 = v1.wrapping_div(2i32);
+                    let mut v10: i32 = v9.wrapping_rem(2i32);
+                    let mut v11: bool = v10 == 1i32;
+                    let mut v12: i32 = v1.wrapping_div(4i32);
+                    let mut v13: i32 = v12.wrapping_rem(2i32);
+                    let mut v14: bool = v13 == 1i32;
+                    let mut v15: i32 = v1.wrapping_div(8i32);
+                    let mut v16: i32 = v15.wrapping_rem(2i32);
+                    let mut v17: bool = v16 == 1i32;
+                    let mut v18: i32 = v1.wrapping_div(16i32);
+                    let mut v19: i32 = v18.wrapping_rem(2i32);
+                    let mut v20: bool = v19 == 1i32;
+                    let mut v21: i32 = v1.wrapping_div(32i32);
+                    let mut v22: i32 = v21.wrapping_rem(2i32);
+                    let mut v23: bool = v22 == 1i32;
+                    let mut v24: US0 = proxy_write_action_17(v6, v8, v11, v14, v17, v20, v23);
+                    match &v24 {
+                        US0::US0_CreateMissingFile => {
+                            0i32
+                        }
+                        US0::US0_RejectEmptyPayload => {
+                            5i32
+                        }
+                        US0::US0_RejectEmptyTarget => {
+                            3i32
+                        }
+                        US0::US0_RejectOverwriteWithoutFlag => {
+                            2i32
+                        }
+                        US0::US0_RejectPreconditionsOnMissingFile => {
+                            4i32
+                        }
+                        US0::US0_ReplaceExistingFile => {
+                            1i32
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+fn proxy_usage_19(mut v0: Rc<str>) -> Rc<str> {
+    let mut v1: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("plan-ir-inspect|plan-ir-check|install-self|self-upgrade-check|fs-chmod|fs-symlink|fs-copy-tree|command-output|command-capture|command-capture-env|fs-list|fs-read|fs-context|fs-search|parallel-search|hash|hash-tree|fs-write|text-replace|fs-remove|fs-remove-tree|run|archive-extract|zip-extract|toolchain|portable-toolchain|legacy-surface|restart-baton|command-capture-matrix|command-capture-matrix-gate|batch-plan|batch-plan-resume|fs-slice|parallel-manifest|product-diff|fs-copy|spiral-session-shutdown|prune-build-cache|prune-compiler-sidecars|incident-recovery|external-payload|differential-compare|coverage-assess|coverage-export|coverage-union|coverage-run|source-stats|source-topology|ingest-map|ingest-trim-check|ingest-extracted-manifest|ingest-targets|ingest-targets-derive|frontier-map|spi-map|source-map|spi-diff|source-diff|source-recovery-diff|cold-rebuild-matrix|cold-rebuild-owner|source-author|fs-batch-write|fs-actions|binary-install|release-closeout|shim|prune-uncovered|formal-receipts-renew|coverage-register"); } LIT.with(|lit| lit.clone()) };
+    let mut v2: Rc<str> = { thread_local!{ static LIT: Rc<str> = Rc::<str>::from("proxy plan-ir-inspect <index>\nproxy plan-ir-check\nproxy install-self <source-binary> <installed-binary> <canonical-link>\nproxy self-upgrade-check <current-root> <candidate-root>\nproxy fs-chmod <root> <relative-path> <octal-mode>\nproxy fs-symlink <root> <target-relative> <link-relative>\nproxy fs-copy-tree <source> <destination>\nproxy command-output <root> <timeout-ms> <program> [args...]\nproxy command-capture <root> <receipt-relative> <timeout-ms> <program> [args...]\nproxy command-capture-env <root> <receipt-relative> <timeout-ms> <cwd-relative> <env-cell> <program> [args...]\nproxy fs-list <root> [relative]\nproxy fs-read <root> <relative> [max-bytes]\nproxy fs-context <root> <relative> <needle> <radius-bytes>\nproxy fs-search <root> <relative> <needle>\nproxy parallel-search <root> <relative> <needle> <max-hits>\nproxy hash <root> <relative>\nproxy hash-tree <root> <relative>\nproxy fs-write <root> <relative> [--replace-existing|--create-or-replace] [--expect-hash <sha256>] [--expect-nonempty] [--] <text>\nproxy text-replace <check|apply> <root> <relative> <old> <new> [--all|--expect <count>]\nproxy fs-remove <root> <relative>\nproxy fs-remove-tree <root> <relative> [--missing-ok]\nproxy run --cwd <directory> --program <program> [--timeout-ms <ms>] [--env KEY=VALUE]... [--unset KEY]... [-- <args...>]\nproxy archive-extract <archive> <destination>\nproxy zip-extract <archive> <destination>\nproxy toolchain <root> <action> ...\nproxy portable-toolchain <root> ...\nproxy legacy-surface\nproxy restart-baton <root> <receipt-relative> <bundle-absolute> <expected-migration> <active-workstream> <touched-sources> <next-gate>\nproxy command-capture-matrix <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]\nproxy command-capture-matrix-gate <root> <report-relative>\nproxy batch-plan <root> <spec-relative> <timeout-ms> <report-relative> [parallel-chains [auto | start-chain chain-count]]\nproxy batch-plan-resume <root> <report-relative> <resume-relative>\nproxy fs-slice <root> <relative> <start> <count>\nproxy parallel-manifest <root> <relative> <max-entries> [preview|apply <output-relative>]\nproxy product-diff <left-root> <right-root>\nproxy fs-copy <root> <source> <target>\nproxy spiral-session-shutdown <compiler> [timeout-ms]\nproxy prune-build-cache <root> <relative-target>\nproxy prune-compiler-sidecars <root> [--dry-run]\nproxy incident-recovery snapshot <root> <source-relative> <snapshot-parent-relative> <receipt-relative> | restore <root> <target-relative> <snapshot-relative> <receipt-relative>\nproxy external-payload <register|hydrate|dehydrate> <root> <payload-relative> <cache-relative> <receipt-relative>\nproxy differential-compare <root> <oracle> <direct> <receipt>\nproxy coverage-assess <test.lcov> <smoke.lcov> <test-floor> <smoke-floor> <combined-floor>\nproxy coverage-export <profraw-dir> <binary-path> <grcov> <llvm-bin-dir> <source-root> <output-lcov> <timeout-ms>\nproxy coverage-union <output-lcov> <input-lcov> <input-lcov> [input-lcov ...]\nproxy coverage-run <root> <cargo> <compiler> <target-dir> <profraw-dir> <public|workspace|smoke|owner:package> <timeout-ms>\nproxy source-stats <root> [--crates]\nproxy source-topology <root> [state/authority_census.spi]\nproxy ingest-map <root>\nproxy ingest-trim-check <root>\nproxy ingest-extracted-manifest <root>\nproxy ingest-targets <root>\nproxy ingest-targets-derive <root>\nproxy frontier-map <root>\nproxy spi-map <root>\nproxy source-map <root>\nproxy spi-diff <left-root> <right-root>\nproxy source-diff <left-root> <right-root>\nproxy source-recovery-diff <current-root> <candidate-root> [candidate-root ...]\nproxy cold-rebuild-matrix <root> <matrix-relative> <eoie> <compiler> <dotnet> <rustfmt> [compiler-timeout-ms]\nproxy cold-rebuild-owner <root> <snapshot-relative> <input-relative> <output-relative> <compiler> <dotnet> <rustfmt-or-empty> <timeout-ms> <workspace-root-or-empty>\nproxy source-author <preview|apply> <root> <target-relative> <template-relative> <expected-target-sha256|missing> <expected-template-sha256> KEY=VALUE...\nproxy fs-batch-write <preview|apply> <root> <plan.spi>\nproxy fs-actions <preview|apply> <root> <plan.spi>\nproxy binary-install <preview|apply> <root> <source-relative> <destination-relative> <provenance-relative> <expected-source-sha256> <expected-destination-sha256|missing> <expected-provenance-sha256|missing> <mode-octal>\nproxy release-closeout <preview|apply> <root> <receipt-relative> <expected-migration> <expected-receipt-sha256|missing> <name|relative|sha256>... (six gates)\nproxy shim install <root> <relative-dir> <block|warn|pass> | uninstall <root> <relative-dir> | status <root> <relative-dir>\nproxy prune-uncovered <root> <relative> <test.lcov> <smoke.lcov> -- <validation-program> [args...]\nproxy formal-receipts-renew <root>\nproxy coverage-register <root> <current.lcov> <seed.lcov>"); } LIT.with(|lit| lit.clone()) };
+    let mut v3: Rc<str> = v1.split("|").zip(v2.split(char::from(10u8))).find_map(|(key,item)| if key == &*v0 { Some(std::rc::Rc::<str>::from(item)) } else { None }).unwrap_or_else(|| { thread_local!{ static LIT: std::rc::Rc<str> = std::rc::Rc::<str>::from(""); } LIT.with(|lit| lit.clone()) });
+    v3.clone()
+}
+fn proxy_usage_bridge_18(mut v0: Rc<str>) -> Rc<str> {
+    proxy_usage_19(v0.clone())
+}
+fn closure0() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_dogfood_shim_decision_packed_binding_0(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure1() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_dogfood_shim_install_packed_binding_3(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure2() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_dogfood_shim_uninstall_binding_5(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure3() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_exact_replace_preflight_binding_7(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure4() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_exact_replace_authorize_binding_9(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure5() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_exact_replace_verify_binding_11(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure6() -> Rc<dyn Fn(Rc<str>) -> u64> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        proxy_run_token_code_14(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure7() -> Rc<dyn Fn(Rc<str>) -> u64> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> u64> = Rc::new(move |mut v0: Rc<str>| -> u64 {
+        proxy_write_token_code_15(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure8() -> Rc<dyn Fn(i32, i32) -> i32> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(i32, i32) -> i32> = Rc::new(move |mut v0: i32, mut v1: i32| -> i32 {
+        proxy_write_action_binding_16(v0, v1)
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+fn closure9() -> Rc<dyn Fn(Rc<str>) -> Rc<str>> {
+    thread_local!{ static CLOSURE: Rc<dyn Fn(Rc<str>) -> Rc<str>> = Rc::new(move |mut v0: Rc<str>| -> Rc<str> {
+        proxy_usage_bridge_18(v0.clone())
+    }); } CLOSURE.with(|closure| closure.clone())
+}
+pub fn eoie_legacy_operations_proxy_dogfood_shim_decision_packed_binding(v0: i32, v1: i32) -> i32 {
+    closure0()(v0, v1)
+}
+pub fn eoie_legacy_operations_proxy_dogfood_shim_install_packed_binding(v0: i32, v1: i32) -> i32 {
+    closure1()(v0, v1)
+}
+pub fn eoie_legacy_operations_proxy_dogfood_shim_uninstall_binding(v0: i32, v1: i32) -> i32 {
+    closure2()(v0, v1)
+}
+pub fn eoie_legacy_operations_proxy_exact_replace_preflight_binding(v0: i32, v1: i32) -> i32 {
+    closure3()(v0, v1)
+}
+pub fn eoie_legacy_operations_proxy_exact_replace_authorize_binding(v0: i32, v1: i32) -> i32 {
+    closure4()(v0, v1)
+}
+pub fn eoie_legacy_operations_proxy_exact_replace_verify_binding(v0: i32, v1: i32) -> i32 {
+    closure5()(v0, v1)
+}
+pub fn eoie_legacy_operations_proxy_run_token_code(v0: &str) -> u64 {
+    closure6()(Rc::<str>::from(v0))
+}
+pub fn eoie_legacy_operations_proxy_write_token_code(v0: &str) -> u64 {
+    closure7()(Rc::<str>::from(v0))
+}
+pub fn eoie_legacy_operations_proxy_write_action_binding(v0: i32, v1: i32) -> i32 {
+    closure8()(v0, v1)
+}
+pub fn eoie_legacy_operations_proxy_usage(v0: &str) -> Rc<str> {
+    closure9()(Rc::<str>::from(v0))
+}

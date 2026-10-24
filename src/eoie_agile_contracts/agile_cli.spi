@@ -1,0 +1,245 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl compiler_source () : string =
+    """
+    fn main() {
+        use std::{fs, io::Write};
+        assert_eq!(std::env::args().nth(1).as_deref(), Some("--check"));
+        let anchor = std::path::PathBuf::from(std::env::args().nth(2).unwrap());
+        let state = anchor.parent().unwrap();
+        let root = state.parent().unwrap();
+        let mut calls = fs::OpenOptions::new().create(true).append(true).open(root.join("calls.txt")).unwrap();
+        writeln!(calls, "check").unwrap();
+        if fs::read_to_string(state.join("package.spiproj")).unwrap().contains("missing") { std::process::exit(2); }
+        if fs::read_to_string(state.join("typecheck_receipts.spi")).unwrap_or_default().contains("invalid receipt") { std::process::exit(2); }
+        if root.join("mutate").exists() { fs::write(state.join("core.spi"), "inl main () = 99i32\n").unwrap(); }
+    }
+    """
+
+inl lease_head () : string = "union lease_status = | LeaseActive :: lease_status | LeaseClosed :: lease_status\nunion prompt_lease = | PromptLease :: string * string * u64 * u64 * u64 * u64 * lease_status -> prompt_lease\ninl current () : prompt_lease = PromptLease (\"cache-test\", \"native cache graph check\", 3600000u64, 600000u64, "
+inl manifest () : string = "packageDir: ../src\npackages:\n    dep\nmodules:\n    core\n    prompt\n"
+
+type cache_fixture = { root : fixture_root; compiler : string }
+
+inl cache_fixture_new () : cache_fixture =
+    inl root = fixture_root_create "agile cache ü"
+    fixture_write root "state/package.spiproj" (manifest ())
+    fixture_write root "state/core.spi" "inl main () : i32 = 0i32\n"
+    fixture_write root "src/dep/package.spiproj" "modules:\n    model\n"
+    fixture_write root "src/dep/model.spi" "inl main () = 0i32\n"
+    inl started = now_ms ()
+    fixture_write root "state/prompt.spi" (cat (cat (cat (cat (lease_head ()) (u64_text started)) "u64, ") (u64_text (started + 4200000u64))) "u64, LeaseActive)\ninl main () : i32 = 0i32\n")
+    { root = root; compiler = rustc_program root "fixture-compiler" (compiler_source ()) }
+
+inl cache_env (root : fixture_root) : cli_args = Arg (cat "SPIRAL_BIN_CACHE_DIR=" (fixture_text_of root), Arg (cat "EOIE_CONFIG_HOME=" (fixture_text_of root), Arg ("PATH=", NoArgs)))
+
+inl checked (fixture : cache_fixture) (with_compiler : bool) : cli_run =
+    inl tail = if with_compiler then Arg ("--compiler", Arg (fixture.compiler, NoArgs)) else NoArgs
+    eoie_run (temp_directory ()) (cache_env fixture.root) (Arg ("EOIE_SPIRAL_COMPILE", Arg ("SPIRAL_COMPILER_DLL", NoArgs))) (Arg ("agile", Arg ("check", Arg (fixture_text_of fixture.root, tail))))
+
+inl attested (fixture : cache_fixture) : string = succeeded (checked fixture true)
+inl calls (fixture : cache_fixture) : i32 = fixture_line_count fixture.root "calls.txt"
+inl count_is (~actual : i32) (~expected : i32) : () = same (decimal actual) (decimal expected)
+
+inl agile_free (fixture : cache_fixture) (~verb : string) (rest : cli_args) : cli_run =
+    eoie_run (temp_directory ()) (Arg (cat "SPIRAL_BIN_CACHE_DIR=" (fixture_text_of fixture.root), NoArgs)) (Arg ("SPIRAL_COMPILER_DLL", NoArgs)) (Arg ("agile", Arg (verb, Arg (fixture_text_of fixture.root, rest))))
+
+///> rust
+test warm_receipts_recheck_manifest_and_imported_sources_and_reject_missing_packages =
+    inl fixture = cache_fixture_new ()
+    shows (attested fixture) "build_batches=1"
+    shows (attested fixture) "build_batches=0"
+    count_is (calls fixture) 1i32
+    fixture_write fixture.root "src/dep/model.spi" "inl main () = 1i32\n"
+    shows (attested fixture) "build_batches=1"
+    count_is (calls fixture) 2i32
+    fixture_write fixture.root "state/package.spiproj" "packageDir: ../src\npackages:\n    missing\nmodules:\n    core\n    prompt\n"
+    inl before = fixture_read fixture.root "state/typecheck_receipts.spi"
+    expect ((checked fixture true).code <> 0i32) "a missing package was attested"
+    count_is (calls fixture) 3i32
+    same (fixture_read fixture.root "state/typecheck_receipts.spi") before
+    failed_with (checked fixture false) "cannot reuse cached receipts"
+    fixture_root_remove fixture.root
+
+///> rust
+test unsupported_graphs_require_fresh_attestation_every_time =
+    inl fixture = cache_fixture_new ()
+    fixture_write fixture.root "state/package.spiproj" (cat "// Compiler syntax beyond the cache parser\n" (manifest ()))
+    shows (attested fixture) "build_batches=1"
+    shows (attested fixture) "build_batches=1"
+    count_is (calls fixture) 2i32
+    expect ((checked fixture false).code <> 0i32) "an unsupported graph reused cached receipts"
+    fixture_root_remove fixture.root
+
+///> rust
+test concurrent_state_mutation_does_not_publish_receipts =
+    inl fixture = cache_fixture_new ()
+    fixture_write fixture.root "mutate" ""
+    failed_with (checked fixture true) "changed during attestation"
+    expect (path_exists (fixture_path fixture.root "state/typecheck_receipts.spi") = false) "receipts were published after a concurrent mutation"
+    fixture_root_remove fixture.root
+
+///> rust
+test generated_receipts_in_package_reuse_cache_but_extra_source_requires_attestation =
+    inl fixture = cache_fixture_new ()
+    inl _ = attested fixture
+    fixture_append fixture.root "state/package.spiproj" "    typecheck_receipts\n"
+    shows (attested fixture) "build_batches=1"
+    shows (attested fixture) "build_batches=0"
+    fixture_append fixture.root "state/typecheck_receipts.spi" "inl injected () = invalid receipt\n"
+    expect ((checked fixture true).code <> 0i32) "an injected receipt was attested"
+    count_is (calls fixture) 3i32
+    shows (fixture_read fixture.root "state/typecheck_receipts.spi") "invalid receipt"
+    fixture_root_remove fixture.root
+
+///> rust
+test runtime_mutation_cannot_refresh_a_changed_dependency_graph =
+    inl fixture = cache_fixture_new ()
+    fixture_delete fixture.root "state/core.spi"
+    fixture_write fixture.root "state/package.spiproj" "packageDir: ../src\npackages:\n    dep\nmodules:\n    prompt\n"
+    inl _ = attested fixture
+    inl before = fixture_read fixture.root "state/typecheck_receipts.spi"
+    fixture_write fixture.root "src/dep/model.spi" "inl changed () = unknown_identifier\n"
+    inl _ = succeeded (eoie_run (temp_directory ()) NoArgs NoArgs (Arg ("agile", Arg ("begin", Arg (fixture_text_of fixture.root, Arg ("Continue native cache validation", NoArgs))))))
+    expect (fixture_read fixture.root "state/typecheck_receipts.spi" = before) "runtime mutation renewed a stale package graph"
+    expect ((checked fixture false).code <> 0i32) "changed imports incorrectly passed without compiler attestation"
+    fixture_root_remove fixture.root
+
+///> rust
+test task_updates_preserve_unrelated_drift_but_clean_updates_remain_compiler_free =
+    inl fixture = cache_fixture_new ()
+    fixture_append fixture.root "state/package.spiproj" "    agile\n"
+    fixture_write fixture.root "state/agile.spi" "union task_kind = | TaskKind :: task_kind\nunion priority = | P0 :: priority\nunion difficulty = | D1 :: difficulty\nunion task_status = | Active :: task_status\nunion agile_item = | Task :: string * string * task_kind * priority * difficulty * u32 * task_status * string * string * string * string -> agile_item\ninl task () = Task (\"ID\", \"Task fixture\", TaskKind, P0, D1, 0u32, Active, \"\", \"\", \"\", \"\")\ninl main () : i32 = 0i32\n"
+    inl _ = attested fixture
+    inl update () : cli_run = agile_free fixture "set" (Arg ("ID", Arg ("50", Arg ("Active", NoArgs))))
+    inl _ = succeeded (update ())
+    inl _ = succeeded (checked fixture false)
+    fixture_append fixture.root "state/agile.spi" "inl unrelated () = unknown_identifier\n"
+    inl before = fixture_read fixture.root "state/typecheck_receipts.spi"
+    inl _ = succeeded (update ())
+    expect (fixture_read fixture.root "state/typecheck_receipts.spi" = before) "task update certified an unrelated source edit"
+    failed_with (checked fixture false) (cat "the deployed compiler " (fixture_path fixture.root "bin/single-flight/SpiralCompiler/Release/net11.0/SpiralCompiler.dll"))
+    fixture_root_remove fixture.root
+
+///> rust
+test history_appends_preserve_unrelated_drift_but_clean_appends_remain_compiler_free =
+    inl fixture = cache_fixture_new ()
+    fixture_append fixture.root "state/package.spiproj" "    history\n    ratings\n    bench\n    migration\n"
+    fixture_write fixture.root "state/ratings.spi" "inl main () : i32 = 0i32\n"
+    fixture_write fixture.root "state/bench.spi" "inl main () : i32 = 0i32\n"
+    fixture_write fixture.root "state/migration.spi" "union migration_denominator = | MigrationDenominator :: u32 * u32 * u32 * u32 * string -> migration_denominator\ninl denominator () : migration_denominator = MigrationDenominator (1u32, 1u32, 0u32, 1000u32, \"fixture\")\ninl main () : i32 = 0i32\n"
+    fixture_write fixture.root "state/history.spi" "union series_record = | SeriesRecord :: u32 * u32 * u32 * string * string * u64 * string * string * u64 * string -> series_record\ninl retired_module_count () : u32 = 0u32\ninl main () : i32 = 0i32\n"
+    inl _ = attested fixture
+    inl _ = succeeded (agile_free fixture "record" NoArgs)
+    inl _ = succeeded (checked fixture false)
+    fixture_append fixture.root "state/history.spi" "inl unrelated () = unknown_identifier\n"
+    inl before = fixture_read fixture.root "state/typecheck_receipts.spi"
+    inl _ = succeeded (agile_free fixture "record" NoArgs)
+    expect (fixture_read fixture.root "state/typecheck_receipts.spi" = before) "history append certified an unrelated source edit"
+    expect ((checked fixture false).code <> 0i32) "history drift passed without compiler attestation"
+    fixture_root_remove fixture.root
+
+inl escaped_quote () : string = $'std::rc::Rc::<str>::from(format\!("{}{}", char::from(92u8), char::from(34u8)).as_str())' : string
+inl quoted_title () : string = cat (cat (cat (cat "Active, Done and " (escaped_quote ())) "quoted") (escaped_quote ())) " text"
+
+inl task_row (~status : string) : string =
+    cat (cat (cat (cat (cat (cat (cat (cat "inl task_" status) " () = Task (\"ID-") status) "\", \"") (quoted_title ())) "\", TaskKind, P0, D4, 0u32, ") status) ", \"\", \"tag\", \"current\", \"current\")"
+
+inl listed (root : fixture_root) (filter : cli_args) : cli_run = eoie_run (temp_directory ()) NoArgs NoArgs (Arg ("agile", Arg ("list", Arg (fixture_text_of root, filter))))
+
+inl lists_only (root : fixture_root) (~status : string) : () =
+    inl stdout = succeeded (listed root (Arg (status, NoArgs)))
+    count_is (lines_starting_count stdout "ID-") 1i32
+    inl row = line_starting stdout "ID-"
+    expect (starts row (cat (cat "ID-" status) " ")) (cat "row: " stdout)
+    shows row (cat " " (padded status 8i32))
+    shows stdout (cat "shown=1 filter=" status)
+
+///> rust
+test agile_list_filters_exact_status_and_preserves_source =
+    inl rows = cat (cat (cat (cat (cat (cat (cat (cat (task_row "Planned") "\n") (task_row "Active")) "\n") (task_row "Blocked")) "\n") (cat (task_row "Paused") "\n")) (task_row "Done")) "\n"
+    inl source = cat (cat (cat (cat "// " (task_row "Active")) "\n") rows) "inl main () : i32 = 0i32\n"
+    inl root = fixture_root_create "agile list ü"
+    fixture_write root "state/agile.spi" source
+    inl all = succeeded (listed root NoArgs)
+    count_is (lines_starting_count all "ID-") 5i32
+    shows all "shown=5 filter=all"
+    lists_only root "Planned"
+    lists_only root "Active"
+    lists_only root "Blocked"
+    lists_only root "Paused"
+    lists_only root "Done"
+    same (fixture_read root "state/agile.spi") source
+    fixture_root_remove root
+
+///> rust
+test agile_list_rejects_invalid_filters_and_malformed_tasks =
+    inl root = fixture_root_create "agile list broken ü"
+    fixture_write root "state/agile.spi" "inl broken () = Task (\"BROKEN\")\n"
+    failed_with (listed root (Arg ("active", NoArgs))) "invalid agile status filter"
+    failed_with (listed root (Arg ("Active", NoArgs))) "malformed Task fields"
+    fixture_root_remove root
+
+inl offset_of (~text : string) (~part : string) : i32 = $'(!text).find(&*!part).map(|at| at as i32).unwrap_or(-1)' : i32
+inl snake_of (~id : string) : string = $'std::rc::Rc::<str>::from((!id).replace(char::from(45u8), "_").as_str())' : string
+
+inl dep_row (~id : string) (~levels : string) (~status : string) (~deps : string) (~tags : string) : string =
+    inl head = cat (cat (cat (cat "inl task_" (snake_of id)) " () = Task (\"") id) "\", \"query row\", TaskKind, "
+    inl middle = cat (cat (cat (cat (cat levels ", ") status) ", \"") deps) "\", \""
+    cat (cat (cat (cat head middle) tags) "\", \"current\", \"current\")") "\n"
+
+inl query_row (~id : string) (~levels : string) (~status : string) (~tags : string) : string = dep_row id levels status "" tags
+
+///> rust
+test agile_list_filters_by_team_and_open_and_sorts_by_difficulty =
+    inl rows = cat (cat (query_row "OPS-B" "P1, D2, 40u32" "Active" "ops") (query_row "WEB-A" "P0, D5, 0u32" "Planned" "")) (query_row "CI-C" "P0, D1, 100u32" "Done" "web")
+    inl root = fixture_root_create "agile list query"
+    fixture_write root "state/agile.spi" (cat rows "inl main () : i32 = 0i32\n")
+    inl team = succeeded (listed root (Arg ("--team", Arg ("web", NoArgs))))
+    count_is (lines_starting_count team "WEB-A") 1i32
+    count_is (lines_starting_count team "CI-C") 1i32
+    count_is (lines_starting_count team "OPS-B") 0i32
+    inl open_team = succeeded (listed root (Arg ("--team", Arg ("web", Arg ("--open", NoArgs)))))
+    shows open_team "shown=1 filter=all team=web open"
+    inl by_priority_text = succeeded (listed root NoArgs)
+    inl by_difficulty = succeeded (listed root (Arg ("--sort", Arg ("difficulty", NoArgs))))
+    shows by_difficulty "shown=3 filter=all sort=difficulty"
+    expect (offset_of by_difficulty "CI-C" < offset_of by_difficulty "OPS-B" && offset_of by_difficulty "OPS-B" < offset_of by_difficulty "WEB-A") (cat "difficulty order: " by_difficulty)
+    expect (offset_of by_priority_text "WEB-A" < offset_of by_priority_text "OPS-B") "priority order stays the default"
+    hides by_priority_text "sort="
+    failed_with (listed root (Arg ("--sort", Arg ("size", NoArgs)))) "--sort expects priority|difficulty|progress, got size"
+    failed_with (listed root (Arg ("--team", Arg ("Ops", NoArgs)))) "--team expects a lower-case team word, got Ops"
+    fixture_root_remove root
+
+///> rust
+test agile_list_splits_open_work_into_ready_and_blocked =
+    inl gated = cat (dep_row "GATE" "P1, D2, 0u32" "Active" "" "") (dep_row "WAITS" "P1, D2, 0u32" "Planned" "GATE" "")
+    inl settled = cat (dep_row "SHIPPED" "P1, D1, 100u32" "Done" "" "") (dep_row "FREE" "P2, D2, 0u32" "Planned" "SHIPPED, MISSING" "")
+    inl root = fixture_root_create "agile list ready"
+    fixture_write root "state/agile.spi" (cat (cat (cat gated settled) (dep_row "HELD" "P3, D2, 0u32" "Blocked" "none" "")) "inl main () : i32 = 0i32\n")
+    inl ready = succeeded (listed root (Arg ("--ready", NoArgs)))
+    shows ready "shown=2 filter=all ready"
+    count_is (lines_starting_count ready "GATE") 1i32
+    count_is (lines_starting_count ready "FREE") 1i32
+    count_is (lines_starting_count ready "WAITS") 0i32
+    inl blocked = succeeded (listed root (Arg ("--blocked", NoArgs)))
+    shows blocked "shown=2 filter=all blocked"
+    count_is (lines_starting_count blocked "WAITS") 1i32
+    count_is (lines_starting_count blocked "HELD") 1i32
+    count_is (lines_starting_count blocked "SHIPPED") 0i32
+    fixture_root_remove root
+
+inl part_count (~text : string) (~part : string) : i32 = $'(!text).matches(&*!part).count() as i32' : i32
+
+///> rust
+test agile_list_reads_each_planning_row_next_to_its_task_only =
+    inl planned = cat (query_row "EOIE-PLANNED" "P1, D2, 0u32" "Active" "eoie") "inl planning_of_eoie_planned () = Planning (\"EOIE-PLANNED\", Minutes 600u32, Load Heavy, Assigned Pair)\n"
+    inl rows = cat (cat planned (query_row "EOIE-BARE" "P1, D2, 0u32" "Active" "eoie")) (query_row "EOIE-LAST" "P2, D1, 0u32" "Planned" "eoie")
+    inl root = fixture_root_create "agile list planning near"
+    fixture_write root "state/agile.spi" (cat rows "inl main () : i32 = 0i32\n")
+    inl table = succeeded (listed root NoArgs)
+    expect (part_count table "600m" = 1i32) (cat "one planned estimate in the table: " table)
+    inl json = succeeded (listed root (Arg ("--json", NoArgs)))
+    expect (part_count json "\"estimate_minutes\":600" = 1i32) (cat "the planning row belongs to its own task only: " json)
+    fixture_root_remove root

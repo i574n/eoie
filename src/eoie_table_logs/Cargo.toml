@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "logs.spi"
+output = "logs.rs"
+
+[package]
+name = "eoie-table-logs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_table_logs"
+path = "logs.rs"
+
+[dependencies]
+regex = "1.13.1"

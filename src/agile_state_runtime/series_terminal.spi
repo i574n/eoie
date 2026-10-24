@@ -1,0 +1,70 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+
+inl emit_runtime () : () = rust_global """
+    use eoie_proxy_search::mnemonic_path_tag;
+    use state_receipt_codec_core::{eoie_state_receipt_dash_shape, eoie_state_receipt_last_series_record_payload, eoie_state_receipt_migration_denominator_payload, eoie_state_receipt_series_records_valid, eoie_state_receipt_u32_spi_literal_valid, eoie_state_receipt_u32_spi_literal_value};
+
+    fn agile_series_u32(field: &str, name: &str) -> Result<u32, String> {
+        let value = field.trim();
+        if eoie_state_receipt_u32_spi_literal_valid(value) != 1 { return Err(format!("invalid {name}: expected u32 decimal")); }
+        Ok(eoie_state_receipt_u32_spi_literal_value(value) as u32)
+    }
+
+    fn agile_series_migration(source: &str) -> Result<(u32, u32), String> {
+        let payload = eoie_state_receipt_migration_denominator_payload(source);
+        if payload.is_empty() { return Err("migration denominator is missing or malformed".to_owned()); }
+        let parts = agile_tuple_fields(payload.as_ref())?;
+        if parts.len() < 4 { return Err("migration denominator shape is unsupported".to_owned()); }
+        Ok((agile_series_u32(&parts[1], "settled units")?, agile_series_u32(&parts[3], "migration score")?))
+    }
+
+    fn agile_series_last(source: &str) -> Result<(u32, u32, u32), String> {
+        if eoie_state_receipt_series_records_valid(source) != 1 { return Err("series records are malformed or not append-only".to_owned()); }
+        let payload = eoie_state_receipt_last_series_record_payload(source);
+        if payload.is_empty() { return Ok((0u32, 0u32, 0u32)); }
+        let parts = agile_tuple_fields(payload.as_ref())?;
+        if parts.len() != 10 { return Err(format!("series record has {} fields instead of ten", parts.len())); }
+        Ok((agile_series_u32(&parts[0], "series sequence")?, agile_series_u32(&parts[1], "series settled units")?, agile_series_u32(&parts[2], "series migration score")?))
+    }
+
+    fn agile_record_from_args(args: Vec<String>) -> Result<(), String> {
+        if args.len() != 2 || agile_arg(&args, 0, "subcommand")? != "record" { return Err("agile record expects record <root>".to_owned()); }
+        let root = Path::new(agile_arg(&args, 1, "root")?);
+        if !root.is_dir() { return Err(format!("agile root is not a directory: {}", root.display())); }
+        let history_path = root.join("state/history.spi");
+        let ratings_path = root.join("state/ratings.spi");
+        let bench_path = root.join("state/bench.spi");
+        let migration_path = root.join("state/migration.spi");
+        let original = agile_read_regular_text_limited(&history_path, 8 * 1024 * 1024)?;
+        let migration = agile_read_regular_text_limited(&migration_path, 8 * 1024 * 1024)?;
+        let (settled_units, migration_score) = agile_series_migration(&migration)?;
+        let (previous_sequence, previous_units, previous_score) = agile_series_last(&original)?;
+        let sequence = previous_sequence.checked_add(1).ok_or_else(|| "series sequence overflow".to_owned())?;
+        if eoie_agile_state_series_sequence_binding(previous_sequence as i32, sequence as i32) != 1 { return Err("typed series sequence rejected".to_owned()); }
+        if eoie_agile_state_series_monotonic_binding(previous_units as i32, settled_units as i32) != 1 || eoie_agile_state_series_monotonic_binding(previous_score as i32, migration_score as i32) != 1 { return Err("typed series settlement regression rejected".to_owned()); }
+        let ratings_identity = agile_module_identity(&ratings_path)?;
+        let bench_identity = agile_module_identity(&bench_path)?;
+        let ratings_relative = "state/ratings.spi";
+        let bench_relative = "state/bench.spi";
+        let ratings_tag = mnemonic_path_tag(ratings_relative)?;
+        let bench_tag = mnemonic_path_tag(bench_relative)?;
+        if eoie_agile_state_series_source_binding(ratings_relative.len() as i32, eoie_state_receipt_dash_shape(&ratings_tag) as i32) != 1 || eoie_agile_state_series_source_binding(bench_relative.len() as i32, eoie_state_receipt_dash_shape(&bench_tag) as i32) != 1 { return Err("typed series source rejected".to_owned()); }
+        if eoie_agile_state_series_pair_binding(1, 1) != 1 || eoie_agile_state_series_fingerprint_binding(i32::from(ratings_identity.fingerprint != 0), i32::from(bench_identity.fingerprint != 0)) != 1 { return Err("typed series evidence pair rejected".to_owned()); }
+        let prompt_id = env::var("EOIE_PROMPT_ID").unwrap_or_else(|_| "current".to_owned());
+        let record = format!("inl series_record_{sequence:06} () : series_record = SeriesRecord ({sequence}u32, {settled_units}u32, {migration_score}u32, \"{}\", \"{}\", {}u64, \"{}\", \"{}\", {}u64, \"{}\")\n", ratings_relative, agile_escape_spi(&ratings_tag), ratings_identity.fingerprint, bench_relative, agile_escape_spi(&bench_tag), bench_identity.fingerprint, agile_escape_spi(&prompt_id));
+        let marker = "inl retired_module_count () : u32";
+        if !original.contains(marker) { return Err("history insertion marker is missing".to_owned()); }
+        let updated = original.replacen(marker, &format!("{record}\n{marker}"), 1);
+        agile_atomic_write(&history_path, updated.as_bytes())?;
+        let validate = (|| -> Result<(), String> {
+            let observed = agile_read_regular_text_limited(&history_path, 8 * 1024 * 1024)?;
+            let (observed_sequence, observed_units, observed_score) = agile_series_last(&observed)?;
+            if observed_sequence != sequence || observed_units != settled_units || observed_score != migration_score { return Err("series runtime validation mismatch".to_owned()); }
+            agile_attest_known_mutation(root, &history_path, Some(original.as_bytes()))
+        })();
+        if let Err(error) = validate { agile_atomic_write(&history_path, original.as_bytes())?; return Err(format!("series append rolled back: {error}")); }
+        println!("eoie agile record ok sequence={sequence} units={settled_units} migration={migration_score}/1000 ratings_tag={ratings_tag} bench_tag={bench_tag} validation=runtime-attested compiler=not-required");
+        Ok(())
+    }
+
+    """

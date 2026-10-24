@@ -1,0 +1,90 @@
+open rust_std_string.model
+open eoie_jobs.model
+open eoie_jobs.host
+open eoie_jobs.jobs
+
+let halted (child : child_process) (~id : string) (halt : job_halt) : i32 =
+    inl stop = tree_stop_of (child_tree_stopped child)
+    inl _ = text_written (job_file id "exit") (halt_line halt (now_ms ()) stop)
+    inl _ = $'eoie_machine_windows::eoie_job_windows_dropped(&*!id)' : u64
+    inl code, _, _ = halt_terms halt
+    code
+
+inl cap_reached (cap : u64) (peak : u64) : bool = cap > 0u64 && peak * 100u64 >= cap * 98u64
+
+let rec supervised (child : child_process) (~id : string) (deadline : u64) (beat : u64) (cap : u64) (hard : u64) : i32 =
+    inl code = child_exit_or_running child
+    inl peak = if cap > 0u64 then container_peak_mb () else 0u64
+    if code <> -1i64 && cap_reached cap peak then
+        inl _ = text_written (job_file id "peak_private_mb") (decimal_text peak)
+        halted child id HaltOnMemory
+    elif code <> -1i64 then
+        inl exit = $'!code as i32' : i32
+        inl _ = text_written (job_file id "exit") (exit_line exit (now_ms ()) (JobFinished exit) "")
+        inl _ = $'eoie_machine_windows::eoie_job_windows_dropped(&*!id)' : u64
+        exit
+    else
+        match
+            halt_of
+                (now_ms () > deadline || (hard <> 0u64 && now_ms () > hard))
+                (file_exists (job_file id "stop"))
+                (cap_reached cap peak)
+        with
+        | KeepRunning =>
+            inl now = now_ms ()
+            inl beating = now > beat + 1000u64
+            inl next_beat =
+                if beating then
+                    inl _ = text_written (job_file id "heartbeat_ms") (decimal_text now)
+                    inl _ = if cap > 0u64 then text_written (job_file id "peak_private_mb") (decimal_text peak) else ""
+                    now
+                else beat
+            inl next_deadline = if beating && gate_queued id then deadline + (now - beat) else deadline
+            sleep_ms 200u64
+            supervised child id next_deadline next_beat cap hard
+        | halt =>
+            inl _ = if cap > 0u64 then text_written (job_file id "peak_private_mb") (decimal_text peak) else ""
+            halted child id halt
+
+let supervise_cleared (~id : string) : i32 =
+    inl gate =
+        if file_exists (job_file id "heavy-wrapper.ps1") then $'eoie_job_gate::eoie_job_window_gate(&*!id)' : i32
+        elif file_exists (job_file id "window-class") then $'eoie_job_gate::eoie_job_compile_gate(&*!id)' : i32
+        else 0i32
+    if gate <> 0i32 then gate
+    else
+        inl cap = decimal_u64 (text_or_empty (job_file id "memory_cap_mb"))
+        inl _ =
+            if cap > 0u64 && container_capped cap = false then
+                text_written
+                    (job_file id "memory_cap_unenforced")
+                    "the job object refused the memory limit; the supervisor still stops the tree at the cap"
+            else ""
+        inl outcome =
+            logged_spawn
+                (text_or_empty (job_file id "argv"))
+                (text_or_empty (job_file id "cwd"))
+                (job_file id "stdout.log")
+                (job_file id "stderr.log")
+        if spawned outcome then
+            inl child = spawned_child outcome
+            inl _ = text_written (job_file id "pid") (decimal_text (child_pid child))
+            inl _ = text_written (job_file id "heartbeat_ms") (decimal_text (now_ms ()))
+            supervised child id (now_ms () + decimal_u64 (text_or_empty (job_file id "timeout_ms"))) (now_ms ()) cap (
+                decimal_u64 (text_or_empty (job_file id "done_by_ms")))
+        else
+            inl _ =
+                text_written
+                    (job_file id "exit")
+                    (exit_line 125i32 (now_ms ()) (JobSpawnFailed "") (spawn_error outcome))
+            125i32
+
+let supervise_job (~id : string) : i32 =
+    inl _ = text_written (job_file id "supervisor") (decimal_text ($'std::process::id() as u64' : u64))
+    ($'eoie_job_env::eoie_job_environment_adopted(&*!id)' : ())
+    inl halted = if file_exists (job_file id "after") then $'eoie_job_after::eoie_job_after_wait(&*!id)' : i32 else 0i32
+    if halted <> 0i32 then halted else supervise_cleared id
+
+inl main () : i32 =
+    !!!!Export("eoie_job_supervise", ((fun id => supervise_job id) : string -> i32))
+    0i32

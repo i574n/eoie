@@ -1,0 +1,139 @@
+open sm'_operators
+open eoie_jobs.model
+open eoie_jobs.host
+open eoie_jobs.jobs
+
+inl new_job_id (~label : string) : string = "job-" ++# (decimal_text (now_ms ())) ++# "-" ++# (label_safe label)
+
+union start_shape =
+    | PlainStart
+    | HeavyStart
+    | CompileStart
+
+inl start_shape_of (~flag : string) : start_shape = if flag = "--heavy" then HeavyStart elif flag = "--compile" then CompileStart else PlainStart
+
+inl shape_offset = function
+    | PlainStart => 0i32
+    | HeavyStart => 1i32
+    | CompileStart => 1i32
+
+inl shape_word = function
+    | PlainStart => "plain"
+    | HeavyStart => "heavy"
+    | CompileStart => "compile"
+
+inl heavy_wrapper (~gate : string) (~inner : string) (~label : string) (~id : string) (~timeout : u64) : string =
+    $'eoie_machine_windows::eoie_heavy_wrapper(&*!gate, &*!inner, &*!label, &*!id, !timeout)' : string
+
+inl heavy_argv (~wrapper : string) : string = "pwsh\n-NoProfile\n-File\n" ++# wrapper
+
+let job_argv (shape : start_shape) (~id : string) (~label : string) (~inner : string) (~timeout : u64) : string =
+    match shape with
+    | PlainStart => inner
+    | CompileStart =>
+        inl _ = text_written (job_file id "window-class") "compile"
+        inner
+    | HeavyStart =>
+        inl gate = heavy_gate_script ()
+        if gate = "" then ""
+        else
+            inl _ = text_written (job_file id "argv.inner") inner
+            inl wrapper = job_file id "heavy-wrapper.ps1"
+            inl _ = text_written wrapper (heavy_wrapper gate (job_file id "argv.inner") label id timeout)
+            heavy_argv wrapper
+
+inl after_mode_of (~flag : string) : string = if flag = "--after" then "any" elif flag = "--after-ok" then "ok" else ""
+
+inl after_receipt (~mode : string) (~other : string) : string = if mode = "" then "" else " after=" ++# other ++# " after_mode=" ++# mode
+
+union launch =
+    | Launched : string * string
+    | LaunchRefused : string
+
+let job_launched (shape : start_shape) (~after_mode : string) (~after_job : string) (attached : bool) (~cap_mb : u64) (~slot_minutes : u64) (~done_minutes : u64) (~hold_minutes : u64) (~quiet_wait : u64) (~label : string) (~timeout : u64) (~inner : string) (~cwd : string) : launch =
+    inl id = new_job_id label
+    inl problem = directory_created (job_directory id)
+    if problem <> "" then LaunchRefused problem
+    else
+        inl argv = job_argv shape id label inner timeout
+        if argv = "" then LaunchRefused "--heavy needs spiral's scripts/heavy.ps1: set EOIE_HEAVY_GATE or run from inside a tree that has a spiral checkout"
+        else
+            inl writes =
+                    (text_written (job_file id "label") label)
+                    ++# (text_written (job_file id "timeout_ms") (decimal_text timeout))
+                    ++# (text_written (job_file id "cwd") cwd)
+                    ++# (text_written (job_file id "argv") argv)
+                    ++# (text_written (job_file id "started_ms") (decimal_text (now_ms ())))
+                    ++# (text_written (job_file id "env") (env.environment_snapshot ()))
+            inl after_written = if after_mode = "" then "" else text_written (job_file id "after") (after_job ++# "\t" ++# after_mode)
+            inl cap_written = if cap_mb = 0u64 then "" else text_written (job_file id "memory_cap_mb") (decimal_text cap_mb)
+            inl queue_minutes = if slot_minutes = 0u64 then done_minutes elif done_minutes = 0u64 || slot_minutes < done_minutes then slot_minutes else done_minutes
+            inl slot_written = if queue_minutes = 0u64 then "" else text_written (job_file id "slot_by_ms") (decimal_text (now_ms () + queue_minutes * 60000u64))
+            inl done_written = if done_minutes = 0u64 then "" else text_written (job_file id "done_by_ms") (decimal_text (now_ms () + done_minutes * 60000u64))
+            inl quiet_written = if hold_minutes = 0u64 then "" else (text_written (job_file id "quiet_hold_min") (decimal_text hold_minutes)) ++# (text_written (job_file id "quiet_wait_min") (decimal_text quiet_wait))
+            if writes <> "" || after_written <> "" || cap_written <> "" || slot_written <> "" || done_written <> "" || quiet_written <> "" then LaunchRefused (writes ++# after_written ++# cap_written ++# slot_written ++# (done_written ++# quiet_written))
+            else
+                inl supervisor = if attached then $'std::rc::Rc::<str>::from(std::process::id().to_string().as_str())' : string else supervisor_launched id
+                if sm'.starts_with "error:" supervisor then LaunchRefused supervisor else Launched (id, supervisor)
+
+inl supervised_job (~id : string) : i32 = $'eoie_job_supervise::eoie_job_supervise(&*!id)' : i32
+
+let job_started (attached : bool) : i32 * string =
+    inl after_mode = after_mode_of (argument 3i32)
+    inl after_job = if after_mode = "" then "" else argument 4i32
+    inl base = if after_mode = "" then 3i32 else 5i32
+    inl shape = start_shape_of (argument base)
+    inl shaped = base + shape_offset shape
+    inl capped = argument shaped = "--max-private-mb"
+    inl cap_mb = if capped then decimal_u64 (argument (shaped + 1i32)) else 0u64
+    inl after_cap = if capped then shaped + 2i32 else shaped
+    inl slot_limited = argument after_cap = "--slot-within"
+    inl slot_minutes = if slot_limited then decimal_u64 (argument (after_cap + 1i32)) else 0u64
+    inl after_slot = if slot_limited then after_cap + 2i32 else after_cap
+    inl done_limited = argument after_slot = "--done-within"
+    inl done_minutes = if done_limited then decimal_u64 (argument (after_slot + 1i32)) else 0u64
+    inl after_done = if done_limited then after_slot + 2i32 else after_slot
+    inl quiet = argument after_done = "--quiet"
+    inl after_quiet = if quiet then after_done + 1i32 else after_done
+    inl held_given = argument after_quiet = "--quiet-hold"
+    inl hold_minutes = if held_given then decimal_u64 (argument (after_quiet + 1i32)) elif quiet then 30u64 else 0u64
+    inl after_hold = if held_given then after_quiet + 2i32 else after_quiet
+    inl wait_given = argument after_hold = "--quiet-wait"
+    inl quiet_wait = if wait_given then decimal_u64 (argument (after_hold + 1i32)) elif quiet then 10u64 else 0u64
+    inl first = if wait_given then after_hold + 2i32 else after_hold
+    inl missing_after = if after_mode = "" || (sm'.starts_with "job-" after_job && directory_exists (job_directory after_job)) then "" else after_job
+    if argument_count () < first + 3i32 then rejected (job_usage ()), ""
+    elif missing_after <> "" then rejected ("--after names no job: " ++# missing_after), ""
+    elif capped && cap_mb = 0u64 then rejected "--max-private-mb needs a positive number of MB", ""
+    elif slot_limited && slot_minutes = 0u64 then rejected "--slot-within needs a positive number of minutes", ""
+    elif done_limited && done_minutes = 0u64 then rejected "--done-within needs a positive number of minutes", ""
+    elif (held_given || wait_given) && quiet = false then rejected "--quiet-hold and --quiet-wait follow --quiet", ""
+    elif quiet && shape <> HeavyStart then rejected "--quiet applies to --heavy jobs: it holds compiles off while the heavy work starts", ""
+    elif quiet && (hold_minutes = 0u64 || hold_minutes > 60u64) then rejected "--quiet-hold takes 1 to 60 minutes (compiles wait at most that long)", ""
+    elif slot_limited && shape = PlainStart then rejected "--slot-within applies to --heavy or --compile jobs, which wait for a slot or window", ""
+    else
+        inl label = argument first
+        inl timeout = decimal_u64 (argument (first + 1i32))
+        if timeout = 0u64 then rejected "timeout-ms must be a positive integer", ""
+        else
+            match job_launched shape after_mode after_job attached cap_mb slot_minutes done_minutes hold_minutes quiet_wait label timeout (arguments_from (first + 2i32)) (current_directory ()) with
+            | LaunchRefused problem => rejected problem, ""
+            | Launched (id, supervisor) =>
+                stdout_line ((if attached then "eoie job run started id=" else "eoie job start ok id=") ++# id ++# " supervisor_pid=" ++# supervisor ++# (" timeout_ms=" ++# (decimal_text timeout) ++# " gate=" ++# (shape_word shape) ++# (" label=" ++# label ++# (after_receipt after_mode after_job) ++# (if cap_mb = 0u64 then "" else " max_private_mb=" ++# (decimal_text cap_mb)) ++# ((if slot_minutes = 0u64 then "" else " slot_within_min=" ++# (decimal_text slot_minutes)) ++# (if done_minutes = 0u64 then "" else " done_within_min=" ++# (decimal_text done_minutes)) ++# (if hold_minutes = 0u64 then "" else " quiet_hold_min=" ++# (decimal_text hold_minutes) ++# " quiet_wait_min=" ++# (decimal_text quiet_wait))))))
+                if attached then (supervised_job id, id) else (0i32, id)
+
+let started_text (attached : bool) : string =
+    inl code, id = job_started attached
+    ($'std::rc::Rc::<str>::from((!code).to_string().as_str())' : string) ++# "\t" ++# id
+
+inl record_mark () : string = $'std::rc::Rc::<str>::from(char::from(30u8).to_string())' : string
+
+let launched_text (~label : string) (~timeout : u64) (~inner : string) (~cwd : string) : string =
+    match job_launched PlainStart "" "" false 0u64 0u64 0u64 0u64 0u64 label timeout inner cwd with
+    | Launched (id, supervisor) => id ++# (record_mark ()) ++# supervisor
+    | LaunchRefused problem => "error: " ++# problem
+
+inl main () : i32 =
+    !!!!Export("eoie_job_start", ((fun attached => started_text attached) : bool -> string))
+    !!!!Export("eoie_job_launched_text", ((fun (label, timeout, inner, cwd) => launched_text label timeout inner cwd) : string * u64 * string * string -> string))
+    0i32

@@ -1,0 +1,144 @@
+open agile_task_text.model
+open sm'_operators
+open agile_note_model.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+
+inl tail_separator () : string = "; "
+inl migrated_author () : string = "migrated"
+
+inl ascii_zero () : i32 = 48i32
+inl ascii_nine () : i32 = 57i32
+inl ascii_dash () : i32 = 45i32
+inl ascii_colon () : i32 = 58i32
+inl ascii_space () : i32 = 32i32
+
+inl digit_at (text : string) (offset : i32) : bool =
+    inl code = byte_at text offset
+    if ascii_zero () <= code then code <= ascii_nine () else false
+
+let rec digits_in (text : string) (start : i32) (stop : i32) : bool =
+    if stop <= start then true
+    elif digit_at text start then digits_in text (start + 1i32) stop
+    else false
+
+inl byte_is (text : string) (offset : i32) (code : i32) : bool = byte_at text offset = code
+
+inl word_ends_at (text : string) (offset : i32) : bool =
+    if byte_len text = offset then true else byte_is text offset (ascii_space ())
+
+let dated_clock (text : string) : bool =
+    if 16i32 <= byte_len text then
+        if digits_in text 0i32 4i32 then
+            if byte_is text 4i32 (ascii_dash ()) then
+                if digits_in text 5i32 7i32 then
+                    if byte_is text 7i32 (ascii_dash ()) then
+                        if digits_in text 8i32 10i32 then
+                            if byte_is text 10i32 (ascii_space ()) then
+                                if digits_in text 11i32 13i32 then
+                                    if byte_is text 13i32 (ascii_colon ()) then
+                                        if digits_in text 14i32 16i32 then word_ends_at text 16i32 else false
+                                    else false
+                                else false
+                            else false
+                        else false
+                    else false
+                else false
+            else false
+        else false
+    else false
+
+let bare_clock (text : string) : bool =
+    if 5i32 <= byte_len text then
+        if digits_in text 0i32 2i32 then
+            if byte_is text 2i32 (ascii_colon ()) then
+                if digits_in text 3i32 5i32 then word_ends_at text 5i32 else false
+            else false
+        else false
+    else false
+
+let dated_day (text : string) : bool =
+    if 10i32 <= byte_len text then
+        if digits_in text 0i32 4i32 then
+            if byte_is text 4i32 (ascii_dash ()) then
+                if digits_in text 5i32 7i32 then
+                    if byte_is text 7i32 (ascii_dash ()) then
+                        if digits_in text 8i32 10i32 then word_ends_at text 10i32 else false
+                    else false
+                else false
+            else false
+        else false
+    else false
+
+inl starts_with_stamp (text : string) : bool =
+    if dated_clock text then true
+    elif dated_day text then true
+    else bare_clock text
+
+inl stamp_window () : i32 = 17i32
+
+let rec stamped_separator_from (~title : string) (~offset : i32) : i32 =
+    inl found = byte_find_from title (tail_separator ()) offset
+    if found < 0i32 then found
+    else
+        inl start = $"!found + 2" : i32
+        inl window_end = $"!start + !(stamp_window ())" : i32
+        inl stop = if byte_len title <= window_end then byte_len title else window_end
+        if starts_with_stamp (byte_slice title start stop) then found
+        else stamped_separator_from title start
+
+type stamped_piece =
+    {
+        at : string
+        day : string
+        body : string
+    }
+
+inl rest_from (text : string) (offset : i32) : string = sm'.trim (byte_slice text offset (byte_len text))
+
+let stamped (~piece : string) (~day : string) (~previous : string) (~fallback : string) : stamped_piece =
+    if dated_clock piece then { at = byte_slice piece 0i32 16i32; day = byte_slice piece 0i32 10i32; body = rest_from piece 16i32 }
+    elif dated_day piece then { at = byte_slice piece 0i32 10i32; day = byte_slice piece 0i32 10i32; body = rest_from piece 10i32 }
+    elif bare_clock piece then
+        inl clock = byte_slice piece 0i32 5i32
+        inl at = if (day = "") then clock else day ++# " " ++# clock
+        { at = at; day = day; body = rest_from piece 5i32 }
+    else
+        inl at = if (previous = "") then fallback else previous
+        { at = at; day = day; body = piece }
+
+type moved_notes =
+    {
+        rows : string
+        moved : i32
+    }
+
+let rec moved_from (~title : string) (~offset : i32) (~length : i32) (~id : string) (~seq : i32) (~day : string) (~previous : string) (~fallback : string) (~moved : moved_notes) : moved_notes =
+    if length <= offset then moved
+    else
+        inl found = stamped_separator_from title offset
+        inl stop = if found < 0i32 then length else found
+        inl next = if found < 0i32 then length else $"!found + 2" : i32
+        inl piece = sm'.trim (byte_slice title offset stop)
+        if (piece = "") then moved_from title next length id seq day previous fallback moved
+        else
+            inl stamp = stamped piece day previous fallback
+            inl body = if (stamp.body = "") then piece else stamp.body
+            inl row = note_row id seq { at = stamp.at; author = migrated_author (); text = body }
+            inl joint = if (moved.rows = "") then "" else "\n"
+            moved_from title next length id (seq + 1i32) stamp.day stamp.at fallback { rows = moved.rows ++# joint ++# row; moved = (moved.moved + 1i32) }
+
+let tail_rows (~title : string) (~id : string) (~seq : i32) (~fallback : string) : i32 * string =
+    inl first = stamped_separator_from title 0i32
+    if first < 0i32 then 0i32, ""
+    else
+        inl moved = moved_from title ($"!first + 2" : i32) (byte_len title) id seq "" "" fallback { rows = ""; moved = 0i32 }
+        moved.moved, moved.rows
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_title_tail_rows", ((fun (title, id, seq, fallback) => tail_rows title id seq fallback) : string * string * i32 * string -> i32 * string))
+    !!!!Export("eoie_agile_title_kept_end", ((fun title => stamped_separator_from title 0i32) : string -> i32))
+    inl _ = tail_rows "a; 03:10 b" "X" 1i32 "now"
+    inl _ = tail_rows "a (b; c); 2026-10-12 d; e" "X" 1i32 "now"
+    0i32

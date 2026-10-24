@@ -1,0 +1,17 @@
+inl main () : i32 =
+    inl code = tests.run ()
+    !!!!Global("""
+        fn native_codemod_coverage_finish(code: i32) -> i32 {
+            #[cfg(all(windows, eoie_coverage))]
+            {
+                unsafe extern "C" { fn __llvm_profile_write_file() -> i32; }
+                if unsafe { __llvm_profile_write_file() } != 0 {
+                    eprintln!("native codemod coverage profile flush failed");
+                    return if code == 0 { 1 } else { code };
+                }
+            }
+            code
+        }
+
+        """)
+    $"native_codemod_coverage_finish(!code)" : i32

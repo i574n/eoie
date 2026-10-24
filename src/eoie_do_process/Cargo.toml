@@ -1,0 +1,19 @@
+[package.metadata.spiral]
+entry = "run.spi"
+output = "do_process.rs"
+
+[package]
+name = "eoie-do-process"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_do_process"
+path = "do_process.rs"
+
+[dependencies]
+eoie-command-line = { path = "../eoie_command_line" }
+regex = "1.13.1"
+sysinfo = "0.38.4"

@@ -1,0 +1,45 @@
+open sm'_operators
+
+///- --package .
+test failures static =
+    open notebook
+
+union rec failed_notebooks =
+    | NoFailures
+    | FailedThen : string * i32 * failed_notebooks
+
+let rec failures_of (~listed : string) (index : i32) (code : i32) (failures : failed_notebooks) : failed_notebooks =
+    if index < notebook.line_count listed then failures_of listed (index + 1i32) code (FailedThen (notebook.line_at listed index, code, failures))
+    else failures
+
+let rec failure_list (failures : failed_notebooks) (~acc : string) : string =
+    match failures with
+    | NoFailures => acc
+    | FailedThen (relative, _, rest) => failure_list rest (if acc = "" then relative else relative ++# ", " ++# acc)
+
+let rec first_code (failures : failed_notebooks) (code : i32) : i32 =
+    match failures with
+    | NoFailures => code
+    | FailedThen (_, failed, rest) => first_code rest failed
+
+let rec failure_count (failures : failed_notebooks) (count : i32) : i32 =
+    match failures with
+    | NoFailures => count
+    | FailedThen (_, _, rest) => failure_count rest (count + 1i32)
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test every_failure_is_listed_in_run_order_and_the_first_code_wins =
+    inl failures = FailedThen ("src/c.spi", 3i32, FailedThen ("src/a.spi", 2i32, NoFailures))
+    expect (failure_list failures "" = "src/a.spi, src/c.spi") (failure_list failures "")
+    expect (first_code failures 1i32 = 2i32) "the earliest failure's code"
+    expect (failure_count failures 0i32 = 2i32) "two failures"
+    expect (first_code NoFailures 0i32 = 0i32) "no failures"
+
+///> rust
+test batch_failures_keep_run_order_and_carry_the_batch_code =
+    inl failures = failures_of "src/a.spi\nsrc/c.spi" 0i32 3i32 NoFailures
+    expect (failure_list failures "" = "src/a.spi, src/c.spi") (failure_list failures "")
+    expect (first_code failures 1i32 = 3i32) "the batch code"
+    expect (failure_count (failures_of "" 0i32 1i32 NoFailures) 0i32 = 0i32) "nothing failed"

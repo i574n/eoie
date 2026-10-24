@@ -1,0 +1,31 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+
+inl emit_runtime () : () =
+    rust_global """
+        use eoie_patch_compat_driver::patch_apply_gated_context_owned;
+        use eoie_process::run_bounded_program_in_dir;
+
+        #[must_use]
+        fn patch_gated_error(message: &str) -> i32 {
+            eprintln!("eoie error: {message}");
+            2
+        }
+
+        #[must_use]
+        fn patch_gated_context_owned(root: &str, source: &str, validated_count: i32, gate_program: &str, timeout_ms: u64) -> i32 {
+            let gate = std::path::Path::new(gate_program);
+            if !gate.is_absolute() || !gate.is_file() {
+                return patch_gated_error(&format!("patch gate program must be an absolute regular file: {}", gate.display()));
+            }
+            let root_path = std::path::Path::new(root).to_path_buf();
+            patch_apply_gated_context_owned(root, source, validated_count, || {
+                let status = run_bounded_program_in_dir(gate_program, &root_path, timeout_ms)?;
+                if status.success() {
+                    Ok(())
+                } else {
+                    Err(format!("gate program exited nonzero: {status}"))
+                }
+            })
+        }
+
+        """

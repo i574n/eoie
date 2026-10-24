@@ -1,0 +1,5 @@
+packages:
+    |core-
+    differential_catalog_bindings
+modules:
+    model

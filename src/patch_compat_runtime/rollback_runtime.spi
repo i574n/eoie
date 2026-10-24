@@ -1,0 +1,388 @@
+inl emit_rollback_runtime () : () = !!!!Global("""
+    #[derive(Default)]
+    struct TypedBackups {
+        slot_by_path: BTreeMap<PathBuf, usize>,
+        originals: Vec<String>,
+    }
+
+    impl TypedBackups {
+        fn observe(&mut self, path: &Path, text: &str, max_bytes: usize) -> Result<usize, String> {
+            let existing = self
+                .slot_by_path
+                .get(path)
+                .and_then(|slot| i32::try_from(*slot).ok())
+                .unwrap_or(-1);
+            let next = i32::try_from(self.originals.len())
+                .map_err(|_| "backup slot count overflow".to_owned())?;
+            let should_capture = eoie_patch_backup_should_capture(existing, next) == 1;
+            let observed = i32::try_from(text.len()).unwrap_or(i32::MAX);
+            let limit = i32::try_from(max_bytes)
+                .map_err(|_| "typed capture limit does not fit i32".to_owned())?;
+            let capture_authorized = eoie_patch_capture_authorized(observed, limit);
+            let planned_slot = eoie_patch_backup_slot(existing, next);
+            let planned_count = eoie_patch_backup_next_count(existing, next);
+            let slot = usize::try_from(planned_slot)
+                .map_err(|_| "typed backup slot is negative".to_owned())?;
+            let count = usize::try_from(planned_count)
+                .map_err(|_| "typed backup count is negative".to_owned())?;
+
+            if should_capture {
+                let bound_slot = eoie_patch_capture_binding_slot(planned_slot, capture_authorized);
+                if bound_slot != planned_slot {
+                    return Err("typed backup capture authority denied".to_owned());
+                }
+                let expected_count = self
+                    .originals
+                    .len()
+                    .checked_add(1)
+                    .ok_or_else(|| "backup slot count overflow".to_owned())?;
+                if slot != self.originals.len() || count != expected_count {
+                    return Err("typed backup capture plan diverged".to_owned());
+                }
+                self.originals.push(text.to_owned());
+                self.slot_by_path.insert(path.to_path_buf(), slot);
+            } else if self.slot_by_path.get(path).copied() != Some(slot)
+                || count != self.originals.len()
+            {
+                return Err("typed backup reuse plan diverged".to_owned());
+            }
+
+            Ok(slot)
+        }
+
+        fn original(&self, slot: usize) -> Option<&String> {
+            self.originals.get(slot)
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct RestorationPathFailure {
+        path: PathBuf,
+        message: String,
+    }
+
+    #[derive(Debug, Clone)]
+    struct RestorationReceipt {
+        expected_count: i32,
+        success_count: i32,
+        failure_count: i32,
+        payload_identities: Vec<i32>,
+        pending_identity: i32,
+        restored_paths: Vec<PathBuf>,
+        failures: Vec<RestorationPathFailure>,
+    }
+
+    impl RestorationReceipt {
+        fn new(expected_count: i32) -> Result<Self, String> {
+            if expected_count < 0 {
+                return Err("typed restoration expected count is negative".to_owned());
+            }
+            Ok(Self {
+                expected_count,
+                success_count: 0,
+                failure_count: 0,
+                payload_identities: Vec::new(),
+                pending_identity: -1,
+                restored_paths: Vec::new(),
+                failures: Vec::new(),
+            })
+        }
+
+        fn attempt_count(&self) -> i32 {
+            eoie_patch_restoration_attempt_count(self.success_count, self.failure_count)
+        }
+
+        fn authorize_attempt(&self) -> i32 {
+            eoie_patch_restoration_attempt_authorized(self.expected_count, self.attempt_count())
+        }
+
+        fn begin_attempt(&mut self, identity: i32) {
+            if identity < 0 || self.payload_identities.contains(&identity) {
+                self.pending_identity = -1;
+            } else {
+                self.pending_identity = identity;
+            }
+        }
+
+        fn take_attempt_identity(&mut self, outcome: i32) -> i32 {
+            let identity = eoie_patch_restoration_payload_outcome_binding(self.pending_identity, outcome);
+            self.pending_identity = -1;
+            identity
+        }
+
+        fn record_success(&mut self, path: &Path) {
+            let identity = self.take_attempt_identity(1);
+            if identity < 0 {
+                self.success_count = -1;
+                return;
+            }
+            let next = eoie_patch_restoration_counter_next(self.success_count, self.authorize_attempt());
+            if next < 0 {
+                self.success_count = -1;
+                return;
+            }
+            self.success_count = next;
+            self.payload_identities.push(identity);
+            self.restored_paths.push(path.to_path_buf());
+        }
+
+        fn record_failure(&mut self, path: &Path, message: impl Into<String>) {
+            let identity = self.take_attempt_identity(2);
+            if identity < 0 {
+                self.failure_count = -1;
+                return;
+            }
+            let next = eoie_patch_restoration_counter_next(self.failure_count, self.authorize_attempt());
+            if next < 0 {
+                self.failure_count = -1;
+                return;
+            }
+            self.failure_count = next;
+            self.payload_identities.push(identity);
+            self.failures.push(RestorationPathFailure {
+                path: path.to_path_buf(),
+                message: message.into(),
+            });
+        }
+
+        fn outcome(&self) -> i32 {
+            let complete = eoie_patch_restoration_complete(self.expected_count, self.attempt_count());
+            eoie_patch_restoration_accumulator_outcome(complete, self.failure_count)
+        }
+
+    }
+
+    #[derive(Debug)]
+    struct RestorationFailure {
+        message: String,
+        receipt: RestorationReceipt,
+    }
+
+    fn restoration_payload_identity_for(
+        candidate_index: usize,
+        observed_stage: i32,
+        expected_slot: usize,
+        observed_slot: i32,
+    ) -> Result<i32, String> {
+        let candidate = i32::try_from(candidate_index)
+            .map_err(|_| "restoration payload candidate does not fit i32".to_owned())?;
+        let expected_slot = i32::try_from(expected_slot)
+            .map_err(|_| "restoration payload slot does not fit i32".to_owned())?;
+        let identity = eoie_patch_restoration_payload_identity(candidate, observed_stage);
+        let slot_authorized = eoie_patch_promotion_slot_authorized(expected_slot, observed_slot);
+        let identity = eoie_patch_restoration_payload_slot_binding(identity, slot_authorized);
+        if identity < 0 {
+            Err("typed restoration payload identity mismatch".to_owned())
+        } else {
+            Ok(identity)
+        }
+    }
+
+    fn expected_restoration_payload_identity(
+        candidate_index: usize,
+        expected_slot: usize,
+    ) -> Result<i32, String> {
+        let candidate = i32::try_from(candidate_index)
+            .map_err(|_| "restoration payload candidate does not fit i32".to_owned())?;
+        let slot = i32::try_from(expected_slot)
+            .map_err(|_| "restoration payload slot does not fit i32".to_owned())?;
+        restoration_payload_identity_for(candidate_index, candidate, expected_slot, slot)
+    }
+
+    fn fatal_restoration_failure(
+        message: impl Into<String>,
+        receipt: &RestorationReceipt,
+        staged: &[(StagedWriteReceipt, usize)],
+        committed_count: usize,
+    ) -> RestorationFailure {
+        let message = message.into();
+        let mut receipt = receipt.clone();
+        for (candidate_index, (pending, expected_slot)) in staged.iter().take(committed_count).enumerate() {
+            let path = pending.target();
+            let identity = expected_restoration_payload_identity(candidate_index, *expected_slot)
+                .unwrap_or_else(|_| i32::try_from(candidate_index).unwrap_or(-1));
+            if !receipt.payload_identities.contains(&identity) {
+                receipt.begin_attempt(identity);
+                receipt.record_failure(path, message.clone());
+            }
+        }
+        RestorationFailure { message, receipt }
+    }
+
+    fn discard_restoration_stages(staged: &[(StagedWriteReceipt, usize)]) {
+        for (pending, _) in staged {
+            let _ = discard_stage(pending.temporary());
+        }
+    }
+
+    fn rollback_by_spiral(
+        backups: &TypedBackups,
+        committed_count: usize,
+        staged: &[(StagedWriteReceipt, usize)],
+    ) -> Result<RestorationReceipt, RestorationFailure> {
+        let expected_count = match i32::try_from(committed_count) {
+            Ok(value) => value,
+            Err(_) => {
+                let restoration_receipt = RestorationReceipt::new(0)
+                    .expect("zero-count restoration receipt");
+                let failure = fatal_restoration_failure(
+                    "restoration count overflow",
+                    &restoration_receipt,
+                    staged,
+                    committed_count,
+                );
+                discard_restoration_stages(staged);
+                return Err(failure);
+            }
+        };
+        let mut restoration_receipt = match RestorationReceipt::new(expected_count) {
+            Ok(receipt) => receipt,
+            Err(error) => {
+                let restoration_receipt = RestorationReceipt::new(0)
+                    .expect("zero-count restoration receipt");
+                let failure = fatal_restoration_failure(
+                    error,
+                    &restoration_receipt,
+                    staged,
+                    committed_count,
+                );
+                discard_restoration_stages(staged);
+                return Err(failure);
+            }
+        };
+        let committed_i32 = i32::try_from(committed_count).unwrap_or(i32::MAX);
+        let mut cursor = 0i32;
+        loop {
+            let candidate = eoie_patch_restoration_select(committed_i32, cursor);
+            if candidate < 0 {
+                break;
+            }
+            let candidate_index = match usize::try_from(candidate) {
+                Ok(value) => value,
+                Err(_) => {
+                    let failure = fatal_restoration_failure(
+                        "typed restoration selected an invalid index",
+                        &restoration_receipt,
+                        staged,
+                        committed_count,
+                    );
+                    discard_restoration_stages(staged);
+                    return Err(failure);
+                }
+            };
+            let Some((receipt, expected_slot)) = staged.get(candidate_index) else {
+                let failure = fatal_restoration_failure(
+                    "typed restoration selected a missing staged receipt",
+                    &restoration_receipt,
+                    staged,
+                    committed_count,
+                );
+                discard_restoration_stages(staged);
+                return Err(failure);
+            };
+            let expected_identity = match expected_restoration_payload_identity(candidate_index, *expected_slot) {
+                Ok(identity) => identity,
+                Err(error) => {
+                    let failure = fatal_restoration_failure(
+                        error,
+                        &restoration_receipt,
+                        staged,
+                        committed_count,
+                    );
+                    discard_restoration_stages(staged);
+                    return Err(failure);
+                }
+            };
+            restoration_receipt.begin_attempt(expected_identity);
+            let observed_index = match i32::try_from(candidate_index) {
+                Ok(value) => value,
+                Err(_) => {
+                    restoration_receipt.record_failure(
+                        receipt.target(),
+                        "restoration index overflow",
+                    );
+                    cursor = cursor.saturating_add(1);
+                    continue;
+                }
+            };
+            if eoie_patch_restoration_bind(candidate, observed_index) != candidate {
+                restoration_receipt.record_failure(
+                    receipt.target(),
+                    "typed restoration receipt index mismatch",
+                );
+                cursor = cursor.saturating_add(1);
+                continue;
+            }
+            let bound_slot = match authorize_promotion_identity(
+                candidate_index,
+                receipt.stage_index(),
+                *expected_slot,
+                receipt.backup_slot(),
+            ) {
+                Ok(value) => value,
+                Err(error) => {
+                    restoration_receipt.record_failure(receipt.target(), error);
+                    cursor = cursor.saturating_add(1);
+                    continue;
+                }
+            };
+            let observed_identity = match restoration_payload_identity_for(
+                candidate_index,
+                receipt.stage_index(),
+                *expected_slot,
+                receipt.backup_slot(),
+            ) {
+                Ok(identity) => identity,
+                Err(error) => {
+                    restoration_receipt.record_failure(receipt.target(), error);
+                    cursor = cursor.saturating_add(1);
+                    continue;
+                }
+            };
+            restoration_receipt.begin_attempt(observed_identity);
+            let original = match backups.original(bound_slot) {
+                Some(value) => value,
+                None => {
+                    restoration_receipt.record_failure(
+                        receipt.target(),
+                        "typed restoration selected a missing backup",
+                    );
+                    cursor = cursor.saturating_add(1);
+                    continue;
+                }
+            };
+            match restore_text(receipt.target(), original) {
+                Ok(()) => restoration_receipt.record_success(receipt.target()),
+                Err(error) => restoration_receipt.record_failure(receipt.target(), error),
+            }
+            cursor = cursor.saturating_add(1);
+        }
+        let outcome = restoration_receipt.outcome();
+        discard_restoration_stages(staged);
+        match outcome {
+            1 => Ok(restoration_receipt),
+            2 => Err(RestorationFailure {
+                message: "best-effort restoration completed with path failures".to_owned(),
+                receipt: restoration_receipt,
+            }),
+            0 => {
+                let attempted_count = restoration_receipt.attempt_count();
+                Err(fatal_restoration_failure(
+                    format!(
+                        "typed restoration attempts incomplete: expected={expected_count} observed={attempted_count}"
+                    ),
+                    &restoration_receipt,
+                    staged,
+                    committed_count,
+                ))
+            }
+            _ => Err(fatal_restoration_failure(
+                "typed restoration accumulator entered an invalid state",
+                &restoration_receipt,
+                staged,
+                committed_count,
+            )),
+        }
+    }
+
+    """)

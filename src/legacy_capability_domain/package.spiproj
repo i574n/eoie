@@ -1,0 +1,8 @@
+packages:
+    |core-
+    legacy_capability_model
+modules:
+    self_install-
+    restart_baton-
+    legacy_terminal
+    main

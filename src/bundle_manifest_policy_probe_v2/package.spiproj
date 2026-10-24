@@ -1,0 +1,5 @@
+packages:
+    |core-
+    bundle_manifest_contract
+modules:
+    main

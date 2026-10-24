@@ -1,0 +1,7 @@
+packages:
+    |core-
+    workspace_primitives
+    spiral-
+    rust_std_fs
+modules:
+    search_receipt

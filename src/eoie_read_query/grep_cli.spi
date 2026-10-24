@@ -1,0 +1,95 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl grep_run (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("grep", Arg (fixture_text_of root, Arg ("needle", args))))
+
+inl grep_fixture () : fixture_root =
+    inl root = fixture_root_create "grep"
+    fixture_write root "a.txt" "one\ntwo needle\nthree\nfour\nfive needle\nsix\n"
+    fixture_write root "target/b.txt" "needle in build output\n"
+    root
+
+///> rust
+test text_output_keeps_merged_context_windows_and_markers =
+    inl root = grep_fixture ()
+    inl out = succeeded (grep_run root (Arg ("--context", Arg ("1", NoArgs))))
+    expect (has_line out "a.txt") out
+    expect (has_line out "1  one") out
+    expect (has_line out "2> two needle") out
+    expect (has_line out "3  three") out
+    expect (has_line out "4  four") out
+    expect (has_line out "5> five needle") out
+    expect (has_line out "6  six") out
+    shows out "ok  files 1 searched  1 matched  matches 2"
+    hides out "build output"
+    shows (succeeded (grep_run root (Arg ("--max", Arg ("1", NoArgs))))) "matches 2  shown 1"
+    fixture_root_remove root
+
+///> rust
+test a_file_root_is_searched_as_that_file_and_a_missing_root_fails =
+    inl root = grep_fixture ()
+    inl file = fixture_path root "a.txt"
+    inl out = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("grep", Arg (file, Arg ("needle", NoArgs)))))
+    expect (has_line out "2> two needle") out
+    shows out "ok  files 1 searched  1 matched  matches 2"
+    inl missing = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("grep", Arg (fixture_path root "absent", Arg ("needle", NoArgs))))
+    expect (missing.code = 2i32) (run_text missing)
+    shows missing.stderr "grep root not found"
+    fixture_root_remove root
+///> rust
+test json_output_lists_matches_with_counts =
+    inl root = grep_fixture ()
+    inl out = trimmed (succeeded (grep_run root (Arg ("--json", NoArgs))))
+    same out "{\"files\":1,\"matched\":1,\"total\":2,\"shown\":2,\"matches\":[{\"path\":\"a.txt\",\"line\":2,\"text\":\"two needle\"},{\"path\":\"a.txt\",\"line\":5,\"text\":\"five needle\"}]}"
+    fixture_root_remove root
+
+///> rust
+test read_keeps_its_text_form_and_adds_json =
+    inl root = grep_fixture ()
+    inl out = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("read", Arg ("a.txt:2-3", NoArgs))))
+    expect (has_line out "a.txt (lines 2-3 of 6)") out
+    expect (has_line out "2  two needle") out
+    expect (has_line out "3  three") out
+    inl json = trimmed (succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("read", Arg ("a.txt:5", Arg ("--json", NoArgs))))))
+    same json "{\"files\":[{\"path\":\"a.txt\",\"from\":5,\"to\":5,\"total\":6,\"more\":0,\"lines\":[\"five needle\"]}],\"lines\":1,\"unreadable\":0}"
+    inl capped = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("read", Arg ("a.txt", Arg ("--max-lines", Arg ("2", NoArgs))))))
+    expect (has_line capped "... 4 more lines (raise --max-lines or pass a range)") capped
+    fixture_root_remove root
+
+///> rust
+test read_and_lines_expand_a_glob_in_one_call =
+    inl root = fixture_root_create "read globs"
+    fixture_write root "notes/a.spi" "alpha\nbeta\n"
+    fixture_write root "notes/b.spi" "gamma\n"
+    fixture_write root "notes/c.txt" "skipped\n"
+    inl out = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("read", Arg ("notes/*.spi:1", NoArgs))))
+    expect (has_line out "notes/a.spi (lines 1-1 of 2)") out
+    expect (has_line out "notes/b.spi (lines 1-1 of 1)") out
+    hides out "skipped"
+    hides out "beta"
+    shows out "files 2  lines 2"
+    inl missing = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("read", Arg ("notes/*.md", NoArgs)))
+    expect (missing.code = 2i32) (run_text missing)
+    shows missing.stdout "unreadable 1"
+    inl counted = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("lines", Arg ("notes/*.spi", Arg ("notes/c.txt", NoArgs)))))
+    shows counted "files 3  bytes 25  lines 4"
+    fixture_write root "notes/deep/d.spi" "delta\n"
+    fixture_write root "notes/target/e.spi" "built\n"
+    inl deep = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("lines", Arg ("notes/**/*.spi", NoArgs))))
+    shows deep "notes/a.spi"
+    shows deep "notes/deep/d.spi"
+    hides deep "e.spi"
+    shows deep "files 3  bytes 23  lines 4"
+    fixture_root_remove root
+
+///> rust
+test a_regex_needle_alternates_and_a_bad_pattern_is_refused =
+    inl root = grep_fixture ()
+    inl out = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("grep", Arg (fixture_text_of root, Arg ("t(wo|hree)", Arg ("--regex", NoArgs))))))
+    expect (has_line out "2> two needle") out
+    expect (has_line out "3> three") out
+    shows out "matches 2"
+    inl bad = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("grep", Arg (fixture_text_of root, Arg ("(", Arg ("--regex", NoArgs)))))
+    expect (bad.code = 2i32) (run_text bad)
+    shows bad.stderr "grep: invalid --regex pattern"
+    fixture_root_remove root

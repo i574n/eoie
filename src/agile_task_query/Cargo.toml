@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "task_query.spi"
+output = "task_query.rs"
+
+[package]
+name = "agile-task-query"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_task_query"
+path = "task_query.rs"

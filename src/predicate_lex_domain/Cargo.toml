@@ -1,0 +1,15 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "runtime.rs"
+
+[package]
+name = "predicate-lex-domain"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+path = "runtime.rs"
+
+[dependencies]

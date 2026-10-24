@@ -1,0 +1,49 @@
+nominal agile_state_idle = ()
+nominal agile_state_loaded = ()
+nominal agile_state_validated = ()
+nominal agile_state_receipts_committed = ()
+nominal agile_state_sessions_closed = ()
+
+nominal agile_module_unchecked = ()
+nominal agile_module_committed = ()
+
+union agile_state_op from to =
+    | LoadAgileState :: agile_state_op agile_state_idle agile_state_loaded
+    | ValidateAgileModules :: agile_state_op agile_state_loaded agile_state_validated
+    | CommitModuleReceipts :: agile_state_op agile_state_validated agile_state_receipts_committed
+    | CloseAgileSessions :: agile_state_op agile_state_receipts_committed agile_state_sessions_closed
+
+union module_receipt_op from to =
+    | CommitModuleReceipt :: string * u64 * u64 -> module_receipt_op agile_module_unchecked agile_module_committed
+
+union rec agile_state_plan from to =
+    | AgileStateStep :: forall from to. agile_state_op from to -> agile_state_plan from to
+    | AgileStateThen :: forall from to. (exists middle. agile_state_plan from middle * agile_state_plan middle to) -> agile_state_plan from to
+
+union rec module_receipt_plan from to =
+    | ModuleReceiptStep :: forall from to. module_receipt_op from to -> module_receipt_plan from to
+
+inl module_receipt path bytes fingerprint : module_receipt_plan agile_module_unchecked agile_module_committed =
+    ModuleReceiptStep (CommitModuleReceipt (path, bytes, fingerprint))
+
+inl validation_plan () : agile_state_plan agile_state_idle agile_state_receipts_committed =
+    AgileStateThen (exists (
+        AgileStateThen (exists (AgileStateStep LoadAgileState, AgileStateStep ValidateAgileModules)),
+        AgileStateStep CommitModuleReceipts
+    ))
+
+inl shutdown_plan () : agile_state_plan agile_state_receipts_committed agile_state_sessions_closed =
+    AgileStateStep CloseAgileSessions
+
+inl full_state_plan () : agile_state_plan agile_state_idle agile_state_sessions_closed =
+    AgileStateThen (exists (validation_plan (), shutdown_plan ()))
+
+inl main () : i32 =
+    agile_state_runtime.state_terminal.emit_runtime ()
+    agile_state_runtime.check_runtime.emit_runtime ()
+    agile_state_runtime.series_terminal.emit_runtime ()
+    agile_state_runtime.owned_runtime.emit_runtime ()
+    inl _ = module_receipt "state/example.spi" 1u64 1u64
+    inl _ = validation_plan ()
+    inl _ = full_state_plan ()
+    0i32

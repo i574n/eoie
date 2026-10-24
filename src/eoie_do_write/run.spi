@@ -1,0 +1,207 @@
+open sm'_operators
+open eoie_receipt.receipt
+open host
+open grammar
+open eoie_do_records.records
+
+type write_tally =
+    {
+        report : string
+        failed : bool
+        appended_files : u64
+        appended : u64
+        copied : u64
+        skipped : u64
+        bytes : u64
+        appends : u64
+        copies : u64
+        moved : u64
+        moves : u64
+    }
+
+let empty_write_tally () : write_tally =
+    {
+        report = ""
+        failed = false
+        appended_files = 0u64
+        appended = 0u64
+        copied = 0u64
+        skipped = 0u64
+        bytes = 0u64
+        appends = 0u64
+        copies = 0u64
+        moved = 0u64
+        moves = 0u64
+    }
+
+let lines_joined (~left : string) (~right : string) : string =
+    if right = "" then left elif left = "" then right else left ++# "\n" ++# right
+
+let counted (~count : u64) (~one : string) (~many : string) : string =
+    (decimal_text count) ++# " " ++# (if count = 1u64 then one else many)
+
+let append_run (~root : string) (~path : string) (~line : string) (~state : write_tally) : write_tally =
+    inl before = file_text root path
+    inl newline = if uses_crlf before then crlf () else "\n"
+    inl filled = clock_filled line (local_offset_minutes ())
+    inl added = (if ended_with_newline before then "" else newline) ++# filled ++# newline
+    inl problem = appended_to root path added
+    if problem = "" then
+        inl after = file_text root path
+        inl bytes = text_bytes added
+        inl lines = line_count filled
+        inl totals =
+            "  now "
+            ++# (counted (line_count after) "line" "lines")
+            ++# ", "
+            ++# (counted (text_bytes after) "byte" "bytes")
+        inl row =
+            "append "
+            ++# path
+            ++# "  "
+            ++# (counted lines "line" "lines")
+            ++# ("  " ++# (counted bytes "byte" "bytes") ++# totals)
+        { state with
+            report = lines_joined state.report row
+            appended_files = state.appended_files + 1u64
+            appended = state.appended + lines
+            bytes = state.bytes + bytes
+            appends = state.appends + 1u64
+        }
+    else { state with report = lines_joined state.report problem; failed = true; appends = state.appends + 1u64 }
+
+let rec copies_run
+    (~root : string) (~base : string) (~destination : string) (~excluded : string) (~paths : string) (~index : u64)
+    (~state : write_tally)
+    : write_tally
+    =
+    if index < line_count paths then
+        inl path = line_at paths index
+        inl next =
+            if excluded_by excluded path then { state with skipped = state.skipped + 1u64 }
+            else
+                inl bytes = copied_bytes root path (destination ++# "/" ++# (relative_under base path))
+                if bytes < 0i64
+                then { state with failed = true; report = lines_joined state.report ("copy " ++# path ++# "  failed") }
+                else { state with copied = state.copied + 1u64; bytes = state.bytes + unsigned bytes }
+        copies_run root base destination excluded paths (index + 1u64) next
+    else state
+
+let copy_run
+    (~root : string) (~source : string) (~destination : string) (~excluded : string) (~state : write_tally)
+    : write_tally
+    =
+    inl base = glob_base source
+    inl paths = matching root source
+    inl after = copies_run root base destination excluded paths 0u64 state
+    inl copied = after.copied - state.copied
+    inl exclusions =
+        if excluded = "" then ""
+        else
+            "  "
+            ++# decimal_text (after.skipped - state.skipped)
+            ++# " skipped ("
+            ++# (sm'.replace "\n" ", " excluded)
+            ++# ")"
+    inl row =
+        "copy "
+        ++# (if base = "" then "." else base)
+        ++# " -> "
+        ++# destination
+        ++# (
+            "  "
+            ++# (counted copied "file" "files")
+            ++# "  "
+            ++# (counted (after.bytes - state.bytes) "byte" "bytes")
+            ++# exclusions
+        )
+    inl failed = after.failed || paths = ""
+    inl report = if paths = "" then "copy: no file matched " ++# source else row
+    { after with report = lines_joined after.report report; failed = failed; copies = after.copies + 1u64 }
+
+let move_run (~root : string) (~source : string) (~destination : string) (~state : write_tally) : write_tally =
+    inl problem = moved root source destination
+    if problem = "" then
+        { state with
+            report = lines_joined state.report ("move " ++# source ++# " -> " ++# destination)
+            moved = state.moved + 1u64
+            moves = state.moves + 1u64
+        }
+    else { state with report = lines_joined state.report problem; failed = true; moves = state.moves + 1u64 }
+
+let read_run (~root : string) (~records : record_list) (~record : i32) (~state : write_tally) : write_tally =
+    inl outcome = read_report root (record_alone records record)
+    { state with
+        report = lines_joined state.report (part_at outcome 0i32)
+        failed = state.failed || part_at outcome 1i32 = "1"
+    }
+
+let step_run
+    (~root : string) (~records : record_list) (~record : i32) (step : write_step) (~state : write_tally)
+    : write_tally
+    =
+    match step with
+    | AppendLine (path, line) => append_run root path line state
+    | CopyTree (source, destination, excluded) => copy_run root source destination excluded state
+    | MovePath (source, destination) => move_run root source destination state
+    | ReadAfter => read_run root records record state
+    | Blank => state
+
+let rec writes_run (~root : string) (~records : record_list) (~index : i32) (~state : write_tally) : write_tally =
+    if index < record_count records then
+        match write_parsed records index with
+        | WriteParsed step => writes_run root records (index + 1i32) (step_run root records index step state)
+        | WriteRejected _ => writes_run root records (index + 1i32) state
+    else state
+
+let read_rejected (~records : record_list) (~record : i32) (step : write_step) : string =
+    match step with
+    | ReadAfter => read_rejection (record_alone records record)
+    | _ => ""
+
+let rec first_rejection (~records : record_list) (~index : i32) : string =
+    if index < record_count records then
+        match write_parsed records index with
+        | WriteRejected message => message
+        | WriteParsed step =>
+            inl message = read_rejected records index step
+            if message = "" then first_rejection records (index + 1i32) else message
+    else ""
+
+let written_counts (~state : write_tally) : string =
+    inl appends = "files " ++# (decimal_text state.appended_files) ++# "  appended " ++# (decimal_text state.appended)
+    inl head =
+        if state.copies = 0u64 then appends
+        elif state.appends = 0u64 then "files " ++# (decimal_text state.copied) ++# " copied"
+        else appends ++# "  copied " ++# (decimal_text state.copied)
+    inl with_bytes = head ++# "  bytes " ++# (decimal_text state.bytes)
+    if state.copies = 0u64 then with_bytes else with_bytes ++# "  skipped " ++# (decimal_text state.skipped)
+
+let receipt_counts (~state : write_tally) : string =
+    if state.appends = 0u64 && state.copies = 0u64 then "files " ++# (decimal_text state.moved) ++# " moved"
+    else
+        inl written = written_counts state
+        if state.moves = 0u64 then written else written ++# "  moved " ++# (decimal_text state.moved)
+
+let write_program_run (~root : string) (~encoded : string) : i32 =
+    inl started = now_ms ()
+    inl records = records_of encoded
+    inl rejection = first_rejection records 1i32
+    if rejection = "" then
+        inl state = writes_run root records 1i32 (empty_write_tally ())
+        inl report = state.report
+        if report = "" then () else stdout_line report
+        if state.failed then
+            receipt_line Failed (receipt_counts state) started
+            1i32
+        else
+            receipt_line Succeeded (receipt_counts state) started
+            0i32
+    else
+        stdout_line ("program rejected: " ++# rejection)
+        receipt_line Failed "files 0" started
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_do_write_run", ((fun (root, encoded) => write_program_run root encoded) : string * string -> i32))
+    0i32

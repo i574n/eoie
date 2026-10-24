@@ -1,0 +1,18 @@
+[package.metadata.spiral]
+entry = "record.spi"
+output = "record.rs"
+
+[package]
+name = "agile-todo-record"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_todo_record"
+path = "record.rs"
+
+[dependencies]
+agile-todo-scan = { path = "../agile_todo_scan" }
+agile-todo-lines = { path = "../agile_todo_lines" }

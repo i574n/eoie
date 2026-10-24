@@ -1,0 +1,12 @@
+packages:
+    |core-
+    state_receipt_codec_model-
+    spiral-
+    predicate_lex
+    predicate_rules
+modules:
+    host
+    rewriter
+    tests
+    self_tests
+    main

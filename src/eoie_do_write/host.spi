@@ -1,0 +1,90 @@
+open eoie_do_records.records
+
+let record_alone (~records : record_list) (~record : i32) : string =
+    $'std::rc::Rc::<str>::from(format\!("ok{}{}", char::from(30u8), !records.get(!record as usize).map(|fields| \
+        fields.iter().map(|field| field.to_string()).collect::<Vec<_>>().join(&char::from(31u8).to_string())).unwrap_o\
+        r_default()))' : string
+
+let part_at (~text : string) (~index : i32) : string =
+    $'std::rc::Rc::<str>::from(!text.split(char::from(30u8)).nth(!index as usize).unwrap_or(""))' : string
+
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+
+let read_rejection (~encoded : string) : string = $'eoie_do_read::eoie_do_read_rejection(&*!encoded)' : string
+
+let read_report (~root : string) (~encoded : string) : string = $'eoie_do_read::eoie_do_read_report(&*!root, \
+    &*!encoded)' : string
+
+let matching (~root : string) (~target : string) : string =
+    $'eoie_do_read::eoie_do_read_matching(&*!root, &*!target)' : string
+
+let line_count (~text : string) : u64 = $'(!text).lines().count() as u64' : u64
+
+let crlf () : string = $'std::rc::Rc::<str>::from(format\!("{}{}", char::from(13u8), char::from(10u8)))' : string
+
+inl unsigned (~value : i64) : u64 = $'!value as u64' : u64
+
+let line_at (~text : string) (~index : u64) : string = $'std::rc::Rc::<str>::from((!text).lines().nth(!index as \
+    usize).unwrap_or(""))' : string
+
+let clock_filled (~text : string) (~offset : i64) : string =
+    $'{ let seconds = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| \
+        elapsed.as_secs() as i64).unwrap_or(0) + !offset * 60; let (days, day_seconds) = (seconds.div_euclid(86400), \
+        seconds.rem_euclid(86400)); let shifted = days + 719468; let era = shifted.div_euclid(146097); let of_era = \
+        shifted - era * 146097; let year_of_era = (of_era - of_era / 1460 + of_era / 36524 - of_era / 146096) / 365; \
+        let of_year = of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100); let month_index = (5 * \
+        of_year + 2) / 153; let day = of_year - (153 * month_index + 2) / 5 + 1; let month = if month_index < 10 { \
+        month_index + 3 } else { month_index - 9 }; let year = year_of_era + era * 400 + if month <= 2 { 1 } else { 0 \
+        }; let formatted = |format: &str| format.replace("yyyy", &format\!("{year:04}")).replace("MM", \
+        &format\!("{month:02}")).replace("dd", &format\!("{day:02}")).replace("HH", &format\!("{:02}", day_seconds / \
+        3600)).replace("mm", &format\!("{:02}", day_seconds / 60 % 60)).replace("ss", &format\!("{:02}", day_seconds \
+        % 60)); let pattern = regex::Regex::new("[{]clock(?::([^}]*))?[}]").unwrap(); \
+        std::rc::Rc::<str>::from(pattern.replace_all(&*!text, |captures: &regex::Captures| \
+        formatted(captures.get(1).map(|format| format.as_str()).unwrap_or("HH:mm:ss"))).into_owned()) }' : string
+
+let file_text (~root : string) (~path : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::read_to_string(std::path::Path::new(&*!root).join(&*!path)).unwrap_or_default(\
+        ))' : string
+
+let appended_to (~root : string) (~path : string) (~text : string) : string =
+    $'{ use std::io::Write; std::rc::Rc::<str>::from(std::fs::OpenOptions::new().create(true).append(true).open(std::p\
+        ath::Path::new(&*!root).join(&*!path)).and_then(|mut file| \
+        file.write_all((!text).as_bytes())).err().map(|error| format\!("append {}: {error}", \
+        &*!path)).unwrap_or_default()) }' : string
+
+let ended_with_newline (~text : string) : bool = $'(!text).is_empty() || (!text).ends_with(char::from(10u8))' : bool
+
+let uses_crlf (~text : string) : bool =
+    $'(!text).contains(&format\!("{}{}", char::from(13u8), char::from(10u8)))' : bool
+
+let text_bytes (~text : string) : u64 = $'(!text).len() as u64' : u64
+
+let glob_base (~target : string) : string =
+    $'std::rc::Rc::<str>::from((!target).replace(char::from(92u8), "/").split(char::from(47u8)).take_while(|part| \
+        \!part.contains(char::from(42u8)) && \!part.contains(char::from(63u8))).collect::<Vec<_>>().join("/"))' : string
+
+let excluded_by (~patterns : string) (~path : string) : bool =
+    $'(!patterns).lines().any(|pattern| { let name = (!path).rsplit(char::from(47u8)).next().unwrap_or(""); let mut \
+        translated = String::from("^"); for c in pattern.chars() { if c == char::from(42u8) { \
+        translated.push_str("[^/]*") } else if c == char::from(63u8) { translated.push_str("[^/]") } else { \
+        translated.push_str(&regex::escape(&c.to_string())) } } let translated = format\!("{}$", \
+        translated.replace("[^/]*[^/]*", ".*")); regex::Regex::new(&translated).map(|regex| regex.is_match(name) || \
+        regex.is_match(&*!path)).unwrap_or(false) })' : bool
+
+let relative_under (~base : string) (~path : string) : string =
+    $'std::rc::Rc::<str>::from(if (!base).is_empty() { &*!path } else { (!path).strip_prefix(&*!base).map(|rest| \
+        rest.trim_start_matches(char::from(47u8))).unwrap_or(&*!path) })' : string
+
+let moved (~root : string) (~source : string) (~destination : string) : string =
+    $'std::rc::Rc::<str>::from({ let root = std::path::Path::new(&*!root); let from = root.join(&*!source); let to = \
+        root.join(&*!destination); if \!from.exists() { format\!("move {}: no such file or directory", &*!source) } \
+        else if to.exists() { format\!("move {}: {} already exists", &*!source, &*!destination) } else { let made = \
+        to.parent().map(std::fs::create_dir_all).transpose(); match made.and_then(|_| std::fs::rename(&from, \
+        &to).or_else(|_| if from.is_file() { std::fs::copy(&from, &to).and_then(|_| std::fs::remove_file(&from)) } \
+        else { Err(std::io::Error::other("a folder cannot move across volumes")) })) { Ok(_) => String::new(), \
+        Err(error) => format\!("move {} -> {}: {error}", &*!source, &*!destination) } } }.as_str())' : string
+
+let copied_bytes (~root : string) (~source : string) (~destination : string) : i64 =
+    $'{ let root = std::path::Path::new(&*!root); let target = root.join(&*!destination); \
+        target.parent().map(std::fs::create_dir_all).unwrap_or(Ok(())).and_then(|_| \
+        std::fs::copy(root.join(&*!source), &target)).map(|bytes| bytes as i64).unwrap_or(-1) }' : i64

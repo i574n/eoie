@@ -1,0 +1,68 @@
+open sm'_operators
+open eoie_jobs.host
+open eoie_jobs.model
+open eoie_jobs.jobs
+open eoie_machine_windows.window_model
+open eoie_machine_windows.windows
+
+let command_after_separator () : string =
+    $'std::rc::Rc::<str>::from(std::env::args().skip_while(|arg| arg \!= "--").skip(1).collect::<Vec<_>>().join(&char::from(31u8).to_string()).as_str())' : string
+
+let own_option (~flag : string) : string =
+    $'std::rc::Rc::<str>::from(std::env::args().take_while(|arg| arg \!= "--").skip_while(|arg| arg \!= &*!flag).nth(1).unwrap_or_default().as_str())' : string
+
+let command_head (~argv : string) : string = $'std::rc::Rc::<str>::from((!argv).split(char::from(31u8)).next().unwrap_or(""))' : string
+
+let child_status (~argv : string) (~held : string) : i32 =
+    $'{ let mut parts = (!argv).split(char::from(31u8)); let program = parts.next().unwrap_or_default().to_owned(); match std::process::Command::new(&program).args(parts).env("EOIE_WINDOW_HELD", &*!held).status() { Ok(status) => status.code().unwrap_or(1), Err(error) => { eprintln\!("eoie error: window run: cannot start {program}: {error}"); 127 } } }' : i32
+
+let exit_text (code : i32) : string = $'std::rc::Rc::<str>::from((!code).to_string().as_str())' : string
+
+let window_ran () : i32 =
+    match class_of (argument 3i32) with
+    | ClassUnknown => refused ("run: unknown class '" ++# (argument 3i32) ++# "'; " ++# (window_usage ()))
+    | ClassKnown wanted =>
+        inl minutes = decimal_of (argument 4i32)
+        inl argv = command_after_separator ()
+        if minutes = 0u64 then refused ("run: minutes must be a whole number above 0, received '" ++# (argument 4i32) ++# "'; " ++# (window_usage ()))
+        elif argv = "" then refused "run: give the command after --, e.g. window run compile 5 --wait 10 -- pwsh -File build.ps1"
+        else
+            inl since = now_ms ()
+            inl id = "win-" ++# (number_text since) ++# "-" ++# (number_text (process_number ())) ++# ("-" ++# (class_word wanted) ++# "-run")
+            inl label = if own_option "--label" = "" then command_head argv else own_option "--label"
+            inl granted = requested { wanted = wanted; minutes = minutes; label = label; id = id; since = since; deadline = since + decimal_of (own_option "--wait") * 60000u64 } false
+            if granted <> 0i32 then granted
+            else
+                inl code = child_status argv ((class_word wanted) ++# ":" ++# id)
+                inl _ = file_removed (window_file (windows_root ()) id)
+                stdout_line ("eoie window run ok id=" ++# id ++# " exit=" ++# (exit_text code) ++# " released=yes")
+                code
+
+let heavy_queue_dir () : string =
+    $'std::rc::Rc::<str>::from(std::env::var_os("EOIE_HEAVY_QUEUE").or_else(|| std::env::var_os("LOCALAPPDATA").or_else(|| std::env::var_os("HOME")).map(|base| std::path::PathBuf::from(base).join("spiral-bin").join("heavy-queue").into_os_string())).map(|path| path.to_string_lossy().into_owned()).unwrap_or_default().as_str())' : string
+
+let holder_paths (~queue : string) : string =
+    $'std::rc::Rc::<str>::from({ let mut paths = std::fs::read_dir(&*!queue).into_iter().flatten().flatten().map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|ext| ext == "h")).map(|path| path.to_string_lossy().into_owned()).collect::<Vec<_>>(); paths.sort(); paths.join("\n") }.as_str())' : string
+
+let file_minutes (~path : string) : u64 = $'std::fs::metadata(&*!path).and_then(|meta| meta.modified()).ok().and_then(|time| time.elapsed().ok()).map(|age| age.as_secs() / 60).unwrap_or(0)' : u64
+
+let field_rest (~row : string) (index : i32) : string =
+    $'std::rc::Rc::<str>::from((!row).trim().splitn((!index as usize) + 1, char::from(9u8)).nth(!index as usize).unwrap_or("").replace(char::from(9u8), " ").as_str())' : string
+
+let rec holder_lines (~paths : string) (~shown : string) : string =
+    if paths = "" then shown
+    else
+        inl path = first_row paths
+        inl row = text_or_empty path
+        if process_alive (decimal_u64 (tab_field row 1i32)) = false then
+            inl _ = file_removed path
+            holder_lines (other_rows paths) shown
+        else
+            inl line = "heavy-slot-" ++# (tab_field row 0i32) ++# "  pid " ++# (tab_field row 1i32) ++# ("  held " ++# (number_text (file_minutes path)) ++# "m  " ++# (field_rest row 3i32))
+            holder_lines (other_rows paths) (if shown = "" then line else shown ++# "\n" ++# line)
+
+let heavy_holders_text () : string = holder_lines (holder_paths (heavy_queue_dir ())) ""
+inl main () : i32 =
+    !!!!Export("eoie_window_run_run", ((fun () => window_ran ()) : () -> i32))
+    !!!!Export("eoie_heavy_holders_text", ((fun () => heavy_holders_text ()) : () -> string))
+    0i32

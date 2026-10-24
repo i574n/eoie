@@ -1,0 +1,5 @@
+packages:
+    |core-
+    patch_domain
+modules:
+    grammar

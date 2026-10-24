@@ -1,0 +1,18 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+///> rust
+test ps_lists_cores_and_mine_scopes_to_the_calling_session =
+    inl root = fixture_root_create "ps cores"
+    inl every = succeeded (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("ps", Arg ("eoie", NoArgs))))
+    shows every "mem_mb  cores  command"
+    shows every "ok  processes "
+    inl mine = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("ps", Arg ("--mine", NoArgs)))
+    if mine.code = 0i32 then shows mine.stdout "  session "
+    else
+        expect (mine.code = 2i32) (run_text mine)
+        shows mine.stdout "ps --mine: no claude or codex process above this eoie"
+    inl bad = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("ps", Arg ("(", NoArgs)))
+    expect (bad.code = 2i32) (run_text bad)
+    shows bad.stdout "ps: invalid pattern"
+    fixture_root_remove root

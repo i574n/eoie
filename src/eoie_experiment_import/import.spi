@@ -1,0 +1,55 @@
+open sm'_operators
+open eoie_experiments.experiment_model
+open eoie_experiments.ledger_host
+
+inl dated (~text : string) : bool = $'{ let bytes = (!text).as_bytes(); bytes.len() >= 10 && bytes[..4].iter().all(u8::is_ascii_digit) && bytes[4] == 45u8 && bytes[5..7].iter().all(u8::is_ascii_digit) && bytes[7] == 45u8 && bytes[8..10].iter().all(u8::is_ascii_digit) }' : bool
+
+let imported () : i32 =
+    inl ledger = argument 3i32
+    inl id = argument 4i32
+    inl claimed = option_value "--registered-at"
+    inl evidence = option_value "--evidence"
+    if identifier_ok id = false then failed ("import: the ID must be letters, digits, '-' or '_', received '" ++# id ++# "'")
+    elif dated claimed = false then failed "import: --registered-at needs the source's registration date or time (YYYY-MM-DD...), as the source states it"
+    elif evidence = "" then failed "import: --evidence names what attests the registration (a git commit or file@line)"
+    else
+        match test_of (option_value "--test") with
+        | TestUnknown => failed ("import: --test must be " ++# (test_words ()) ++# ", received '" ++# (option_value "--test") ++# "'")
+        | TestKnown kind =>
+            match plan_checked kind (option_value "--arms") (option_value "--group") (decimal_i32 (option_value "--runs")) (option_value "--prediction") (option_value "--metric") (option_value "--decision") with
+            | PlanRejected reason => failed ("import: " ++# reason)
+            | PlanAccepted =>
+                inl now = agile_note_model.model.utc_stamp (now_ms ())
+                inl confidence = if option_value "--confidence" = "" then "0.95" else option_value "--confidence"
+                inl provenance = (field_line "id" id) ++# (field_line "registered" claimed) ++# (field_line "imported" "yes") ++# (field_line "imported_at" now) ++# (field_line "evidence" evidence)
+                inl plan = (field_line "question" (option_value "--question")) ++# (field_line "test" (test_word kind)) ++# (field_line "metric" (option_value "--metric")) ++# (field_line "group" (option_value "--group")) ++# (field_line "arms" (option_value "--arms"))
+                inl rest = (field_line "runs" (option_value "--runs")) ++# (field_line "prediction" (option_value "--prediction")) ++# (field_line "confidence" confidence) ++# (field_line "decision" (option_value "--decision")) ++# (field_line "time" (option_value "--time"))
+                inl problem = text_created (record_path ledger id "registration") (provenance ++# plan ++# rest)
+                if problem <> "" then failed ("import: " ++# id ++# " is already in the ledger or the ledger is unwritable (" ++# problem ++# ")")
+                else
+                    stdout_line ("eoie experiment import ok id=" ++# id ++# " imported=yes registered=" ++# claimed ++# (" evidence=" ++# evidence ++# " imported_at=" ++# now))
+                    0i32
+
+let verdict_recorded () : i32 =
+    inl ledger = argument 3i32
+    inl id = argument 4i32
+    inl plan = plan_text ledger id
+    inl verdict = option_value "--verdict"
+    inl claimed = option_value "--at"
+    if plan = "" then failed ("record-verdict: no registration for " ++# id ++# " in " ++# ledger)
+    elif field_of plan "imported" <> "yes" then failed "record-verdict: only imported registrations take a recorded verdict; a live registration is analyzed (experiment analyze)"
+    elif verdict = "" then failed "record-verdict: --verdict is the historical result as the source states it"
+    elif dated claimed = false then failed "record-verdict: --at needs the source's verdict date or time (YYYY-MM-DD...)"
+    else
+        inl now = agile_note_model.model.utc_stamp (now_ms ())
+        inl evidence = if option_value "--evidence" = "" then field_of plan "evidence" else option_value "--evidence"
+        inl problem = text_created (record_path ledger id "verdict") ((field_line "verdict" verdict) ++# (field_line "at" claimed) ++# (field_line "imported" "yes") ++# (field_line "imported_at" now) ++# (field_line "evidence" evidence))
+        if problem <> "" then failed ("record-verdict: " ++# id ++# " already has a verdict (" ++# problem ++# ")")
+        else
+            stdout_line ("eoie experiment record-verdict ok id=" ++# id ++# " at=" ++# claimed ++# " imported=yes")
+            0i32
+
+inl main () : i32 =
+    !!!!Export("eoie_experiment_import_run", ((fun () => imported ()) : () -> i32))
+    !!!!Export("eoie_experiment_verdict_run", ((fun () => verdict_recorded ()) : () -> i32))
+    0i32

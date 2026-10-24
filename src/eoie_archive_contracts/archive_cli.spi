@@ -1,0 +1,82 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl archive_fixture () : fixture_root =
+    inl root = fixture_root_create "archive publication ü"
+    fixture_write root "source/value.txt" "original payload"
+    root
+
+inl bundle (args : cli_args) : cli_run = eoie_run (temp_directory ()) NoArgs NoArgs (Arg ("bundle", args))
+
+inl bundle_create (root : fixture_root) (~command : string) (~output : string) (~limit : string) : cli_run =
+    bundle (Arg (command, Arg (fixture_path root "source", Arg (output, Arg (limit, NoArgs)))))
+
+inl no_stage (root : fixture_root) : () =
+    inl entries = fixture_entries root ""
+    expect (entries = "source" || entries = "archive.zip|source") (cat "orphaned output: " entries)
+
+///> rust
+test rejected_archive_preserves_previous_and_success_replaces_it =
+    inl root = archive_fixture ()
+    inl archive = fixture_path root "archive.zip"
+    inl _ = succeeded (bundle_create root "create-flat" archive "100000")
+    inl original = fixture_digest root "archive.zip"
+    fixture_write root "source/value.txt" "updated payload"
+    expect ((bundle_create root "create-flat" archive "1").code <> 0i32) "an over-limit archive was accepted"
+    same (fixture_digest root "archive.zip") original
+    no_stage root
+    inl _ = succeeded (bundle_create root "create-flat" archive "100000")
+    expect (fixture_digest root "archive.zip" <> original) "the archive was not replaced"
+    no_stage root
+    fixture_delete root "archive.zip"
+    expect ((bundle_create root "create-flat" archive "1").code <> 0i32) "an over-limit archive was accepted"
+    expect (path_exists archive = false) "a rejected archive was published"
+    no_stage root
+    fixture_root_remove root
+
+inl rejects_inside (~command : string) (~limit : string) : () =
+    inl root = archive_fixture ()
+    failed_with (bundle_create root command (fixture_path root "source/inside.zip") limit) "outside bundle root"
+    expect (path_exists (fixture_path root "source/inside.zip") = false) "inside.zip was written"
+    failed_with (bundle_create root command (fixture_path root "source/new folder/inside.zip") limit) "outside bundle root"
+    expect (path_exists (fixture_path root "source/new folder/inside.zip") = false) "new folder/inside.zip was written"
+    expect (path_exists (fixture_path root "source/new folder") = false) "new folder was created"
+    fixture_write root "source/existing.zip" "preserve existing file"
+    expect ((bundle_create root command (fixture_path root "source/existing.zip") limit).code <> 0i32) (cat command " accepted an output inside the source")
+    same (fixture_read root "source/existing.zip") "preserve existing file"
+    fixture_root_remove root
+
+///> rust
+test archive_output_inside_source_is_rejected_before_mutation =
+    rejects_inside "create-flat" "100000"
+    rejects_inside "create" "generic"
+
+inl verified_only_as_generic (root : fixture_root) (~profile : string) (~accepted : bool) : () =
+    inl scratch = fixture_path root "scratch parent"
+    inl run = eoie_run (temp_directory ()) (Arg (cat "TMP=" scratch, Arg (cat "TEMP=" scratch, Arg (cat "TMPDIR=" scratch, NoArgs)))) NoArgs (Arg ("bundle", Arg ("verify", Arg (fixture_path root "archive.zip", Arg (profile, NoArgs)))))
+    expect ((run.code = 0i32) = accepted) (cat (cat "profile=" profile) (run_text run))
+    same (fixture_entries root "scratch parent") ""
+
+inl native_profiles (~first : string) (~second : string) : () =
+    inl root = archive_fixture ()
+    fixture_executable root (cat "source/" first) "placeholder binary"
+    if second <> "" then fixture_executable root (cat "source/" second) "placeholder binary" else ()
+    fixture_write root "source/state/package.spiproj" "placeholder"
+    fixture_write root "source/state/core.spi" "placeholder"
+    fixture_write root "source/src/Cargo.toml" "placeholder"
+    fixture_write root "source/evidence/coverage/current.lcov" "placeholder"
+    inl source = fixture_path root "source"
+    expect ((bundle (Arg ("check", Arg (source, Arg ("auto", NoArgs))))).code <> 0i32) (cat "native layout silently downgraded to generic: " first)
+    inl _ = succeeded (bundle (Arg ("check", Arg (source, Arg ("generic", NoArgs)))))
+    inl _ = succeeded (bundle_create root "create-flat" (fixture_path root "archive.zip") "100000")
+    fixture_mkdir root "scratch parent"
+    verified_only_as_generic root "eoie" false
+    verified_only_as_generic root "auto" false
+    verified_only_as_generic root "generic" true
+    fixture_root_remove root
+
+///> rust
+test native_profiles_require_release_validation_and_cleanup =
+    native_profiles "eoie" ""
+    native_profiles "eoie.exe" ""
+    native_profiles "eoie" "eoie.exe"

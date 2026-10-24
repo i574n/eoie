@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "file_removal.spi"
+output = "file_removal.rs"
+
+[package]
+name = "proxy-file-removal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "proxy_file_removal"
+path = "file_removal.rs"
+
+[dependencies]
+eoie-rust-std-fs = { path = "../rust_std_fs" }

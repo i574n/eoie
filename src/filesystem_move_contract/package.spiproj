@@ -1,0 +1,5 @@
+packages:
+    |core-
+    rust_std_fs
+modules:
+    model

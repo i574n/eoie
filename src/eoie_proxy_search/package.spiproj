@@ -1,0 +1,5 @@
+packages:
+    |core-
+    proxy_search_entry
+modules:
+    search

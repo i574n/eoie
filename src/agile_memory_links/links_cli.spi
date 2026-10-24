@@ -1,0 +1,45 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl task_row (~id : string) (~status : string) : string =
+    $'std::rc::Rc::<str>::from(format\!("inl task_{0} () = Task ({1}{0}{1}, {1}t{1}, Story, P1, D1, 0u32, {2}, {1}{1}, {1}{1}, {1}current{1}, {1}current{1})\n", &*!id, char::from(34u8), &*!status).as_str())' : string
+
+inl memory_text (~name : string) (~kind : string) (~body : string) : string =
+    cat (cat (cat (cat (cat "---\nname: " name) "\ndescription: d\nmetadata:\n  type: ") kind) "\n---\n\n") body
+
+inl links_fixture () : fixture_root =
+    inl root = fixture_root_create "agile links"
+    fixture_write root "backlog/state/agile.spi" (cat (cat (task_row "EOIE-OPEN" "Active") (task_row "EOIE-DONE" "Done")) "inl note_of_eoie_open_1 () = Note (\"EOIE-OPEN\", 1u32, \"2026-10-21T00:00Z\", \"eoie-lane\", \"see memory gone-old-rule, memory pointer and the memory re-measure next\")\n")
+    fixture_write root "memory/rule.md" (memory_text "rule" "feedback" "Follow EOIE-OPEN and EOIE-DONE, see [[pointer]] and [[later-note]].\n")
+    fixture_write root "memory/pointer.md" (memory_text "pointer" "reference" "History: EOIE-DONE, and UTF-8 or Spiral-s-EOIE-Library are not ids.\n")
+    fixture_write root "memory/MEMORY.md" "- [Rule](rule.md)\n"
+    root
+
+inl links_run (root : fixture_root) (extra : cli_args) : cli_run =
+    eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("agile", Arg ("links", Arg (fixture_path root "backlog", Arg ("--memory", Arg (fixture_path root "memory", extra))))))
+
+///> rust
+test links_report_done_items_in_rules_and_unwritten_links =
+    inl root = links_fixture ()
+    inl run = links_run root NoArgs
+    expect (run.code = 0i32) (run_text run)
+    shows run.stdout "done  rule  EOIE-DONE  the item is Done; check that the rule still holds"
+    shows run.stdout "unwritten-link  rule  [[later-note]]  no memory with this name yet"
+    hides run.stdout "pointer  EOIE-DONE"
+    hides run.stdout "UTF-8"
+    hides run.stdout "EOIE-L"
+    shows run.stdout "unknown-memory  EOIE-OPEN  gone-old-rule  a backlog note cites this memory, which does not exist"
+    hides run.stdout "re-measure"
+    shows run.stdout "eoie agile links ok memories=2 cited=3 dangling=0 done=1 unwritten_links=1 unknown_memories=1"
+    fixture_root_remove root
+
+///> rust
+test a_dangling_id_fails_the_check =
+    inl root = links_fixture ()
+    fixture_write root "memory/lost.md" (memory_text "lost" "project" "Tracks EOIE-GONE.\n")
+    inl run = links_run root (Arg ("--json", NoArgs))
+    expect (run.code = 1i32) (run_text run)
+    shows run.stdout "{\"kind\":\"dangling\",\"memory\":\"lost\",\"target\":\"EOIE-GONE\"}"
+    shows run.stdout "\"dangling\":1}"
+    rejected_with (eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("agile", Arg ("links", Arg (fixture_path root "backlog", NoArgs))))) 2i32 "--memory <dir> must name a memory directory"
+    fixture_root_remove root

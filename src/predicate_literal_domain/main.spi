@@ -1,0 +1,4 @@
+inl main () : i32 =
+    !!!!Export("eoie_predicate_literal", ((fun (text,cursor) => model.literal text cursor) : string * i32 -> string * i32 * bool))
+    !!!!Export("eoie_predicate_encode", ((fun text => model.encode text) : string -> string))
+    0i32

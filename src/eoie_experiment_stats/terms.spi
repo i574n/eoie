@@ -1,0 +1,70 @@
+open sm'_operators
+open experiment_stats
+open eoie_experiments.experiment_model
+open eoie_experiments.ledger_host
+
+type tally =
+    {
+        rows : i32
+        count : f64
+        sum : f64
+        squares : f64
+        successes : i32
+    }
+
+let sample_of (acc : tally) : sample =
+    inl mean = if acc.count > 0.0f64 then acc.sum / acc.count else 0.0f64
+    inl variance = if acc.count > 1.0f64 then (acc.squares - acc.sum * acc.sum / acc.count) / (acc.count - 1.0f64) else 0.0f64
+    { count = acc.count; mean = mean; variance = variance }
+
+union band_verdict =
+    | BandHolds
+    | BandFails
+
+inl band_verdict_of (successes : i32) (low : i32) (high : i32) : band_verdict = if successes >= low && successes <= high then BandHolds else BandFails
+
+inl verdict_word (verdict : band_verdict) : string =
+    match verdict with
+    | BandHolds => "holds"
+    | BandFails => "fails"
+
+let t_terms (result : t_test) (alpha : f64) : string =
+    inl head = "t=" ++# (number_shown result.t) ++# " df=" ++# (number_shown result.df) ++# " p="
+    inl verdict = if result.p < alpha then " reject_h0=yes" else " reject_h0=no"
+    head ++# (number_shown result.p) ++# (" ci=[" ++# (number_shown result.low) ++# "," ++# (number_shown result.high) ++# "]") ++# verdict
+
+let test_terms (kind : test_kind) (left : tally) (right : tally) (prediction : f64) (confidence : f64) : string =
+    inl alpha = 1.0f64 - confidence
+    match kind with
+    | WelchTwoSided => "difference=" ++# (number_shown ((sample_of left).mean - (sample_of right).mean)) ++# " " ++# (t_terms (welch (sample_of left) (sample_of right) confidence) alpha)
+    | OneSampleT => "mean=" ++# (number_shown (sample_of left).mean) ++# " prediction=" ++# (number_shown prediction) ++# (" " ++# (t_terms (one_sample (sample_of left) prediction confidence) alpha))
+    | BinomialAtMost =>
+        inl p = binomial_at_most left.successes left.rows prediction
+        "successes=" ++# (i32_text left.successes) ++# "/" ++# (i32_text left.rows) ++# (" p_at_most=" ++# (number_shown p) ++# (if p < alpha then " reject_h0=yes" else " reject_h0=no"))
+    | WilsonBand =>
+        inl low, high = wilson left.successes left.rows (normal_quantile (1.0f64 - alpha / 2.0f64))
+        inl inside = prediction >= low && prediction <= high
+        "successes=" ++# (i32_text left.successes) ++# "/" ++# (i32_text left.rows) ++# (" band=[" ++# (number_shown low) ++# "," ++# (number_shown high) ++# (if inside then "] prediction_inside=yes" else "] prediction_inside=no"))
+    | MedianBand => ""
+    | BinomialBand =>
+        inl low, high = binomial_band left.rows prediction confidence
+        "successes=" ++# (i32_text left.successes) ++# "/" ++# (i32_text left.rows) ++# (" band=[" ++# (i32_text low) ++# "," ++# (i32_text high) ++# ("] verdict=" ++# (verdict_word (band_verdict_of left.successes low high))))
+
+let terms_text (~word : string) (left : tally) (right : tally) (prediction : f64) (confidence : f64) : string =
+    match test_of word with
+    | TestKnown kind => test_terms kind left right prediction confidence
+    | TestUnknown => ""
+
+let median_of (~values : string) : f64 =
+    $'{ let mut numbers = (!values).split(char::from(44u8)).filter_map(|cell| cell.trim().parse::<f64>().ok()).filter(|value| value.is_finite()).collect::<Vec<_>>(); numbers.sort_by(|a, b| a.total_cmp(b)); let count = numbers.len(); if count == 0 { f64::NAN } else if count % 2 == 1 { numbers[count / 2] } else { (numbers[count / 2 - 1] + numbers[count / 2]) / 2.0 } }' : f64
+
+let median_terms (~values : string) (low : f64) (high : f64) : string =
+    inl median = median_of values
+    inl inside = median >= low && median <= high
+    inl band = " band=[" ++# number_shown low ++# "," ++# number_shown high ++# "]"
+    "median=" ++# number_shown median ++# band ++# (if inside then " median_inside=yes" else " median_inside=no")
+
+inl main () : i32 =
+    !!!!Export("eoie_median_terms", ((fun (values, low, high) => median_terms values low high) : string * f64 * f64 -> string))
+    !!!!Export("eoie_experiment_terms", ((fun (word, left_rows, left_count, left_sum, left_squares, left_successes, right_rows, right_count, right_sum, right_squares, right_successes, prediction, confidence) => terms_text word { rows = left_rows; count = left_count; sum = left_sum; squares = left_squares; successes = left_successes } { rows = right_rows; count = right_count; sum = right_sum; squares = right_squares; successes = right_successes } prediction confidence) : string * i32 * f64 * f64 * f64 * i32 * i32 * f64 * f64 * f64 * i32 * f64 * f64 -> string))
+    0i32

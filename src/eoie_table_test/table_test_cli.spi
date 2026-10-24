@@ -1,0 +1,39 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl tested (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("table", Arg ("test", args)))
+
+///> rust
+test a_post_hoc_table_test_prints_the_terms_and_writes_nothing =
+    inl root = fixture_root_create "table test"
+    fixture_write root "runs.tsv" "variant\tretries\na\t10\na\t12\na\t11\nb\t20\nb\t22\nb\t21\n"
+    inl run = tested root (Arg (fixture_path root "runs.tsv", Arg ("--test", Arg ("welch", Arg ("--metric", Arg ("retries", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("a,b", NoArgs))))))))))
+    expect (run.code = 0i32) (run_text run)
+    shows run.stdout "eoie table test ok test=welch n=a 3, b 3 "
+    shows run.stdout "difference=-10 t=-12.247449 df=4 p="
+    shows run.stdout "reject_h0=yes post_hoc=yes"
+    rejected_with (tested root (Arg (fixture_path root "runs.tsv", Arg ("--test", Arg ("one-sample", Arg ("--metric", Arg ("retries", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("a", NoArgs))))))))))) 2i32 "one-sample needs --prediction"
+    rejected_with (tested root (Arg (fixture_path root "runs.tsv", Arg ("--test", Arg ("anova", NoArgs))))) 2i32 "needs --test with a known test"
+    fixture_root_remove root
+
+///> rust
+test where_comparisons_filter_rows_and_n_names_the_numbers_used =
+    inl root = fixture_root_create "table test where"
+    fixture_write root "runs.tsv" "variant\tretries\terrors\tpassed\na\t10\t0\t5\na\t12\t\t\na\t11\t3\t6\nb\t20\t0\t7\nb\t22\t1\t8\nb\t21\t0\t9\n"
+    inl run = tested root (Arg (fixture_path root "runs.tsv", Arg ("--test", Arg ("welch", Arg ("--metric", Arg ("retries", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("a,b", Arg ("--where", Arg ("errors<=0", NoArgs))))))))))))
+    expect (run.code = 0i32) (run_text run)
+    shows run.stdout "eoie table test ok test=welch n=a 2, b 2 "
+    inl skipped = tested root (Arg (fixture_path root "runs.tsv", Arg ("--test", Arg ("welch", Arg ("--metric", Arg ("passed", Arg ("--group", Arg ("variant", Arg ("--arms", Arg ("a,b", NoArgs))))))))))
+    expect (skipped.code = 0i32) (run_text skipped)
+    shows skipped.stdout "n=a 3 (2 numeric), b 3 "
+    fixture_root_remove root
+
+///> rust
+test a_one_population_test_without_arms_measures_the_whole_table =
+    inl root = fixture_root_create "table test whole"
+    fixture_write root "jobs.tsv" "misses\tretries\n10\t3\n12\t4\n11\t5\n13\t4\n"
+    inl run = tested root (Arg (fixture_path root "jobs.tsv", Arg ("--test", Arg ("one-sample", Arg ("--metric", Arg ("misses", Arg ("--prediction", Arg ("10", NoArgs))))))))
+    expect (run.code = 0i32) (run_text run)
+    shows run.stdout "eoie table test ok test=one-sample n=all 4 "
+    rejected_with (tested root (Arg (fixture_path root "jobs.tsv", Arg ("--test", Arg ("one-sample", Arg ("--metric", Arg ("misses", Arg ("--group", Arg ("retries", Arg ("--prediction", Arg ("10", NoArgs))))))))))) 2i32 "with --group needs --arms naming the group value"
+    fixture_root_remove root

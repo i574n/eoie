@@ -1,0 +1,40 @@
+open eoie_do_records.records
+
+let words_between (~records : record_list) (~record : i32) (~from : i32) (~until : i32) : string =
+    $'std::rc::Rc::<str>::from(!records.get(!record as usize).map(|fields| fields.iter().take(if !until < 0 { fields.len() } else { !until as usize }).skip(!from as usize).filter(|raw| raw.len() > 1).map(|raw| if raw.starts_with(char::from(113u8)) { format\!("{}{}{}", char::from(34u8), &raw[1..], char::from(34u8)) } else { raw[1..].to_owned() }).collect::<Vec<_>>().join(" ")).unwrap_or_default())' : string
+
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+
+let part_at (~text : string) (~index : i32) : string = $'std::rc::Rc::<str>::from(!text.split(char::from(30u8)).nth(!index as usize).unwrap_or(""))' : string
+
+let duration_ms (~text : string) : u64 =
+    $'{ let text = (&*!text).trim(); let (digits, scale) = if let Some(value) = text.strip_suffix("ms") { (value, 1) } else if let Some(value) = text.strip_suffix(char::from(115u8)) { (value, 1000) } else if let Some(value) = text.strip_suffix(char::from(109u8)) { (value, 60000) } else { (text, 1000) }; digits.trim().parse::<f64>().map(|value| (value * scale as f64) as u64).unwrap_or(0) }' : u64
+
+let duration_text (~ms : u64) : string =
+    $'std::rc::Rc::<str>::from({ let ms = !ms; if ms % 1000 == 0 && ms > 0 { format\!("{}s", ms / 1000) } else if ms >= 1000 { format\!("{:.1}s", ms as f64 / 1000.0) } else { format\!("{ms}ms") } })' : string
+
+let launch_argv_via (~cwd : string) (~command : string) : string = $'eoie_command_line::eoie_launch_argv(&*!cwd, &*!command)' : string
+
+let current_directory_of (~root : string) : string =
+    $'std::rc::Rc::<str>::from(std::fs::canonicalize(&*!root).map(|path| path.to_string_lossy().trim_start_matches(&format\!("{0}{0}?{0}", char::from(92u8))).to_owned()).unwrap_or_else(|_| (&*!root).to_owned()))' : string
+
+let launched (~label : string) (~timeout : u64) (~argv : string) (~cwd : string) : string =
+    $'eoie_job_control::eoie_job_launched(&*!label, !timeout, &*!argv, &*!cwd)' : string
+
+let settled (~id : string) (~wait_ms : u64) : string = $'eoie_job_control::eoie_job_settled(&*!id, !wait_ms)' : string
+
+let labeled (~label : string) : string = $'eoie_job_control::eoie_job_labeled(&*!label)' : string
+
+let stopped_text (~id : string) : string = $'eoie_job_control::eoie_job_stop_text(&*!id)' : string
+
+let output_tail (~id : string) (~count : u64) : string = $'eoie_job_control::eoie_job_output(&*!id, !count)' : string
+
+let summary_field (~summary : string) (~key : string) : string =
+    $'std::rc::Rc::<str>::from({ let marker = format\!(" {}=", &*!key); let summary = &*!summary; match summary.find(&marker) { Some(at) => { let rest = &summary[at + marker.len()..]; if let Some(quoted) = rest.strip_prefix(char::from(34u8)) { quoted.split(char::from(34u8)).next().unwrap_or("").to_owned() } else { rest.split(char::from(32u8)).next().unwrap_or("").to_owned() } } None => String::new() } })' : string
+
+let started_pid (~id : string) : string =
+    $'{ let mut pid = String::new(); for _ in 0..40 { let summary = eoie_job_control::eoie_job_settled(&*!id, 0); if let Some(at) = summary.find(" pid=") { pid = summary[at + 5..].split(char::from(32u8)).next().unwrap_or("").to_owned(); } if \!pid.is_empty() { break; } std::thread::sleep(std::time::Duration::from_millis(50)); } std::rc::Rc::<str>::from(pid) }' : string
+
+let line_count (~text : string) : u64 = $'(!text).lines().filter(|line| \!line.is_empty()).count() as u64' : u64
+
+let name_listed (~names : string) (~name : string) : bool = $'(!names).lines().any(|item| item == &*!name)' : bool

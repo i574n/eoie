@@ -1,0 +1,38 @@
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl own_pid () : u64 = $'std::process::id() as u64' : u64
+
+let ancestor_pids () : string =
+    $'{ let system = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::nothing().with_processes(sysinfo::Proce\
+        ssRefreshKind::nothing())); let mut chain: Vec<u32> = Vec::new(); let mut current = \
+        sysinfo::Pid::from_u32(std::process::id()); while let Some(parent) = \
+        system.process(current).and_then(|process| process.parent()) { if chain.contains(&parent.as_u32()) { break; } \
+        chain.push(parent.as_u32()); current = parent; } std::rc::Rc::<str>::from(chain.iter().map(|pid| \
+        pid.to_string()).collect::<Vec<_>>().join(",")) }' : string
+
+nominal stop_tally = $'(u64, u64)'
+
+let process_stopped (~pid : u64) (~tree : bool) : stop_tally =
+    $'{ let system = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::nothing().with_processes(sysinfo::Proce\
+        ssRefreshKind::nothing())); let root = sysinfo::Pid::from_u32(!pid as u32); match system.process(root) { None \
+        => (0u64, 0u64), Some(_) => { let mut order = vec\![root]; if !tree { let mut index = 0; while index < \
+        order.len() { let parent = order[index]; for (pid, process) in system.processes() { if process.parent() == \
+        Some(parent) && \!order.contains(pid) { order.push(*pid); } } index += 1; } } for pid in order.iter().rev() { \
+        \#[cfg(windows)] { unsafe extern "system" { fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut \
+        std::ffi::c_void; fn TerminateProcess(process: *mut std::ffi::c_void, code: u32) -> i32; fn \
+        CloseHandle(handle: *mut std::ffi::c_void) -> i32; } unsafe { let handle = OpenProcess(1, 0, pid.as_u32()); \
+        if \!handle.is_null() { TerminateProcess(handle, 1); CloseHandle(handle); } } } \#[cfg(not(windows))] { if \
+        let Some(process) = system.process(*pid) { process.kill(); } } } \
+        std::thread::sleep(std::time::Duration::from_millis(200)); let after = \
+        sysinfo::System::new_with_specifics(sysinfo::RefreshKind::nothing().with_processes(sysinfo::ProcessRefreshKind\
+        ::nothing())); let survivors = order.iter().filter(|pid| { \#[cfg(windows)] { let _ = &after; unsafe extern \
+        "system" { fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut std::ffi::c_void; fn \
+        WaitForSingleObject(handle: *mut std::ffi::c_void, ms: u32) -> u32; fn CloseHandle(handle: *mut \
+        std::ffi::c_void) -> i32; } unsafe { let handle = OpenProcess(0x0010_0000, 0, pid.as_u32()); if \
+        handle.is_null() { false } else { let running = WaitForSingleObject(handle, 2000) == 258; \
+        CloseHandle(handle); running } } } \#[cfg(not(windows))] { after.process(**pid).is_some() } }).count(); \
+        ((order.len() - survivors) as u64, order.len() as u64) } } }' : stop_tally
+
+inl tally_stopped (~tally : stop_tally) : u64 = $'!tally.0' : u64
+inl tally_total (~tally : stop_tally) : u64 = $'!tally.1' : u64

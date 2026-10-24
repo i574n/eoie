@@ -1,0 +1,263 @@
+///- --package .
+test window_model static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+union window_class =
+    | LiveGui
+    | TestSuite
+    | HeavyBuild
+    | Compile
+    | CompilerInstall
+    | TreeRead
+    | Bench
+    | CompileHold
+
+let class_word (class : window_class) : string =
+    match class with
+    | LiveGui => "live-gui"
+    | TestSuite => "test-suite"
+    | HeavyBuild => "heavy-build"
+    | Compile => "compile"
+    | CompilerInstall => "compiler-install"
+    | TreeRead => "tree-read"
+    | Bench => "bench"
+    | CompileHold => "compile-hold"
+
+union class_parse =
+    | ClassKnown : window_class
+    | ClassUnknown
+
+let class_of (~text : string) : class_parse =
+    union_reflection.cases.union_case_where (fun (class : window_class) => text = class_word class) (fun class => ClassKnown class) ClassUnknown
+
+inl class_words () : string = union_reflection.cases.union_cases_joined (fun (class : window_class) => class_word class) "|"
+
+let exclusive (class : window_class) : bool =
+    match class with
+    | LiveGui => true
+    | CompilerInstall => true
+    | _ => false
+
+let lease_only (class : window_class) : bool =
+    match class with
+    | TreeRead => true
+    | _ => false
+
+let quiet (class : window_class) : bool =
+    match class with
+    | Bench => true
+    | _ => false
+
+let loud (class : window_class) : bool =
+    match class with
+    | Bench => true
+    | HeavyBuild => true
+    | TestSuite => true
+    | _ => false
+
+let holds_compiles (class : window_class) : bool =
+    match class with
+    | CompileHold => true
+    | _ => false
+
+let compiles (class : window_class) : bool =
+    match class with
+    | Compile => true
+    | _ => false
+
+let clashes (held : window_class) (wanted : window_class) : bool =
+    if lease_only held || lease_only wanted then false
+    elif exclusive held || exclusive wanted then true
+    else (quiet held && loud wanted) || (quiet wanted && loud held) || (holds_compiles held && compiles wanted) || (holds_compiles wanted && compiles held)
+
+let needed_mb (class : window_class) : u64 =
+    match class with
+    | LiveGui => 4096u64
+    | CompilerInstall => 2048u64
+    | TestSuite => 3072u64
+    | HeavyBuild => 1024u64
+    | Compile => 1024u64
+    | TreeRead => 0u64
+    | Bench => 2048u64
+    | CompileHold => 0u64
+
+union window_state =
+    | Held
+    | Waiting
+
+inl state_word (state : window_state) : string =
+    match state with
+    | Held => "held"
+    | Waiting => "waiting"
+
+type window_row =
+    {
+        id : string
+        kind : window_class
+        state : window_state
+        label : string
+        start_ms : u64
+        until_ms : u64
+    }
+
+union row_parse =
+    | RowKnown : window_row
+    | RowUnknown
+
+let tab_field (~row : string) (~index : i32) : string =
+    $'std::rc::Rc::<str>::from(!row.split(char::from(9u8)).nth(!index as usize).unwrap_or(""))' : string
+
+let decimal_of (~text : string) : u64 = optionm'.default_value 0u64 (convert.try_convert text)
+
+let number_text (~value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+
+let one_line (~text : string) : string =
+    $'std::rc::Rc::<str>::from(!text.chars().map(|c| if c.is_control() { char::from(32u8) } else { c }).collect::<String>())' : string
+
+let row_text (row : window_row) : string =
+    inl head = concat5 row.id "\t" (class_word row.kind) "\t" (state_word row.state)
+    concat5 head "\t" (one_line row.label) "\t" (concat5 (number_text row.start_ms) "\t" (number_text row.until_ms) "" "")
+
+let row_of (~text : string) : row_parse =
+    match class_of (tab_field text 1i32) with
+    | ClassUnknown => RowUnknown
+    | ClassKnown kind =>
+        inl state = if tab_field text 2i32 = "held" then Held else Waiting
+        RowKnown { id = tab_field text 0i32; kind = kind; state = state; label = tab_field text 3i32; start_ms = decimal_of (tab_field text 4i32); until_ms = decimal_of (tab_field text 5i32) }
+
+inl blocks (wanted : window_class) (~mine : string) (since : u64) (backfills : bool) (row : window_row) : bool =
+    if row.id = mine then false
+    else
+        match row.state with
+        | Held => clashes row.kind wanted
+        | Waiting => (exclusive row.kind || quiet row.kind || holds_compiles row.kind) && row.start_ms < since && clashes row.kind wanted && backfills = false
+
+let row_blocks (wanted : window_class) (~mine : string) (since : u64) (backfills : bool) (~text : string) : bool =
+    match row_of text with
+    | RowUnknown => false
+    | RowKnown row => blocks wanted mine since backfills row
+
+let row_expired (~text : string) (now : u64) : bool = decimal_of (tab_field text 5i32) < now
+
+let settle_ms (class : window_class) : u64 =
+    match class with
+    | HeavyBuild => 90000u64
+    | TestSuite => 90000u64
+    | Compile => 20000u64
+    | Bench => 90000u64
+    | _ => 0u64
+
+let settling_mb (~text : string) (now : u64) : u64 =
+    match row_of text with
+    | RowUnknown => 0u64
+    | RowKnown row =>
+        match row.state with
+        | Held => if now < row.start_ms + settle_ms row.kind then needed_mb row.kind else 0u64
+        | Waiting => 0u64
+
+let free_after_settling (free : u64) (settling : u64) : u64 = if free > settling then free - settling else 0u64
+
+let minutes_left (until : u64) (now : u64) : u64 = if until <= now then 0u64 else (until - now + 59999u64) / 60000u64
+
+let blocker_terms (~text : string) (now : u64) : string =
+    inl head = concat5 "by=" (tab_field text 0i32) " holder=" (tab_field text 1i32) " state="
+    concat5 head (tab_field text 2i32) " left_min=" (number_text (minutes_left (decimal_of (tab_field text 5i32)) now)) (concat5 " label='" (tab_field text 3i32) "'" "" "")
+
+union admission =
+    | Admitted
+    | HeldBack : string
+    | LowMemory : u64
+
+let admission_of (wanted : window_class) (~blocker : string) (free : u64) (now : u64) : admission =
+    if blocker <> "" then HeldBack (blocker_terms blocker now)
+    elif free < needed_mb wanted then LowMemory free
+    else Admitted
+
+let admission_terms (wanted : window_class) (verdict : admission) : string =
+    match verdict with
+    | Admitted => ""
+    | HeldBack terms => terms
+    | LowMemory free => concat5 "reason=low-memory free_mb=" (number_text free) " need_mb=" (number_text (needed_mb wanted)) ""
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl parsed_word (~text : string) : string =
+    match class_of text with
+    | ClassKnown class => class_word class
+    | ClassUnknown => "?"
+
+inl row_at (kind : window_class) (state : window_state) (~id : string) (start : u64) (until : u64) : string =
+    row_text { id = id; kind = kind; state = state; label = "lane\tnote"; start_ms = start; until_ms = until }
+
+///> rust
+test classes_round_trip_through_their_words =
+    expect (class_words () = "live-gui|test-suite|heavy-build|compile|compiler-install|tree-read|bench|compile-hold") "class list"
+    expect (class_word LiveGui = "live-gui") "live word"
+    expect (parsed_word "compiler-install" = "compiler-install") "parsed back"
+    expect (parsed_word "gui" = "?") "unknown word"
+
+///> rust
+test live_gui_and_compiler_installs_exclude_everything_else =
+    expect (clashes LiveGui Compile) "a live block keeps even short compiles out"
+    expect (clashes Compile LiveGui) "a compile keeps a live block waiting"
+    expect (clashes CompilerInstall TestSuite) "no suites during an install"
+    expect (clashes LiveGui LiveGui) "one live block at a time"
+    expect (clashes HeavyBuild TestSuite = false) "the heavy gate counts slots for these"
+    expect (clashes Compile Compile = false) "compiles share the box"
+
+///> rust
+test rows_round_trip_and_labels_stay_on_one_line =
+    inl text = row_at LiveGui Held "win-1" 1000u64 61000u64
+    expect (text = "win-1\tlive-gui\theld\tlane note\t1000\t61000") text
+    expect (row_blocks Compile "win-2" 5000u64 false text) "a held live window blocks a compile"
+    expect (row_blocks Compile "win-1" 5000u64 false text = false) "a window never blocks itself"
+    expect (row_blocks Compile "win-2" 5000u64 false "win-9\tunknown-class\theld\t\t0\t99" = false) "unknown classes are skipped"
+    expect (row_expired text 61001u64) "expired after its end"
+    expect (row_expired text 60000u64 = false) "still live"
+
+///> rust
+test an_older_exclusive_waiter_keeps_newcomers_out =
+    inl waiting = row_at LiveGui Waiting "win-1" 1000u64 31000u64
+    expect (row_blocks Compile "win-2" 2000u64 false waiting) "a newer compile waits behind the live request"
+    expect (row_blocks Compile "win-2" 500u64 false waiting = false) "an older compile is not overtaken"
+    expect (row_blocks Compile "win-2" 2000u64 false (row_at HeavyBuild Waiting "win-1" 1000u64 31000u64) = false) "shared waiters never block"
+
+///> rust
+test admission_names_the_blocker_or_the_memory_shortfall =
+    inl held = row_at LiveGui Held "win-1" 1000u64 600000u64
+    expect (admission_terms Compile (admission_of Compile held 8000u64 1000u64) = "by=win-1 holder=live-gui state=held left_min=10 label='lane note'") "blocker terms"
+    expect (admission_terms LiveGui (admission_of LiveGui "" 3000u64 1000u64) = "reason=low-memory free_mb=3000 need_mb=4096") "memory terms"
+    expect (admission_terms Compile (admission_of Compile "" 3000u64 1000u64) = "") "admitted"
+    expect (minutes_left 61000u64 1000u64 = 1u64) "exact minute"
+    expect (minutes_left 61001u64 1000u64 = 2u64) "partial minutes round up"
+
+///> rust
+test a_fresh_grant_keeps_its_memory_reserved_until_it_settles =
+    expect (settling_mb (row_at HeavyBuild Held "win-1" 1000u64 999999u64) 50000u64 = 1024u64) "a heavy build granted 49 s ago still reserves its need"
+    expect (settling_mb (row_at HeavyBuild Held "win-1" 1000u64 999999u64) 100000u64 = 0u64) "settled after 90 s"
+    expect (settling_mb (row_at Compile Held "win-2" 1000u64 999999u64) 15000u64 = 1024u64) "a compile settles in 20 s"
+    expect (settling_mb (row_at Compile Waiting "win-3" 1000u64 999999u64) 2000u64 = 0u64) "waiting rows reserve nothing"
+    expect (free_after_settling 3000u64 4096u64 = 0u64) "free memory never goes below zero"
+    expect (free_after_settling 6000u64 2048u64 = 3952u64) "settling grants are subtracted"
+
+///> rust
+test a_bench_window_keeps_heavy_work_out_but_lets_compiles_through =
+    expect (clashes Bench HeavyBuild) "a bench run measures alone against heavy builds"
+    expect (clashes TestSuite Bench) "suites wait for a bench run"
+    expect (clashes Bench Bench) "one bench run at a time"
+    expect (clashes Bench Compile = false) "short compiles still pass"
+    expect (clashes HeavyBuild HeavyBuild = false) "heavy builds still share the box under the slot gate"
+    expect (clashes Bench LiveGui) "a live block still excludes everything"
+    expect (row_blocks HeavyBuild "win-2" 2000u64 false (row_at Bench Waiting "win-1" 1000u64 31000u64)) "an older waiting bench request keeps newer heavy builds out"
+    expect (row_blocks Compile "win-2" 2000u64 false (row_at Bench Waiting "win-1" 1000u64 31000u64) = false) "but not compiles"
+
+///> rust
+test a_compile_hold_keeps_compiles_out_and_nothing_else =
+    expect (clashes CompileHold Compile) "a held compile hold keeps new compiles waiting"
+    expect (clashes Compile CompileHold) "a held compile keeps the hold waiting"
+    expect (clashes CompileHold HeavyBuild = false) "heavy builds share the box"
+    expect (clashes CompileHold TestSuite = false) "suites share the box"
+    expect (clashes LiveGui CompileHold) "a live block still excludes it"
+    expect (needed_mb CompileHold = 0u64) "the job's heavy-build window already counts its memory"

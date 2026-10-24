@@ -1,0 +1,159 @@
+///- --package .
+test probes static =
+    open rust_std_string.model
+
+open rust_std_string.model
+
+nominal feature = ()
+nominal drift = ()
+nominal neutral = ()
+
+union probe side =
+    | GadtCase :: probe feature
+    | Existential :: probe feature
+    | Forall :: probe feature
+    | IndexedUnion :: probe feature
+    | Prototype :: probe feature
+    | TypeDecl :: probe neutral
+    | HostMacro :: probe drift
+    | WideHostMacro :: probe drift
+    | RustGlobal :: probe drift
+    | EncodedRow :: probe drift
+    | PipeTable :: probe drift
+    | NumberArm :: probe drift
+    | StringConcat :: probe drift
+    | TopLevelMacro :: probe drift
+    | RcWrap :: probe drift
+    | LetBlock :: probe drift
+    | StdStringUse :: probe drift
+
+nominal any_probe = exists side. probe side
+
+union direction =
+    | MayNotFall
+    | MayNotRise
+    | Unranked
+
+inl direction_of forall side. (which : probe side) : direction =
+    match which with
+    | GadtCase => MayNotFall
+    | Existential => MayNotFall
+    | Forall => MayNotFall
+    | IndexedUnion => MayNotFall
+    | Prototype => MayNotFall
+    | TypeDecl => Unranked
+    | HostMacro => MayNotRise
+    | WideHostMacro => MayNotRise
+    | RustGlobal => MayNotRise
+    | EncodedRow => MayNotRise
+    | PipeTable => MayNotRise
+    | NumberArm => MayNotRise
+    | StringConcat => MayNotRise
+    | TopLevelMacro => MayNotRise
+    | RcWrap => MayNotRise
+    | LetBlock => MayNotRise
+    | StdStringUse => MayNotRise
+
+inl probe_word forall side. (which : probe side) : string =
+    match which with
+    | GadtCase => "gadt-case"
+    | Existential => "existential"
+    | Forall => "forall"
+    | IndexedUnion => "indexed-union"
+    | Prototype => "prototype"
+    | TypeDecl => "type-decl"
+    | HostMacro => "host-macro"
+    | WideHostMacro => "wide-host-macro"
+    | RustGlobal => "rust-global"
+    | EncodedRow => "encoded-row"
+    | PipeTable => "pipe-table"
+    | NumberArm => "number-arm"
+    | StringConcat => "string-concat"
+    | TopLevelMacro => "top-level-macro"
+    | RcWrap => "rc-wrap"
+    | LetBlock => "let-block"
+    | StdStringUse => "std-string-use"
+
+inl probe_pattern forall side. (which : probe side) : string =
+    match which with
+    | GadtCase => "^\\s*\\|\\s*\\w+\\s*::"
+    | Existential => "\\bexists\\s+\\w+\\."
+    | Forall => "\\bforall\\b"
+    | IndexedUnion => "^\\s*union\\s+(rec\\s+)?(private\\s+)?\\w+\\s+\\w+\\s*="
+    | Prototype => "^\\s*(prototype|instance)\\b"
+    | TypeDecl => "^\\s*(union|type|nominal)\\b"
+    | HostMacro => "^\\s+.*(\\$'|\\$\\x22)"
+    | WideHostMacro => "\\$'[^']{200,}'"
+    | RustGlobal => "rust_global"
+    | EncodedRow => "char::from\\((9|30|31)u8\\)|\\x22\\\\t\\x22"
+    | PipeTable => "pipe_(index|member|lookup)"
+    | NumberArm => "^\\s*\\|\\s*\\d+(u64|i32|u32)?\\s*=>"
+    | StringConcat => "\\bconcat5\\b"
+    | TopLevelMacro => "^\\S.*(\\$'|\\$\\x22)"
+    | RcWrap => "Rc::<str>::from"
+    | LetBlock => "\\$'\\{"
+    | StdStringUse => "rust_std_string\\."
+
+inl each_probe forall state. (step : state -> any_probe -> state) (initial : state) : state =
+    inl s = step initial (any_probe (exists GadtCase))
+    inl s = step s (any_probe (exists Existential))
+    inl s = step s (any_probe (exists Forall))
+    inl s = step s (any_probe (exists IndexedUnion))
+    inl s = step s (any_probe (exists Prototype))
+    inl s = step s (any_probe (exists TypeDecl))
+    inl s = step s (any_probe (exists HostMacro))
+    inl s = step s (any_probe (exists WideHostMacro))
+    inl s = step s (any_probe (exists RustGlobal))
+    inl s = step s (any_probe (exists EncodedRow))
+    inl s = step s (any_probe (exists PipeTable))
+    inl s = step s (any_probe (exists NumberArm))
+    inl s = step s (any_probe (exists StringConcat))
+    inl s = step s (any_probe (exists TopLevelMacro))
+    inl s = step s (any_probe (exists RcWrap))
+    inl s = step s (any_probe (exists LetBlock))
+    step s (any_probe (exists StdStringUse))
+
+inl any_word (any_probe p : any_probe) : string =
+    inl exists side. which = p
+    probe_word which
+
+inl any_direction (any_probe p : any_probe) : direction =
+    inl exists side. which = p
+    direction_of which
+
+inl any_pattern (any_probe p : any_probe) : string =
+    inl exists side. which = p
+    probe_pattern which
+
+let regressed (way : direction) (before : i32) (before_lines : i32) (now : i32) (now_lines : i32) : bool =
+    inl base = $'(!before as f64) * 1000.0 / (!before_lines).max(1) as f64' : f64
+    inl rate = $'(!now as f64) * 1000.0 / (!now_lines).max(1) as f64' : f64
+    match way with
+    | MayNotRise => rate > base * 1.05f64 + 0.5f64 && now > before
+    | MayNotFall => rate < base * 0.95f64 - 0.5f64 && before - now > before_lines - now_lines
+    | Unranked => false
+
+inl guards_falls (way : direction) : bool =
+    match way with
+    | MayNotFall => true
+    | _ => false
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test every_probe_has_one_word_and_a_direction_from_its_side =
+    inl words = each_probe (fun acc probe => if acc = "" then any_word probe else concat5 acc " " (any_word probe) "" "") ""
+    expect (words = "gadt-case existential forall indexed-union prototype type-decl host-macro wide-host-macro rust-global encoded-row pipe-table number-arm string-concat top-level-macro rc-wrap let-block std-string-use") words
+    expect (guards_falls (direction_of GadtCase)) "features may not fall"
+    expect (guards_falls (direction_of StringConcat) = false) "drift may not rise"
+
+///> rust
+test the_ratchet_tolerates_noise_and_catches_real_moves =
+    expect (regressed MayNotRise 30i32 1000i32 31i32 1000i32 = false) "one more macro per thousand lines is noise"
+    expect (regressed MayNotRise 30i32 1000i32 40i32 1000i32) "ten more per thousand lines is a regression"
+    expect (regressed MayNotFall 16i32 1000i32 8i32 1000i32) "halving the GADT cases is a regression"
+    expect (regressed MayNotFall 11i32 179i32 0i32 129i32 = false) "deleting dead feature code with its lines is a prune"
+    expect (regressed MayNotFall 11i32 179i32 0i32 175i32) "rewriting features into plain code at the same size is a regression"
+    expect (regressed Unranked 1i32 1000i32 99i32 1000i32 = false) "type declarations are only counted"
+    expect (regressed MayNotRise 7i32 269i32 7i32 247i32 = false) "fewer lines with the same count is not a regression"
+    expect (starts_with (any_pattern (any_probe (exists TopLevelMacro))) "^\\S") "a one-line primitive at column 0 is counted as top-level-macro"

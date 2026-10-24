@@ -1,0 +1,69 @@
+open workspace_primitives.numbers
+open sm'_operators
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.rooted
+
+union listing_scope =
+    | WholeRoot
+    | RootedDirectory : string
+
+union listing_outcome =
+    | ListingShown : string
+    | ListingRejected : string
+
+inl root_scope_marker () : string = "."
+
+inl listing_scope_of (~relative : string) : listing_scope =
+    if (relative = (root_scope_marker ())) then WholeRoot else RootedDirectory relative
+
+inl listing_path (~root : string) (scope : listing_scope) : string =
+    match scope with
+    | WholeRoot => root
+    | RootedDirectory relative => rooted_path root relative
+
+inl listing_problem (~path : string) : string =
+    $'std::rc::Rc::<str>::from(eoie_rust_std_fs::rooted_list_names(std::path::Path::new(&*!path)).err().unwrap_or_default().as_str())' : string
+inl listed_names (~path : string) : string =
+    $'std::rc::Rc::<str>::from(eoie_rust_std_fs::rooted_list_names(std::path::Path::new(&*!path)).unwrap_or_default().join(&char::from(10u8).to_string()).as_str())' : string
+inl line_breaks (~text : string) : u64 = $'!text.matches(char::from(10u8)).count() as u64' : u64
+
+inl entry_count (~names : string) : u64 =
+    if (names = "") then 0u64 else $"!(line_breaks names) + 1" : u64
+
+inl print_names (~names : string) : i32 =
+    if (names = "") then 0i32 else stdout_line names
+
+inl listing_receipt (~path : string) (entries : u64) (started : u64) : listing_outcome =
+    inl head = "eoie proxy fs-list ok path=" ++# path ++# " entries=" ++# (u64_text entries) ++# " elapsed_ms="
+    ListingShown (head ++# (u64_text (ms_since started)))
+
+inl list_directory (~path : string) (started : u64) : listing_outcome =
+    inl problem = listing_problem path
+    if (problem = "") then
+        inl names = listed_names path
+        inl _ = print_names names
+        listing_receipt path (entry_count names) started
+    else ListingRejected ("fs-list failed: " ++# problem)
+
+inl list_scope (~root : string) (~relative : string) (started : u64) : listing_outcome =
+    inl path = listing_path root (listing_scope_of relative)
+    if (path = "") then ListingRejected ("fs-list path rejected: " ++# (rooted_path_problem root relative))
+    else list_directory path started
+
+let directory_listing_outcome () : listing_outcome =
+    inl started = unix_ms ()
+    inl operands = proxy_argument_count ()
+    if $"!operands == 2" then list_scope (proxy_argument 1i32) (root_scope_marker ()) started
+    elif $"!operands == 3" then list_scope (proxy_argument 1i32) (proxy_argument 2i32) started
+    else ListingRejected "fs-list expects <root> [relative]"
+
+let directory_listing_report () : i32 * string =
+    match directory_listing_outcome () with
+    | ListingShown text => 0i32, text
+    | ListingRejected text => 2i32, text
+
+inl main () : i32 =
+    !!!!Export("eoie_directory_listing_outcome", ((fun () => directory_listing_report ()) : () -> i32 * string))
+    inl _ = directory_listing_outcome ()
+    0i32

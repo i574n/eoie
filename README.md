@@ -1,0 +1,478 @@
+# EOIE source workspace
+
+Every eoie operation is one call: a patch batch, a multi-file write or a gated
+change is passed inline and validated, rehearsed and applied by that same call,
+with one receipt. A verb that needs a plan file written first, or separate
+check/rehearse/apply calls, does not meet this rule (EOIE-ONE-CALL).
+
+This repository is the source workspace extracted from the EOIE bundle. Generated
+Rust is checked in so a normal build does not require a Spiral compiler. New
+application policy, migration tools and test scenarios belong in native Spiral.
+Existing handwritten Rust adapters and tests remain migration debt; embedding
+their algorithms in `rust_global` does not complete that migration.
+
+## Build
+
+Install Rust 1.88 or newer. Windows also needs the MSVC C++ build tools; Linux
+needs a native C linker. From `src`, bootstrap the Spiral-authored driver
+into a separate target directory so Windows can rebuild the workspace safely:
+
+```text
+cargo build --locked --package eoie-dev --target-dir target/workflow-driver
+./target/workflow-driver/debug/eoie-dev --root .. --test --skip-release
+```
+
+On Windows, the executable is `eoie-dev.exe`. Add `--offline` to both commands
+after caching dependencies. Omit `--skip-release` to also build a release
+candidate. The native driver does not install it. `--package NAME` selects tests,
+`--target-dir PATH` selects artifacts, and `--timeout-ms N` bounds each Cargo
+process. `--dry-run` prints commands; selected runs still read Cargo metadata.
+
+PowerShell 7 remains required for regeneration and the transitional publication
+adapter. From the repository root:
+
+```powershell
+pwsh -NoProfile -File build.ps1 -Test
+pwsh -NoProfile -File eoie.ps1 help
+```
+
+Cargo downloads registry dependencies using the committed `src/Cargo.lock`.
+`src/vendor/` stays ignored and is not part of the build. After one successful
+fetch/build, `build.ps1 -Test -Offline` uses the Cargo cache. When invoking Cargo
+directly, change to `src` first so it discovers `.cargo/config.toml`.
+
+`-Test` runs every workspace suite, including native regression tests. Tests that
+require the optional `--check`/`--plan-ir` compiler are explicitly marked ignored.
+Run them with `-Test -CompilerContracts -SpiralCompiler <compiler-path>` using
+the patched single-flight host described below. Ordinary runtime builds remain
+compiler-independent.
+
+For a Spiral edit, use the targeted development loop:
+
+```powershell
+pwsh dev.ps1 -List
+pwsh dev.ps1 -Package eoie-fs-actions -Offline
+pwsh dev.ps1 -Package eoie-fs-actions -Offline -Publish
+```
+
+The command regenerates the selected Cargo packages and their declared probes in an isolated copy, checks
+all their targets and runs their tests without building a release executable.
+Cargo artifacts are reused under the ignored `src/target/dev-validation` directory;
+the full regeneration gate uses a fresh target directory unless explicitly configured.
+`-CheckOnly` skips tests. `-Publish` copies the generated Rust back only after
+validation succeeds and the source file inventory and original contents still
+match the staged snapshot. Added source files block publication; ignored cache
+activity does not.
+Generated outputs use LF line endings; unchanged outputs retain their timestamps.
+Managed compiler assemblies are copied and hashed once per run so concurrent
+compiler rebuilds cannot replace them between owners. `-CompilerBundle` and `-TimeoutSec`
+select the compiler and bound each owner compilation; no compiler is needed for
+`-List`. An existing Cargo build can be tested without regeneration using
+`build.ps1 -Test -Package eoie-fs-actions -SkipRelease`.
+Packages whose tests launch the CLI declare `test-requires-cli = true` under
+`[package.metadata.eoie]`. Selected runs build that executable first, including
+when the target directory is empty; pure library tests remain isolated. Run
+`cargo test --locked -p eoie-dev --test selected_workflow` from `src` to check
+this behavior independently of the Spiral compiler. Scenarios are authored in
+`src/eoie_dev/selected_tests.spi`.
+
+Each Cargo owner declares its Spiral `entry` and Rust `output` under
+`[package.metadata.spiral]` in its existing `Cargo.toml`. Add this metadata when
+adding an owner. The development loop and full regeneration gate use the same
+mapping. Workflow failure/timeout/publication contracts run independently of a
+Spiral installation with `compiler-contracts/test-dev-workflow.ps1`.
+Generated examples also declare `entry` and `output` in
+`[[package.metadata.spiral.auxiliary]]` tables. Handwritten adapters and tests
+still lack generation declarations and must be migrated. EOIE's source statistics and cold rebuild
+planner use these mappings too.
+
+## Mechanical native Spiral migration
+
+`typed_predicate` implements byte/text predicates as a GADT, existential
+projections and an HKT registry. The first consumers replace three cold-proof
+and handoff helpers, removing 335 bytes of embedded production Rust. This is
+semantic migration credit, not a claim that three entire RustGlobal sites vanished.
+
+The `eoie-predicate-lift` tool lexes, matches and rewrites source in native Spiral.
+It accepts only the supported SHA-256-text and receipt-text helper forms and
+rejects ambiguity, attributes, public functions and near matches. From `src`:
+
+```text
+cargo build --locked -p eoie-predicate-lift
+./target/debug/eoie-lift-predicate sha256 helper input.spi candidate.spi
+cargo test --locked -p eoie-predicate-lift --test native_codemod
+```
+
+Use `.exe` on Windows. The output must be a new file; the input is preserved.
+Add `typed_predicate` to the owning Spiral package, review the candidate, then
+regenerate and test the affected owner before adopting it. The codemod uses an
+exact token grammar, not a general Rust AST or semantic equivalence proof.
+Its lexer and rewrite models live in `predicate_lex_core` and
+`predicate_rewrite_model`; their generated libraries are separate Cargo owners.
+The native developer workflow uses `eoie_dev_model` and
+`developer_metadata_domain` for argument, ordering and package-selection policy.
+
+Process matrix `args` cells can use `json:["argument with spaces", "", "next"]`
+to preserve exact arguments, including Windows paths and empty strings. Ordinary
+whitespace-separated cells retain their existing behavior. These arguments go
+directly to the child process; they are not shell commands.
+
+`proxy cold-rebuild-matrix <root> <matrix-relative> <eoie> <compiler> <dotnet>
+<rustfmt> [compiler-timeout-ms]` plans one bounded compiler process per declared
+output. The optional budget defaults to 180,000 ms. Use absolute tool paths or
+names available on PATH, and set `EOIE_SPIRAL_BUNDLE` when the compiler needs its
+bundle for package resolution. Planning records a source snapshot under
+`.cache/cold-rebuild/`; owner commands compile there so compiler sidecars never
+touch the replay root. Each owner checks source/output drift, optionally formats
+its candidate and atomically publishes nonempty Rust after successful compilation.
+Identical outputs retain their timestamps. Run cold replay in an isolated source
+copy: its commands replace generated outputs there, and Cargo/runtime validation
+remains a separate gate. Generating the matrix does not execute it. Keep source
+inputs unchanged between planning and replay. Pass a row timeout larger than
+the compiler budget plus formatting time to `proxy batch-plan` and
+choose its parallel-chain count explicitly when sharing the machine.
+
+Build products (`eoie`, `eoie.exe`, `src/target`, compiler C residuals and sidecars)
+are ignored. Keep `.spi`, `.spiproj`, generated `.rs`, adapters, tests, Cargo
+manifests and the lockfile. Files under `state/` include historical Linux release
+evidence; they do not certify the current Windows build.
+
+## Native Spiral compiler
+
+The current supported lane is **single-flight**. Hopac remains experimental.
+The compiler lives in the [spiral](https://github.com/i574n/spiral) repository (`apps/compiler/tmp`);
+clone it beside this repository. Build alpha418 once using its own portable scripts:
+
+```powershell
+$compiler = '../spiral/apps/compiler/tmp'
+pwsh "$compiler/scripts/install-dotnet.ps1" # only if .NET 11 is absent
+pwsh "$compiler/scripts/build.ps1" -Mode single-flight
+pwsh spiral.ps1 -CompilerBundle $compiler `
+  -InputPath src/eoie_fs_actions/main.spi `
+  -OutputPath src/eoie_fs_actions/fs_actions.rs
+```
+
+`spiral.ps1` supports `-Backend Rust|C|Fsharp|Delphi`, `-TimeoutSec`, and
+`-SourceRoot`. It copies Spiral sources into a unique compiler cache directory
+before compilation, preventing the core from leaving C residuals in the checkout.
+It publishes the requested output only after a successful bounded compile and
+preserves the output timestamp when its content is unchanged.
+
+Set `EOIE_SPIRAL_BUNDLE` or pass `-CompilerBundle` for a compiler elsewhere.
+Without either, the scripts use `../spiral/apps/compiler/tmp` (a spiral checkout beside this repository).
+The compiler's `SPIRAL_BIN_CACHE_DIR` and `SPIRAL_DOTNET` select its cache and SDK.
+The same scripts run on Windows and Linux; CI is configured to test runtime builds
+on both. This review was executed on Windows.
+
+EOIE's process library also accepts a native `SpiralCompiler.dll` through
+`EOIE_SPIRAL_COMPILE`. Set `EOIE_DOTNET` (or `SPIRAL_DOTNET`) to the matching .NET
+host, and `EOIE_SPIRAL_BUNDLE` for core-package resolution. Native code generation
+omits the legacy timeout flag and is supervised by EOIE's process timeout.
+The patched native host implements package-wide `--check` without requiring
+`main`, and bounded `--plan-ir` for unconditional compiled `RustPlanOp` markers.
+Runtime-dependent plans are rejected. All seventeen optional EOIE integration
+contracts can run against this host; Hopac package attestation remains unsupported.
+Run `compiler-contracts/test-attestation.ps1` for package rejection,
+plan payload, timeout, and native GADT regression coverage.
+
+The compiler host validates six Rust export ABIs: `RustExportI32`,
+`RustExportI32Binary`, `RustExportStringUnary`, `RustExportU64Unary`,
+`RustExportStringTuple5Unary`, and `RustExportU64String5`. Unary string and u64
+exports accept a borrowed string; tuple exports return five owned `Rc<str>` values.
+Exports require exactly one `RustLibrary` marker and a retained join point with
+the exact argument and result types. Unknown markers, duplicate names, missing
+targets and signatures changed by optimization are rejected.
+
+Run the compiler's `scripts/test-rust-exports.ps1` (in the spiral repository's `apps/compiler/tmp`) for an external Rust
+consumer and negative ABI contracts. `compiler-contracts/test-regeneration.ps1`
+regenerates every declared primary Cargo target in an isolated
+cache copy. Use `-CargoCheck -Test -CompilerContracts` to check all targets, run
+the workspace contracts, check source topology with the rebuilt EOIE, and build a release executable from those regenerated
+owners. Use `-EoieRoot` after relocating EOIE, `-Filter` for selected members,
+and `-Offline` with a populated registry cache. Auxiliary probes and operating
+system adapters remain consumers by default; `-IncludeAuxiliary` also regenerates
+the declared probes. Checkout Rust changes only with explicit `-Publish`, after
+successful Cargo validation and a checkout snapshot check.
+
+## Generic versus strict bundles
+
+| Profile | What passing means |
+| --- | --- |
+| `generic` | A nonempty tree can be represented by the archive policy: normalized unique paths, no symlinks/special entries, canonical manifest and bounded extraction. It does not attest EOIE source, executable identity or release evidence. |
+| `eoie` (strict) | The EOIE release layout, source/package census, growth limits, current evidence, ratings, receipts and executable/archive contracts also pass. `verify` extracts a bounded temporary copy and applies the release checks before reporting success. |
+| `auto` | Selects `eoie` when `eoie` or `eoie.exe` accompanies `state/package.spiproj`, `state/core.spi` and `src/Cargo.toml`; otherwise selects `generic`. A strict distribution must contain exactly one root binary. Auto-selection is not certification. |
+
+The strict check counts Cargo `[[bin]]` targets as public binaries and requires
+exactly one. Developer tools that are built from source but not shipped declare
+`developer-tool = true` under `[package.metadata.eoie]` (`eoie-dev` and
+`eoie-lift-predicate`); they are excluded from that count.
+
+Use explicit `eoie` for release gates. A source checkout has docs, scripts and
+tests and lacks a certified release payload, so it is not expected to pass that
+packaging gate. Generic success must never be substituted for strict release
+approval. Do not run `bundle create` over a live checkout: it prunes release
+transients and includes files that Git ignores. Stage a distribution separately.
+
+Archive creation validates a sibling staging file before replacing an existing
+output. Rejected size/parity checks preserve the previous archive. Output paths
+inside the source tree are rejected, including Windows extended-path aliases.
+ZIP verification bounds total expanded payload to 256 MiB; strict verification
+removes its temporary extraction after either acceptance or rejection.
+
+The first source commit is checked through locked builds, tests and Git hygiene.
+`pwsh compiler-contracts/test-source-package.ps1 -Offline` stages the working-tree
+contents of Git-eligible files, archives and rehydrates them through EOIE, checks
+every SHA-256 and runs the native workspace tests from the restored tree. It
+leaves the source archive and manifest under ignored `.cache/source-package/`.
+Use `-SkipBuild` for archive/hash/topology checks only, or `-EoieBinary` to test a
+specific executable. Omit `-Offline` before dependencies have been cached.
+Producing a newly certified EOIE release still requires compatible compiler
+attestation, fresh release evidence and cold rebuilds. These remain tracked in
+the `PORT-*` agile tasks, alongside the fixes completed in this review.
+
+## Native coverage
+
+Release builds smoke-test a temporary executable before atomically replacing the
+installed binary. Failed candidates and locked Windows destinations preserve the
+previous executable; identical binaries preserve its timestamp. Run
+`pwsh compiler-contracts/test-binary-publication.ps1` to verify these behaviors.
+
+Run `pwsh compiler-contracts/test-native-probes.ps1` from this directory to build
+and execute every Cargo example in a verified source snapshot. The runner checks
+Cargo's declared inventory, uses two build jobs, runs probes sequentially and
+keeps process receipts and source/binary hashes under ignored `.cache/native-probes/`.
+`-EoieBinary`, `-TargetDirectory`, `-Jobs` and `-TimeoutMs` configure the run.
+
+`compiler-contracts/test-native-coverage.ps1` archives and rehydrates Git-eligible
+sources, freezes the EOIE executable and managed compiler, and runs instrumented
+workspace tests through EOIE. It uses two Cargo jobs and one test thread by
+default. LLVM tools must match the installed Rust compiler; use its
+`llvm-tools-preview` component or provide a matching tools directory.
+
+```powershell
+pwsh compiler-contracts/test-native-coverage.ps1 -SpiralCompiler $env:EOIE_SPIRAL_COMPILE -LlvmDirectory '<LLVM bin directory>' -CompilerContracts
+```
+
+The optional compiler contracts also use the configured `EOIE_DOTNET` and
+`EOIE_SPIRAL_BUNDLE`. Omit `-CompilerContracts` to collect native tests only.
+All dependencies must already be cached. Results, source/tool hashes and process
+receipts stay under ignored `.cache/native-coverage/`; the reusable instrumented
+Cargo target stays under `src/target/native-coverage`. Evidence from this workflow
+does not certify a strict release. Once registered (below), its LCOV satisfies the
+strict check's coverage identity and durability gate, but it is test-run coverage,
+not the canonical release-basis measurement. `-EoieBinary` selects the supervising build.
+
+The driver checks that the instrumented CLI writes a nonempty profile before
+running tests. Instrumented Windows builds explicitly flush profiling data before
+the generated launcher exits; ordinary builds do not link the profiler. Runtime
+profiles are matched to each executable's module signature before LLVM export,
+then combined by maximum hits per source line. Compilation-only profiles remain
+in a separate directory, as does the early CLI probe because Cargo can relink
+the executable before tests. Unexpected runtime profiles or LLVM diagnostics reject
+the collection instead of producing validated evidence.
+
+Exported `SF:` paths are rewritten relative to the snapshot root before the union,
+so the LCOV and its receipt do not depend on where the snapshot was rehydrated.
+On Windows, `rustup component add llvm-tools-preview` supplies a matching
+`-LlvmDirectory` under the toolchain's `lib/rustlib/<host>/bin`.
+
+`proxy coverage-register <root> <current.lcov> <seed.lcov>` imports two receipted
+LCOV exports as the bundle's `evidence/coverage/` payloads. Each LCOV needs the
+adjacent `.receipt` written by `coverage-union` or `coverage-export`. Registration
+checks that the receipt SHA-256 matches its LCOV and requires workspace-relative
+`SF:` paths. It then rewrites the four coverage `EvidenceRef` rows in
+`state/evidence.spi` and the durable-checkpoint and replay-seed rows in
+`state/coverage.spi`, using the receipt's line count and permille. Any failure
+rolls back every file. Registering test-run coverage does not make it
+release-smoke coverage, and the narrative rows of `state/coverage.spi` stay historical.
+
+The lower-level `proxy coverage-run` resolves relative paths before changing
+directories. `EOIE_COVERAGE_JOBS`, then `CARGO_BUILD_JOBS`, overrides its default
+of at most two jobs; explicit values must be 1–256. Invalid settings are rejected
+before clearing profiles. LCOV assessment rejects malformed or ambiguous line
+evidence, pruning requires the exact rooted source file, and failed exports
+preserve existing LCOV data and receipts.
+
+The legacy `smoke` scope requires a separately staged strict EOIE release,
+`EOIE_GRCOV` as an absolute executable path, and `EOIE_LLVM_BIN` containing
+`llvm-profdata` and `llvm-cov`. It checks these prerequisites before creating
+build output or clearing profiles. Mutable phases use a bounded temporary copy,
+reject links and Windows junctions, and leave shared compiler sessions running.
+The legacy phase inventory still needs a complete Windows rehearsal; use the
+native workspace coverage and probe drivers above for current source validation.
+
+Pruning validates the receipt ledger and rollback capability before moving a
+source file. Failed validation restores it. Concurrent replacements are preserved,
+with the original recovery path reported if restoration cannot complete. Receipt
+verification uses compiler `--check` and preserves adjacent C/Rust files.
+
+## Work planning
+
+`pwsh compiler-contracts/test-strict-preflight.ps1` stages a native distribution
+from a verified source archive and records the strict bundle diagnostics under
+ignored `.cache/strict-preflight/`. Repository-only `src/.gitignore` stays out of
+the distribution. The audit preserves all existing evidence and reports blockers;
+it does not renew receipts or certify a release. Add `-RequireReady` to return a
+failure when the strict check rejects the staged tree. The current blockers and
+why each one cannot yet be renewed are recorded in
+[FIRST-COMMIT-REVIEW.md](FIRST-COMMIT-REVIEW.md#strict-preflight--october-6).
+
+`proxy release-closeout apply` is the renewal path for the ColdProofV4 and
+closeout evidence receipts. It renews all five cold-proof gates. The binary gate
+records the root binary that is actually present (`eoie` or `eoie.exe`, exactly
+one) and the workspace gate records the current `src/Cargo.lock`. The renewed
+proof is kept only if formal authority verifies: the cold proof itself, its census,
+the differential catalog, the family contracts and ColdRebuildV1. The binary must
+also equal the ColdRebuildV1 product. Otherwise the proof is rolled back. The
+recorded replay flags are carried forward, not re-observed. Before the
+cold proof, apply renews a stale DifferentialCatalogV1 or FamilyContractsV1
+receipt and restores both if the proof rolls back. `proxy formal-receipts-renew
+<root>` runs only these two renewals and keeps them. The differential renewal
+first drives the root binary's `proxy differential-compare` route through five
+scenarios: CRLF and trailing-space parity, a byte-identical repeated receipt, a
+mismatch, a missing input and an escaping receipt path. It continues only if all
+five are observed (semantic flags 31). Each renewal then re-hashes its four gates
+and keeps the receipt only if its full verifier passes. For family contracts,
+that includes the 36/36 catalog settlement. The
+closeout evidence refresh records the same platform binary name in `state/evidence.spi`.
+Run it in a staged release root, not in a checkout, because the evidence binds the
+whole `src` tree.
+
+`pwsh compiler-contracts/renew-strict-evidence.ps1` runs the whole renewal after a
+source change. It first stops on strict diagnostics that no renewal repairs (a forbidden
+source root file, a symlink, a topology limit), then runs `agile begin`, `bundle growth-receipt`, `renew-cold-rebuild.ps1 -Apply`, `agile check --compiler`,
+then closeout preview and apply in the root staged by the strict preflight, with the six
+gates and the expected migration read from the current `state/release_closeout.spi`.
+Renewed state files are copied back and `test-strict-preflight.ps1 -RequireReady` must
+pass. The compiler is a hashed snapshot of the single-flight build (or `-SpiralCompiler`),
+so a concurrent compiler deploy cannot change it mid-run. `-Test` first runs
+`build.ps1 -Test -CompilerContracts`. The owner growth receipt is renewed with the reason
+and task of its recorded change rows unless `-GrowthReason`/`-GrowthTask` name others, and
+`-ParallelChains` bounds the cold owner replay. `-TestTimeoutMs` (default 45 minutes, passed to
+`build.ps1 -TimeoutMs`) bounds each Cargo process of the workspace test run; the driver's own
+15-minute default was exceeded on a loaded 16 GB machine. When a busy machine pushes an owner past the
+15 s cold budget, the cold renewal is retried once per halving of the parallel chains.
+
+Inspection stays available after a lease reaches its wrap guard or expires:
+`proxy source-topology <root>` without a census path and `agile handoff` are
+classified as inspection. Writing `state/authority_census.spi` remains a mutation
+and is still blocked.
+
+The guard looks for `state/prompt.spi` in the command's directory operands and in
+the caller's working directory and its ancestors. A supervising `proxy
+command-capture` or `command-capture-env` offers only its own operands; the
+supervised program's arguments are not its targets, and an `eoie` child applies
+its own guard. The committed lease belongs to the session that produced the
+commit and has always expired by the time CI checks it, so the validation drivers
+(`test-native-probes.ps1`, `test-strict-preflight.ps1`) run their supervisor from
+the system temporary directory: their results do not depend on the wall clock.
+Work in the checkout itself still needs `agile begin` first.
+
+```powershell
+pwsh eoie.ps1 agile begin . 'Continue portable source review'
+pwsh eoie.ps1 agile list .
+pwsh eoie.ps1 agile list . Active
+```
+
+The optional list filter accepts `Planned`, `Active`, `Blocked`, `Paused` or
+`Done` and matches the task status, including when those words appear elsewhere
+in a task description. Listing does not mutate state. `agile show <root> <id> [--json]` prints one
+task with its full, unescaped title, its deps and tags, and is an inspection as well.
+
+Planning fields are typed: `agile edit <root> <id> estimate|load|assignee <value>` accepts minutes
+(`360`, `360m`) or hours (`6h`), `light|medium|heavy` and `agent|pair|user`, or `none` to clear
+one. The first such edit declares the `task_load`, `task_assignee`, `planned_*` and
+`task_planning` unions after `agile_item` in `state/agile.spi` and writes one
+`Planning ("<id>", Minutes 360u32, Load Heavy, Assigned Agent)` row right after the task; the
+`Task` tuple itself is unchanged. `agile list` shows EST, LOAD and WHO columns and filters with
+`--load <load>` and `--assignee <assignee>`, `show` prints them (`--json`: `estimate_minutes`,
+`load`, `assignee`), and `agile plan <root> [--json]` rolls up tasks, estimates and open minutes
+per status, load, assignee and epic (the epic itself plus tasks whose deps name it).
+`agile migrate-tags <root>` previews moving `est:`, `load:` and `agent:yes|pair|no` tags into
+these fields; `--apply` writes it once (the tag value wins, unparseable tags stay as tags) and a
+second run changes nothing.
+`agile note <root> <id> <text> [--as <author>]` appends a dated note (`Note` items with id,
+sequence, UTC instant, author and text, kept after the task's lines; the `task_note` union is added
+on first use), and `agile show` prints the notes under the title (`--json`: a `notes` array).
+`agile notes from-title <root> <id>` splits the title only at a `"; "` followed by a stamp
+(`yyyy-MM-dd HH:mm`, `yyyy-MM-dd` or `HH:mm`): it keeps the title up to the first such split and moves
+each stamped tail, undated clauses included, into one note dated from its stamp (author `migrated`).
+`agile rename <root> <old-id> <new-id>` renames the task, its planning and notes, and every `deps`
+entry that names it, in one write; titles that mention the old id are counted, not changed. Each of
+these writes only if `state/agile.spi` still holds what the call read.
+
+`agile todos <root> [<path>...] [--json] [--tagged | --id <ID>]` lists the TODO comments in any language under each path
+(the backlog root when none is given) as `path:line  comment`, and reads nothing else. A git work tree
+is listed by `git ls-files -co --exclude-standard`, so ignored build output and nested repositories
+stay out; any other directory is walked without following links. The comment syntax comes from the
+extension (`//`, `#`, `--`, `;`, `%`, `<!--`, `(*`, `{-`, `REM`), a marker inside a string or a word does
+not count, and Spiral `///>`/`///-` directives are skipped. Files next to a `.spi` of the same stem are
+generated output and are skipped, as are vendor directories, binary files and files over 32 MiB; the
+receipt counts every skip by reason. `--json` prints one object: the `todos` list, then `todo_count`,
+`skipped` by reason, `stale` and `unknown`. A marker counts only where it starts a comment: a TODO
+inside commented-out code (`//x() // TODO: ...`) is skipped. A block is tagged with the ID that follows
+`TODO:`; a dashed ID always counts, a single word (`DEPLOY`) only when the backlog declares that task.
+`--tagged` keeps tagged blocks only and `--id <ID>` keeps the blocks of one task.
+`agile roots <root> [add|drop <path>...]` lists, adds or drops the harvest roots kept in
+`state/agile.spi` (`HarvestRoot "<path>"` rows under a `harvest_root` union declared on first use);
+a bare `agile todos <root>` scans those roots instead of the backlog folder. `agile set <root> <id>
+<progress> Done` refuses while a TODO block under those roots still names the task and lists the
+blocks, so a stale block is caught when it would be born. `agile todos <root> --record` harvests the
+tagged blocks under those roots, compares them with the `TodoSite ("<ID>", "<path:line>")` rows the
+previous record left in `state/agile.spi`, writes one note per task whose blocks appeared, moved or
+vanished (author `todos`), and replaces the rows, all in one write; a block that disappears without
+its task being done shows up as a "vanished" note instead of going unnoticed.
+
+`agile links <root> --memory <dir> [--json]` reads the agents' memory files (`*.md` with
+frontmatter `name` and `type`, `MEMORY.md` excepted) and reports backlog IDs they cite that the
+backlog does not declare (`dangling`, exit 1), Done items cited by feedback or project memories whose
+rule may have changed (`done`), and `[[name]]` links to memories not written yet (`unwritten-link`).
+Only tokens whose first segment is a backlog ID prefix count as IDs, so `UTF-8` is not one.
+
+`eoie standards <package-dir>... [--json]` checks each package's `.spi` files against the rules its
+`standards.spi` declares as rows (`inl width () = LineWidth 100u32`, `NoCommentLines`, `LfOnly`,
+`IntegerOnly "module"`, `TestTargets`), or against the defaults (no comment lines outside TODO blocks
+and `///` directives, 120 columns, LF only, a `///>` target above every test block); it prints
+`path:line  rule  detail` per finding and exits 1 when there is any. `eoie standards --census <dir>...` counts, per package, the typefeatureset constructs (GADT cases `| X :: t`, existentials, foralls, indexed unions, prototypes) and the drift (host macros, macros over 200 characters, rust_global, tab or record-separated rows, pipe tables, number-coded arms, concat5); `--baseline <file.spi> <dir>...` writes the counts as typed `CensusCount` rows, and `--ratchet <file.spi> <dir>...` exits 1 when a package's drift per thousand lines rose or its typefeatureset use fell beyond noise, or when a package missing from the baseline carries rust_global, wide macros or encoded rows, or declares types without any typefeatureset construct. A directory without `.spi` files stands for its package subdirectories, so `--ratchet standards/census.spi src` checks all of eoie.
+
+`eoie window request <class> <minutes> [--label <text>] [--wait <minutes>]` takes a machine window
+that every session on the box sees (`%LOCALAPPDATA%\eoie\windows`, or `EOIE_WINDOWS_HOME`). The
+classes are `live-gui`, `test-suite`, `heavy-build`, `compile`, `compiler-install`, `bench` and `tree-read`: a live GUI run
+or a compiler install excludes every other window, a bench excludes heavy builds, suites and other benches but lets
+compiles through, a tree read only marks a source tree as being read (edits under it are refused while it holds),
+and suites, heavy builds and compiles share the box (the heavy gate counts their slots). A request also needs free
+memory (live-gui 4096 MB, test-suite 3072, compiler-install and bench 2048, heavy-build and compile 1024; the
+heavy gate keeps its own second-slot floor), and a window granted in the last moments still counts as using its
+class's memory until it settles (heavy-build, test-suite and bench 90 s, compile 20 s), so the end of an exclusive
+window admits the queue one grant at a time instead of all at once. A request prints `ok` with the window id, or `blocked` with the holder's id,
+class, minutes left and label (or `reason=low-memory`) and exits 1. With `--wait` it queues: an older
+waiting live-gui or compiler-install request keeps newer requests out, so a live block is not starved
+by a stream of compiles. Windows end at their minutes (a waiting request lapses after 30 s unless it
+is still polling); `window release <id>` ends one early, `window list` shows them and `window check
+<class>` answers without taking one. A `--heavy` job's supervisor waits for its heavy-build window and then for a heavy-gate slot itself (it writes its own heavy-queue ticket and hands it to `Invoke-Heavy` through `SPIRAL_HEAVY_TICKET`), so a queued job costs one small process and no PowerShell; `jobs/<id>/window` and `jobs/<id>/slot` show where it waits, and the window is dropped whenever the job ends. `--slot-within <minutes>` makes a `--heavy` or `--compile` job give up when it has no slot or window by then (state `expired-in-queue`, exit 75, nothing started), and `--done-within <minutes>` caps a job's whole life from submission, never stretched by queue time: still queued then, it expires in the queue; running, it stops as `timed-out`. Every job runs in a kill-on-close job object: when its supervisor ends, for any reason, everything the job started ends with it. Supervisors are children of one `eoie job host` per jobs folder (`jobs/host.pid`): the first `job start` launches it, it exits after ten quiet minutes or once its jobs folder is gone, and a start that no host answers within 5 s launches its supervisor detached instead. `eoie job run [--heavy] <label> <timeout-ms> <program> [args...]` supervises in the calling process instead of a detached one, so the job stays in its caller's process tree, still shows in `job list`/`status`/`tail`/`stop`, and exits with the job's code; an agent runs it as a background task and gets the completion as a notification instead of blocking on `job wait`. An attached job ends with its caller, so a long run from an agent shell that the memory reaper may kill belongs in `job start` plus a background `job wait`. A job whose supervisor stopped beating and whose child is gone is settled as `lost` the first time it is observed (exit 125, elapsed frozen at the last heartbeat, a detail naming the cause), and a machine window whose job supervisor is dead is dropped instead of waiting out its minutes. `window run <class> <minutes> [--label <text>] [--wait <minutes>] -- <command> [args...]` does all three steps in one call: it takes the window (waiting if asked), runs the command only when the window was granted, releases the window when the command ends and exits with the command's code, so a blocked request never falls through to the work.
+
+`eoie experiment register <ledger> <ID> --test welch|one-sample|binomial|wilson|median --metric <col> --runs <n>
+--decision <rule> [--group <col> --arms a[,b]] [--prediction <x>] [--confidence 0.95] [--question <text>] [--time <col>]`
+writes `<ledger>/<ID>.registration` once, stamped with the time, before any data. `experiment analyze
+<ledger> <ID> <table.tsv> [--where col=value]...` reads the metric only when every arm has the planned
+number of rows, computes the test (Welch two-sided with a confidence interval, one-sample t against the
+prediction, binomial P(X <= successes) under the predicted rate, or a Wilson band around the observed
+rate, or the median of the arm against a `--prediction low,high` band) and records `<ID>.verdict`; a second analysis is refused. Before the planned count it refuses
+unless `--interim <reason>` is given, and then it appends the look to `<ID>.disclosures` instead of a
+verdict. A success cell is any non-empty cell other than `0`, `false`, `no` or `-`. `experiment show`
+prints the registration, the disclosures and the verdict. With `--time <col>` the registration also keeps the local time, and analysis leaves out (and counts as `before_registration`) every row whose time cell sorts before it, so data gathered before the plan cannot decide the verdict. `experiment amend <ledger> <ID> --field <name> --value <v> --reason <text>` changes one plan field (question, test, metric, group, arms, runs, prediction, confidence, decision, time) before any look, appended with its time and reason to `<ID>.amendments` while the registration stays as written; it is refused after an interim look or the verdict, and with `--time` the amendment time becomes the new data cutoff. `experiment addendum <ledger> <ID> <text>` appends a post-hoc note to `<ID>.addenda`, kept apart from the verdict.
+
+`eoie table logs <file|dir>... [--glob *.log] [--since regex] (--count name=regex | --count-by name=regex | --sum name=regex | --last name=regex | --field name=regex)... [--out file.tsv] [--quiet]` turns log files into a table: one row per file (directories are walked, `--glob` filters file names), a `file` column, then one column per option in order: `--count` counts the regex matches in the file, `--count-by` adds one `name_<value>` column per distinct capture group 1, `--sum` adds capture group 1 of every match, `--last` keeps capture group 1 of the last match, `--field` takes capture group 1 from the file path. `--since regex` counts only the lines after the first one that matches it. `--values name=regex` stands alone and makes one row per match instead. The TSV goes to stdout (the receipt to stderr, or nothing with `--quiet`) or to `--out`, ready for `table query` and `experiment analyze`.
+
+`agile next <root> [--as main|subagent] [count]` ranks the open (Planned or Active) tasks whose deps
+are all Done, top 10 by default. `--as main` (the default) is weighted shortest job first: the
+priority weight (P0 1024, each step a quarter of the one above) plus the weights of the open tasks
+that depend on it, over its duration. `--as subagent` is longest first; narrow it with `--team <team>`.
+A team is a word: a task is on it when its tags list the word or its ID starts with the word in
+upper case followed by a dash (`--team ops` takes `ops`-tagged and `OPS-` tasks).
+The duration is the planning estimate, or the median
+estimate for the task's difficulty (D1 30m, D2 60m, D3 180m, D4 300m, D5 600m, D6 1200m, D7 2400m,
+D8 3600m) marked `~`.
+
+See [README.windows.md](README.windows.md) for Windows filesystem and process details.
+See [FIRST-COMMIT-REVIEW.md](FIRST-COMMIT-REVIEW.md) for validation and remaining release scope.

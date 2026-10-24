@@ -1,0 +1,96 @@
+open sm'_operators
+open eoie_receipt.receipt
+open search
+
+let argument (~index : i32) : string = optionm'.default_value "" (env.try_command_line_argument (index - 1i32))
+let argument_count () : i32 = env.command_line_argument_count () + 1i32
+inl stderr_line (~text : string) : () = $'eprintln\!("{}", &*!text)' : ()
+let decimal_u64 (~text : string) : u64 = optionm'.default_value 0u64 (convert.try_convert text)
+
+inl rejected (~message : string) : i32 =
+    stderr_line ("eoie error: " ++# message)
+    2i32
+
+type search_options =
+    {
+        glob : string
+        context : u64
+        limit : u64
+        ignore_case : bool
+        regex : bool
+        json : bool
+    }
+
+let search_start () : search_options =
+    { glob = ""; context = 0u64; limit = 200u64; ignore_case = false; regex = false; json = false }
+
+let rec search_options_from (index : i32) (count : i32) (options : search_options) : search_options =
+    if index < count then
+        inl word = argument index
+        if word = "--ignore-case" then search_options_from (index + 1i32) count { options with ignore_case = true }
+        elif word = "--json" then search_options_from (index + 1i32) count { options with json = true }
+        elif word = "--regex" then search_options_from (index + 1i32) count { options with regex = true }
+        elif index + 1i32 < count then
+            inl value = argument (index + 1i32)
+            if word = "--glob" then search_options_from (index + 2i32) count { options with glob = value }
+            elif word = "--context"
+            then search_options_from (index + 2i32) count { options with context = decimal_u64 value }
+            elif word = "--max" then search_options_from (index + 2i32) count { options with limit = decimal_u64 value }
+            else search_options_from (index + 1i32) count options
+        else options
+    else options
+
+let search_receipt (hits : search_hits) (json : bool) (context : i32) (limit : i32) (~started : u64) : i32 =
+    inl counts = files_rendered hits json context limit 0i32 (counts_start ())
+    inl searched = decimal_text (searched_files hits)
+    inl matched = i32_text (hit_files hits)
+    if json then
+        inl head =
+            "{\"files\":"
+            ++# searched
+            ++# ",\"matched\":"
+            ++# matched
+            ++# (",\"total\":" ++# (i32_text counts.total) ++# ",\"shown\":" ++# (i32_text counts.shown))
+        stdout_text (head ++# ",\"matches\":[" ++# counts.json ++# "]}")
+        0i32
+    else
+        inl summary =
+            "files " ++# searched ++# " searched  " ++# matched ++# (" matched  matches " ++# (i32_text counts.total))
+        receipt_line Succeeded
+            (if counts.shown < counts.total then summary ++# "  shown " ++# (i32_text counts.shown) else summary)
+            started
+        0i32
+
+let grep_run () : i32 =
+    inl started = now_ms ()
+    if argument_count () < 4i32 then rejected (eoie_read_query.model.read_usage ())
+    else
+        inl options = search_options_from 4i32 (argument_count ()) (search_start ())
+        inl context = options.context
+        inl limit = options.limit
+        inl root = argument 2i32
+        inl needle = argument 3i32
+        inl kind =
+            if options.regex then PatternNeedle options.ignore_case
+            elif options.ignore_case then CaselessNeedle
+            else LiteralNeedle
+        inl problem = if options.regex then pattern_problem needle else ""
+        if problem <> "" then rejected ("grep: invalid --regex pattern: " ++# problem)
+        else
+            match root_kind root with
+            | MissingRoot => rejected ("grep root not found: " ++# root)
+            | found =>
+                inl files =
+                    match found with
+                    | FileRoot => file_alone root
+                    | _ => files_under root
+                search_receipt
+                    (hits_found root files (matcher_of kind needle) options.glob)
+                    options.json
+                    ($'!context as i32' : i32)
+                    ($'!limit as i32' : i32)
+                    started
+
+inl main () : i32 =
+    !!!!Export("eoie_grep_run", ((fun () => grep_run ()) : () -> i32))
+    0i32

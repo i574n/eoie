@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "failure_classification.spi"
+output = "failure_classification.rs"
+
+[package]
+name = "proxy-failure-classification"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "proxy_failure_classification"
+path = "failure_classification.rs"

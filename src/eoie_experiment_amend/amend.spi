@@ -1,0 +1,47 @@
+open rust_std_string.model
+open eoie_experiments.experiment_model
+open eoie_experiments.ledger_host
+
+let amended () : i32 =
+    inl ledger = argument 3i32
+    inl id = argument 4i32
+    inl plan = plan_text ledger id
+    if plan = "" then failed (concat5 "amend: no registration for " id " in " ledger "")
+    else
+        inl field = option_value "--field"
+        match amend_checked field (option_value "--reason") (looked_at ledger id) with
+        | AmendRefused reason => failed (concat5 "amend: " reason "" "" "")
+        | AmendAccepted =>
+            inl at = agile_note_model.model.utc_stamp (now_ms ())
+            inl change = concat5 (field_line "amended" at) (field_line "reason" (option_value "--reason")) (field_line field (option_value "--value")) (field_line "registered_local" (local_stamp ())) ""
+            inl next = concat5 plan change "" "" ""
+            match test_of (field_of next "test") with
+            | TestUnknown => failed (concat5 "amend: --test must be " (test_words ()) ", received '" (field_of next "test") "'")
+            | TestKnown kind =>
+                match plan_checked kind (field_of next "arms") (field_of next "group") (decimal_i32 (field_of next "runs")) (field_of next "prediction") (field_of next "metric") (field_of next "decision") with
+                | PlanRejected reason => failed (concat5 "amend: the amended plan is incomplete: " reason "" "" "")
+                | PlanAccepted =>
+                    inl problem = text_appended (record_path ledger id "amendments") change
+                    if problem <> "" then failed (concat5 "amend: " problem "" "" "")
+                    else
+                        stdout_line (concat5 "eoie experiment amend ok id=" id " field=" field (concat5 " value=" (option_value "--value") " amended=" at ""))
+                        0i32
+
+let addended () : i32 =
+    inl ledger = argument 3i32
+    inl id = argument 4i32
+    inl note = argument 5i32
+    if plan_text ledger id = "" then failed (concat5 "addendum: no registration for " id " in " ledger "")
+    elif note = "" then failed "addendum: the text is the post-hoc note, kept apart from the verdict"
+    else
+        inl at = agile_note_model.model.utc_stamp (now_ms ())
+        inl problem = text_appended (record_path ledger id "addenda") (concat5 at "\t" (field_line "note" note) "" "")
+        if problem <> "" then failed (concat5 "addendum: " problem "" "" "")
+        else
+            stdout_line (concat5 "eoie experiment addendum ok id=" id " at=" at (if looked_at ledger id then " after_look=yes" else " after_look=no"))
+            0i32
+
+inl main () : i32 =
+    !!!!Export("eoie_experiment_amend_run", ((fun () => amended ()) : () -> i32))
+    !!!!Export("eoie_experiment_addendum_run", ((fun () => addended ()) : () -> i32))
+    0i32

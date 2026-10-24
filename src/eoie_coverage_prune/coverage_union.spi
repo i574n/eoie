@@ -1,0 +1,53 @@
+inl rust_global (x : string) : () = !!!!Global(x)
+
+inl emit_coverage_union () : () =
+    rust_global """
+        fn coverage_union_records(path: &Path) -> Result<BTreeMap<String, BTreeMap<u32, u64>>, String> {
+            let text = coverage_read_regular_text_limited(path, 64 * 1024 * 1024).map_err(|error| format!("read {}: {error}", path.display()))?;
+            let error = eoie_lcov::eoie_lcov_error(&text);
+            if !error.is_empty() { return Err(error.to_string()); }
+            let mut records: BTreeMap<String, BTreeMap<u32, u64>> = BTreeMap::new();
+            for row in eoie_lcov::eoie_lcov_rows(&text).lines() {
+                let mut fields = row.split('\t');
+                let source = fields.next().unwrap_or_default().to_owned();
+                let lines = records.entry(source).or_default();
+                if let (Some(line), Some(hits)) = (fields.next(), fields.next()) {
+                    let (line, hits) = (line.parse::<u32>().unwrap_or(0), hits.parse::<u64>().unwrap_or(0));
+                    lines.entry(line).and_modify(|seen| *seen = (*seen).max(hits)).or_insert(hits);
+                }
+            }
+            Ok(records)
+        }
+
+        fn coverage_union_merge(target: &mut BTreeMap<String, BTreeMap<u32, u64>>, source: BTreeMap<String, BTreeMap<u32, u64>>) {
+            for (file, lines) in source { let target_lines = target.entry(file).or_default(); for (line, hits) in lines { target_lines.entry(line).and_modify(|seen| *seen = (*seen).max(hits)).or_insert(hits); } }
+        }
+
+        fn coverage_union_payload(records: &BTreeMap<String, BTreeMap<u32, u64>>) -> String {
+            let mut payload = String::new();
+            for (source, lines) in records { payload.push_str("SF:"); payload.push_str(source); payload.push(char::from(10)); for (line, hits) in lines { payload.push_str(&format!("DA:{line},{hits}\n")); } payload.push_str("end_of_record\n"); }
+            payload
+        }
+
+        pub fn coverage_union(args: &[String]) -> Result<(), String> {
+            if args.len() < 4 { return Err("coverage-union expects output-lcov and at least two input LCOV files".to_owned()); }
+            let output = Path::new(coverage_arg(args, 1, "output-lcov")?);
+            let mut records: BTreeMap<String, BTreeMap<u32, u64>> = BTreeMap::new();
+            for input in &args[2..] { let path = Path::new(input); if path == output { return Err("coverage union output cannot also be an input".to_owned()); } coverage_union_merge(&mut records, coverage_union_records(path)?); }
+            if output.exists() { let metadata = fs::symlink_metadata(output).map_err(|error| error.to_string())?; if metadata.file_type().is_symlink() || !metadata.is_file() { return Err("coverage union output must be a regular file path".to_owned()); } }
+            let payload = coverage_union_payload(&records);
+            coverage_atomic_write(output, payload.as_bytes())?;
+            let flat = coverage_lcov_lines(output)?;
+            let ratio = coverage_ratio(&flat);
+            let hash = inspection_file_sha256(output)?;
+            let receipt = PathBuf::from(format!("{}.receipt", output.display()));
+            let receipt_text = format!("route=lcov-union\ninputs={}\nlines={}\ncovered_permille={ratio}\nsha256={hash}\n", args.len() - 2, flat.len());
+            coverage_atomic_write(&receipt, receipt_text.as_bytes())?;
+            println!("eoie proxy coverage-union ok inputs={} lines={} covered={ratio}/1000 sha256={hash}", args.len() - 2, flat.len());
+            Ok(())
+        }
+
+        mod coverage_union_tests {
+            #[test] fn coverage_union_merges_max_hits_and_writes_receipt() { let root = std::env::temp_dir().join(format!("eoie-coverage-union-{}", std::process::id())); let _ = std::fs::remove_dir_all(&root); std::fs::create_dir_all(&root).expect("root"); let first = root.join("first.lcov"); let second = root.join("second.lcov"); let output = root.join("union.lcov"); std::fs::write(&first, b"SF:src/a.rs\nDA:1,1\nDA:2,0\nend_of_record\n").expect("first"); std::fs::write(&second, b"SF:src/a.rs\nDA:1,3\nDA:2,1\nend_of_record\n").expect("second"); let args = vec!["coverage-union".to_owned(), output.to_string_lossy().into_owned(), first.to_string_lossy().into_owned(), second.to_string_lossy().into_owned()]; super::coverage_union(&args).expect("union"); let text = std::fs::read_to_string(&output).expect("output"); assert!(text.contains("DA:1,3")); assert!(text.contains("DA:2,1")); let receipt = std::fs::read_to_string(format!("{}.receipt", output.display())).expect("receipt"); assert!(receipt.contains("inputs=2")); std::fs::remove_dir_all(root).expect("cleanup"); }
+        }
+        """

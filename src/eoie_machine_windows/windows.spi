@@ -1,0 +1,162 @@
+open rust_std_string.model
+open eoie_jobs.host
+open window_model
+
+let windows_root () : string =
+    $'std::rc::Rc::<str>::from(std::env::var_os("EOIE_WINDOWS_HOME").map(std::path::PathBuf::from).or_else(|| std::env::var_os("LOCALAPPDATA").map(|base| std::path::PathBuf::from(base).join("eoie").join("windows"))).or_else(|| std::env::var_os("HOME").map(|base| std::path::PathBuf::from(base).join(".cache").join("eoie").join("windows"))).unwrap_or_else(|| std::path::PathBuf::from(".eoie-windows")).to_string_lossy().as_ref())' : string
+
+let window_file (~root : string) (~id : string) : string = joined root (concat5 id ".window" "" "" "")
+
+let lock_taken (~root : string) : bool =
+    $'{ let lock = std::path::Path::new(&*!root).join("lock"); let _ = std::fs::create_dir_all(&*!root); let mut taken = false; for _ in 0..400 { if std::fs::create_dir(&lock).is_ok() { taken = true; break; } let stale = std::fs::metadata(&lock).and_then(|meta| meta.modified()).ok().and_then(|time| time.elapsed().ok()).map(|age| age.as_secs() > 10).unwrap_or(false); if stale { let _ = std::fs::remove_dir(&lock); } else { std::thread::sleep(std::time::Duration::from_millis(50)); } } taken }' : bool
+
+let lock_released (~root : string) : () = $'{ let _ = std::fs::remove_dir(std::path::Path::new(&*!root).join("lock")); }' : ()
+
+let stored_rows (~root : string) : string =
+    $'{ let mut rows = std::fs::read_dir(&*!root).into_iter().flatten().flatten().map(|entry| entry.path()).filter(|path| path.extension().map(|ext| ext == "window").unwrap_or(false)).filter_map(|path| std::fs::read_to_string(&path).ok()).map(|text| text.trim().to_owned()).filter(|text| \!text.is_empty()).collect::<Vec<_>>(); rows.sort_by_key(|row| row.split(char::from(9u8)).nth(4).and_then(|start| start.parse::<u64>().ok()).unwrap_or(0)); std::rc::Rc::<str>::from(rows.join("\n")) }' : string
+
+let file_removed (~path : string) : bool = $'std::fs::remove_file(&*!path).is_ok()' : bool
+
+let free_mb () : u64 =
+    $'{ \#[cfg(windows)] fn free() -> u64 { \#[repr(C)] struct Status { length: u32, load: u32, total: u64, available: u64, total_page: u64, available_page: u64, total_virtual: u64, available_virtual: u64, extended: u64 } unsafe extern "system" { fn GlobalMemoryStatusEx(status: *mut Status) -> i32; } unsafe { let mut status: Status = std::mem::zeroed(); status.length = std::mem::size_of::<Status>() as u32; if GlobalMemoryStatusEx(&mut status) == 0 { u64::MAX } else { status.available / 1048576 } } } \#[cfg(not(windows))] fn free() -> u64 { std::fs::read_to_string("/proc/meminfo").ok().and_then(|text| text.lines().find(|line| line.starts_with("MemAvailable:")).and_then(|line| line.split_whitespace().nth(1)).and_then(|kb| kb.parse::<u64>().ok())).map(|kb| kb / 1024).unwrap_or(u64::MAX) } std::env::var("EOIE_WINDOWS_FREE_MB").ok().and_then(|text| text.trim().parse::<u64>().ok()).unwrap_or_else(free) }' : u64
+
+let option_value (~flag : string) : string =
+    $'std::rc::Rc::<str>::from(std::env::args().skip_while(|arg| arg \!= &*!flag).nth(1).unwrap_or_default())' : string
+
+let process_number () : u64 = $'std::process::id() as u64' : u64
+
+let first_row (~rows : string) : string = $'std::rc::Rc::<str>::from(!rows.lines().next().unwrap_or(""))' : string
+
+let other_rows (~rows : string) : string = $'std::rc::Rc::<str>::from(!rows.lines().skip(1).collect::<Vec<_>>().join("\n"))' : string
+
+let window_pid (~id : string) : u64 = $'(!id).split(char::from(45u8)).nth(2).and_then(|pid| pid.parse::<u64>().ok()).unwrap_or(0)' : u64
+
+union window_holder =
+    | ProcessHolder
+    | LeaseHolder
+
+let holder_of (~row : string) : window_holder =
+    if contains (tab_field row 3i32) "(eoie job " || ends_with (tab_field row 0i32) "-run" then ProcessHolder else LeaseHolder
+
+let orphaned_window (~row : string) : bool =
+    match holder_of row with
+    | ProcessHolder => process_alive (window_pid (tab_field row 0i32)) = false
+    | LeaseHolder => false
+
+let rec live_rows (~root : string) (~rows : string) (now : u64) (~kept : string) : string =
+    if rows = "" then kept
+    else
+        inl row = first_row rows
+        if row_expired row now || orphaned_window row then
+            inl _ = file_removed (window_file root (tab_field row 0i32))
+            live_rows root (other_rows rows) now kept
+        else live_rows root (other_rows rows) now (if kept = "" then row else concat5 kept "\n" row "" "")
+
+let verdict_text (wanted : window_class) (~mine : string) (since : u64) (minutes : u64) (~rows : string) (free : u64) (now : u64) : string =
+    inl word = class_word wanted
+    $'eoie_window_admission::eoie_window_verdict(&*!word, &*!mine, !since, !minutes, &*!rows, !free, !now)' : string
+
+let refused (~message : string) : i32 =
+    stderr_line (concat5 "eoie error: window " message "" "" "")
+    2i32
+
+inl window_usage () : string = concat5 "usage: window request <class> <minutes> [--label <text>] [--wait <minutes>|until-granted] | window release <id> | window list | window check <class> | window claim <path> | window run <class> <minutes> [--label <text>] [--wait <minutes>] -- <command> [args...]; classes " (class_words ()) "" "" ""
+
+type request =
+    {
+        wanted : window_class
+        minutes : u64
+        label : string
+        id : string
+        since : u64
+        deadline : u64
+    }
+
+let request_row (ask : request) (state : window_state) (until : u64) : string =
+    row_text { id = ask.id; kind = ask.wanted; state = state; label = ask.label; start_ms = ask.since; until_ms = until }
+
+let request_head (ask : request) (~verdict : string) : string =
+    concat5 "eoie window request " verdict " id=" ask.id (concat5 " class=" (class_word ask.wanted) "" "" "")
+
+let rec requested (ask : request) (announced : bool) : i32 =
+    inl root = windows_root ()
+    if lock_taken root = false then refused "request: the registry lock stayed taken for 20 s"
+    else
+        inl now = now_ms ()
+        inl rows = live_rows root (stored_rows root) now ""
+        inl free = free_mb ()
+        inl terms = verdict_text ask.wanted ask.id ask.since ask.minutes rows free now
+        if terms = "" then
+            inl until = now + ask.minutes * 60000u64
+            inl _ = text_written (window_file root ask.id) (request_row { ask with since = now } Held until)
+            lock_released root
+            stdout_line (concat5 (request_head ask "ok") " minutes=" (number_text ask.minutes) " free_mb=" (concat5 (number_text free) " waited_ms=" (number_text (now - ask.since)) "" ""))
+            0i32
+        else
+            if now >= ask.deadline then
+                inl _ = file_removed (window_file root ask.id)
+                lock_released root
+                stdout_line (concat5 (request_head ask "blocked") " " terms "" "")
+                1i32
+            else
+                inl _ = text_written (window_file root ask.id) (request_row ask Waiting (now + 30000u64))
+                lock_released root
+                inl _ = if announced then () else stdout_line (concat5 (request_head ask "queued") " " terms "" "")
+                sleep_ms 2000u64
+                requested ask true
+
+let window_requested () : i32 =
+    match class_of (argument 3i32) with
+    | ClassUnknown => refused (concat5 "request: unknown class '" (argument 3i32) "'; " (window_usage ()) "")
+    | ClassKnown wanted =>
+        inl minutes = decimal_of (argument 4i32)
+        if minutes = 0u64 then refused (concat5 "request: minutes must be a whole number above 0, received '" (argument 4i32) "'; " (window_usage ()) "")
+        else
+            inl since = now_ms ()
+            inl id = concat5 "win-" (number_text since) "-" (number_text (process_number ())) (concat5 "-" (class_word wanted) "" "" "")
+            requested { wanted = wanted; minutes = minutes; label = option_value "--label"; id = id; since = since; deadline = (if option_value "--wait" = "until-granted" then 9223372036854775807u64 else since + decimal_of (option_value "--wait") * 60000u64) } false
+
+let window_released () : i32 =
+    inl id = argument 3i32
+    if starts_with id "win-" = false then refused (concat5 "release: unknown window id '" id "'" "" "")
+    elif file_removed (window_file (windows_root ()) id) then
+        stdout_line (concat5 "eoie window release ok id=" id "" "" "")
+        0i32
+    else refused (concat5 "release: unknown window id '" id "'; it was released or expired" "" "")
+
+let window_run () : i32 =
+    inl verb = argument 2i32
+    if verb = "request" then window_requested ()
+    elif verb = "release" then window_released ()
+    elif verb = "list" then $'eoie_window_query::eoie_window_list_run()' : i32
+    elif verb = "check" then $'eoie_window_query::eoie_window_check_run()' : i32
+    elif verb = "run" then $'eoie_window_run::eoie_window_run_run()' : i32
+    elif verb = "claim" then $'eoie_window_claim::eoie_window_claim_run()' : i32
+    else refused (concat5 "unknown verb '" verb "'; " (window_usage ()) "")
+
+let rec dropped_tagged (~root : string) (~rows : string) (~tag : string) (count : u64) : u64 =
+    if rows = "" then count
+    else
+        inl row = first_row rows
+        if contains (tab_field row 3i32) tag then
+            inl _ = file_removed (window_file root (tab_field row 0i32))
+            dropped_tagged root (other_rows rows) tag (count + 1u64)
+        else dropped_tagged root (other_rows rows) tag count
+
+let job_windows_dropped (~id : string) : u64 =
+    inl root = windows_root ()
+    dropped_tagged root (stored_rows root) (concat5 "(eoie job " id ")" "" "") 0u64
+
+let own_executable () : string =
+    $'std::rc::Rc::<str>::from(std::env::current_exe().map(|path| path.to_string_lossy().into_owned()).unwrap_or_default())' : string
+
+let heavy_wrapper (~gate : string) (~inner : string) (~label : string) (~id : string) (timeout : u64) : string =
+    inl tag = concat5 label " (eoie job " id ")" ""
+    inl _ = timeout
+    concat5 (concat5 "$argv = @(Get-Content -LiteralPath '" inner "')\n. '" gate "'\n") "Invoke-Heavy -Label '" tag "' { & $argv[0] @($argv | Select-Object -Skip 1) }\n" "exit $LASTEXITCODE\n"
+
+inl main () : i32 =
+    !!!!Export("eoie_window_run", ((fun () => window_run ()) : () -> i32))
+    !!!!Export("eoie_job_windows_dropped", ((fun id => job_windows_dropped id) : string -> u64))
+    !!!!Export("eoie_heavy_wrapper", ((fun (gate, inner, label, id, timeout) => heavy_wrapper gate inner label id timeout) : string * string * string * string * u64 -> string))
+    0i32

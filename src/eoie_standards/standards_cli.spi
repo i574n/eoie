@@ -1,0 +1,45 @@
+///- --package ../eoie_cli_harness --timeout 900000
+open cli
+
+inl standards_run (root : fixture_root) (args : cli_args) : cli_run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("standards", args))
+
+inl package_root () : fixture_root =
+    inl root = fixture_root_create "standards"
+    fixture_write root "pkg/good.spi" "inl a = 1\n"
+    fixture_write root "pkg/bad.spi" "inl a = 1\n// stray note\ninl b = 2\n"
+    root
+
+///> rust
+test default_rules_flag_comment_lines_and_gate_with_exit_one =
+    inl root = package_root ()
+    inl run = standards_run root (Arg (fixture_path root "pkg", NoArgs))
+    expect (run.code = 1i32) (run_text run)
+    shows run.stdout "bad.spi:2  no-comment-lines  a comment line; encode it in names or drop it"
+    shows run.stdout "eoie standards ok packages=1 declared=0 files=2 findings=1 rules=no-comment-lines,line-width,lf-only,test-targets"
+    inl json = standards_run root (Arg (fixture_path root "pkg", Arg ("--json", NoArgs)))
+    shows json.stdout "\"line\":2,\"rule\":\"no-comment-lines\""
+    shows json.stdout "],\"count\":1}"
+    fixture_root_remove root
+
+///> rust
+test declared_rows_replace_the_defaults_and_a_clean_package_passes =
+    inl root = package_root ()
+    fixture_write root "pkg/standards.spi" "inl width () = LineWidth 200u32\n"
+    inl run = standards_run root (Arg (fixture_path root "pkg", NoArgs))
+    expect (run.code = 0i32) (run_text run)
+    shows run.stdout "eoie standards ok packages=1 declared=1 files=2 findings=0 rules=line-width"
+    inl missing = standards_run root (Arg (fixture_path root "nope", NoArgs))
+    expect (missing.code = 1i32) (run_text missing)
+    shows missing.stdout "package  not a directory"
+    fixture_root_remove root
+
+///> rust
+test an_unknown_declared_rule_fails_instead_of_passing_silently =
+    inl root = fixture_root_create "standards unknown rule"
+    fixture_write root "pkg/standards.spi" "inl width () = LineWidth 120i32\ninl future () = ShinyRule\n"
+    fixture_write root "pkg/a.spi" "inl a = 1\n"
+    inl run = eoie_run (fixture_text_of root) NoArgs NoArgs (Arg ("standards", Arg (fixture_path root "pkg", NoArgs)))
+    expect (run.code = 1i32) (run_text run)
+    shows run.stdout "unknown-rule  ShinyRule is not a rule this eoie knows"
+    shows run.stdout "findings=1"
+    fixture_root_remove root

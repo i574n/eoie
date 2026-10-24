@@ -1,0 +1,128 @@
+open rust_std_string.model
+open model
+open host
+open jobs_watch
+
+inl argument (~index : i32) : string = $'std::rc::Rc::<str>::from(std::env::args().nth(!index as \
+    usize).unwrap_or_default())' : string
+inl argument_count () : i32 = $'std::env::args().count() as i32' : i32
+inl stdout_line (~text : string) : () = $'println\!("{}", &*!text)' : ()
+inl decimal_u64 (~text : string) : u64 = $'!text.trim().parse::<u64>().unwrap_or(0)' : u64
+inl u64_text (value : u64) : string = $'std::rc::Rc::<str>::from((!value).to_string())' : string
+inl free_megabytes () : u64 = $'{ let mut system = sysinfo::System::new_with_specifics(sysinfo::RefreshKind::nothing()\
+    .with_memory(sysinfo::MemoryRefreshKind::nothing().with_ram())); system.refresh_memory(); \
+    system.available_memory() / 1048576 }' : u64
+inl now_text () : string = $'std::rc::Rc::<str>::from(format\!("{}", std::time::SystemTime::now().duration_since(std::\
+    time::UNIX_EPOCH).map(|elapsed| elapsed.as_secs()).unwrap_or(0)))' : string
+
+let rec option_value (~name : string) (index : i32) : string =
+    if index + 1i32 >= argument_count () then ""
+    elif argument index = name then argument (index + 1i32)
+    else option_value name (index + 1i32)
+
+let rec busy_lines (~rows : process_rows) (at : i32) (~acc : string) (total : f64) : string * f64 =
+    if at >= row_count rows then acc, total
+    else
+        inl cores = row_cores rows at
+        if cores < 0.1f64 then busy_lines rows (at + 1i32) acc total
+        else
+            inl busy = busy_at rows at
+            inl line =
+                concat5
+                    (u64_text busy.pid)
+                    "\t"
+                    busy.name
+                    "\t"
+                    (
+                        concat5
+                            (cores_text cores)
+                            "\t"
+                            (u64_text busy.age_minutes)
+                            "\t"
+                            (concat5 (u64_text busy.cpu_minutes) "\t" (owner_text busy.owner) "" "")
+                    )
+            busy_lines rows (at + 1i32) (if acc = "" then line else concat5 acc "\n" line "" "") (total + cores)
+
+let rec rogue_lines (limits : watch_limits) (~rows : process_rows) (at : i32) (~acc : string) : string =
+    if at >= row_count rows then acc
+    else
+        inl busy = busy_at rows at
+        if rogue limits busy then
+            inl line =
+                concat5
+                    "  pid "
+                    (u64_text busy.pid)
+                    " "
+                    busy.name
+                    (
+                        concat5
+                            " "
+                            (cores_text busy.cores)
+                            " cores, age "
+                            (u64_text busy.age_minutes)
+                            (concat5 " min, owner " (owner_text busy.owner) "" "" "")
+                    )
+            rogue_lines limits rows (at + 1i32) (if acc = "" then line else concat5 acc "\n" line "" "")
+        else rogue_lines limits rows (at + 1i32) acc
+
+let rec hog_lines (limits : watch_limits) (~rows : process_rows) (at : i32) (~acc : string) : string =
+    if at >= row_count rows then acc
+    elif row_megabytes rows at >= limits.hog_megabytes then
+        inl line =
+            concat5
+                "  pid "
+                (u64_text (row_pid rows at))
+                " "
+                (row_name rows at)
+                (concat5 " " (u64_text (row_megabytes rows at)) " MB, owner " (owner_text (owner_of rows at)) "")
+        hog_lines limits rows (at + 1i32) (if acc = "" then line else concat5 acc "\n" line "" "")
+    else hog_lines limits rows (at + 1i32) acc
+
+inl sorted_busy (~lines : string) : string = $'{ let mut rows = (&*!lines).lines().collect::<Vec<_>>(); \
+    rows.sort_by(|left, right| { let cores = |row: &str| row.split(char::from(9u8)).nth(2).and_then(|value| \
+    value.parse::<f64>().ok()).unwrap_or(0.0); cores(right).total_cmp(&cores(left)) }); \
+    std::rc::Rc::<str>::from(rows.into_iter().take(12).map(|row| format\!("  {}", row.replace(char::from(9u8), "  \
+    "))).collect::<Vec<_>>().join("\n")) }' : string
+inl line_total (~lines : string) : u64 = $'(&*!lines).lines().filter(|line| \!line.is_empty()).count() as u64' : u64
+
+let watch_run () : i32 =
+    inl limits = default_limits ()
+    inl given = decimal_u64 (option_value "--sample-seconds" 2i32)
+    inl seconds = if given = 0u64 then 10u64 else given
+    inl rows = process_rows_sampled (seconds * 1000u64)
+    inl busy, total = busy_lines rows 0i32 "" 0.0f64
+    inl rogues = rogue_lines limits rows 0i32 ""
+    inl hogs = hog_lines limits rows 0i32 ""
+    stdout_line (
+        concat5
+            "== machine: "
+            (cores_text total)
+            " cores busy over "
+            (u64_text seconds)
+            (concat5 " s, " (u64_text (free_megabytes ())) " MB free" "" "")
+    )
+    stdout_line (sorted_busy busy)
+    stdout_line (concat5 "== rogue candidates: " (u64_text (line_total rogues)) "" "" "")
+    inl _ = if rogues = "" then () else stdout_line rogues
+    stdout_line (concat5 "== memory hogs (>= " (u64_text limits.hog_megabytes) " MB): " (u64_text (line_total hogs)) "")
+    inl _ = if hogs = "" then () else stdout_line hogs
+    stdout_line (jobs_and_windows limits rows)
+    stdout_line (
+        concat5
+            "eoie machine watch ok processes="
+            (u64_text ($'!(row_count rows) as u64' : u64))
+            " rogues="
+            (u64_text (line_total rogues))
+            (concat5 " hogs=" (u64_text (line_total hogs)) " unix=" (now_text ()) "")
+    )
+    0i32
+
+let machine_run () : i32 =
+    if argument 2i32 = "watch" then watch_run ()
+    else
+        inl _ = $'eprintln\!("eoie error: machine: usage: machine watch [--sample-seconds n]")' : ()
+        2i32
+
+inl main () : i32 =
+    !!!!Export("eoie_machine_watch_run", ((fun () => machine_run ()) : () -> i32))
+    0i32

@@ -1,0 +1,160 @@
+open state_series_contract.model
+
+union agile_state_entry_kind =
+    | StaticPackageModule
+    | TransientTypedReceipt
+    | InvalidStateEntry
+
+inl classify_state_entry package_owned transient_known =
+    match package_owned, transient_known with
+    | true, false => StaticPackageModule
+    | false, true => TransientTypedReceipt
+    | _ => InvalidStateEntry
+
+let agile_state_entry_kind_binding (package_owned : i32) (transient_known : i32) : i32 =
+    if package_owned = 1i32 then
+        if transient_known = 1i32 then 0i32 else 1i32
+    else
+        if transient_known = 1i32 then 2i32 else 0i32
+
+union agile_state_module_name_class =
+    | StableStateModuleName
+    | TransientStateReceiptName
+
+inl agile_state_module_name_class_code = function
+    | StableStateModuleName => 0u64
+    | TransientStateReceiptName => 1u64
+
+union transient_receipt =
+    | PatchResumeReceipt
+    | ToolchainProcessReceipt
+
+inl transient_receipt_file (receipt : transient_receipt) : string =
+    match receipt with
+    | PatchResumeReceipt => "patch_resume.spi"
+    | ToolchainProcessReceipt => "toolchain_process_receipt.spi"
+
+let agile_transient_state_name_code (~name : string) : u64 =
+    if union_reflection.cases.union_case_where (fun (receipt : transient_receipt) => name = transient_receipt_file receipt) (fun _ => true) false then
+        agile_state_module_name_class_code TransientStateReceiptName
+    else
+        agile_state_module_name_class_code StableStateModuleName
+
+union agile_record_requirement =
+    | HistoryStateRecord
+    | RatingsStateRecord
+    | BenchStateRecord
+    | MigrationStateRecord
+
+inl agile_record_file (record : agile_record_requirement) : string =
+    match record with
+    | HistoryStateRecord => "history.spi"
+    | RatingsStateRecord => "ratings.spi"
+    | BenchStateRecord => "bench.spi"
+    | MigrationStateRecord => "migration.spi"
+
+inl agile_record_requirement_bit = function
+    | HistoryStateRecord => 1u64
+    | RatingsStateRecord => 2u64
+    | BenchStateRecord => 4u64
+    | MigrationStateRecord => 8u64
+
+let agile_record_required_name_bit (~name : string) : u64 =
+    union_reflection.cases.union_case_where (fun (record : agile_record_requirement) => name = agile_record_file record) (fun record => agile_record_requirement_bit record) 0u64
+
+let agile_record_required_catalog (~version : string) : string =
+    if version = "v1" then union_reflection.cases.union_cases_joined (fun (record : agile_record_requirement) => agile_record_file record) "|" else ""
+
+let agile_record_preflight_binding (observed_mask : i32) (reserved : i32) : i32 =
+    if observed_mask < 0i32 || 15i32 < observed_mask || reserved < 0i32 || 0i32 < reserved then -1i32
+    elif observed_mask = 15i32 then 1i32
+    else 0i32
+
+union agile_attestation_decision =
+    | RejectUnknownStateEntry
+    | SkipCurrentAttestation
+    | RuntimeAttestTransient
+    | BuildAttestStatic
+    | RequireBuildCompiler
+
+inl agile_attestation_decision_code = function
+    | RejectUnknownStateEntry => 0i32
+    | SkipCurrentAttestation => 1i32
+    | RuntimeAttestTransient => 2i32
+    | BuildAttestStatic => 3i32
+    | RequireBuildCompiler => 4i32
+
+let agile_attestation_decision_binding (kind_code : i32) (observation_mask : i32) : i32 =
+    if observation_mask < 0i32 || 7i32 < observation_mask || observation_mask = 4i32 || observation_mask = 5i32 then
+        agile_attestation_decision_code RejectUnknownStateEntry
+    elif kind_code = 2i32 then
+        if observation_mask = 1i32 || observation_mask = 3i32 || observation_mask = 7i32 then
+            agile_attestation_decision_code SkipCurrentAttestation
+        else
+            agile_attestation_decision_code RuntimeAttestTransient
+    elif kind_code = 1i32 then
+        if observation_mask = 7i32 || observation_mask = 1i32 then
+            agile_attestation_decision_code SkipCurrentAttestation
+        elif observation_mask = 2i32 || observation_mask = 3i32 || observation_mask = 6i32 then
+            agile_attestation_decision_code BuildAttestStatic
+        elif observation_mask = 0i32 then
+            agile_attestation_decision_code RequireBuildCompiler
+        else
+            agile_attestation_decision_code RejectUnknownStateEntry
+    else
+        agile_attestation_decision_code RejectUnknownStateEntry
+
+let agile_series_sequence_binding (previous : i32) (next : i32) : i32 =
+    series_sequence_binding previous next
+
+let agile_series_source_binding (path_length : i32) (packed_shape : i32) : i32 =
+    series_source_binding path_length packed_shape
+
+let agile_series_pair_binding (ratings_present : i32) (bench_present : i32) : i32 =
+    series_pair_binding ratings_present bench_present
+
+let agile_series_monotonic_binding (previous : i32) (next : i32) : i32 =
+    series_monotonic_binding previous next
+
+let agile_series_fingerprint_binding (ratings_nonzero : i32) (bench_nonzero : i32) : i32 =
+    series_fingerprint_binding ratings_nonzero bench_nonzero
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_state_series_sequence_binding", ((fun (first, second) => agile_series_sequence_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_agile_state_series_source_binding", ((fun (first, second) => agile_series_source_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_agile_state_series_pair_binding", ((fun (first, second) => agile_series_pair_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_agile_state_series_monotonic_binding", ((fun (first, second) => agile_series_monotonic_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_agile_state_series_fingerprint_binding", ((fun (first, second) => agile_series_fingerprint_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_agile_state_entry_kind_binding", ((fun (first, second) => agile_state_entry_kind_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_agile_state_transient_name_code", ((fun value => agile_transient_state_name_code value) : string -> u64))
+    !!!!Export("eoie_agile_state_record_required_name_bit", ((fun value => agile_record_required_name_bit value) : string -> u64))
+    !!!!Export("eoie_agile_state_record_required_catalog", ((fun value => agile_record_required_catalog value) : string -> string))
+    !!!!Export("eoie_agile_state_record_preflight_binding", ((fun (first, second) => agile_record_preflight_binding first second) : i32 * i32 -> i32))
+    !!!!Export("eoie_agile_state_attestation_decision_binding", ((fun (first, second) => agile_attestation_decision_binding first second) : i32 * i32 -> i32))
+    inl _ = append_only_series_plan ()
+    inl _ = agile_series_sequence_binding 0i32 1i32
+    inl _ = agile_series_source_binding 17i32 32i32
+    inl _ = agile_series_pair_binding 1i32 1i32
+    inl _ = agile_series_monotonic_binding 0i32 1i32
+    inl _ = agile_series_fingerprint_binding 1i32 1i32
+    inl _ = agile_state_entry_kind_binding 1i32 0i32
+    inl _ = agile_transient_state_name_code "patch_resume.spi"
+    inl _ = agile_transient_state_name_code "toolchain_process_receipt.spi"
+    inl _ = agile_transient_state_name_code "ratings.spi"
+    inl _ = agile_record_required_name_bit "history.spi"
+    inl _ = agile_record_required_name_bit "ratings.spi"
+    inl _ = agile_record_required_name_bit "bench.spi"
+    inl _ = agile_record_required_name_bit "migration.spi"
+    inl _ = agile_record_required_name_bit "other.spi"
+    inl _ = agile_record_required_catalog "v1"
+    inl _ = agile_record_preflight_binding 15i32 0i32
+    inl _ = agile_record_preflight_binding 7i32 0i32
+    inl _ = agile_attestation_decision_binding 0i32 0i32
+    inl _ = agile_attestation_decision_binding 2i32 1i32
+    inl _ = agile_attestation_decision_binding 2i32 0i32
+    inl _ = agile_attestation_decision_binding 1i32 1i32
+    inl _ = agile_attestation_decision_binding 1i32 7i32
+    inl _ = agile_attestation_decision_binding 1i32 2i32
+    inl _ = agile_attestation_decision_binding 1i32 0i32
+    inl _ = classify_state_entry true false
+    0i32

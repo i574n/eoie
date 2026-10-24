@@ -1,0 +1,7 @@
+packages:
+    |core-
+    spiral-
+    union_reflection
+modules:
+    model-
+    main

@@ -1,0 +1,64 @@
+open agile_mutation_policy.model
+open sm'_operators
+open rust_std_fs.model
+open agile_task_text.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+let argument_owned (index : i32) : string = rust_std_env.model.argument_owned index
+
+inl edit_field_position (~field_name : string) : i32 = $'agile_field_rendering::eoie_agile_edit_field_position(&*!field_name)' : i32
+inl edit_field_token (~field_name : string) (~current : string) (~value : string) : string =
+    $'agile_field_rendering::eoie_agile_edit_field_token(&*!field_name, &*!current, &*!value)' : string
+inl edit_field_rule (~field_name : string) : string = $'agile_field_rendering::eoie_agile_edit_field_rule(&*!field_name)' : string
+
+union field_token =
+    | TokenRendered : string
+    | TokenRejected
+
+inl field_token_of (~token : string) : field_token = if (token = "") then TokenRejected else TokenRendered token
+
+let agile_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure ("agile edit " ++# id ++# " rejected: " ++# reason)
+
+inl agile_edit_success (~id : string) (~field : string) (before : u64) (after : u64) (elapsed : u64) : i32 =
+    inl head = "eoie agile edit ok id=" ++# id ++# " field=" ++# field
+    stdout_line (head ++# (measured_sizes before after elapsed))
+
+inl task_anchor (~id : string) : string = "Task (\"" ++# id ++# "\","
+inl task_arguments_offset () : i32 = 6i32
+
+inl agile_edit (~root : string) (~id : string) (position : i32) (~field_name : string) (~value : string) : i32 =
+    inl started = unix_ms ()
+    inl state = backlog_state_path root
+    match probe (unchecked state) with
+    | FileMissing _ => agile_edit_failure "state/agile.spi is missing" id
+    | FileReadable file =>
+        inl original = loaded_string (read_text file)
+        inl anchor = byte_find original (task_anchor id)
+        if anchor < 0i32 then agile_edit_failure "no task with this id" id
+        else
+            inl length = byte_len original
+            inl start = field_start original ($"!anchor + !(task_arguments_offset ())" : i32) length position
+            inl stop = field_end original start length ScanPlain
+            match field_token_of (edit_field_token field_name (byte_slice original start stop) value) with
+            | TokenRejected => agile_edit_failure (edit_field_rule field_name) id
+            | TokenRendered token =>
+                inl updated = (byte_slice original 0i32 start) ++# token ++# (byte_slice original stop length)
+                match replace_file_checked state updated with
+                | Replaced => agile_edit_success id field_name (text_bytes original) (text_bytes updated) (ms_since started)
+                | problem => agile_edit_failure (file_replacement_problem problem) id
+
+let agile_edit_entry () : i32 =
+    inl field_name = argument_owned 3i32
+    inl position = edit_field_position field_name
+    if position < 0i32 then agile_edit_failure (edit_field_rule field_name) (argument_owned 2i32)
+    else agile_edit (argument_owned 1i32) (argument_owned 2i32) position field_name (argument_owned 4i32)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_edit_run", ((fun () => agile_edit_entry ()) : () -> i32))
+    inl _ = agile_edit_entry ()
+    0i32

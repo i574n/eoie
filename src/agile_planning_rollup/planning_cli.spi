@@ -1,0 +1,138 @@
+/// # planning_cli
+
+nominal fixture_root = string
+
+type cli_run =
+    {
+        succeeded : bool
+        stdout : string
+        stderr : string
+    }
+
+union agile_call =
+    | RootThen : string * string
+    | ModeThenRoot : string * string
+
+inl cat (~left : string) (~right : string) : string = $'std::rc::Rc::<str>::from(format\!("{}{}", &*!left, &*!right))' : string
+inl tab () : string = $'std::rc::Rc::<str>::from(char::from(9u8).to_string())' : string
+inl tabbed (~left : string) (~right : string) : string = cat (cat left (tab ())) right
+inl contains (~text : string) (~part : string) : bool = $'!text.contains(&*!part)' : bool
+inl count_of (~text : string) (~part : string) : i32 = $'!text.matches(&*!part).count() as i32' : i32
+inl offset_of (~text : string) (~part : string) : i32 = $'!text.find(&*!part).map_or(-1, |offset| offset as i32)' : i32
+inl same_text (~left : string) (~right : string) : bool = $'(&*!left).eq(&*!right)' : bool
+inl id_symbol (~id : string) : string = $'std::rc::Rc::<str>::from(!id.to_lowercase().replace(char::from(45u8), "_"))' : string
+
+inl task_header () : string =
+    """
+        union task_kind =
+            | Epic :: task_kind
+            | TaskKind :: task_kind
+
+        union agile_item =
+            | Task :: string * string * task_kind * u32 -> agile_item
+
+        """
+
+inl task_row (id : string) (kind : string) (status : string) (deps : string) (tags : string) : string =
+    inl head = cat (cat (cat "inl task_" (id_symbol id)) " () = Task (\"") id
+    inl title = cat (cat (cat (cat head "\", \"Title of ") id) "\", ") kind
+    inl planning = cat (cat title ", P1, D3, 0u32, ") status
+    cat (cat (cat (cat (cat planning ", \"") deps) "\", \"") tags) "\", \"current\", \"current\")\n"
+
+inl fixture_root_create (~label : string) : fixture_root =
+    fixture_root ($'{ let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(); let root = std::env::temp_dir().join(format\!("eoie planning {} {} {}", &*!label, std::process::id(), stamp)); std::fs::create_dir_all(root.join("state")).unwrap(); std::rc::Rc::<str>::from(root.to_string_lossy().as_ref()) }' : string)
+
+inl state_write (fixture_root root) (~text : string) : () =
+    $'std::fs::write(std::path::Path::new(&*!root).join("state").join("agile.spi"), !text.as_bytes()).unwrap()' : ()
+
+inl state_read (fixture_root root) : string =
+    $'std::rc::Rc::<str>::from(std::fs::read_to_string(std::path::Path::new(&*!root).join("state").join("agile.spi")).unwrap())' : string
+
+inl fixture_root_remove (fixture_root root) : () = $'{ let _ = std::fs::remove_dir_all(&*!root); }' : ()
+
+inl fixture (label : string) (rows : string) : fixture_root =
+    inl root = fixture_root_create label
+    state_write root (cat (cat (task_header ()) rows) "inl main () : i32 = 0i32\n")
+    root
+
+inl run_tabbed (~arguments : string) : cli_run =
+    inl succeeded, stdout, stderr =
+        $'{ let binary = std::env::var("EOIE_BIN_UNDER_TEST").unwrap_or_else(|_| "eoie".to_owned()); let output = std::process::Command::new(binary).current_dir(std::env::temp_dir()).args(!arguments.split(char::from(9u8))).output().unwrap(); (output.status.success(), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stdout).as_ref()), std::rc::Rc::<str>::from(String::from_utf8_lossy(&output.stderr).as_ref())) }' : bool * string * string
+    { succeeded = succeeded; stdout = stdout; stderr = stderr }
+
+inl agile (fixture_root root) (call : agile_call) : cli_run =
+    match call with
+    | RootThen (verb, "") => run_tabbed (tabbed (tabbed "agile" verb) root)
+    | RootThen (verb, rest) => run_tabbed (tabbed (tabbed (tabbed "agile" verb) root) rest)
+    | ModeThenRoot (verb, mode) => run_tabbed (tabbed (tabbed (tabbed "agile" verb) mode) root)
+
+inl epic_deps_line_counts_two (~text : string) : bool = $'!text.lines().any(|line| line.starts_with("epic+deps") && line.contains("ID-A") && line.split_whitespace().nth(2) == Some("2"))' : bool
+
+inl expect (condition : bool) (detail : string) : () = if condition then () else failwith detail
+
+inl accepted (run : cli_run) (part : string) : () =
+    expect run.succeeded (cat "rejected: " run.stderr)
+    expect (contains run.stdout part) (cat (cat (cat "missing " part) " in: ") run.stdout)
+
+inl rejected (run : cli_run) (part : string) : () =
+    expect (not run.succeeded) (cat "accepted: " run.stdout)
+    expect (contains run.stderr part) (cat (cat (cat "missing " part) " in: ") run.stderr)
+
+///> rust
+test planning_edit_validates_and_renders_typed_fields =
+    inl root = fixture "edit" (task_row "ID-A" "TaskKind" "Planned" "" "eoie,agile")
+    inl before = state_read root
+    rejected (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "estimate") "abc"))) "estimate must be"
+    rejected (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "estimate") "20000h"))) "at most 999999 minutes"
+    rejected (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "estimate") "-5"))) "estimate must be"
+    rejected (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "load") "huge"))) "load must be"
+    rejected (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "assignee") "bot"))) "assignee must be"
+    rejected (agile root (RootThen ("edit", tabbed (tabbed "NO-SUCH" "load") "heavy"))) "no task with this id"
+    expect (same_text (state_read root) before) "rejected edits changed the state"
+    accepted (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "estimate") "6h"))) "estimate=360m load=- assignee=-"
+    accepted (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "load") "Heavy"))) "load=heavy"
+    accepted (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "assignee") "pair"))) "estimate=360m load=heavy assignee=pair"
+    inl state = state_read root
+    expect (count_of state "union task_planning =" = 1) state
+    expect (contains state "inl planning_of_id_a () = Planning (\"ID-A\", Minutes 360u32, Load Heavy, Assigned Pair)") state
+    expect (offset_of state "-> agile_item" < offset_of state "union task_load") state
+    accepted (agile root (RootThen ("show", "ID-A"))) "planning: estimate=360m load=heavy assignee=pair"
+    accepted (agile root (RootThen ("show", tabbed "ID-A" "--json"))) "\"estimate_minutes\":360,\"load\":\"heavy\",\"assignee\":\"pair\",\"notes\":[],\"elapsed_ms\""
+    accepted (agile root (RootThen ("edit", tabbed (tabbed "ID-A" "load") "none"))) "load=-"
+    expect (contains (state_read root) "Planning (\"ID-A\", Minutes 360u32, LoadUnset, Assigned Pair)") (state_read root)
+    fixture_root_remove root
+
+///> rust
+test tag_migration_is_previewed_applied_once_and_keeps_rejected_tags =
+    inl a = task_row "ID-A" "Epic" "Active" "" "eoie,est:300m,load:heavy,agent:yes"
+    inl b = task_row "ID-B" "TaskKind" "Planned" "ID-A" "est:abc,load:light,agent:no,web"
+    inl c = task_row "ID-C" "TaskKind" "Done" "" "plain"
+    inl root = fixture "migrate" (cat (cat a b) c)
+    inl before = state_read root
+    inl preview = agile root (ModeThenRoot ("migrate-tags", "preview"))
+    accepted preview "ID-A moved=3 estimate=300m load=heavy assignee=agent tags=eoie"
+    accepted preview "ID-B moved=2 estimate=- load=light assignee=user tags=est:abc,web rejected=est:abc"
+    accepted preview "eoie agile migrate-tags preview tasks=2 tags_moved=5 rejected=1"
+    expect (same_text (state_read root) before) "preview changed the state"
+    accepted (agile root (ModeThenRoot ("migrate-tags", "apply"))) "eoie agile migrate-tags ok tasks=2"
+    inl migrated = state_read root
+    expect (contains migrated "\"eoie\", \"current\"") migrated
+    expect (contains migrated "\"est:abc,web\"") migrated
+    expect (contains migrated "Planning (\"ID-B\", Unestimated, Load Light, Assigned User)") migrated
+    accepted (agile root (ModeThenRoot ("migrate-tags", "apply"))) "ok unchanged tasks=0 tags_moved=0 rejected=1"
+    expect (same_text (state_read root) migrated) "a second apply changed the state"
+    inl heavy = agile root (RootThen ("list", tabbed "--load" "heavy"))
+    accepted heavy "shown=1 filter=all load=heavy assignee=all"
+    expect (contains heavy.stdout "ID-A" && not (contains heavy.stdout "ID-B")) heavy.stdout
+    inl users = agile root (RootThen ("list", tabbed (tabbed (tabbed "Planned" "--assignee") "user") "--json"))
+    accepted users "\"id\":\"ID-B\""
+    accepted users "\"estimate_minutes\":null,\"load\":\"light\",\"assignee\":\"user\"}"
+    inl table = agile root (RootThen ("list", ""))
+    accepted table "EST    LOAD   WHO"
+    accepted table "300m   heavy  agent"
+    rejected (agile root (RootThen ("list", tabbed "--load" "huge"))) "invalid planning filter"
+    inl plan = agile root (RootThen ("plan", ""))
+    accepted plan "eoie agile plan ok tasks=3 open=2 estimated=1 minutes=300 open_minutes=300"
+    expect (epic_deps_line_counts_two plan.stdout) plan.stdout
+    accepted (agile root (RootThen ("plan", "--json"))) "{\"group\":\"load\",\"value\":\"heavy\",\"tasks\":1,\"open_tasks\":1,\"estimated\":1,\"minutes\":300,\"open_minutes\":300}"
+    fixture_root_remove root

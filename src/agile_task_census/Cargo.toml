@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "task_census.spi"
+output = "task_census.rs"
+
+[package]
+name = "agile-task-census"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "agile_task_census"
+path = "task_census.rs"

@@ -1,0 +1,5 @@
+packages:
+    |core-
+    flat_bundle_contract
+modules:
+    main

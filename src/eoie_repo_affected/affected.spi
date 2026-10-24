@@ -1,0 +1,52 @@
+open sm'_operators
+open graph
+
+let directory_names (~src : string) : list string =
+    if file_system.directory_exists src then
+        file_system.read_dir_names src
+        |> resultm.unwrap'
+        |> am'.vec_fold' (fun names name => Cons (sm'.from_std_string name, names)) Nil
+        |> listm.rev
+    else Nil
+
+let node_at (~src : string) (~name : string) : option package_node =
+    inl project = src ++# "/" ++# name ++# "/package.spiproj"
+    if file_system.file_exists project then Some { name = name; uses = project_uses (file_system.read_all_text project); crate = file_system.file_exists (src ++# "/" ++# name ++# "/Cargo.toml") }
+    else None
+
+let rec nodes_of (~src : string) (names : list string) (acc : list package_node) : list package_node =
+    match names with
+    | Nil => listm.rev acc
+    | Cons (name, rest) =>
+        match node_at src name with
+        | Some found => nodes_of src rest (Cons (found, acc))
+        | None => nodes_of src rest acc
+
+let rec arguments_from (index : i32) (count : i32) (acc : list string) : list string =
+    if index >= count then listm.rev acc
+    else arguments_from (index + 1i32) count (Cons (optionm'.default_value "" (env.try_command_line_argument index), acc))
+
+let rec lines_printed (names : list string) (count : i32) : i32 =
+    match names with
+    | Nil => count
+    | Cons (name, rest) =>
+        console.write_line name
+        lines_printed rest (count + 1i32)
+
+let affected_run () : i32 =
+    inl count = env.command_line_argument_count ()
+    inl src = optionm'.default_value "" (env.try_command_line_argument 2i32)
+    inl changed = arguments_from 3i32 count Nil
+    match changed with
+    | Nil =>
+        console.write_line "eoie error: repo usage: repo affected <src> <package>... (crates whose package graph reaches a changed package)"
+        2i32
+    | _ =>
+        inl nodes = nodes_of src (directory_names src) Nil
+        inl printed = lines_printed (affected_crates nodes nodes changed Nil) 0i32
+        console.write_line ("eoie repo affected ok crates=" ++# sm'.format printed ++# " packages=" ++# sm'.format (listm.length nodes : i32) ++# " src=" ++# src)
+        0i32
+
+inl main () : i32 =
+    !!!!Export("eoie_repo_affected_run", ((fun () => affected_run ()) : () -> i32))
+    0i32

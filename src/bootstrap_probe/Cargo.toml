@@ -1,0 +1,14 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "bootstrap_probe.rs"
+
+[package]
+name = "eoie-bootstrap-probe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[example]]
+name = "eoie-bootstrap-probe"
+path = "bootstrap_probe.rs"

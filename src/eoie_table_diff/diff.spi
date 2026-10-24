@@ -1,0 +1,145 @@
+open sm'_operators
+open eoie_table_query.query
+open eoie_table_query.cells
+open eoie_table_query.stats
+
+let rec indices_from (cells : table_cells) (~names : string) : string =
+    if names = "" then ""
+    else listed (i32_text (column_of cells (head_of names ","))) (indices_from cells (tail_of names ","))
+
+let rec absent_from (left : table_cells) (right : table_cells) (~names : string) : string =
+    if names = "" then ""
+    else
+        inl name = head_of names ","
+        inl rest = absent_from left right (tail_of names ",")
+        if column_of left name < 0i32 || column_of right name < 0i32 then listed name rest else rest
+
+let rec shared_columns (right : table_cells) (~names : string) (~keys : string) : string =
+    if names = "" then ""
+    else
+        inl name = head_of names ","
+        inl rest = shared_columns right (tail_of names ",") keys
+        if sm'.listed "," name keys || column_of right name < 0i32 then rest else listed name rest
+
+union rec column_pairs =
+    | NoPairs
+    | PairThen : string * i32 * i32 * column_pairs
+
+let rec pairs_from (left : table_cells) (right : table_cells) (~names : string) : column_pairs =
+    if names = "" then NoPairs
+    else
+        inl name = head_of names ","
+        PairThen (name, column_of left name, column_of right name, pairs_from left right (tail_of names ","))
+
+union rec differences =
+    | NoDifferences
+    | DifferenceThen : string * i32 * differences
+
+let rec difference_counted (list : differences) (~name : string) : differences =
+    match list with
+    | NoDifferences => DifferenceThen (name, 1i32, NoDifferences)
+    | DifferenceThen (other, count, rest) =>
+        if other = name then DifferenceThen (other, count + 1i32, rest)
+        elif text_before name other then DifferenceThen (name, 1i32, list)
+        else DifferenceThen (other, count, difference_counted rest name)
+
+let rec differences_printed (list : differences) (total : i32) : i32 =
+    match list with
+    | NoDifferences => total
+    | DifferenceThen (name, count, rest) =>
+        stdout_line ("column " ++# name ++# " differs=" ++# (i32_text count))
+        differences_printed rest (total + count)
+
+type diff_tally =
+    {
+        considered : i32
+        only_left : i32
+        sampled : i32
+        samples : string
+        differing : differences
+    }
+
+inl at_least (~candidate : string) (~current : string) : bool =
+    if numeric candidate && numeric current then number_of current <= number_of candidate
+    else text_before candidate current = false
+
+let rec winners_from (cells : table_cells) (~columns : string) (by : i32) (row : i32) (total : i32) (rows : key_rows) : key_rows =
+    if total < row then rows
+    else
+        inl key = key_of cells row columns
+        inl current = key_row rows key
+        inl _ = if current < 0i32 || by < 0i32 || at_least (cell_at cells row by) (cell_at cells current by) then key_row_set rows key row else ()
+        winners_from cells columns by (row + 1i32) total rows
+
+inl winners (cells : table_cells) (~columns : string) (by : i32) : key_rows = winners_from cells columns by 1i32 (row_total cells) (key_rows_new ())
+
+let rec pairs_compared (list : column_pairs) (left : table_cells) (right : table_cells) (row : i32) (other : i32) (~key : string) (limit : u64) (tally : diff_tally) : diff_tally =
+    match list with
+    | NoPairs => tally
+    | PairThen (name, left_index, right_index, rest) =>
+        inl a = cell_at left row left_index
+        inl b = cell_at right other right_index
+        if a = b then pairs_compared rest left right row other key limit tally
+        else
+            inl sample = key ++# "\t" ++# name ++# "\t" ++# (a ++# "\t" ++# b)
+            inl sampling = below_limit tally.sampled limit
+            inl next = { tally with differing = difference_counted tally.differing name; sampled = (if sampling then tally.sampled + 1i32 else tally.sampled); samples = (if sampling then listed_line tally.samples sample else tally.samples) }
+            pairs_compared rest left right row other key limit next
+
+let rec left_compared (left : table_cells) (right : table_cells) (~columns : string) (left_kept : key_rows) (latest : bool) (right_kept : key_rows) (seen : key_rows) (pairs : column_pairs) (limit : u64) (row : i32) (tally : diff_tally) : diff_tally =
+    if row_total left < row then tally
+    else
+        inl key = key_of left row columns
+        if latest && key_row left_kept key <> row then left_compared left right columns left_kept latest right_kept seen pairs limit (row + 1i32) tally
+        else
+            inl _ = key_row_set seen key row
+            inl other = key_row right_kept key
+            inl counted = { tally with considered = (tally.considered + 1i32) }
+            inl next = if other < 0i32 then { counted with only_left = (counted.only_left + 1i32) } else pairs_compared pairs left right row other key limit counted
+            left_compared left right columns left_kept latest right_kept seen pairs limit (row + 1i32) next
+
+let rec right_unseen (right : table_cells) (~columns : string) (right_kept : key_rows) (latest : bool) (seen : key_rows) (row : i32) (rows : i32) (unseen : i32) : i32 * i32 =
+    if row_total right < row then rows, unseen
+    else
+        inl key = key_of right row columns
+        if latest && key_row right_kept key <> row then right_unseen right columns right_kept latest seen (row + 1i32) rows unseen
+        else
+            inl missing = if key_row seen key < 0i32 then 1i32 else 0i32
+            right_unseen right columns right_kept latest seen (row + 1i32) (rows + 1i32) (unseen + missing)
+
+let diff_tables (left : table_cells) (right : table_cells) (request : table_request) : i32 =
+    inl names = if request.cols = "" then shared_columns right (header_joined left ",") request.key else request.cols
+    inl missing = listed (absent_from left right request.key) (absent_from left right names)
+    inl latest = request.latest <> ""
+    inl missing_latest = if latest && (column_of left request.latest < 0i32 || column_of right request.latest < 0i32) then request.latest else ""
+    if request.key = "" then rejected "diff needs --key a,b"
+    elif listed missing missing_latest <> "" then rejected ("diff unknown columns: " ++# (listed missing missing_latest))
+    else
+        inl left_columns = indices_from left request.key
+        inl right_columns = indices_from right request.key
+        inl left_kept = winners left left_columns (if latest then column_of left request.latest else -1i32)
+        inl right_kept = winners right right_columns (if latest then column_of right request.latest else -1i32)
+        inl seen = key_rows_new ()
+        inl start = { considered = 0i32; only_left = 0i32; sampled = 0i32; samples = ""; differing = NoDifferences }
+        inl tally = left_compared left right left_columns left_kept latest right_kept seen (pairs_from left right names) request.limit 1i32 start
+        inl right_rows, only_right = right_unseen right right_columns right_kept latest seen 1i32 0i32 0i32
+        inl differing = differences_printed tally.differing 0i32
+        inl _ = if tally.samples <> "" then stdout_line ("key\tcolumn\tleft\tright\n" ++# tally.samples) else ()
+        inl head = "eoie table diff ok left_rows=" ++# (i32_text tally.considered) ++# " right_rows=" ++# (i32_text right_rows) ++# " only_left="
+        inl tail = (i32_text tally.only_left) ++# " only_right=" ++# (i32_text only_right) ++# " differing_cells=" ++# (i32_text differing)
+        stdout_line (head ++# tail ++# (if latest then " latest_by=" ++# request.latest else ""))
+        0i32
+
+let diff_files (~left : string) (~right : string) (request : table_request) : i32 =
+    match table_read left, table_read right with
+    | TableUnreadable problem, _ => rejected problem
+    | _, TableUnreadable problem => rejected problem
+    | TableLoaded left_cells, TableLoaded right_cells => diff_tables left_cells right_cells request
+
+let table_diff_run (~left : string) (~right : string) (~key : string) (~cols : string) (~latest : string) (limit : u64) : i32 =
+    inl base = no_request ()
+    diff_files left right { base with key = key; cols = cols; latest = latest; limit = limit }
+
+inl main () : i32 =
+    !!!!Export("eoie_table_diff_run", ((fun (left, right, key, cols, latest, limit) => table_diff_run left right key cols latest limit) : string * string * string * string * string * u64 -> i32))
+    0i32

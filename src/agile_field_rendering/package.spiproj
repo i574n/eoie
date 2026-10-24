@@ -1,0 +1,10 @@
+packages:
+    |core-
+    workspace_primitives
+    spiral-
+    rust_std_fs
+    agile_mutation_policy
+    agile_task_text
+    union_reflection
+modules:
+    field_rendering

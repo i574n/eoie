@@ -1,0 +1,11 @@
+packages:
+    |core-
+    workspace_primitives
+    rust_std_env
+    spiral-
+    rust_std_fs
+    agile_mutation_policy
+    agile_task_text
+    agile_planning_model
+modules:
+    planning_fields

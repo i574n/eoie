@@ -1,0 +1,82 @@
+open model
+
+inl home_joined (~relative : string) : string = $'std::rc::Rc::<str>::from(std::env::var_os("USERPROFILE").or_else(|| \
+    std::env::var_os("HOME")).map(std::path::PathBuf::from).unwrap_or_default().join(&*!relative).to_string_lossy().as\
+    _ref())' : string
+
+inl client_root (client : agent_client) : string =
+    match client with
+    | ClaudeCode => home_joined ".claude/projects"
+    | Codex => home_joined ".codex/sessions"
+
+inl client_marker (client : agent_client) : string =
+    match client with
+    | ClaudeCode => "tool_use"
+    | Codex => "function_call"
+
+inl client_pattern (client : agent_client) : string =
+    match client with
+    | ClaudeCode =>
+        "\\x22type\\x22:\\x22tool_use\\x22,\\x22id\\x22:\\x22[^\\x22]*\\x22,\\x22name\\x22:\\x22(?:PowerShell|Bash)"
+        ^^ "\\x22,\\x22input\\x22:\\{\\x22command\\x22:\\x22((?:[^\\x22\\\\]|\\\\.)*)\\x22"
+    | Codex =>
+        "\\x22type\\x22:\\x22function_call\\x22,\\x22name\\x22:\\x22(?:shell|exec_command|local_shell)\\x22,\\x22ar"
+        ^^ "guments\\x22:\\x22((?:[^\\x22\\\\]|\\\\.)*)\\x22"
+
+inl stamp_pattern () : string = "\\x22timestamp\\x22:\\x22(\\d{4}-\\d\\d-\\d\\d)"
+
+let cutoff_day (days : u64) : string =
+    $'{ let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|elapsed| \
+        elapsed.as_secs()).unwrap_or(0).saturating_sub(!days * 86400) as i64; let z = secs.div_euclid(86400) + \
+        719468; let era = z.div_euclid(146097); let doe = z - era * 146097; let yoe = (doe - doe / 1460 + doe / 36524 \
+        - doe / 146096) / 365; let doy = doe - (365 * yoe + yoe / 4 - yoe / 100); let mp = (5 * doy + 2) / 153; let \
+        day = doy - (153 * mp + 2) / 5 + 1; let month = if mp < 10 { mp + 3 } else { mp - 9 }; let year = yoe + era * \
+        400 + if month <= 2 { 1 } else { 0 }; std::rc::Rc::<str>::from(format\!("{year:04}-{month:02}-{day:02}").as_st\
+        r()) }' : string
+
+let session_files (~root : string) (days : u64) : string =
+    $'{ let since = std::time::SystemTime::now() - std::time::Duration::from_secs(!days * 86400); let mut found = \
+        Vec::new(); let mut stack = vec\![std::path::PathBuf::from(&*!root)]; while let Some(dir) = stack.pop() { let \
+        Ok(entries) = std::fs::read_dir(&dir) else { continue }; for entry in entries.flatten() { let path = \
+        entry.path(); if path.is_dir() { stack.push(path); } else if path.extension().map(|extension| extension == \
+        "jsonl").unwrap_or(false) && entry.metadata().and_then(|meta| meta.modified()).map(|modified| modified >= \
+        since).unwrap_or(false) { found.push(path.to_string_lossy().into_owned()); } } } found.sort(); \
+        std::rc::Rc::<str>::from(found.join("\n").as_str()) }' : string
+
+let file_calls (~path : string) (client : agent_client) (~cutoff : string) : string =
+    inl marker = client_marker client
+    inl pattern = client_pattern client
+    inl stamp = stamp_pattern ()
+    $'{ let quote = char::from(34u8); let backslash = char::from(92u8); let stamp = \
+        regex::Regex::new(&*!stamp).unwrap(); let command = regex::Regex::new(&*!pattern).unwrap(); let text = \
+        std::fs::read_to_string(&*!path).unwrap_or_default(); let mut out = String::new(); for line in \
+        text.lines().filter(|line| line.contains(&*!marker)) { let Some(day) = stamp.captures(line).map(|found| \
+        found[1].to_owned()) else { continue }; if day.as_str() < &*!cutoff { continue; } for found in \
+        command.captures_iter(line) { let decoded = found[1].replace(&format\!("{backslash}{quote}"), \
+        &quote.to_string()).replace(&format\!("{backslash}{backslash}"), \
+        &backslash.to_string()).replace(char::from(10u8), " ").replace(char::from(9u8), " "); \
+        out.push_str(&format\!("{day}\t{decoded}\n")); } } std::rc::Rc::<str>::from(out.as_str()) }' : string
+
+let eoie_named (~command : string) : bool =
+    $'{ let text = &*!command; let bytes = text.as_bytes(); let separators = [32u8, 9, 13, 10, 38, 39, 34, 92, 47, \
+        40, 59, 124]; text.match_indices("eoie").any(|(at, _)| { let before = at == 0 || \
+        separators.contains(&bytes[at - 1]); let mut rest = &text[at + 4..]; if let Some(stripped) = \
+        rest.strip_prefix(".exe") { rest = stripped; } if let Some(stripped) = rest.strip_prefix(|c: char| c == \
+        char::from(39u8) || c == char::from(34u8)) { rest = stripped; } let trimmed = rest.trim_start(); before && \
+        trimmed.len() < rest.len() && trimmed.chars().next().is_some_and(|c| c.is_ascii_lowercase()) }) }' : bool
+
+let habit_named (~command : string) : bool =
+    $'{ let lower = (&*!command).to_ascii_lowercase(); let bytes = lower.as_bytes(); let word_byte = |byte: u8| \
+        byte.is_ascii_alphanumeric() || byte == 95u8; let words = ["get-content", "select-string", "get-childitem", \
+        "set-content", "add-content", "out-file", "foreach-object", "measure-object", "copy-item", "remove-item", \
+        "move-item", "test-path", "start-sleep", "robocopy", "findstr", "python", "python3", "py.exe"]; \
+        lower.contains("[io.file]") || words.iter().any(|word| lower.match_indices(word).any(|(at, _)| { let end = at \
+        + word.len(); (at == 0 || \!word_byte(bytes[at - 1])) && (end >= bytes.len() || \!word_byte(bytes[end])) })) \
+        }' : bool
+inl text_length (~text : string) : u64 = $'(&*!text).len() as u64' : u64
+inl line_end (~text : string) (start : u64) : u64 = $'(&*!text)[!start as usize..].find(char::from(10u8)).map(|found| \
+    !start + found as u64).unwrap_or((&*!text).len() as u64)' : u64
+inl slice_of (~text : string) (start : u64) (stop : u64) : string = $'std::rc::Rc::<str>::from(&(&*!text)[!start as \
+    usize..!stop as usize])' : string
+inl field_at (~line : string) (index : i32) : string = $'std::rc::Rc::<str>::from((&*!line).split(char::from(9u8)).nth\
+    (!index as usize).unwrap_or(""))' : string

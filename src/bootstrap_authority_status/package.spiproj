@@ -1,0 +1,5 @@
+packages:
+    |core-
+    bootstrap_policy
+modules:
+    main

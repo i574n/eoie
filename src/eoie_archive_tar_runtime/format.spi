@@ -1,0 +1,125 @@
+///- --package .
+test format static =
+    open sm'_operators
+
+open sm'_operators
+
+union archive_format =
+    | ZipArchive
+    | TarArchive
+    | GzipTarArchive
+    | XzTarArchive
+    | Bzip2TarArchive
+
+union archive_classification =
+    | Recognized : archive_format
+    | Unsupported
+
+inl ascii_lowercase (~text : string) : string =
+    $'std::rc::Rc::<str>::from(!text.to_ascii_lowercase())' : string
+
+inl ends_with_any2 (name : string) (first : string) (second : string) : bool =
+    sm'.ends_with first name || sm'.ends_with second name
+
+inl ends_with_any3 (name : string) (first : string) (second : string) (third : string) : bool =
+    ends_with_any2 name first second || sm'.ends_with third name
+
+let classify_archive_name (~file_name : string) : archive_classification =
+    inl name = ascii_lowercase file_name
+    if sm'.ends_with ".zip" name then Recognized ZipArchive
+    elif ends_with_any2 name ".tar.gz" ".tgz" then Recognized GzipTarArchive
+    elif ends_with_any2 name ".tar.xz" ".txz" then Recognized XzTarArchive
+    elif ends_with_any3 name ".tar.bz2" ".tbz2" ".tbz" then Recognized Bzip2TarArchive
+    elif sm'.ends_with ".tar" name then Recognized TarArchive
+    else Unsupported
+
+inl archive_format_code = function
+    | ZipArchive => 0i32
+    | TarArchive => 1i32
+    | GzipTarArchive => 2i32
+    | XzTarArchive => 3i32
+    | Bzip2TarArchive => 4i32
+
+inl archive_format_label = function
+    | ZipArchive => "zip"
+    | TarArchive => "tar"
+    | GzipTarArchive => "tar.gz"
+    | XzTarArchive => "tar.xz"
+    | Bzip2TarArchive => "tar.bz2"
+
+inl unsupported_code () : i32 = -1i32
+
+let archive_classification_code (~file_name : string) : i32 =
+    match classify_archive_name file_name with
+    | Recognized format => archive_format_code format
+    | Unsupported => unsupported_code ()
+
+let archive_classification_label (~file_name : string) : string =
+    match classify_archive_name file_name with
+    | Recognized format => archive_format_label format
+    | Unsupported => ""
+
+union octal_field =
+    | EmptyField
+    | OctalValue : u64
+    | InvalidOctal : string
+
+inl octal_parse_error (~text : string) : bool =
+    $'u64::from_str_radix(&*!text, 8).is_err()' : bool
+
+inl octal_parse (~text : string) : u64 =
+    $'u64::from_str_radix(&*!text, 8).unwrap_or(0)' : u64
+
+let read_octal_field (~field_text : string) : octal_field =
+    inl text = sm'.trim field_text
+    if (text = "") then EmptyField
+    elif octal_parse_error text then InvalidOctal text
+    else OctalValue (octal_parse text)
+
+let octal_field_value (~field_text : string) : u64 =
+    match read_octal_field field_text with
+    | EmptyField => 0u64
+    | OctalValue value => value
+    | InvalidOctal _ => 0u64
+
+let octal_field_error (~field_text : string) (~label : string) : string =
+    match read_octal_field field_text with
+    | InvalidOctal text => "invalid tar " ++# label ++# ": " ++# text
+    | _ => ""
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+inl classified_as (file_name : string) (code : i32) (label : string) : () =
+    expect (archive_classification_code file_name = code) file_name
+    expect (((archive_classification_label file_name) = label)) file_name
+
+///> rust
+test every_supported_extension_maps_to_its_format =
+    classified_as "bundle.zip" 0i32 "zip"
+    classified_as "bundle.tar" 1i32 "tar"
+    classified_as "bundle.tar.gz" 2i32 "tar.gz"
+    classified_as "bundle.tgz" 2i32 "tar.gz"
+    classified_as "bundle.tar.xz" 3i32 "tar.xz"
+    classified_as "bundle.txz" 3i32 "tar.xz"
+    classified_as "bundle.tar.bz2" 4i32 "tar.bz2"
+    classified_as "bundle.tbz2" 4i32 "tar.bz2"
+    classified_as "bundle.tbz" 4i32 "tar.bz2"
+
+///> rust
+test extensions_match_case_insensitively =
+    classified_as "BUNDLE.TAR.GZ" 2i32 "tar.gz"
+    classified_as "Bundle.Zip" 0i32 "zip"
+
+///> rust
+test unknown_and_partial_extensions_are_unsupported =
+    classified_as "bundle.rar" (-1i32) ""
+    classified_as "bundle.gz" (-1i32) ""
+    classified_as "bundle.tar.zst" (-1i32) ""
+    classified_as "" (-1i32) ""
+
+///> rust
+test octal_fields_read_trimmed_base_eight_and_reject_garbage =
+    expect (octal_field_value "0000644 " = 420u64) "mode"
+    expect (octal_field_value "   " = 0u64) "blank field is zero"
+    expect (((octal_field_error "0000644" "mode") = "")) "valid has no error"
+    expect (((octal_field_error " 12a9 " "size") = "invalid tar size: 12a9")) "garbage is named with its label"

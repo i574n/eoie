@@ -1,0 +1,6 @@
+packages:
+    |core-
+    agile_state_runtime
+    spiral-
+modules:
+    state

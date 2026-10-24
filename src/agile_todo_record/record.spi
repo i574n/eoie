@@ -1,0 +1,85 @@
+open rust_std_fs.model
+open sm'_operators
+open agile_task_text.model
+open agile_note_model.model
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+open ledger
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+
+inl todo_marker () : string = "TO" ++# "DO"
+
+let rec harvested_ledger (~backlog : string) (~sites : string) (~found : string) : string =
+    if sites = "" then lines_sorted found
+    else
+        inl line = line_head sites
+        inl id = $'agile_todo_lines::eoie_agile_todo_id(&*!backlog, &*!line)' : string
+        inl gap = byte_find line "  "
+        inl entry = if id = "" || gap < 0i32 || byte_find line (todo_marker ()) < 0i32 then "" else id ++# "\t" ++# (byte_slice line 0i32 gap) ++# "\n"
+        harvested_ledger backlog (line_rest sites) (found ++# entry)
+
+type record_tally =
+    {
+        text : string
+        appeared : i32
+        moved : i32
+        vanished : i32
+        notes : i32
+    }
+
+inl tally_counted (tally : record_tally) (change : site_change) : record_tally =
+    match change with
+    | SitesKept => tally
+    | SitesAppeared _ => { tally with appeared = (tally.appeared + 1i32) }
+    | SitesMoved _ => { tally with moved = (tally.moved + 1i32) }
+    | SitesVanished _ => { tally with vanished = (tally.vanished + 1i32) }
+
+let noted (tally : record_tally) (~id : string) (~body : string) (~stamp : string) : record_tally =
+    if body = "" || task_declared tally.text id = false then tally
+    else
+        inl ready = note_schema_ensured tally.text
+        inl seq = note_count ready id + 1i32
+        inl note = { at = stamp; author = "todos"; text = body }
+        { tally with text = notes_appended ready id (note_row id seq note); notes = (tally.notes + 1i32) }
+
+let rec changes_recorded (~ids : string) (~before : string) (~after : string) (~stamp : string) (tally : record_tally) : record_tally =
+    if ids = "" then tally
+    else
+        inl id = line_head ids
+        inl change = site_change_of (sites_of before id "") (sites_of after id "")
+        inl next = noted (tally_counted tally change) id (change_note change) stamp
+        changes_recorded (line_rest ids) before after stamp next
+
+let record_start (~text : string) : record_tally = { text = text; appeared = 0i32; moved = 0i32; vanished = 0i32; notes = 0i32 }
+
+inl record_failure (~reason : string) : i32 = stderr_failure ("agile todos --record rejected: " ++# reason)
+
+let record_entry () : i32 =
+    inl started = unix_ms ()
+    inl root = argument_owned 1i32
+    inl state = backlog_state_path root
+    match probe (unchecked state) with
+    | FileMissing _ => record_failure "state/agile.spi is missing"
+    | FileReadable file =>
+        inl original = loaded_string (read_text file)
+        inl sites = $'agile_todo_scan::eoie_agile_todo_sites(&*!root, "*")' : string
+        inl after = harvested_ledger original sites ""
+        inl before = ledger_from_rows original 0i32 ""
+        inl start = record_start original
+        inl tally = changes_recorded (first_fields (before ++# "\n" ++# after)) before after (utc_stamp started) start
+        inl updated = ledger_written tally.text after
+        inl counts = " appeared=" ++# (i32_text tally.appeared) ++# " moved=" ++# (i32_text tally.moved) ++# (" vanished=" ++# (i32_text tally.vanished) ++# " notes=" ++# (i32_text tally.notes))
+        if updated = original then stdout_line ("eoie agile todos record ok sites=" ++# (i32_text ($'(!after).lines().count() as i32' : i32)) ++# counts ++# " unchanged=true elapsed_ms=" ++# (u64_text (ms_since started)))
+        else
+            match state_written state original updated with
+            | StateWritten => stdout_line ("eoie agile todos record ok sites=" ++# (i32_text ($'(!after).lines().count() as i32' : i32)) ++# counts ++# (measured_sizes (text_bytes original) (text_bytes updated) (ms_since started)))
+            | problem => record_failure (state_write_problem problem)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_todos_record_run", ((fun () => record_entry ()) : () -> i32))
+    inl _ = record_entry ()
+    0i32

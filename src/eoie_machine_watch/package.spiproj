@@ -1,0 +1,10 @@
+packages:
+    |core-
+    rust_std_string
+    eoie_jobs
+    eoie_machine_windows
+modules:
+    model
+    host
+    jobs_watch
+    run

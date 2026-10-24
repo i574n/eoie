@@ -1,0 +1,68 @@
+open rust_std_fs.model
+open sm'_operators
+open agile_task_text.model
+open agile_note_model.model
+open workspace_primitives.outcome
+open workspace_primitives.numbers
+open workspace_primitives.bytes
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+let argument_count () : i32 =
+    inl user = env.command_line_argument_count ()
+    if user > 0i32 then user - 1i32 else 0i32
+
+inl tail_rows (~title : string) (~id : string) (seq : i32) (~fallback : string) : i32 * string =
+    $'agile_title_tails::eoie_agile_title_tail_rows(&*!title, &*!id, !seq, &*!fallback)' : i32 * string
+
+inl kept_end (~title : string) : i32 = $'agile_title_tails::eoie_agile_title_kept_end(&*!title)' : i32
+
+inl from_title_failure (~reason : string) (~id : string) : i32 = stderr_failure ("agile notes from-title " ++# id ++# " rejected: " ++# reason)
+
+inl from_title_success (~id : string) (moved : i32) (title_before : i32) (title_after : i32) (before : u64) (after : u64) (elapsed : u64) : i32 =
+    inl head = "eoie agile notes ok id=" ++# id ++# " moved=" ++# (i32_text moved) ++# " title_bytes_before="
+    inl middle = (i32_text title_before) ++# " title_bytes_after=" ++# (i32_text title_after)
+    stdout_line (head ++# middle ++# (measured_sizes before after elapsed))
+
+inl title_bounds (text : string) (found : i32) : i32 * i32 =
+    inl length = byte_len text
+    inl start = field_start text ($"!found + !(item_arguments_offset TaskItem)" : i32) length 1i32
+    start, field_end text start length ScanPlain
+
+let title_moved (~state : string) (~id : string) (~original : string) (started : u64) : i32 =
+    inl schema_ready = note_schema_ensured original
+    inl found = item_offset schema_ready TaskItem id
+    inl start, stop = title_bounds schema_ready found
+    inl title = unquoted (byte_slice schema_ready start stop)
+    inl first = kept_end title
+    if first < 0i32 then from_title_failure "the title has no \"; \" tail starting with a date or time to move" id
+    else
+        inl kept = sm'.trim (byte_slice title 0i32 first)
+        inl moved, rows = tail_rows title id (note_count schema_ready id + 1i32) (utc_stamp started)
+        inl retitled = spliced schema_ready start stop (spi_quoted kept)
+        inl updated = notes_appended retitled id rows
+        match state_written state original updated with
+        | StateWritten => from_title_success id moved (byte_len title) (byte_len kept) (text_bytes original) (text_bytes updated) (ms_since started)
+        | problem => from_title_failure (state_write_problem problem) id
+
+let from_title_entry () : i32 =
+    inl id = argument_owned 3i32
+    if argument_count () = 4i32 then
+        if ((argument_owned 1i32) = "from-title") then
+            inl started = unix_ms ()
+            inl state = backlog_state_path (argument_owned 2i32)
+            match probe (unchecked state) with
+            | FileMissing _ => from_title_failure "state/agile.spi is missing" id
+            | FileReadable file =>
+                inl original = loaded_string (read_text file)
+                if task_declared original id then title_moved state id original started
+                else from_title_failure "no task with this id" id
+        else from_title_failure "usage: agile notes from-title <root> <id>" id
+    else from_title_failure "usage: agile notes from-title <root> <id>" id
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_notes_from_title_run", ((fun () => from_title_entry ()) : () -> i32))
+    inl _ = from_title_entry ()
+    0i32

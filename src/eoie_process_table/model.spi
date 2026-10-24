@@ -1,0 +1,96 @@
+///- --package .
+test model static =
+    open sm'_operators
+
+open sm'_operators
+
+union process_command =
+    | ListProcesses
+    | StopProcesses
+    | ProcessUnknown
+
+union stop_scope =
+    | JustProcess
+    | WithDescendants
+
+union stop_refusal =
+    | Allowed : u64
+    | OwnProcess
+    | OwnAncestor
+    | NotAProcessId
+
+inl process_usage () : string = "ps [regex] [--tree] [--mine] | kill <pid>... [--tree]"
+
+inl process_command_of (~word : string) : process_command =
+    if word = "ps" then ListProcesses elif word = "kill" then StopProcesses else ProcessUnknown
+
+inl all_digits (~text : string) : bool = $'\!!text.is_empty() && !text.bytes().all(|byte| byte.is_ascii_digit())' : bool
+let decimal_of (~text : string) : u64 = optionm'.default_value 0u64 (convert.try_convert text)
+
+let stop_refusal_of (~pid_text : string) (~own : u64) (~ancestors : string) : stop_refusal =
+    if all_digits pid_text then
+        inl pid = decimal_of pid_text
+        if pid = own then OwnProcess
+        elif sm'.contains ("," ++# pid_text ++# ",") ("," ++# ancestors ++# ",") then OwnAncestor
+        else Allowed pid
+    else NotAProcessId
+
+inl refusal_text (~pid_text : string) (refusal : stop_refusal) : string =
+    match refusal with
+    | Allowed _ => ""
+    | OwnProcess => "stop " ++# pid_text ++# "  refused: that is this eoie process"
+    | OwnAncestor => "stop " ++# pid_text ++# "  refused: that is a parent of this eoie (the calling shell)"
+    | NotAProcessId => "stop " ++# pid_text ++# "  refused: not a process id"
+
+union stop_result =
+    | NoSuchProcess
+    | StoppedOf : u64 * u64
+
+inl stop_result_of (~stopped : u64) (~total : u64) : stop_result =
+    if total = 0u64 then NoSuchProcess else StoppedOf (stopped, total)
+
+inl stop_complete = function
+    | NoSuchProcess => false
+    | StoppedOf (stopped, total) => stopped = total
+
+inl count_text (~count : u64) : string = $'std::rc::Rc::<str>::from((!count).to_string())' : string
+
+inl stop_text (~pid_text : string) (result : stop_result) : string =
+    match result with
+    | NoSuchProcess => "stop " ++# pid_text ++# "  not found"
+    | StoppedOf (stopped, total) =>
+        if stopped <> total then
+            "stop "
+            ++# pid_text
+            ++# ("  stopped " ++# (count_text stopped) ++# " of " ++# (count_text total) ++# " processes")
+        elif total = 1u64 then "stop " ++# pid_text ++# "  stopped"
+        else "stop " ++# pid_text ++# "  stopped (tree: " ++# (count_text total) ++# " processes)"
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else $'panic\!("{}", &*!detail)' : ()
+
+///> rust
+test stopping_never_reaches_this_process_or_its_callers =
+    match stop_refusal_of "4120" 77u64 "12,300,4" with
+    | Allowed pid => expect (pid = 4120u64) "a foreign pid is allowed"
+    | _ => expect false "4120 should be allowed"
+    match stop_refusal_of "77" 77u64 "12,300,4" with
+    | OwnProcess => ()
+    | _ => expect false "own pid"
+    match stop_refusal_of "300" 77u64 "12,300,4" with
+    | OwnAncestor => ()
+    | _ => expect false "ancestor"
+    match stop_refusal_of "30" 77u64 "12,300,4" with
+    | Allowed _ => ()
+    | _ => expect false "30 is not 300"
+    match stop_refusal_of "j1" 77u64 "" with
+    | NotAProcessId => expect (refusal_text "j1" NotAProcessId = "stop j1  refused: not a process id") "refusal text"
+    | _ => expect false "not a number"
+
+///> rust
+test a_missing_or_partial_stop_is_not_a_success =
+    expect (stop_complete (stop_result_of 0u64 0u64) = false) "missing pid fails"
+    expect (stop_text "9" (stop_result_of 0u64 0u64) = "stop 9  not found") "missing text"
+    expect (stop_text "9" (stop_result_of 1u64 1u64) = "stop 9  stopped") "single"
+    expect (stop_text "9" (stop_result_of 3u64 3u64) = "stop 9  stopped (tree: 3 processes)") "tree"
+    expect (stop_complete (stop_result_of 2u64 3u64) = false) "partial fails"
+    expect (stop_text "9" (stop_result_of 2u64 3u64) = "stop 9  stopped 2 of 3 processes") "partial text"

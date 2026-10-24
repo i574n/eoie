@@ -1,0 +1,88 @@
+///- --package .
+test graph static =
+    open sm'_operators
+
+open sm'_operators
+
+type package_node =
+    {
+        name : string
+        uses : list string
+        crate : bool
+    }
+
+inl package_word (~text : string) : string =
+    inl bare = if sm'.starts_with "|" text then sm'.substring 1i32 (sm'.length text - 1i32) text else text
+    sm'.trim_end_suffix "-" bare
+
+let rec lines_list (parts : array string) (index : i32) (acc : list string) : list string =
+    if index < 0i32 then acc else lines_list parts (index - 1i32) (Cons (am'.index index parts, acc))
+
+let rec section_uses (lines : list string) (inside : bool) (acc : list string) : list string =
+    match lines with
+    | Nil => listm.rev acc
+    | Cons (line, rest) =>
+        inl trimmed = sm'.trim line
+        if trimmed = "packages:" then section_uses rest true acc
+        elif trimmed = "modules:" then listm.rev acc
+        elif inside && trimmed <> "" then section_uses rest true (Cons (package_word trimmed, acc))
+        else section_uses rest inside acc
+
+let project_uses (~text : string) : list string =
+    inl parts = sm'.split "\n" text |> array
+    section_uses (lines_list parts (am'.length parts - 1i32) Nil) false Nil
+
+let rec node_named (~name : string) (nodes : list package_node) : option package_node =
+    match nodes with
+    | Nil => None
+    | Cons (node, rest) => if node.name = name then Some node else node_named name rest
+
+let rec prepended (front : list string) (back : list string) : list string =
+    match front with
+    | Nil => back
+    | Cons (name, rest) => Cons (name, prepended rest back)
+
+let rec reaches (nodes : list package_node) (changed : list string) (visited : list string) (pending : list string) : bool =
+    match pending with
+    | Nil => false
+    | Cons (name, rest) =>
+        if listm'.contains name changed then true
+        elif listm'.contains name visited then reaches nodes changed visited rest
+        else
+            match node_named name nodes with
+            | Some node => reaches nodes changed (Cons (name, visited)) (prepended node.uses rest)
+            | None => reaches nodes changed (Cons (name, visited)) rest
+
+let rec affected_crates (nodes : list package_node) (all : list package_node) (changed : list string) (acc : list string) : list string =
+    match nodes with
+    | Nil => listm.rev acc
+    | Cons (node, rest) =>
+        inl hit = node.crate && reaches all changed Nil (Cons (node.name, Nil))
+        affected_crates rest all changed (if hit then Cons (node.name, acc) else acc)
+
+inl expect (condition : bool) (~detail : string) : () = if condition then () else failwith detail
+
+inl node (~name : string) (uses : list string) (crate : bool) : package_node = { name = name; uses = uses; crate = crate }
+
+inl sample_graph () : list package_node =
+    Cons (node "jobs" (Cons ("core", Cons ("spiral", Nil))) false,
+    Cons (node "job_after" (Cons ("core", Cons ("jobs", Nil))) true,
+    Cons (node "windows" (Cons ("jobs", Nil)) true,
+    Cons (node "watch" (Cons ("windows", Nil)) true,
+    Cons (node "notes" (Cons ("core", Nil)) true,
+    Cons (node "loop_a" (Cons ("loop_b", Nil)) true,
+    Cons (node "loop_b" (Cons ("loop_a", Nil)) true, Nil)))))))
+
+inl joined (names : list string) : string = listm.fold (fun text name => if text = "" then name else text ++# "," ++# name) "" names
+
+///> rust
+test a_project_lists_its_packages_without_markers =
+    inl uses = project_uses "packages:\n    |core-\n    spiral-\n    eoie_jobs\nmodules:\n    graph\n"
+    expect (joined uses = "core,spiral,eoie_jobs") (joined uses)
+    expect (joined (project_uses "modules:\n    graph\n") = "") "no packages section"
+
+///> rust
+test crates_reaching_a_changed_package_are_affected_transitively =
+    expect (joined (affected_crates (sample_graph ()) (sample_graph ()) (Cons ("jobs", Nil)) Nil) = "job_after,windows,watch") "direct and transitive users, never the unrelated crate"
+    expect (joined (affected_crates (sample_graph ()) (sample_graph ()) (Cons ("watch", Nil)) Nil) = "watch") "a changed crate is affected itself"
+    expect (joined (affected_crates (sample_graph ()) (sample_graph ()) (Cons ("missing", Nil)) Nil) = "") "cycles end without a match"

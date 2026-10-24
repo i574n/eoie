@@ -1,0 +1,17 @@
+[package.metadata.spiral]
+entry = "main.spi"
+output = "tar_runtime.rs"
+
+[package]
+name = "eoie-archive-tar-runtime"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "eoie_archive_tar_runtime"
+path = "tar_runtime.rs"
+
+[dependencies]
+archive-deflate-domain = { path = "../archive_deflate_domain" }

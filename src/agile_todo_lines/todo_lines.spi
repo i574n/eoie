@@ -1,0 +1,12 @@
+open workspace_primitives.numbers
+open agile_todo_model.model
+
+let todo_findings (syntax : i32) (~only : string) (~backlog : string) (~text : string) (~path : string) (json : bool) : string * i32 * string =
+    findings (case_at syntax CFamily) (todo_filter_of only) backlog text path json
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_todo_findings", ((fun (syntax, only, backlog, text, path, json) => todo_findings syntax only backlog text path json) : i32 * string * string * string * string * bool -> string * i32 * string))
+    !!!!Export("eoie_agile_todo_id", ((fun (backlog, comment) => todo_id backlog comment) : string * string -> string))
+    inl _ = todo_findings 1i32 "" "" "" "" false
+    inl _ = todo_id "" ""
+    0i32

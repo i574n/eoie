@@ -1,0 +1,54 @@
+open rust_std_fs.model
+open sm'_operators
+open agile_task_text.model
+open workspace_primitives.numbers
+open workspace_primitives.clock
+open workspace_primitives.console
+open workspace_primitives.files
+
+inl argument_owned index : string = rust_std_env.model.argument_owned index
+
+union planning_step =
+    | StepText : string
+    | StepRejected : string
+
+inl step_from (code, detail) : planning_step = if code = 0i32 then StepText detail else StepRejected detail
+
+let value_token (~field_name : string) (~value : string) : planning_step =
+    step_from ($'agile_planning_values::eoie_agile_planning_value_token(&*!field_name, &*!value)' : i32 * string)
+
+let rewritten (~text : string) (~id : string) (~field_name : string) (~token : string) : planning_step =
+    step_from ($'agile_planning_rewrite::eoie_agile_planning_rewrite(&*!text, &*!id, &*!field_name, &*!token)' : i32 * string)
+
+inl planning_summary (~text : string) (~id : string) : string = $'agile_planning_fields::eoie_agile_planning_summary(&*!text, &*!id)' : string
+
+let planning_edit_failure (~reason : string) (~id : string) : i32 = stderr_failure ("agile edit " ++# id ++# " rejected: " ++# reason)
+
+let planning_written (~state : string) (~id : string) (~field_name : string) (~original : string) (~updated : string) (started : u64) : i32 =
+    match replace_file_checked state updated with
+    | Replaced =>
+        inl head = "eoie agile edit ok id=" ++# id ++# " field=" ++# field_name ++# " "
+        stdout_line (head ++# (planning_summary updated id) ++# (measured_sizes (text_bytes original) (text_bytes updated) (ms_since started)))
+    | problem => planning_edit_failure (file_replacement_problem problem) id
+
+let planning_revised (~state : string) (~id : string) (~field_name : string) (~token : string) (~original : string) (started : u64) : i32 =
+    match rewritten original id field_name token with
+    | StepRejected reason => planning_edit_failure reason id
+    | StepText updated => planning_written state id field_name original updated started
+
+let planning_edit (~root : string) (~id : string) (~field_name : string) (~value : string) : i32 =
+    inl started = unix_ms ()
+    inl state = backlog_state_path root
+    match probe (unchecked state) with
+    | FileMissing _ => planning_edit_failure "state/agile.spi is missing" id
+    | FileReadable file =>
+        match value_token field_name value with
+        | StepRejected reason => planning_edit_failure reason id
+        | StepText token => planning_revised state id field_name token (loaded_string (read_text file)) started
+
+let planning_edit_entry () : i32 = planning_edit (argument_owned 1i32) (argument_owned 2i32) (argument_owned 3i32) (argument_owned 4i32)
+
+inl main () : i32 =
+    !!!!Export("eoie_agile_planning_edit_run", ((fun () => planning_edit_entry ()) : () -> i32))
+    inl _ = planning_edit_entry ()
+    0i32
